@@ -187,6 +187,7 @@ class BridgeCore:
             raise ValueError("required participants must include this bridge's robot")
         self.stopped = False
         self.last_decision = None
+        self.last_match_goal = None
         self.completed_goal_cycle = None  # Immutable (epoch, prior resume seq, first completion time).
 
     def stop(self):
@@ -223,6 +224,19 @@ class BridgeCore:
         event = dict(message)
         event["now"] = self.clock()  # NEVER substitute capture, issue or expiry
         result = self.executor.handle(event)
+        if result["accepted"] and event["event"] == "frame":
+            # A field process can see the crossing while its runner misses every goal pulse.
+            # The referee repeats the scored rally on fresh frames after ball replacement.
+            match = event.get("fc_match")
+            pose = event["robots"].get(self.robot_id)
+            if (isinstance(match, dict) and match.get("phase") == "goal" and match.get("epoch") == event["epoch"]
+                    and isinstance(pose, dict) and "goal" in pose and type(match.get("rally")) is int
+                    and match["rally"] > 0 and type(match.get("goal_sign")) is int and match["goal_sign"] in (-1, 1)):
+                cycle = (event["epoch"], match["rally"])
+                if cycle != self.last_match_goal:
+                    controller = self.executor.controllers[self.robot_id]
+                    controller.record_goal(match["goal_sign"] * controller.field.attack_sign)
+                    self.last_match_goal = cycle
         return {key: result[key] for key in ("accepted", "reason")}
 
     def hold(self, held, reason="external command guard hold"):

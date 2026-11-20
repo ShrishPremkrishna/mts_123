@@ -10,8 +10,8 @@ import asyncio
 from dataclasses import replace
 import math
 
-from final_project.pupper_fc.kick_handoff import KickHandoff
-from final_project.pupper_fc.model import zero
+from final_project.pupper_fc.kick_handoff import KickHandoff, KickStep
+from final_project.pupper_fc.model import Decision, zero
 from final_project.pupper_fc.operator_kick_receipts import OperatorKickReceipts
 
 from operator_kick import kick_in_place
@@ -138,35 +138,59 @@ class CombinedRuntime:
         if self.opened:
             self.velocity_sink(zero(self.robot.now(), self.robot_id))
 
-    def tick(self, now=None):
+    def tick(self, now=None, *, manual_command=None):
         if not self.opened:
             raise RuntimeError("combined runtime must be opened against the selected controllers")
-        if now is None:
-            now = self.robot.now()
         self._observe_job()
         if self.stop_reason:
             self.executor.stop()
         elif self.robot.stops != self._generation or self.robot.fallen or self.robot.motion_block_reason():
             self.stop("robot reported Stop, a fall, or a motion fault")
-        elif self.executor.armed:
+        elif manual_command is not None and (self.executor.armed or self.handoff.active is not None
+                                             or manual_command.robot_id != self.robot_id):
+            self.stop("manual drive conflicts with field control, kick, or robot identity")
+        elif self.executor.armed or manual_command is not None:
             problem = self.path_problem(self.handoff.active is not None)
             if problem:
                 self.stop(problem)
             elif self.handoff.active is None and (self.robot.current is not None or not self.robot.commands.empty()):
                 self.stop("unexpected competing job")
-        step = self.executor.kick_step(self.handoff, now)
+        if now is None:
+            now = self.robot.now()  # A camera hold discovered above already advanced the field clock.
+        if manual_command is None:
+            step = self.executor.kick_step(self.handoff, now)
+        else:
+            if now >= manual_command.expires_at or self.executor.external_holds[self.robot_id]:
+                manual_command = zero(now, self.robot_id)
+            step = KickStep(Decision("teleop", "operator drive", manual_command))
         if step.cancel is not None:
             self.stop("in-flight kick revoked")
         command = step.decision.command
         moving = any((command.vx, command.vy, command.wz))
-        if moving and (self.robot.now() >= command.expires_at or self.path_problem(False)):
-            self.stop("walking command or walker evidence expired before output")
+        if moving:
+            problem = self.path_problem(False)
+            if problem:
+                self.stop(problem)
+            elif self.executor.external_holds[self.robot_id] and self.handoff.active is None:
+                step = replace(step, decision=replace(step.decision, phase="external_hold",
+                               reason=self.executor.external_hold_reasons[self.robot_id],
+                               command=zero(now, self.robot_id)))
+            elif self.robot.now() >= command.expires_at:
+                if manual_command is None:
+                    self.stop("walking command expired before output")
+                else:
+                    step = replace(step, decision=replace(step.decision, command=zero(now, self.robot_id)))
         if self.stop_reason:
             step = replace(step, request=None, decision=replace(step.decision, phase="stopped",
                            reason=self.stop_reason, command=zero(now, self.robot_id)))
         self._authorized_until = step.decision.command.expires_at
         try:
-            self.velocity_sink(step.decision.command)
+            hold = self.velocity_sink(step.decision.command)
+            if hold:
+                # GuardedPath has already published zero for a camera expiry
+                # at the send boundary. Keep the healthy walker available.
+                step = replace(step, request=None, decision=replace(step.decision, phase="external_hold",
+                               reason=hold, command=zero(now, self.robot_id)))
         except Exception:
             self.stop("guarded velocity publication failed")
             raise

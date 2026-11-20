@@ -35,7 +35,8 @@ def test_ordinary_api_cannot_claim_fc_session():
         persistent_session.start_api(None, {"environment": release.ENV}, None)
 
 
-def test_selected_bundle_persistent_prepare_is_file_only(tmp_path):
+@pytest.mark.parametrize("recording", [None, "events"])
+def test_selected_bundle_persistent_prepare_is_file_only(tmp_path, recording):
     root = tmp_path / "frozen"
     receipt = release.stage(release.ROOT, root)
     # Synthetic native library only exercises the bounded file screening step.
@@ -55,10 +56,19 @@ def test_selected_bundle_persistent_prepare_is_file_only(tmp_path):
                "--imu-library", str(imu), "--imu-sha256", release.file_digest(imu),
                "--telemetry-topics", str(root / release.TELEMETRY)]
     env = dict(os.environ, **release.ENV, PUPPER_GAIT_DEPLOY_DIR="/stale/checkout")
+    if recording:
+        env["PUPPER_FC_RECORDING"] = recording
+        command[-1] = str(root/release.EVENT_TELEMETRY)
     output = subprocess.run(command, env=env, text=True, capture_output=True, timeout=10, check=True)
     assert json.loads(output.stdout)["motor_launch"] is False
     plan = json.loads((run / "selected-session.json").read_text())
     assert plan["controllers"] == list(release.CONTROLLERS)
+    topics = json.loads(Path(plan["components"]["telemetry_topics"]["path"]).read_text())
+    if recording == "events":
+        assert topics == ["/trick_leg_kick/clip", "/fc/kick_result", "/estop_controller/request_stop", "/emergency_stop"]
+    else:
+        assert {"/joint_states", "/imu_sensor_broadcaster/imu", "/fc/body_command/admitted"} <= set(topics)
+
     assert plan["environment"]["PUPPER_GAIT_DEPLOY_DIR"] == str(root / "pupper_gait_deploy")
     assert not (run / "owned_session.json").exists()
     native.write_bytes(data)

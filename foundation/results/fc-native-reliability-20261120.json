@@ -1,0 +1,80 @@
+{
+  "date": "2026-11-20",
+  "scope": "Device-free ROS Jazzy, Linux arm64. Actual reader and sampler with intercepted Linux I2C syscalls. Separate driver callback and ResourceManager tests with a memory-backed board and simulated 100 Hz balance reports. Wire packets are requested outputs; physical joint torque, falls and Pi timing require hardware.",
+  "reproduce": "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/README.md",
+  "image_id": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
+  "source_sha256_relative_to_driver": {
+    "CMakeLists.txt": "8553d21290cb57165101d843ce85b96812e39911ae70df990a1966ff9003c4af",
+    "src/rt/rt_bno055.cpp": "c9a09a3df6099e62ec9be659c7645cd6e442410304b80d11863d1f3fbb34b423",
+    "src/imu_manager.cpp": "680a8f89cb2a598aaed5b38990992a371806da8113e1a699d251c9210e9e2846",
+    "src/control_board_hardware_interface.cpp": "ff1f7205a6556324a9f385fd526f0ef3f7b2e2df8cd68157c3a8c8bef7d44c98",
+    "include/control_board_hardware_interface/imu_health.hpp": "5ded5178128013ec2ce97e89ed8b6ab38ca442f1f95f25f348a85a7528188fc2",
+    "include/control_board_hardware_interface/imu_manager.hpp": "81c80bae724eb29c08eadabfb6f625d14c400b2a38783010f2f22994a677bd1a",
+    "include/control_board_hardware_interface/control_board_hardware_interface.hpp": "645e023622386d72a737710cedbcab3447bab1a5679083196e932d136c4dd100",
+    "include/rt/rt_bno055.h": "2044d35214714762b17448b97516fea254ce58c7554a16a0eac37e419209e753",
+    "test/test_bno_cache.cpp": "93a7111cb7d4c9fe1f8c781abe81ef993e3101e6dc8512edd70c3f855317c973",
+    "test/test_imu_health_guard.cpp": "1cb051a4d8e99fc9f0fe23e1f9457f28990c3af8580c3b5a8e9b8c1511897754"
+  },
+  "ubuntu_test_library": {
+    "sha256": "8450b2eda685ec304157fc131ed73b4ce5c08218bea9f61ddd52b42b76c1f3c2",
+    "verified_compiled_marker": "FC_IMU_PUBLISH_PER_REPORT_V1",
+    "target_pi_build_required": true
+  },
+  "ctest": {
+    "filter": "^(imu_health_|imu_manager_|bno_cache_|bno_protocol_|driver_neutral_)",
+    "passed": 63,
+    "failed": 0,
+    "skipped": 0,
+    "parallel_workers": 3,
+    "wall_s": 23.86
+  },
+  "reader": {
+    "fixture": "Captured two-report SH-2 input followed by a 120 ms blocked header probe",
+    "watchdog_ms": 100,
+    "negative_control": "Swapped only src/rt/rt_bno055.cpp for the exact 5ad07e1 version in an independent build. Both publication regressions failed. The original sample returned the pair 123 ms after its host receipt, and the real IMU manager had no usable pair during the stalled probe. The earlier handoff experiment observed 125 ms.",
+    "final_sample_whole_ms": 0,
+    "final_threaded_age_us": 115,
+    "result": "Actual IMUManager.get_imu_data() returned the completed pair while the subsequent intercepted syscall blocked. After 120 ms the component receipts were unchanged and the same validity check rejected the stale cache. Overlap, obsolete-before-fresh, duplicate, malformed and independently renewed component tests passed."
+  },
+  "dropout_time_origin": "Milliseconds from the last 100 Hz simulated receipt. Drivers checked at 5 ms intervals. One fresh component keeps advancing independently in the one- and two-second trials.",
+  "dropouts": [
+    {
+      "profile": "supported_standby",
+      "lost": "gyro",
+      "duration_ms": 1005,
+      "trip_observed_ms": 104,
+      "neutral_packets_in_checked_interval": 137,
+      "telemetry_restored_ms_after_stream_return": 3057,
+      "outcome": "Same driver; unknown orientation while expired. Existing home of all 12 joints remained valid in this unchanged memory board. Only disabled zero packets. Walker and kick claims refused even after fresh stationary telemetry returned."
+    },
+    {
+      "profile": "supported_rehome",
+      "lost": "quaternion",
+      "duration_ms": 2005,
+      "trip_observed_ms": 104,
+      "neutral_packets_in_checked_interval": 317,
+      "supported_rehome_ms": 3175,
+      "outcome": "Same driver; full neutral before logging and ERROR. Fresh reports alone could not resume. Simulated a change in all 12 encoder coordinates. Explicit configure/activate repeated stationary qualification and homed all 12. Old commands, partial claims and a canceled claim did not arm. A full fresh switch sent zero targets, gains and feed-forward torque on its first enabled packet. A fresh gain then reached the bus; a subsequent Stop disabled output."
+    },
+    {
+      "profile": "supported_rehome",
+      "lost": "both",
+      "duration_ms": 3005,
+      "trip_observed_ms": 103,
+      "withdrawn_command_interfaces": 60,
+      "supported_rehome_ms": 3191,
+      "outcome": "Same imported real ROS ResourceManager driver; unconfigured and neutral while the reports were absent and after they returned. Explicit supported reactivation restored hardware availability. A fresh full claim enabled the memory board."
+    },
+    {
+      "profile": "strict",
+      "lost": "both",
+      "duration_ms": 3001,
+      "trip_observed_ms": 103,
+      "withdrawn_command_interfaces": 60,
+      "supported_rehome_ms": 3196,
+      "outcome": "Same imported real ROS ResourceManager driver; unconfigured with neutral wire and unavailable interfaces even when reports returned. A manual supported lifecycle reactivation in the fixture repeated home. The session operator's in-place recovery command is restricted to supported_rehome; use ordinary supported cold home on the strict profile."
+    }
+  ],
+  "interpretation": "The earlier physical field run logged a balance receipt timeout. These reproductions identify one possible cause; the old log did not record the expired component or show a blocked syscall. In the subsequent offense run the camera guard and arming blocked motion; no nonzero command or kick was recorded.",
+  "review": "Exact claude-opus-5-5 helped design the growing-age, independent 100 Hz sequence and neutral-wire checks. Measurements are from the tests described here."
+}

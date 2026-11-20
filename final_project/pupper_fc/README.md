@@ -1,4 +1,16 @@
-# Offline soccer decision rehearsal
+# Pupper FC
+
+Double-click **Pupper FC.command** in the checkout root, or run `./pupper-fc`. The first launch installs the pinned laptop dependencies. Subsequent launches open the local match lobby. The robot does not move when the app opens.
+
+On the Pi, enroll the selected build once. The daily actions are **Prepare**, **Home** with Pupper supported, and **Start match** from the laptop. An ordinary End match keeps the walker standing. Starting a fresh match reuses that session. [Pi setup and operator commands](../../foundation/hardware/FC_OPERATOR.md)
+
+Click Blue or Red to discover an enrolled robot on Wi-Fi. Connect the overhead camera, put the ball and the selected robots in view, then start. Camera settings show the live detections, device selection and goalpost survey. The six mounted field tags provide the default calibration. Blue uses body tag 10, Red uses 11. The optional appearance preview marks anonymous bodies.
+
+Use the gear beside a connected team to select **Teleop**. Blue uses W/S to move forward and back, A/D to sidestep and Q/E to turn. Red uses the arrow keys to move and comma/period to turn. Escape sends Stop to connected teams. After a goal, return the ball to the field and press **Resume play**.
+
+Run `./pupper-fc-check` for the short hardware-free regression. The release audit explains the old ten-minute cycle, sensor recovery, archived evidence, hardware acceptance and rollback. [Release audit](RELEASE.md) · [Field replay](../../foundation/results/lobby-camera-rehearsal-20261120.json)
+
+## Offline soccer decision rehearsal
 
 The interactive field defaults to one simulated Pupper steering toward a left-foot shot. It receives metric field position and yaw, steers on fresh observations, slows into the paw contact window and requests one kick. A simulated backend reports clip playback and walker restoration. The ball receives no kick impulse. The viewer can show roles, hold reasons, speed, yaw rate and decision input age throughout.
 

@@ -18,7 +18,7 @@ ROOT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT / "gemini_pupper/robot"))
 from stage_app import checked_path, verify_selected
-from fc_release_profile import CONTROLLERS, FIELD_FILES, GUARD, GUARD_ARGS, KICK_DIR, MODE, TELEMETRY, WALK_MODEL
+from fc_release_profile import CONTROLLERS, EVENT_TELEMETRY, FIELD_FILES, GUARD, GUARD_ARGS, KICK_DIR, MODE, TELEMETRY, WALK_MODEL
 
 LAUNCH = "foundation/hardware/lab6_session.launch.py"
 CONFIG = "foundation/hardware/lab6-session.yaml"
@@ -61,9 +61,12 @@ def selected_paths(root):
     return sorted(fixed)
 
 
-def validate_selection(root, components, manifest):
+def validate_selection(root, components, manifest, *, recording="full"):
+    if recording not in ("events", "full"):
+        raise ValueError("unknown FC recording selection")
+    telemetry = EVENT_TELEMETRY if recording == "events" else TELEMETRY
     roles = {"launch": LAUNCH, "config": CONFIG, "urdf": URDF, "app_manifest": MANIFEST,
-             "telemetry_topics": TELEMETRY, "helper": "foundation/hardware/persistent_session.py",
+             "telemetry_topics": telemetry, "helper": "foundation/hardware/persistent_session.py",
              "lifecycle": "gemini_pupper/robot/session_processes.py"}
     if any(Path(components[role]["path"]) != root / relative for role, relative in roles.items()):
         raise ValueError("combined session must select its frozen launch, telemetry, helpers and manifest")
@@ -73,16 +76,20 @@ def validate_selection(root, components, manifest):
         raise ValueError("combined release manifest differs from selected profile")
 
 
-def verify_guard(life, tag, root):
+def verify_guard(life, tag, root, gateway=None):
     """Check the selected guard belongs to this native launch before arming."""
     guard = str(root / GUARD)
     expected = ["-B", "-s", guard, *GUARD_ARGS]
-    count = 0
+    count = gateways = 0
     for proc in life.PROC.iterdir():
         if not proc.name.isdigit():
             continue
         try:
             arguments = (proc / "cmdline").read_bytes().split(b"\0")[:-1]
+            if gateway and arguments and Path(os.fsdecode(arguments[0])).name == "estop_controller":
+                if life.capture(int(proc.name), tag)["executable"] != gateway["path"]:
+                    raise ValueError("active Stop gateway differs from the enrolled target binary")
+                gateways += 1
             if os.fsencode(guard) not in arguments:
                 continue
             found = life.capture(int(proc.name), tag, guard)
@@ -91,11 +98,13 @@ def verify_guard(life, tag, root):
         if found["argv"][1:] != expected:
             raise ValueError("selected guard has unexpected arguments")
         count += 1
+    if gateway and gateways != 1:
+        raise ValueError("require one enrolled Stop gateway in this native session")
     if count != 1:
         raise ValueError("require one running guard owned by this native session")
 
 
-def verify_running_session(run_dir, release_root):
+def verify_running_session(run_dir, release_root, *, operator_controls=False):
     """Read the prepared run and verify mapped native/IMU identities on the Pi."""
     import persistent_session
     run = Path(run_dir).resolve(strict=True)
@@ -107,8 +116,11 @@ def verify_running_session(run_dir, release_root):
         raise ValueError("field runner does not own this release and controller set")
     if any(plan["environment"].get(k) != v for k, v in ENV.items()):
         raise ValueError("prepared run has a different FC environment")
+    # load() installs this exact saved environment before ROS is initialized.
+    if operator_controls and plan["environment"].get("ROS_LOCALHOST_ONLY") != "1":
+        raise ValueError("interactive controls require a per-robot localhost-only ROS session and runner")
     record = json.loads((root / MANIFEST).read_text())
-    validate_selection(root, plan["components"], record)
+    validate_selection(root, plan["components"], record, recording=plan["environment"].get("PUPPER_FC_RECORDING","full"))
     if (Path(plan["runtime_manifest"]["path"]) != run / "runtime-manifest.json"
             or Path(plan["generated_config"]["path"]) != run / "persistent_controllers.yaml"):
         raise ValueError("combined profile and configuration must belong to this run")
@@ -118,7 +130,7 @@ def verify_running_session(run_dir, release_root):
             or "server" in receipt["processes"] or "server" in receipt["pending"]):
         raise ValueError("owned manager must be ready with no ordinary API server")
     persistent_session.check_loaded(plan, manager)
-    verify_guard(life, plan["session_id"], root)
+    verify_guard(life, plan["session_id"], root, plan["components"].get("gateway"))
     return json.loads(Path(plan["runtime_manifest"]["path"]).read_text())
 
 
@@ -170,7 +182,17 @@ def prepare_offline_profile():
             "bounds": runtime_config.session_motion_bounds(manifest), "motor_started": False}
 
 
-def git_revision(root, paths):
+def source_revision(root, paths):
+    # A portable archive travels independently of its original Git database.
+    identity = root / "release-source.json"
+    if identity.is_file():
+        record = json.loads(identity.read_text())
+        actual = {path: file_digest(checked_path(root, path)) for path in paths}
+        if actual != record["application_sha256"]:
+            raise ValueError("the extracted Pi application differs from its packaged file digests")
+        return record["source_commit"]
+    if not (root / ".git").exists():
+        return None
     status = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--untracked-files=all", "--", *paths],
                             capture_output=True, text=True)
     if status.returncode or status.stdout:
@@ -201,7 +223,7 @@ def stage(source, destination, expected_commit=None):
     if destination.exists() or destination.is_symlink():
         raise ValueError("destination exists; verify the existing release or choose an unused path")
     paths = selected_paths(source)
-    revision = git_revision(source, paths)
+    revision = source_revision(source, paths)
     if expected_commit is not None and revision != expected_commit:
         raise ValueError("selected source differs from the expected clean commit")
     destination.parent.mkdir(exist_ok=True, parents=True)
@@ -216,7 +238,7 @@ def stage(source, destination, expected_commit=None):
             shutil.copyfile(src, dest)
             entries.append({"path": relative, "sha256": file_digest(dest)})
         verify_selected(source, entries)
-        if expected_commit is not None and git_revision(source, paths) != expected_commit:
+        if expected_commit is not None and source_revision(source, paths) != expected_commit:
             raise ValueError("selected source changed during release assembly")
         profile = check_profile(tree)
         record = {"schema": SCHEMA, "source_commit": revision, "environment": ENV,
@@ -243,9 +265,26 @@ def main():
     checker.add_argument("--manifest-sha256")
     native = commands.add_parser("inspect-native", help="screen a target controller binary without loading it")
     native.add_argument("--library", type=Path, required=True)
+    enroll = commands.add_parser("enroll", help="stage, verify and select the local Pi; no motor startup")
+    enroll.add_argument("--robot-id", required=True, choices=("pupper-1", "pupper-2"))
+    enroll.add_argument("--release", type=Path, help="already staged local release; default stages this source")
+    group = enroll.add_mutually_exclusive_group()
+    group.add_argument("--platform-template", type=Path, help="prior selected-session.json from this Pi")
+    group.add_argument("--platform-env", type=Path, help="installed FC ROS overlay's environment.sh")
+    enroll.add_argument("--imu-prefix", type=Path, help="select newly installed control-board ROS package prefix")
+    enroll.add_argument("--imu-recovery", choices=("strict", "supported_rehome", "supported_standby"), default="strict")
+    enroll.add_argument("--field-config", type=Path, help="measured venue geometry; defaults to the mounted arena")
+    enroll.add_argument("--detector-model", type=Path)
+    enroll.add_argument("--recording", choices=("events","full"), default="events", help="full records per-frame diagnostics")
+    enroll.add_argument("--side", choices=("left", "right"), default="right")
+    commands.add_parser("rollback", help="restore the previous enrolled profile and release without starting hardware")
     commands.add_parser("_profile", help=argparse.SUPPRESS)
     args = parser.parse_args()
-    if args.action == "stage":
+    if args.action in ("enroll", "rollback"):
+        sys.path.insert(0, str(ROOT))
+        from fc_enrollment import run
+        result = run(args)
+    elif args.action == "stage":
         result = stage(args.source, args.destination, args.expected_commit)
     elif args.action == "verify":
         result = verify(args.release, expected_manifest=args.manifest_sha256)

@@ -1,0 +1,147 @@
+{
+  "date_utc": "2026-11-20",
+  "platform": "linux/arm64 Docker on the development Mac",
+  "ros_image_id": "sha256:8eed0a4669bbf43ee331878a4c39bd8ebddea8e3312a58b4fae8edb14526b617",
+  "commands": [
+    "./pupper-fc-check",
+    "docker run --rm --network none -v \"$PWD:/repo:ro\" -w /repo -e PUPPER_ISOLATED_ROS_TEST=1 -e ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST -e PYTHONDONTWRITEBYTECODE=1 ros:jazzy-ros-base python3 -u final_project/behaviors/tools/ros_fc_match_smoke.py"
+  ],
+  "real_software": [
+    "Lobby start/end/rollback/resume and per-team UDP publishers",
+    "Separate live_field_attack subprocesses per Pi and match",
+    "Measured clock probes, ROS Jazzy DDS in separate participant domains, BridgeCore, operator_action and KickHandoff"
+  ],
+  "fixtures": [
+    "The camera supplies measured positions from a 2-D kinematic walker and a scripted ball. The 24 cm relocation is an imposed disturbance; the second approach follows actual runner commands.",
+    "Local peers replace SSH and JSON stdio round trips to the native runner. Guard, physical Stop availability and native clip/walker-return receipts are simulated."
+  ],
+  "timing": "One sample per roster. Start times run from Lobby.start on already connected, prepared peer(s) through the first nonzero executor command. End includes closed field subprocesses and standby acknowledgements. Warm uses the same runner instances, modes and camera with new source subprocesses and epochs. The two-team sequence includes a rejected trial before the first successful start. DDS discovery can add seconds. These are laptop-container timings, including no motor warmup, homing, SSH or Pi inference.",
+  "ros_rehearsals": [
+    {
+      "roster": [
+        "pupper-1"
+      ],
+      "end_to_standby_s": 0.198,
+      "start_to_first_nonzero_s": 0.276,
+      "warm_restart_to_first_nonzero_s": 0.325,
+      "kick_completions": [
+        "r1-p0-k1",
+        "r1-p0-k2"
+      ],
+      "observed_ball_relocation_m": 0.24,
+      "integrated_second_approach_m": 0.241,
+      "new_capture_after_first_completion_s": 0.028,
+      "eof_standby": true,
+      "ros_events": {
+        "pupper-1": 570
+      },
+      "pending_frames": {
+        "pupper-1": 0
+      },
+      "wall_s": 12.216
+    },
+    {
+      "roster": [
+        "pupper-2"
+      ],
+      "end_to_standby_s": 0.264,
+      "start_to_first_nonzero_s": 0.334,
+      "warm_restart_to_first_nonzero_s": 0.323,
+      "kick_completions": [
+        "r1-p0-k1",
+        "r1-p0-k2"
+      ],
+      "observed_ball_relocation_m": 0.24,
+      "integrated_second_approach_m": 0.24,
+      "new_capture_after_first_completion_s": 0.016,
+      "eof_standby": true,
+      "ros_events": {
+        "pupper-2": 572
+      },
+      "pending_frames": {
+        "pupper-2": 2
+      },
+      "wall_s": 12.056
+    },
+    {
+      "roster": [
+        "pupper-1",
+        "pupper-2"
+      ],
+      "rejected_start_standby": true,
+      "end_to_standby_s": 0.26,
+      "start_to_first_nonzero_s": 3.127,
+      "warm_restart_to_first_nonzero_s": 0.376,
+      "score": {
+        "pupper-1": 1,
+        "pupper-2": 0
+      },
+      "early_resume_held_match": true,
+      "missed_red_goal_frames": 2,
+      "rally_after_replacement_and_resume": 2,
+      "eof_standby": true,
+      "ros_events": {
+        "pupper-1": 232,
+        "pupper-2": 346
+      },
+      "pending_frames": {
+        "pupper-1": 4,
+        "pupper-2": 4
+      },
+      "wall_s": 9.712
+    }
+  ],
+  "pair_injections": [
+    "Red rejected its arm after at least three admitted pending frames reached the already armed Blue runner. Neither executor emitted a motion or kick; both returned to standby.",
+    "Replaced the scored ball, attempted Resume before the walking return finished and kept the match open. Dropped Red goal frames at its executor input until after replacement. Both consumed fresh home evidence and entered rally 2.",
+    "Closing a field producer's stdin revoked the observation over DDS, stopped both participants' play and left both local runners in standby."
+  ],
+  "browser": {
+    "version": "headless Google Chrome 157.0.8103.79",
+    "scope": "Real static module, HTTP and WebSocket routes with in-memory Pi/camera endpoints on localhost.",
+    "roster": [
+      "Blue keyboard",
+      "Red autonomous"
+    ],
+    "keydown_w_before_start_nonzero": false,
+    "keydown_w_after_start_forward": true,
+    "escape_stop_acknowledged_by_both_fixtures": true,
+    "final_lobby_phase": "idle",
+    "page_errors": 0
+  },
+  "regressions": {
+    "pupper_fc_check": {
+      "passed": 55,
+      "seconds": 1.82
+    },
+    "executor_field_and_ingress": {
+      "passed": 183,
+      "seconds": 0.46
+    },
+    "memory_controller_walk_kick_and_teleop": {
+      "passed": 19,
+      "seconds": 2.5
+    }
+  },
+  "source_sha256": {
+    "final_project/behaviors/tools/ros_fc_match_smoke.py": "48abf9f92cb3344b6737648c7da02fb6403aa3b2d514a5de2dfa92bf290ecd05",
+    "final_project/behaviors/combined_fc_runner.py": "0b54be56cc081f8f41d184a9705233a515a52e01c90e2fad6a0cd14fdd853abc",
+    "final_project/behaviors/fc_executor_bridge.py": "d3bb181325dd9211b331b413746c54f3edb0dde35e41b698c920d587991b4cbb",
+    "final_project/behaviors/live_field_attack.py": "53bf06ea1c956a2fa00198bf1f4dff825eb354593e906e6c6a31e67d6a30a820",
+    "final_project/behaviors/operator_drive.py": "4b6ccab8013c5a704f1fa63f3632ea11cbdbe0977811bdb7b697794935e0a04d",
+    "final_project/behaviors/overhead_ingress.py": "bdab8273f01c512ec27d0ac09a7f8959f1160236dde337bfc33ff385933bab06",
+    "final_project/overhead_perception/fieldcam/net.py": "b7f139297921da48c4659c9540c55eaed4da0b9e738b4a68f6b793df0233c196",
+    "final_project/pupper_fc/arena.json": "79f8ec17236d43062926348daa2d71bfde0c9a0001c78d91df511e63c956072b",
+    "final_project/pupper_fc/lobby.py": "e6faa665e996ea3bf87a02c5f031d4c53f7eb6406048eba0ac6c8880b8939b20",
+    "final_project/pupper_fc/field_transport.py": "beacdd2b8fe97ef56736a03ab81a133a841bd3e50819de0d92173863f24271a5",
+    "final_project/pupper_fc/match_director.py": "d665aed5399e7d333ca25f6c51378341b1c7ced23564927e668e88f230059f53",
+    "final_project/pupper_fc/kick_handoff.py": "5f7cc9466d6459acb2a47acea702f225ac97e8dbdac0e361e52acfb927d9e364",
+    "final_project/pupper_fc/integration.py": "5b6c28f6dba6cbee18e9f6e57951363906b11f68b7f9d5167695bc1f40a37d09",
+    "final_project/pupper_fc/controller.py": "1919727c66db8031bfec7bb48ff432f76bc268820004d4a51fb5833acadfcd34",
+    "final_project/pupper_fc/paw_approach.py": "727ecc1b84c4d7d89fdb268bfa1013556c82b82579afe75771c6d41f5f59b353",
+    "final_project/pupper_fc/tactics.py": "0b65a900a9a9a9790a02d2e5ef36c4d9c11076f353770c36810fa4b9e9608d27",
+    "final_project/pupper_fc/simulation.py": "918fb298c18ffda639ce56f37cace0184d64a06d4e15d19e76a496cef701e80a",
+    "final_project/pupper_fc/teleop.py": "9394f827dfab9d9591a1a15a330bb1fc6e93fab1063977564610a23513e72d61",
+    "final_project/pupper_fc/static/controls.mjs": "bda9ce238413a2aded9c9256c1a0531f5edc3eb7d8c71c34ab544f4b17437ee4"
+  }
+}

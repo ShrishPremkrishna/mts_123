@@ -4,6 +4,7 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Vector3.h>
 
+#include <atomic>
 #include <memory>
 #include <optional>
 #include <string>
@@ -15,6 +16,7 @@
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "imu_manager.hpp"
+#include "imu_health.hpp"
 #include "rclcpp/clock.hpp"
 #include "rclcpp/duration.hpp"
 #include "rclcpp/macros.hpp"
@@ -77,8 +79,32 @@ class ControlBoardHardwareInterface : public hardware_interface::SystemInterface
   hardware_interface::return_type write(const rclcpp::Time &time,
                                         const rclcpp::Duration &period) override;
 
+  hardware_interface::return_type prepare_command_mode_switch(
+      const std::vector<std::string> &start, const std::vector<std::string> &stop) override;
+  hardware_interface::return_type perform_command_mode_switch(
+      const std::vector<std::string> &start, const std::vector<std::string> &stop) override;
+
  private:
+  // Bench-only. Once homed on its stand, the driver sends disabled packets for
+  // the rest of the process. No post-fault reading can re-enable a motor.
+  bool supported_standby_ = false;
+  bool standby_homed_ = false;
+  bool standby_feedback_lost_ = false;
+  pupper_imu::StartupWindow standby_recovery_;
+  bool field_rehome_ = false;
+  std::vector<std::string> recovery_interfaces_;
+  enum class FieldState { running, fault, configured, homing, awaiting_claim, zero_first };
+  std::atomic<FieldState> field_state_{FieldState::running};
+  std::atomic<bool> fresh_claim_prepared_{false};
+  bool complete_joint_claim(const std::vector<std::string> &start) const;
+  bool touches_joints(const std::vector<std::string> &start) const;
+  void latch_field_fault();
+  void clear_joint_commands();
+  void invalidate_balance();
   void deactivate_motors();
+  bool check_motor_feedback(const BNO055::Output &sample, const char *phase);
+  void disable_for_imu_fault(const BNO055::Output &sample, std::chrono::steady_clock::time_point now,
+                             const char *phase, const char *error);
   void copy_actuator_commands(bool use_position_limits = false);
   void copy_actuator_states();
   bool do_homing();

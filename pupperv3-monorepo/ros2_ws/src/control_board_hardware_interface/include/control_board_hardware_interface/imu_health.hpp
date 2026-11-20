@@ -18,20 +18,23 @@ constexpr auto startup_timeout = std::chrono::seconds(15);
 template <class Output>
 const char *feedback_error(const Output &sample,
                           std::chrono::steady_clock::time_point now) {
-  if (!sample.quaternion_valid || !sample.gyro_valid) return "missing complete IMU report";
-  if (!sample.quat.coeffs().allFinite() || !sample.gyro.allFinite()) return "nonfinite IMU report";
+  if (!sample.quaternion_valid && !sample.gyro_valid) return "missing quaternion and gyro reports";
+  if (!sample.quaternion_valid) return "missing quaternion report";
+  if (!sample.gyro_valid) return "missing gyro report";
+  if (!sample.quat.coeffs().allFinite()) return "nonfinite quaternion report";
+  if (!sample.gyro.allFinite()) return "nonfinite gyro report";
   const double norm = sample.quat.norm();
   if (norm < 0.9 || norm > 1.1) return "invalid quaternion norm";
   const std::array<std::pair<std::chrono::steady_clock::time_point, std::chrono::microseconds>, 2> components{{
       {sample.quaternion_receipt_time, sample.quaternion_minimum_age_at_receipt},
       {sample.gyro_receipt_time, sample.gyro_minimum_age_at_receipt}}};
-  for (const auto &component : components) {
-    const auto receipt = component.first;
-    const auto minimum_age = component.second;
+  for (std::size_t i = 0; i < components.size(); ++i) {
+    const auto receipt = components[i].first;
+    const auto minimum_age = components[i].second;
     if (receipt == std::chrono::steady_clock::time_point{} || receipt > now ||
-        now - receipt > max_receipt_age) return "stale IMU component receipt";
-    if (minimum_age < std::chrono::microseconds::zero()) return "invalid IMU minimum age";
-    if (now - receipt + minimum_age > max_receipt_age) return "IMU report known too old";
+        now - receipt > max_receipt_age) return i == 0 ? "stale quaternion receipt" : "stale gyro receipt";
+    if (minimum_age < std::chrono::microseconds::zero()) return i == 0 ? "invalid quaternion minimum age" : "invalid gyro minimum age";
+    if (now - receipt + minimum_age > max_receipt_age) return i == 0 ? "quaternion report known too old" : "gyro report known too old";
   }
   return nullptr;
 }

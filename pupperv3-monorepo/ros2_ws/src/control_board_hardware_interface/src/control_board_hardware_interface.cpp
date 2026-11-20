@@ -15,6 +15,8 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <sstream>
+#include <string_view>
 #include <string>
 #include <vector>
 
@@ -27,14 +29,44 @@ const char *RED_ANSI = "\033[1;31m";
 const char *YELLOW_ANSI = "\033[1;33m";
 const char *RESET_ANSI = "\033[0m";
 
-namespace {
-const char *imu_feedback_error(IMUManager &manager) {
-  // Snapshot first, then read the clock: C++ argument evaluation order must not
-  // make a concurrently received sample appear to come from the future.
-  const auto sample = manager.get_imu_data();
-  return pupper_imu::feedback_error(sample, std::chrono::steady_clock::now());
+bool ControlBoardHardwareInterface::check_motor_feedback(const BNO055::Output &sample, const char *phase) {
+  // Sample first, then read the clock. Validate and diagnose the same snapshot.
+  const auto now = std::chrono::steady_clock::now();
+  if (const char *error = pupper_imu::feedback_error(sample, now)) {
+    disable_for_imu_fault(sample, now, phase, error);
+    return false;
+  }
+  return true;
 }
-}  // namespace
+
+void ControlBoardHardwareInterface::disable_for_imu_fault(const BNO055::Output &sample,
+    std::chrono::steady_clock::time_point now, const char *phase, const char *error) {
+  deactivate_motors();  // Send neutral before formatting or writing a diagnostic.
+  latch_field_fault();
+  invalidate_balance();
+  using namespace std::chrono;
+  std::ostringstream log;
+  // Preserve the startup failure marker consumed by persistent_session.
+  if (std::string_view(phase) == "startup") log << "IMU startup check failed: ";
+  log << "IMU fault phase=" << phase << " reason=" << error << " sampled_mono_us="
+      << duration_cast<microseconds>(now.time_since_epoch()).count();
+  const auto component = [&](const char *name, int sequence, bool valid,
+                             steady_clock::time_point receipt, microseconds minimum_age) {
+    log << " " << name << "={seq=" << sequence << " valid=" << valid;
+    if (receipt == steady_clock::time_point{}) {
+      log << " receipt_mono_us=none age_us=none";
+    } else {
+      log << " receipt_mono_us=" << duration_cast<microseconds>(receipt.time_since_epoch()).count()
+          << " age_us=" << duration_cast<microseconds>(now - receipt).count();
+    }
+    log << " batch_min_age_us=" << minimum_age.count() << "}";
+  };
+  component("quaternion", sample.quaternion_report_sequence, sample.quaternion_valid,
+            sample.quaternion_receipt_time, sample.quaternion_minimum_age_at_receipt);
+  component("gyro", sample.gyro_report_sequence, sample.gyro_valid,
+            sample.gyro_receipt_time, sample.gyro_minimum_age_at_receipt);
+  RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "%s", log.str().c_str());
+}
 
 ControlBoardHardwareInterface::~ControlBoardHardwareInterface() {
   // Release lock if we have it
@@ -68,6 +100,20 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
     return hardware_interface::CallbackReturn::ERROR;
   }
 
+  const auto profile = info_.hardware_parameters.find("fc_imu_recovery");
+  if (profile != info_.hardware_parameters.end()) {
+    supported_standby_ = profile->second == "supported_standby";
+    field_rehome_ = profile->second == "supported_rehome";
+    if (!supported_standby_ && !field_rehome_ && profile->second != "strict") {
+      RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "Unknown fc_imu_recovery profile");
+      return hardware_interface::CallbackReturn::ERROR;
+    }
+  }
+
+  if (field_rehome_ || supported_standby_) {
+    RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                "FC_IMU_RECOVERY_CONTRACT_V1_SUPPORTED_REHOME profile=%s", profile->second.c_str());
+  }
   hw_state_positions_.resize(info_.joints.size(), 0.0);
   hw_state_velocities_.resize(info_.joints.size(), 0.0);
   hw_state_efforts_.resize(info_.joints.size(), 0.0);
@@ -79,6 +125,10 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
   hw_command_kds_.resize(info_.joints.size(), 0.0);
 
   for (const hardware_interface::ComponentInfo &joint : info_.joints) {
+    if (field_rehome_) {
+      for (const auto *kind : {"position", "velocity", "effort", "kp", "kd"})
+        recovery_interfaces_.push_back(joint.name + "/" + kind);
+    }
     // Set params for each joint
     hw_actuator_can_channels_.push_back(std::stoi(joint.parameters.at("can_channel")));
     hw_actuator_can_ids_.push_back(std::stoi(joint.parameters.at("can_id")));
@@ -110,6 +160,11 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
        info_.hardware_parameters.at("use_imu") == "False")) {
     RCLCPP_WARN(rclcpp::get_logger("ControlBoardHardwareInterface"), "%sIMU not enabled%s",
                 YELLOW_ANSI, RESET_ANSI);
+    if (supported_standby_ || field_rehome_) {
+      RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                   "FC IMU recovery requires the IMU");
+      return hardware_interface::CallbackReturn::ERROR;
+    }
     imu_manager_.enabled = false;
   } else {
     imu_manager_.enabled = true;
@@ -134,10 +189,13 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
   // stale data. This sends no enable command; failed initialization disables.
   if (imu_manager_.enabled) {
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
-    while (imu_feedback_error(imu_manager_)) {
-      if (std::chrono::steady_clock::now() >= deadline) {
-        RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "No fresh quaternion and gyro reports during IMU initialization");
-        deactivate_motors();
+    while (true) {
+      const auto sample = imu_manager_.get_imu_data();
+      const auto now = std::chrono::steady_clock::now();
+      const char *error = pupper_imu::feedback_error(sample, now);
+      if (!error) break;
+      if (now >= deadline) {
+        disable_for_imu_fault(sample, now, "initialization", error);
         return hardware_interface::CallbackReturn::ERROR;
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(5));
@@ -196,6 +254,10 @@ ControlBoardHardwareInterface::export_state_interfaces() {
 
 hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_configure(
     const rclcpp_lifecycle::State & /*previous_state*/) {
+  if (field_rehome_) {
+    fresh_claim_prepared_ = false;
+    field_state_ = FieldState::configured;
+  }
   // reset values always when configuring hardware
   for (uint i = 0; i < hw_state_positions_.size(); i++) {
     hw_state_positions_[i] = 0.0;
@@ -232,12 +294,89 @@ ControlBoardHardwareInterface::export_command_interfaces() {
   return command_interfaces;
 }
 
+bool ControlBoardHardwareInterface::touches_joints(const std::vector<std::string> &start) const {
+  for (const auto &joint : info_.joints) {
+    for (const auto &name : start) {
+      if (name.compare(0, joint.name.size(), joint.name) == 0 &&
+          name.size() > joint.name.size() && name[joint.name.size()] == '/') return true;
+    }
+  }
+  return false;
+}
+
+bool ControlBoardHardwareInterface::complete_joint_claim(const std::vector<std::string> &start) const {
+  for (const auto &name : recovery_interfaces_)
+    if (std::find(start.begin(), start.end(), name) == start.end()) return false;
+  return !recovery_interfaces_.empty();
+}
+
+hardware_interface::return_type ControlBoardHardwareInterface::prepare_command_mode_switch(
+    const std::vector<std::string> &start, const std::vector<std::string> &stop) {
+  if ((supported_standby_ || field_rehome_) && touches_joints(start)) {
+    if (supported_standby_) return hardware_interface::return_type::ERROR;
+    const auto state = field_state_.load();
+    if (state == FieldState::awaiting_claim) {
+      fresh_claim_prepared_ = complete_joint_claim(start);
+      if (!fresh_claim_prepared_) return hardware_interface::return_type::ERROR;
+    } else if (state != FieldState::running) return hardware_interface::return_type::ERROR;
+  }
+  return hardware_interface::SystemInterface::prepare_command_mode_switch(start, stop);
+}
+
+hardware_interface::return_type ControlBoardHardwareInterface::perform_command_mode_switch(
+    const std::vector<std::string> &start, const std::vector<std::string> &stop) {
+  auto state_at_stop = field_state_.load();
+  if (field_rehome_ && (state_at_stop == FieldState::running || state_at_stop == FieldState::awaiting_claim ||
+                        state_at_stop == FieldState::zero_first) && touches_joints(stop) && !touches_joints(start)) {
+    deactivate_motors();
+    clear_joint_commands();
+    fresh_claim_prepared_ = false;
+    field_state_.compare_exchange_strong(state_at_stop, FieldState::awaiting_claim);
+  }
+  if ((supported_standby_ || field_rehome_) && touches_joints(start)) {
+    if (supported_standby_) return hardware_interface::return_type::ERROR;
+    const auto state = field_state_.load();
+    if (state == FieldState::awaiting_claim) {
+      if (!fresh_claim_prepared_.exchange(false) || !complete_joint_claim(start))
+        return hardware_interface::return_type::ERROR;
+      if (!check_motor_feedback(imu_manager_.get_imu_data(), "rearm")) return hardware_interface::return_type::ERROR;
+      clear_joint_commands();
+      *spi_command_ = spi_command_t{};
+      // The next healthy read sends only enable flags, never a saved target.
+      for (auto &flag : spi_command_->flags) flag = 1;
+      auto expected = FieldState::awaiting_claim;
+      if (!field_state_.compare_exchange_strong(expected, FieldState::zero_first)) {
+        deactivate_motors();
+        return hardware_interface::return_type::ERROR;
+      }
+    } else if (state != FieldState::running) return hardware_interface::return_type::ERROR;
+  }
+  return hardware_interface::SystemInterface::perform_command_mode_switch(start, stop);
+}
+
 bool contains_nan(const Eigen::Quaternionf &q) {
   return std::isnan(q.x()) || std::isnan(q.y()) || std::isnan(q.z()) || std::isnan(q.w());
 }
 
 hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
     const rclcpp_lifecycle::State & /*previous_state*/) {
+  if (field_rehome_) {
+    auto expected = FieldState::configured;
+    if (!field_state_.compare_exchange_strong(expected, FieldState::homing)) {
+      deactivate_motors();
+      return hardware_interface::CallbackReturn::ERROR;
+    }
+  }
+  if (supported_standby_ && standby_homed_) {
+    deactivate_motors();
+    return hardware_interface::CallbackReturn::SUCCESS;
+  }
+  // An activation requests a new supported home. Old offsets and a prepared
+  // packet can survive on_error on the same ROS component even in strict mode.
+  std::fill(hw_actuator_is_homed_.begin(), hw_actuator_is_homed_.end(), false);
+  std::fill(hw_actuator_zero_positions_.begin(), hw_actuator_zero_positions_.end(), 0.0);
+  clear_joint_commands();
+  *spi_command_ = spi_command_t{};
   if (imu_manager_.enabled) {
     pupper_imu::StartupWindow stationary;
     auto trace = pupper_imu::StartupTrace::from_environment();
@@ -250,6 +389,7 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
     RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
                 "Keep body supported and stationary: checking fresh IMU reports before motor enable");
     while (true) {
+      if (field_rehome_ && field_state_ != FieldState::homing) return hardware_interface::CallbackReturn::ERROR;
       const auto sample = imu_manager_.get_imu_data();
       const auto observed_at = std::chrono::steady_clock::now();
       pupper_imu::StartupObservation observation;
@@ -257,9 +397,9 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
       if (trace) trace->record(sample, observed_at, observation, ready);
       if (ready) { finish_trace(true); break; }
       if (std::chrono::steady_clock::now() >= deadline) {
-        RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
-                     "IMU startup check failed: requires three seconds of fresh reports, gyro norm <=0.05 rad/s, distinct-report gyro mean norm <=0.025 rad/s and gravity change from start <=1 degree");
-        deactivate_motors();
+        const char *error = pupper_imu::feedback_error(sample, observed_at);
+        disable_for_imu_fault(sample, observed_at, "startup",
+                              error ? error : "stationary startup window timed out");
         finish_trace(false);
         return hardware_interface::CallbackReturn::ERROR;
       }
@@ -269,8 +409,8 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
 
   // Enable actuators. Send the command multiple times to ensure it is received.
   for (int i = 0; i < 10; i++) {
-    if (imu_manager_.enabled && imu_feedback_error(imu_manager_)) {
-      deactivate_motors();
+    if (field_rehome_ && field_state_ != FieldState::homing) return hardware_interface::CallbackReturn::ERROR;
+    if (imu_manager_.enabled && !check_motor_feedback(imu_manager_.get_imu_data(), "enable")) {
       return hardware_interface::CallbackReturn::ERROR;
     }
     spi_command_->flags[0] = 1;
@@ -285,8 +425,43 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
   // Homing
   if (!do_homing()) return hardware_interface::CallbackReturn::ERROR;
 
+  if (field_rehome_) {
+    deactivate_motors();
+    clear_joint_commands();
+    auto expected = FieldState::homing;
+    if (!field_state_.compare_exchange_strong(expected, FieldState::awaiting_claim))
+      return hardware_interface::CallbackReturn::ERROR;
+  }
+  if (supported_standby_) {
+    deactivate_motors();
+    standby_homed_ = true;
+    RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                "Supported standby: homed, motors disabled, all joint controller claims blocked");
+  }
+
   RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Successfully activated!");
   return hardware_interface::CallbackReturn::SUCCESS;
+}
+
+void ControlBoardHardwareInterface::latch_field_fault() {
+  if (!field_rehome_) return;
+  field_state_ = FieldState::fault;
+  fresh_claim_prepared_ = false;
+}
+
+void ControlBoardHardwareInterface::clear_joint_commands() {
+  for (auto *values : {&hw_command_positions_, &hw_command_velocities_, &hw_command_efforts_,
+                       &hw_command_kps_, &hw_command_kds_}) {
+    std::fill(values->begin(), values->end(), 0.0);
+  }
+}
+
+void ControlBoardHardwareInterface::invalidate_balance() {
+  const auto unknown = std::numeric_limits<double>::quiet_NaN();
+  hw_state_imu_orientation_.fill(unknown);
+  hw_state_imu_angular_velocity_.fill(unknown);
+  hw_state_imu_linear_acceleration_.fill(unknown);
+  imu_time_since_measurement_seconds_ = unknown;
 }
 
 void ControlBoardHardwareInterface::deactivate_motors() {
@@ -300,12 +475,14 @@ void ControlBoardHardwareInterface::deactivate_motors() {
 hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_error(
     [[maybe_unused]] const rclcpp_lifecycle::State &previous_state) {
   deactivate_motors();
+  latch_field_fault();
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_deactivate(
     const rclcpp_lifecycle::State & /*previous_state*/) {
   deactivate_motors();
+  latch_field_fault();
   RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Successfully deactivated!");
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -321,17 +498,56 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
     [[maybe_unused]] const rclcpp::Time &time, [[maybe_unused]] const rclcpp::Duration &period) {
   // Validate BEFORE transmitting previously prepared actuator commands. Each
   // sensor component has its own monotonic receipt; one cannot freshen another.
+  if (field_rehome_ && field_state_ == FieldState::homing) return hardware_interface::return_type::OK;
   const BNO055::Output imu_output = imu_manager_.get_imu_data();
-  if (imu_manager_.enabled) {
-    if (const char *error = pupper_imu::feedback_error(imu_output, std::chrono::steady_clock::now())) {
-      RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "%s; disabling motors", error);
+  if (field_rehome_ && (field_state_ == FieldState::fault || field_state_ == FieldState::configured)) {
+    deactivate_motors();
+    clear_joint_commands();
+    copy_actuator_states();
+    invalidate_balance();
+    return field_state_ == FieldState::fault ? hardware_interface::return_type::ERROR : hardware_interface::return_type::OK;
+  }
+  if (supported_standby_ && standby_homed_) {
+    const auto now = std::chrono::steady_clock::now();
+    const char *error = pupper_imu::feedback_error(imu_output, now);
+    if (error && !standby_feedback_lost_) {
+      disable_for_imu_fault(imu_output, now, "supported_standby", error);
+      standby_feedback_lost_ = true;
+      standby_recovery_ = {};
+    } else {
       deactivate_motors();
+    }
+    if (standby_feedback_lost_) {
+      // Never republish the last valid orientation after loss. Reuse both
+      // independent receipt clocks and the existing stationary qualification.
+      standby_feedback_lost_ = !standby_recovery_.observe(imu_output, now);
+      if (standby_feedback_lost_) {
+        invalidate_balance();
+      } else {
+        RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                    "Supported standby: balance telemetry recovered; motors remain disabled");
+      }
+    }
+    clear_joint_commands();
+    copy_actuator_states();
+    if (contains_nan(hw_state_positions_) || contains_nan(hw_state_velocities_) ||
+        contains_nan(hw_state_efforts_)) return hardware_interface::return_type::ERROR;
+    if (standby_feedback_lost_) return hardware_interface::return_type::OK;
+  } else {
+    if (imu_manager_.enabled && !check_motor_feedback(imu_output, "read")) {
       return hardware_interface::return_type::ERROR;
     }
+    if (supported_standby_ || (field_rehome_ && field_state_ == FieldState::awaiting_claim)) {
+      deactivate_motors();
+    } else {
+      spi_driver_run();
+      if (field_rehome_) {
+        auto expected = FieldState::zero_first;
+        field_state_.compare_exchange_strong(expected, FieldState::running);
+      }
+    }
+    copy_actuator_states();
   }
-  // Write to and read from the actuators
-  spi_driver_run();
-  copy_actuator_states();
 
   // Print joint position
   // RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Joint 0: %f",
@@ -396,6 +612,8 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
 
   // Check if any NaNs in hardware state arrays. Catches IMU issues.
   if (hw_states_contains_nan()) {
+    deactivate_motors();
+    latch_field_fault();
     RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
                  "HW state array contained NaN. Deactivating motors");
     std::stringstream ss;
@@ -406,7 +624,6 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
        << hw_state_velocities_ << '\n'
        << hw_state_efforts_ << '\n';
     RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "%s", ss.str().c_str());
-    deactivate_motors();
     return hardware_interface::return_type::ERROR;
   }
 
@@ -415,18 +632,20 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
 
 hardware_interface::return_type ControlBoardHardwareInterface::write(
     const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) {
+  if (field_rehome_ && (field_state_ == FieldState::zero_first || field_state_ == FieldState::homing))
+    return hardware_interface::return_type::OK;
+  if (supported_standby_ || (field_rehome_ && field_state_ != FieldState::running)) {
+    *spi_command_ = spi_command_t{};
+    return hardware_interface::return_type::OK;
+  }
   copy_actuator_commands(true);
   return hardware_interface::return_type::OK;
 }
 
 bool ControlBoardHardwareInterface::do_homing() {
   auto feedback_ok = [this]() {
-    if (!imu_manager_.enabled) return true;
-    const char *error = imu_feedback_error(imu_manager_);
-    if (!error) return true;
-    RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "%s during homing; disabling motors", error);
-    deactivate_motors();
-    return false;
+    if (field_rehome_ && field_state_ != FieldState::homing) return false;
+    return !imu_manager_.enabled || check_motor_feedback(imu_manager_.get_imu_data(), "homing");
   };
   if (!feedback_ok()) return false;
   RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Homing actuators...");

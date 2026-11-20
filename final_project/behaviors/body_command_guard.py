@@ -533,6 +533,7 @@ def create_ros_node(*, monotonic_ns=time.monotonic_ns, arena_ball_contact=False,
                 self.guard.protocol.ADMITTED_TOPIC if strict else OUTPUT_TOPIC, 1)
             self.status_pub = self.create_publisher(String, STATUS_TOPIC, 1)
             self._last_status_ns = None
+            self._last_authorization = None
             self.guard.evaluate(**self.clocks())  # Establish this process's clock-history boundary.
             self.create_subscription(String if strict else Twist,
                 self.guard.protocol.REQUEST_TOPIC if strict else INPUT_TOPIC, self.on_command, 1)
@@ -551,9 +552,21 @@ def create_ros_node(*, monotonic_ns=time.monotonic_ns, arena_ball_contact=False,
                 msg = Twist()
                 msg.linear.x, msg.linear.y, msg.angular.z = result.command.vx, result.command.vy, result.command.wz
                 self.command_pub.publish(msg)
-            if self._last_status_ns is None or mono_ns - self._last_status_ns >= 200_000_000:
-                self.status_pub.publish(String(data=json.dumps(result.status, separators=(",", ":"), allow_nan=False)))
+            # In FC mode this stream authorizes motion. Publish each new
+            # capture and permission change immediately. Ordinary source
+            # command renewals and repeated timer evaluations only need a
+            # heartbeat; neither can extend the original capture deadline.
+            status = result.status
+            authorization = None
+            if strict:
+                authorization = (status["producer_instance"], status["sequence"], status["state"],
+                                 status["camera_state"], status["requires_post_hold_zero"],
+                                 status["source_bound"], status["source_vetoed"], status["reason"])
+            if (authorization != self._last_authorization or self._last_status_ns is None
+                    or mono_ns - self._last_status_ns >= 200_000_000):
+                self.status_pub.publish(String(data=json.dumps(status, separators=(",", ":"), allow_nan=False)))
                 self._last_status_ns = mono_ns
+                self._last_authorization = authorization
 
         def on_command(self, msg):
             clocks = self.clocks()

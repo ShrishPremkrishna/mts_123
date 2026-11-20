@@ -26,6 +26,23 @@ URDF_SHA = "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44"
 STOCK_POLICY_SHA = "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
 
 
+def selected_robot_description(urdf, directory, motion_mode):
+    recovery = os.environ.get("PUPPER_FC_IMU_RECOVERY", "strict")
+    if recovery == "strict":
+        return urdf, recovery
+    if motion_mode != "fc_walk_kick" or recovery not in {"supported_rehome", "supported_standby"}:
+        raise ValueError("unknown or non-FC PUPPER_FC_IMU_RECOVERY selection")
+    source = urdf.read_text()
+    plugin = "<plugin>control_board_hardware_interface/ControlBoardHardwareInterface</plugin>"
+    if source.count(plugin) != 1 or 'name="fc_imu_recovery"' in source:
+        raise ValueError("unexpected control board description for FC IMU recovery")
+    derived = directory / f"fc-{recovery}.urdf"
+    temporary = derived.with_suffix(".urdf.tmp")
+    temporary.write_text(source.replace(plugin, plugin + f'\n      <param name="fc_imu_recovery">{recovery}</param>'))
+    temporary.replace(derived)
+    return derived, recovery
+
+
 def prepare_session_profile(config_path, urdf):
     """Prepare files only. Reuse catalog/controller builders; no ROS execution.
 
@@ -116,7 +133,8 @@ def prepare_session_profile(config_path, urdf):
         def ignore_aliases(self, data):
             return True
     config_out.write_text(yaml.dump(combined, Dumper=NoAliasDumper, sort_keys=False))
-    assets = [config_path, urdf, Path(__file__), config_out, *models,
+    description_path, imu_recovery = selected_robot_description(urdf, manifest_path.parent, motion_mode)
+    assets = [config_path, urdf, description_path, Path(__file__), config_out, *models,
               Path(runtime_config.__file__), Path(catalog_module.__file__), validator_path,
               *(repo / "robot" / name for name in ("robot_api.py", "server.py", "tool_registry.py")),
               *sorted((repo / "lab").glob("*.py")), repo / "lab/prompt.md"]
@@ -147,11 +165,37 @@ def prepare_session_profile(config_path, urdf):
                 "configuration": str(config_out),
                 "hardware_approval": "Not supplied by this profile; selected policies still require applicable approval and supervised readiness."}
     if motion_mode == "fc_walk_kick":
+        manifest["fc_imu_recovery"] = imu_recovery
+        manifest["robot_description"] = str(description_path.resolve())
         fc_release_profile.verify_profile(manifest, repo.parent, combined)
     temporary = manifest_path.with_suffix(manifest_path.suffix + ".tmp")
     temporary.write_text(json.dumps(manifest, indent=2) + "\n")
     temporary.replace(manifest_path)
     return config_out, manifest["motion_controllers"]
+
+
+def launch_profile(config_path, urdf):
+    """Home consumes the exact files pinned by Prepare. Direct launches still prepare their own."""
+    digest = os.environ.get("PUPPER_FC_PREPARED_MANIFEST_SHA256")
+    if digest is None:
+        prepare_session_profile(config_path, urdf)
+        import runtime_config
+        return json.loads(runtime_config.session_manifest_path().read_text())
+
+    repo = Path(os.environ["PUPPER_GEMINI_DIR"]).resolve()
+    sys.path.insert(0, str(repo / "robot"))
+    import runtime_config
+    from tricks import load_tricks
+
+    manifest_path = runtime_config.session_manifest_path()
+    if (runtime_config.REPO != repo or runtime_config.session_motion_mode() != "fc_walk_kick"
+            or hashlib.sha256(manifest_path.read_bytes()).hexdigest() != digest):
+        raise ValueError("Home requires the FC manifest pinned by Prepare")
+    manifest = runtime_config.validate_session_catalog(load_tricks())
+    if (not manifest or manifest["configuration"] != str(manifest_path.parent / "persistent_controllers.yaml")
+            or manifest.get("fc_imu_recovery") != os.environ.get("PUPPER_FC_IMU_RECOVERY", "strict")):
+        raise ValueError("prepared FC configuration or board recovery selection differs")
+    return manifest
 
 
 def generate_launch_description():
@@ -168,9 +212,11 @@ def generate_launch_description():
     for path, expected in ((config_path, CONFIG_SHA), (urdf, URDF_SHA)):
         if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
             raise RuntimeError("Selected Lab 6 input changed: " + str(path))
-    generated_config, motion_controllers = prepare_session_profile(config_path, urdf)
+    manifest = launch_profile(config_path, urdf)
+    generated_config, motion_controllers = manifest["configuration"], manifest["motion_controllers"]
     config = ParameterFile(str(generated_config), allow_substs=True)
-    description = {"robot_description": urdf.read_text()}
+    import runtime_config
+    description = {"robot_description": Path(manifest.get("robot_description", urdf)).read_text()}
     state = Node(package="robot_state_publisher", executable="robot_state_publisher",
                  parameters=[description], output="screen")
     manager = Node(package="controller_manager", executable="ros2_control_node",
@@ -185,7 +231,6 @@ def generate_launch_description():
     # Any required process exit tears down this owned session. No respawn.
     # Camera is owned once by the maintained session starter. This service only
     # subscribes to /camera/image_raw/compressed and never opens the sensor.
-    import runtime_config
     follower = runtime_config.follower_config()
     follower_actions = []
     if follower.mode == "lab5":

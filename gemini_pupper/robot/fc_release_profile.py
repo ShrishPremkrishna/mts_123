@@ -12,21 +12,23 @@ RUNNER = "final_project/behaviors/combined_fc_runner.py"
 GUARD = "final_project/behaviors/body_command_guard.py"
 GUARD_ARGS = ("--command-contract", "fc_deadline_v1", "--arena-ball-contact")
 TELEMETRY = "foundation/hardware/fc-walk-kick-topics.json"
+EVENT_TELEMETRY = "foundation/hardware/fc-match-events.json"
 # Local imports required by the field runner and the guarded native path.
 FIELD_FILES = (
-    RUNNER, GUARD, TELEMETRY, "final_project/behaviors/command_deadline.py",
-    "final_project/behaviors/command_path_evidence.py", "final_project/behaviors/fc_executor_bridge.py",
-    "final_project/behaviors/overhead_ingress.py",
+    RUNNER, GUARD, TELEMETRY, EVENT_TELEMETRY, "final_project/behaviors/command_deadline.py",
+    "final_project/behaviors/operator_drive.py", "final_project/behaviors/command_path_evidence.py", "final_project/behaviors/fc_executor_bridge.py",
+    "final_project/behaviors/overhead_ingress.py", "final_project/behaviors/live_field_attack.py",
     "final_project/overhead_perception/fieldcam/__init__.py", "final_project/overhead_perception/fieldcam/net.py",
     *(f"follow_me_pupper/robot/{name}" for name in
       ("viser_camera.py", "fisheye_converter.py", "yolo_seg.py", "perception_safety.py", "camera_params.yaml", "coco.txt")),
     *(f"final_project/pupper_fc/{name}.py" for name in
-      ("__init__", "model", "controller", "paw_approach", "integration", "tactics",
+      ("__init__", "model", "controller", "paw_approach", "integration", "tactics", "match_director",
        "obstacles", "kick_handoff", "operator_kick_receipts")),
     "gemini_pupper/robot/fc_walk_kick.py", "gemini_pupper/robot/fc_release_profile.py",
     "gemini_pupper/robot/controller_coverage.py", "gemini_pupper/robot/session_processes.py",
     "foundation/hardware/fc_walk_kick_release.py", "foundation/hardware/stage_app.py",
-    "foundation/hardware/software_start.py",
+    "foundation/hardware/software_start.py", "foundation/hardware/fc_session.py",
+    "foundation/hardware/fc_enrollment.py", "foundation/hardware/fc_advertise.py", "final_project/pupper_fc/arena.json",
     "foundation/hardware/persistent_session.py", "foundation/hardware/floor_stock/shutdown_coordinator.py",
 )
 

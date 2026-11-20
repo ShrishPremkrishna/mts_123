@@ -158,9 +158,45 @@ def test_malformed_packet_containers_and_huge_numbers_are_admission_errors(key, 
 
 def test_combined_capture_uncertainty_includes_pair_wall_tolerance_and_drift():
     core = core_fixture()
-    core.sync = (-10.01, -9.992, 10.03)  # 18 ms RTT alone fits, full bound does not.
+    core.sync_samples.clear()
+    core.sync_samples.append((-10.01, -9.992, 10.03))  # RTT alone fits, full bound does not.
     with pytest.raises(ValueError, match="combined capture clock uncertainty"):
         core.normalize(state(), 10.04)
+
+
+def test_clock_intersects_fresh_bounds_and_each_sample_expires_independently():
+    core = core_fixture()
+    old_lower, old_upper = core._offset(10.)
+    probe = core.make_probe(11.)
+    core.accept_probe({**core.identity(), "protocol": REPLY_PROTOCOL, "nonce": probe["nonce"],
+                       "received_mono": 21.009, "sent_mono": 21.009}, 11.018)
+    tight = core._offset(11.02)
+    assert tight[0] > old_lower - .001 and tight[1] < old_upper + .001
+    # Beyond the first sample's TTL the broad second measurement stands alone.
+    broad = core._offset(12.)
+    assert broad[0] < tight[0] and broad[1] > tight[1]
+    with pytest.raises(ValueError, match="absent or expired"):
+        core._offset(13.019)
+
+
+def test_slow_reply_keeps_current_frame_until_its_original_expiry():
+    core = core_fixture()
+    core.normalize(state(), 10.04)
+    now = [10.05]
+    receiver = ingress.UDPIngress(core, source_host="127.0.0.1", bind="127.0.0.1", clock=lambda: now[0])
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender:
+        sender.bind(("127.0.0.1", 0))
+        receiver.peer = sender.getsockname()
+        probe = core.make_probe(10.02)
+        reply = {**core.identity(), "protocol": REPLY_PROTOCOL, "nonce": probe["nonce"],
+                 "received_mono": 20.04, "sent_mono": 20.04}
+        sender.sendto(json.dumps(reply).encode(), receiver.sock.getsockname())
+        try:
+            assert not receiver.poll() and not core.held
+            now[0] = 10.5
+            assert receiver.poll()[0]["captured_at"] is None and core.held
+        finally:
+            receiver.close()
 
 
 @pytest.mark.parametrize("condition", ["wide", "expired", "nonce", "replay", "reverse", "jump"])
@@ -196,6 +232,7 @@ def test_real_udp_loopback_to_normalized_frame_without_ros_or_motor_api():
                                source_session="session-1", live=True)
     try:
         frames = []
+        sent = {}
         end = time.monotonic() + 2.
         seq = 0
         while time.monotonic() < end and not frames:
@@ -204,6 +241,7 @@ def test_real_udp_loopback_to_normalized_frame_without_ros_or_motor_api():
             packet["stamp"], packet["frame_age_s"] = capture, 0.
             for row in packet["robots"].values():
                 row["age_s"] = 0.
+            sent[seq] = packet
             publisher.send(packet)
             frames.extend(e for e in receiver.poll() if e["captured_at"] is not None)
             seq += 1
@@ -213,10 +251,21 @@ def test_real_udp_loopback_to_normalized_frame_without_ros_or_motor_api():
         assert 0 <= time.monotonic() - frame["captured_at"] < .3
         assert frame["clock"] == "linux-monotonic:boot" and frame["event"] == "frame"
         assert set(frame["robots"]) == {"pupper-1"}
-        # Replaying the raw packet at a new receipt time cannot refresh it.
-        publisher.send(packet)
-        assert select.select([receiver.sock], [], [], .2)[0]
-        assert any(e["captured_at"] is None for e in receiver.poll())
+        # send() wraps the accepted source frame in a NEW wire envelope. UDP
+        # readability alone does not identify it: a clock reply or the last
+        # original frame may be queued first. A byte-for-byte wire replay
+        # follows the separate older-datagram path.
+        accepted_seq = frame["source"]["seq"]
+        publisher.send(sent[accepted_seq])
+        end = time.monotonic() + .2
+        revoked = False
+        while not revoked and (remaining := end - time.monotonic()) > 0:
+            if not select.select([receiver.sock], [], [], remaining)[0]:
+                break
+            events = receiver.poll()
+            assert all(e["source"]["seq"] > accepted_seq for e in events if e["captured_at"] is not None)
+            revoked = any(e["captured_at"] is None for e in events)
+        assert revoked and core.held and core.last_reason == "duplicate/reordered source frame"
     finally:
         publisher.close()
         receiver.close()
@@ -226,3 +275,24 @@ def test_publish_missing_pins_fails_before_ros_import():
     with pytest.raises(SystemExit) as exc:
         ingress.main(["--publish"])
     assert exc.value.code == 2
+
+
+def test_old_udp_datagram_cannot_revoke_or_extend_newer_field_evidence():
+    from types import SimpleNamespace
+    core = core_fixture()
+    admitted = core.normalize(state(2,1000.02),10.06)
+    peer = ("127.0.0.1",19999)
+    packets = [state(1,1000.)]
+    def datagram(size):
+        if not packets:
+            raise BlockingIOError
+        return json.dumps(packets.pop(0)).encode(), peer
+    now = [10.07]
+    receiver = SimpleNamespace(core=core,source_host=peer[0],peer=peer,clock=lambda:now[0],
+                               next_probe=1000.,sock=SimpleNamespace(recvfrom=datagram))
+    assert ingress.UDPIngress.poll(receiver) == []
+    assert core.last_capture == admitted["captured_at"] and not core.held
+    now[0] = admitted["captured_at"] + ingress.MAX_FRAME_AGE_S + .001
+    packets.append(state(1,1000.))
+    assert ingress.UDPIngress.poll(receiver)[0]["captured_at"] is None
+    assert core.held

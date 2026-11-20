@@ -24,7 +24,7 @@ from stage_app import sha, verify_selected, checked_path, entries_by_path
 
 ENV_KEYS = ('PATH', 'PYTHONPATH', 'AMENT_PREFIX_PATH', 'CMAKE_PREFIX_PATH',
             'LD_LIBRARY_PATH', 'ROS_DISTRO', 'ROS_DOMAIN_ID', 'ROS_LOCALHOST_ONLY', 'RMW_IMPLEMENTATION',
-            'PUPPER_MONOREPO_DIR', 'PUPPER_GAIT_DEPLOY_DIR', 'FOLLOW_ME_DIR',
+            'PUPPER_FC_DETECTOR_MODEL', 'PUPPER_FC_IMU_RECOVERY', 'PUPPER_FC_GATEWAY', 'PUPPER_FC_GATEWAY_SHA256', 'PUPPER_FC_RECORDING', 'PUPPER_MONOREPO_DIR', 'PUPPER_GAIT_DEPLOY_DIR', 'FOLLOW_ME_DIR',
             'PUPPER_ONBOARD_BOOTSTRAP_DIR', 'GEMINI_KEY_FILE',
             'PUPPER_FOLLOWER_MODE', 'PUPPER_SESSION_MOTION_MODE', 'FOLLOW_USE_COLOR', 'FOLLOW_AVOID_OBSTACLES', 'FOLLOW_ALWAYS_DETECT')
 
@@ -93,7 +93,17 @@ def prepare(args):
         raise ValueError('Telemetry JSON must list distinct absolute topics')
     if os.environ.get('PUPPER_SESSION_MOTION_MODE') == 'fc_walk_kick':
         from fc_walk_kick_release import inspect_native, validate_selection
-        validate_selection(root, components, app)
+        validate_selection(root, components, app, recording=os.environ.get("PUPPER_FC_RECORDING","full"))
+        if gateway := os.environ.get('PUPPER_FC_GATEWAY'):
+            components['gateway'] = pinned(Path(gateway), os.environ['PUPPER_FC_GATEWAY_SHA256'])
+        if os.environ.get('PUPPER_FC_IMU_RECOVERY', 'strict') != 'strict':
+            if b'FC_IMU_RECOVERY_CONTRACT_V1_SUPPORTED_REHOME' not in args.imu_library.read_bytes():
+                raise ValueError('Selected target board driver lacks the explicit FC IMU recovery contract')
+        if model := os.environ.get('PUPPER_FC_DETECTOR_MODEL'):
+            # Refuse a mismatched HEF at preparation, before any motor activity.
+            sys.path.insert(0, str(root))
+            from final_project.behaviors.body_command_guard import ARENA_DETECTOR_IDENTITY
+            components['detector_model'] = pinned(Path(model), ARENA_DETECTOR_IDENTITY['model_sha256'])
         if inspect_native(args.native_library)['sha256'] != components['native']['sha256']:
             raise ValueError('Native controller changed during preparation')
     elif not {'/joint_states', '/llm_cmd_vel'} <= set(topics):
@@ -126,6 +136,8 @@ def prepare(args):
     config, controllers = profile.prepare_session_profile(args.config.resolve(), args.urdf.resolve())
     plan.update(prepared=True, runtime_manifest=pinned(run / 'runtime-manifest.json'),
                 generated_config=pinned(Path(config)), controllers=controllers)
+    if env['PUPPER_SESSION_MOTION_MODE'] == 'fc_walk_kick':
+        env['PUPPER_FC_PREPARED_MANIFEST_SHA256'] = plan['runtime_manifest']['sha256']
     write(run / 'selected-session.json', plan)
     return {'prepared': True, 'motor_launch': False, 'run_dir': str(run),
             'components': components, 'rollback_app': plan['rollback_app']}
@@ -279,7 +291,7 @@ def load(run, verify=True):
             raise ValueError('Prepared runtime manifest has no pinned assets')
         for path, digest in runtime['assets'].items():
             pinned(Path(path), digest)
-    for name in (*ENV_KEYS, 'PUPPER_IMU_STARTUP_TRACE'):
+    for name in (*ENV_KEYS, 'PUPPER_IMU_STARTUP_TRACE', 'PUPPER_FC_PREPARED_MANIFEST_SHA256'):
         os.environ.pop(name, None)
     os.environ.update(plan['environment'])
     life = module(Path(plan['components']['lifecycle']['path']), 'selected_lifecycle')
@@ -372,7 +384,8 @@ def start_native(run, plan, life):
             raise ValueError('Session already started; inspect receipt, never retry initialization automatically')
         if any((run / name).exists() for name in ('robot.log', 'camera.log', 'recorder.log', 'telemetry')):
             raise ValueError('Startup output already exists; refuse stale readiness/reused recording')
-        port_free(int(plan['environment']['PORT']))  # Before any potential homing.
+        if plan['environment'].get('PUPPER_SESSION_MOTION_MODE') != 'fc_walk_kick':
+            port_free(int(plan['environment']['PORT']))  # FC has no ordinary HTTP server.
         for proc in life.PROC.iterdir():
             if proc.name.isdigit():
                 try:
@@ -400,6 +413,12 @@ def start_native(run, plan, life):
         life.spawn(run, 'camera', 'camera_node', camera)
         life.spawn(run, 'recorder', 'bag', ['ros2', 'bag', 'record', '-s', 'mcap',
                                           '-o', str(run / 'telemetry'), *topics])
+        if 'detector_model' in plan['components']:
+            detector = str(Path(plan['app_root']) / 'follow_me_pupper/robot/viser_camera.py')
+            life.spawn(run, 'detector', detector, [
+                sys.executable, '-B', '-s', detector, '--source', 'ros', '--detect', '--publish-detections',
+                '--fc-headless', '--fc-timings', str(run / 'detector-timings.jsonl'),
+                '--model', plan['components']['detector_model']['path']])
         life.spawn(run, 'launch', launch, ['ros2', 'launch', launch])
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:

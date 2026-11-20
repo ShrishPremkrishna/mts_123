@@ -398,6 +398,14 @@ Live iPhone at a desk, November 16 (no physical reference measurements taken):
 
 Open field checks include focus stability, tape-referenced geometry, true capture latency, lens calibration, moving-ball tracking, physical approaches and two-robot play. The stationary ball was detected with the existing colour range. The live colour picker and rolling-ball accuracy still need evaluation.
 
+## Optional markerless body preview
+
+Use `--appearance-preview` in the camera window to draw a cross on each plausible Pupper body. With `--print`, each diagnostic frame also includes the pixel centers, shape scores from 0 to 1, undirected axes when resolved, and a count of successive unambiguous observations. The default body length is 7.5% of the processed frame width. Set `--appearance-length-px` to the observed length in that image when changing camera height or zoom. The score measures shape agreement. Team identity and front versus back still come from the robot tag in the gameplay data.
+
+The November 20 offline replay contained one robot in three placements in one room. Two positive images showed a bare robot. Its printed marker and display overlays were digitally erased in four others. Paired pale limbs around a dark torso found all six labeled centers, with zero extra proposals across eight frames. A dark-body/bright-patch baseline produced 42 extras. A copied silhouette merged with the original at 0.4 body lengths separation. Heavy occlusion hid all six bodies. The exposed axis is a line modulo 180°. Ground coordinates would require a calibrated camera and an independently measured observation height.
+
+The [replay report](../../foundation/results/markerless-appearance-20261120.json) records input hashes, per-frame center and axis errors, controls and detector latency. To reproduce it, run `scripts/benchmark_appearance.py --phone-dir <phone-field-dtrknxnz directory> --pose-window <pose-window.png>` with the perception Python environment. A separate recording with a pale floor, a changed camera angle, and two robots crossing is needed to measure how well this generalizes.
+
 ## Layout
 
 - `fieldcam/camera_model.py` pixel ↔ field geometry

@@ -16,6 +16,7 @@ Source IDs are operational pins on a trusted network, not authentication.
 from __future__ import annotations
 
 import argparse
+from collections import deque
 import json
 import math
 from pathlib import Path
@@ -33,9 +34,13 @@ from final_project.overhead_perception.fieldcam.net import (
 EVENT_TOPIC = "/fc/normalized_events"
 MAX_SYNC_WIDTH_S = .020
 SYNC_TTL_S = 2.
-PROBE_PERIOD_S = .5
+PROBE_PERIOD_S = .10
 MAX_FRAME_AGE_S = .30
 ROBOT_IDS = {"pupper-1", "pupper-2"}
+
+
+class UnusableProbe(ValueError):
+    """A slow or superseded probe contributes no clock evidence."""
 
 
 def number(value, label):
@@ -48,6 +53,10 @@ def number(value, label):
     if not math.isfinite(result):
         raise ValueError(label + " must be finite")
     return result
+
+
+class OlderFrame(ValueError):
+    """Both camera sequence counters are at or below the last accepted envelope."""
 
 
 def token(value, label):
@@ -81,7 +90,7 @@ class IngressCore:
         if any(v <= 0 for v in self.field.values()):
             raise ValueError("field dimensions must be positive")
         self.pending = None
-        self.sync = None
+        self.sync_samples = deque(maxlen=32)
         self.wire_seq = self.source_seq = self.output_seq = -1
         self.last_pair = None
         self.last_capture = None
@@ -108,7 +117,7 @@ class IngressCore:
         now = number(now, "reply clock")
         if (reply.get("protocol") != REPLY_PROTOCOL or self.pending is None
                 or reply.get("nonce") != self.pending[0]):
-            raise ValueError("unsolicited/replayed clock reply")
+            raise UnusableProbe("unsolicited/replayed clock reply")
         _, sent = self.pending
         self.pending = None
         received = number(reply.get("received_mono"), "remote receive clock")
@@ -116,26 +125,38 @@ class IngressCore:
         if not sent <= now or not received <= remote_sent:
             raise ValueError("clock probe timestamps reversed")
         lower, upper = sent - received, now - remote_sent
-        if not 0 <= upper - lower <= MAX_SYNC_WIDTH_S or now - sent > MAX_SYNC_WIDTH_S:
-            raise ValueError("clock round trip uncertainty exceeds 20 ms")
-        if self.sync is not None:
-            old_lower, old_upper, at = self.sync
+        if upper < lower:
+            raise ValueError("invalid clock interval")
+        if upper - lower > MAX_SYNC_WIDTH_S or now - sent > MAX_SYNC_WIDTH_S:
+            raise UnusableProbe("clock round trip uncertainty exceeds 20 ms")
+        for old_lower, old_upper, at in self.sync_samples:
+            # Keep the last sample as a discontinuity check across a gap. Only
+            # samples inside the original TTL are ever used to timestamp frames.
+            if now - at > SYNC_TTL_S and at != self.sync_samples[-1][2]:
+                continue
             drift = max(0., now - at) * CLOCK_DRIFT
-            if upper < old_lower - drift or lower > old_upper + drift:
+            if now < at or upper < old_lower - drift or lower > old_upper + drift:
                 self.poisoned = True
                 raise ValueError("source clock mapping discontinuity; explicitly rebind session")
-        self.sync = lower, upper, now
+        self.sync_samples.append((lower, upper, now))
 
     def _offset(self, now):
         if self.poisoned:
             raise ValueError("source clock or calibration changed; explicitly rebind session")
-        if self.sync is None or not 0 <= now - self.sync[2] <= SYNC_TTL_S:
+        # Every retained interval bounds the offset at its own measurement.
+        # Expand it for drift to now, then intersect independent live bounds.
+        lower, upper = -math.inf, math.inf
+        for sample_lower, sample_upper, at in self.sync_samples:
+            elapsed = now - at
+            if 0 <= elapsed <= SYNC_TTL_S:
+                drift = elapsed * CLOCK_DRIFT
+                lower = max(lower, sample_lower - drift)
+                upper = min(upper, sample_upper + drift)
+        if not math.isfinite(lower):
             raise ValueError("clock sync absent or expired")
-        lower, upper, at = self.sync
-        drift = (now - at) * CLOCK_DRIFT
-        if upper - lower + 2 * drift > MAX_SYNC_WIDTH_S:
+        if not 0 <= upper - lower <= MAX_SYNC_WIDTH_S:
             raise ValueError("clock sync uncertainty exceeded")
-        return lower - drift, upper + drift
+        return lower, upper
 
     def _geometry(self, state):
         incoming = state.get("field", {})
@@ -199,6 +220,9 @@ class IngressCore:
             raise ValueError("source wall clock stepped or sampling failed")
         lower, upper = self._offset(now)
         wire, seq = transport.get("wire_seq"), state.get("seq")
+        if (type(wire) is int and type(seq) is int and 0 <= wire <= self.wire_seq and 0 <= seq <= self.source_seq
+                and state.get("calibration_revision") == self.calibration_revision):
+            raise OlderFrame("duplicate/reordered source frame")
         if type(wire) is not int or type(seq) is not int or wire <= self.wire_seq or seq <= self.source_seq:
             raise ValueError("duplicate/reordered source frame")
         self.wire_seq, self.source_seq = wire, seq
@@ -271,6 +295,8 @@ class IngressCore:
         event = self._event(mapped, robots, ball, goals)
         event["source"] = {**self.identity(), "seq": seq, "calibration_revision": revision,
                            "clock_uncertainty_s": uncertainty}
+        if "fc_match" in state:
+            event["fc_match"] = state["fc_match"]  # validated against this source seq/epoch/roster by LiveMatchPlay
         self.last_capture, self.held, self.last_reason = mapped, False, "admitted live frame"
         return event
 
@@ -303,7 +329,10 @@ class UDPIngress:
                     raise ValueError("packet must be an object")
                 if packet.get("protocol") == REPLY_PROTOCOL:
                     if address == self.peer:
-                        self.core.accept_probe(packet, now)
+                        try:
+                            self.core.accept_probe(packet, now)
+                        except UnusableProbe:
+                            pass  # expire() independently enforces the last valid measurement.
                     continue
                 self.core._identity(packet.get("_transport"))
                 if self.peer is None:
@@ -311,6 +340,8 @@ class UDPIngress:
                 if address != self.peer:
                     raise ValueError("source UDP address changed; explicitly rebind")
                 events.append(self.core.normalize(packet, now))
+            except OlderFrame:
+                continue  # Reordering carries no new evidence and cannot renew the current capture.
             except (ValueError, TypeError, KeyError, UnicodeError) as exc:
                 event = self.core.revoke(exc)
                 if event is not None:

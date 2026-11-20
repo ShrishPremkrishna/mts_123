@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+"""Build deterministic laptop and Pi source archives from this checkout."""
+import argparse
+import gzip
+import hashlib
+import io
+from itertools import chain
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tarfile
+import tempfile
+import zipfile
+
+ROOT = Path(__file__).resolve().parent
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(ROOT / "foundation/hardware"))
+from fc_walk_kick_release import selected_paths
+from pupper_gait_deploy.install import file_mappings
+
+BOARD = Path("pupperv3-monorepo/ros2_ws/src")
+FC = Path("final_project/pupper_fc")
+VISION = Path("final_project/overhead_perception")
+DOC = ROOT / FC / "PACKAGING.md"
+LAPTOP = "pupper-fc-laptop.zip"
+PI = "pupper-fc-pi.tar.gz"
+LOCK = FC / "requirements-macos-arm64-py312.lock"
+
+
+def laptop_wheels():
+    """Download only wheels pinned for the release's supported Mac."""
+    lock = ROOT / LOCK
+    pins = [line for line in lock.read_text().splitlines() if line and not line.startswith("#")]
+    if not set((ROOT / FC / "requirements.txt").read_text().splitlines()) <= {line.split()[0] for line in pins}:
+        raise ValueError("the Mac wheel lock must contain every pinned runtime requirement")
+    directory = ROOT / "outputs" / "pupper-fc-wheels" / hashlib.sha256(lock.read_bytes()).hexdigest()[:16]
+    directory.mkdir(parents=True, exist_ok=True)
+    expected = {line.split("--hash=sha256:")[1] for line in pins}
+
+    def verified_wheels():
+        found = {hashlib.sha256(p.read_bytes()).hexdigest(): p for p in directory.glob("*.whl")}
+        if expected <= found.keys():
+            return {"wheels/" + found[d].name: found[d] for d in expected}
+        return {}
+
+    cached = verified_wheels()
+    if cached:
+        return cached
+    subprocess.run([sys.executable, "-m", "pip", "download", "--disable-pip-version-check",
+                    "--quiet", "--no-deps", "--only-binary=:all:", "--require-hashes",
+                    "--platform", "macosx_15_0_arm64", "--python-version", "3.12",
+                    "--implementation", "cp", "--abi", "cp312", "--dest", str(directory),
+                    "-r", str(ROOT / LOCK)], check=True)
+    cached = verified_wheels()
+    if not cached:
+        raise ValueError("downloaded wheels differ from the Mac wheel lock")
+    return cached
+
+
+def laptop_files():
+    paths = [Path("Pupper FC.command"), Path("pupper-fc"), FC / "requirements.txt", LOCK, FC / "arena.json"]
+    paths.extend(FC / (name + ".py") for name in (
+        "__init__", "teleop", "lobby", "discovery", "field_transport", "arena_camera",
+        "match_director", "controller", "model"))
+    paths.extend(FC / "static" / name for name in ("controls.html", "controls.css", "controls.mjs", "drive.mjs", "arena.webp"))
+    paths.extend(VISION / "config" / name for name in ("field.yaml", "sim_field.yaml"))
+    paths.append(VISION / "scripts/run_perception.py")
+    paths.extend(VISION / "fieldcam" / (name + ".py") for name in (
+        "__init__", "appearance", "camera_model", "capture", "clickcal", "colorpick",
+        "config", "detect", "filters", "net", "pipeline", "planner", "probe", "relative",
+        "sim", "tagmeasure", "topdown"))
+    return {**{p.as_posix(): ROOT / p for p in paths}, "READ-ME.md": DOC}
+
+
+def controlled_files(folder):
+    # Include source changes and ordinary new, nonignored files in the three
+    # selected packages. Exclude build products and checkout-local environments.
+    raw = subprocess.check_output(["git", "ls-files", "-z", "--cached", "--others",
+                                   "--exclude-standard", "--", str(folder)], cwd=ROOT)
+    paths = (Path(os.fsdecode(name)) for name in raw.split(b"\0") if name)
+    return sorted(path for path in paths if all(not part.startswith(".") for part in path.parts))
+
+
+def pi_files():
+    files = {p: ROOT / p for p in selected_paths(ROOT)}
+    files["READ-ME.md"] = DOC
+    files["foundation/hardware/FC_OPERATOR.md"] = ROOT / "foundation/hardware/FC_OPERATOR.md"
+    for package in ("control_board_hardware_interface", "joy_utils"):
+        for path in controlled_files(BOARD / package):
+            files["native/src/" + str(path.relative_to(BOARD))] = ROOT / path
+
+    # Build the same controller used on the Pi. The vendored ROS package alone
+    # contains the older coursework controller; take the actual deploy mappings.
+    base = BOARD / "neural_controller"
+    prefix = "native/src/neural_controller/"
+    for name in ("LICENSE", "neural_controller.xml"):
+        files[prefix + name] = ROOT / base / name
+    rt = base / "modules/RTNeural"
+    for path in controlled_files(rt):
+        relative = path.relative_to(rt)
+        if (relative.parts[0] in ("cmake", "RTNeural", "modules") or
+                relative.name in ("CMakeLists.txt", "LICENSE") and len(relative.parts) == 1):
+            files[prefix + str(path.relative_to(base))] = ROOT / path
+    for source, target, _ in file_mappings(ROOT / "pupperv3-monorepo"):
+        if source.parent == ROOT / "pupper_gait_deploy/src":
+            files[prefix + str(target.relative_to(ROOT / base))] = source
+    # CMake installs launch/; the session selects its own launch and controller YAML.
+    files[prefix + "launch/default_policy.json"] = ROOT / "pupper_gait_deploy/policies/default_policy.json"
+    return files
+
+
+def contents(files):
+    for name, source in sorted(files.items()):
+        if source.is_symlink() or not source.is_file() or source.resolve() != source:
+            raise ValueError("missing, nonregular or linked package input: " + str(source))
+        data = source.read_bytes()
+        if data.startswith(b"version https://git-lfs.github.com/spec/v1\n"):
+            raise ValueError("Git LFS content is missing for " + str(source))
+        yield name, data
+
+
+def write_laptop(path, wheels, revision):
+    with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        files = {**laptop_files(), **wheels}
+        metadata = json.dumps({"source_commit": revision}, sort_keys=True).encode() + b"\n"
+        for name, data in chain(contents(files), [("release-source.json", metadata)]):
+            item = zipfile.ZipInfo("Pupper FC/" + name, date_time=(1980, 1, 1, 0, 0, 0))
+            item.create_system = 3
+            mode = 0o755 if name in ("pupper-fc", "Pupper FC.command") else 0o644
+            item.external_attr = (0o100000 | mode) << 16
+            compression = zipfile.ZIP_STORED if name.endswith(".whl") else zipfile.ZIP_DEFLATED
+            archive.writestr(item, data, compress_type=compression, compresslevel=7)
+
+
+def pi_entries(revision):
+    selected = set(selected_paths(ROOT))
+    manifest = {}
+    for name, data in contents(pi_files()):
+        if name in selected:
+            manifest[name] = hashlib.sha256(data).hexdigest()
+        yield name, data
+    identity = {"source_commit": revision, "application_sha256": manifest}
+    yield "release-source.json", (json.dumps(identity, sort_keys=True, indent=2) + "\n").encode()
+
+
+def write_pi(path, revision):
+    with path.open("wb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0, compresslevel=7) as gz:
+        with tarfile.open(fileobj=gz, mode="w", format=tarfile.PAX_FORMAT) as archive:
+            for name, data in pi_entries(revision):
+                item = tarfile.TarInfo("pupper-fc-pi/" + name)
+                item.mode = 0o755 if data.startswith(b"#!") else 0o644
+                item.size = len(data)
+                archive.addfile(item, io.BytesIO(data))
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=ROOT / "outputs/pupper-fc-release")
+    dest = parser.parse_args().output.resolve()
+    dest.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=dest, prefix=".packing-") as tmp:
+        temp = Path(tmp)
+        clean = not subprocess.check_output(["git", "status", "--porcelain", "--untracked-files=all"], cwd=ROOT)
+        revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip() if clean else None
+        write_laptop(temp / LAPTOP, laptop_wheels(), revision)
+        write_pi(temp / PI, revision)
+        hashes = {name: hashlib.sha256((temp / name).read_bytes()).hexdigest() for name in (LAPTOP, PI)}
+        (temp / "SHA256SUMS").write_text("".join(f"{value}  {name}\n" for name, value in hashes.items()))
+        for name in (*hashes, "SHA256SUMS"):
+            os.replace(temp / name, dest / name)
+    print(json.dumps({name: {"sha256": digest, "bytes": (dest / name).stat().st_size}
+                      for name, digest in hashes.items()}, indent=2))
+
+
+if __name__ == "__main__":
+    main()

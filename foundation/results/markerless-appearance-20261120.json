@@ -1,0 +1,518 @@
+{
+  "method": "Local offline comparison. Independent manual center tolerance is 0.35 nominal body lengths.",
+  "coverage": "8 stored phone screenshots in one room, 3 physical placements, 1 real robot; not independent sessions.",
+  "input": "Full camera panels. Robot paper and colored overlays erased on four tagged images. Earlier two positive images show an untagged Pupper. Resized copies of each screenshot excluded.",
+  "limits": "One mount family and colorway. No physical robot pair, ground-truth signed yaw, calibrated score, surveyed body center, physical tracking latency or motor test. No on-field identity inferred.",
+  "summary": {
+    "paired_limbs": {
+      "positives_matched": 6,
+      "positives": 6,
+      "total_extra_proposals": 0,
+      "median_matched_center_error_body_lengths": 0.126
+    },
+    "brightness_baseline": {
+      "positives_matched": 6,
+      "positives": 6,
+      "total_extra_proposals": 42,
+      "median_matched_center_error_body_lengths": 0.191
+    }
+  },
+  "timing": {
+    "computer": "development Mac",
+    "width_px": 896,
+    "frames": 80,
+    "opencv": "5.1.0",
+    "median_ms": 6.23,
+    "p95_ms": 7.28,
+    "scope": "appearance detector only, warm, cropped camera panels"
+  },
+  "screenshots": [
+    {
+      "frame": "preview-window",
+      "sha256": "caa3e39b33fc62e04a7af465e5169380a83df5e40f0dfa9bf232ce486fd887b6",
+      "placement": "untagged placement",
+      "truth": [
+        443,
+        206
+      ],
+      "expected_length_px": 135.0,
+      "paired_limbs": {
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.026
+      },
+      "brightness_baseline": {
+        "match": true,
+        "extra": 5,
+        "nearest_error_body_lengths": 0.198
+      },
+      "shape_score": 0.89,
+      "axis_error_mod_180_degrees": 3.6
+    },
+    {
+      "frame": "adjustment",
+      "sha256": "a130b7fcc2a530159f58d5830ebb3232c9884fd0c5016500056688a8464df7eb",
+      "placement": "untagged placement",
+      "truth": [
+        444,
+        324
+      ],
+      "expected_length_px": 135.0,
+      "paired_limbs": {
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.072
+      },
+      "brightness_baseline": {
+        "match": true,
+        "extra": 2,
+        "nearest_error_body_lengths": 0.175
+      },
+      "shape_score": 0.881,
+      "axis_error_mod_180_degrees": null
+    },
+    {
+      "frame": "three-corners",
+      "sha256": "163c85d987b734177313bbff3087235a57b81ba92343b89d068895f33fd9cdfa",
+      "placement": "no visible robot",
+      "truth": null,
+      "expected_length_px": 135.0,
+      "paired_limbs": {
+        "match": false,
+        "extra": 0,
+        "nearest_error_body_lengths": null
+      },
+      "brightness_baseline": {
+        "match": false,
+        "extra": 4,
+        "nearest_error_body_lengths": null
+      }
+    },
+    {
+      "frame": "recheck",
+      "sha256": "6337d47867b0e7e1d24b90416446916452e48ed7cdeb0f5b1c7d2b60e36dd346",
+      "placement": "central placement",
+      "truth": [
+        910,
+        367
+      ],
+      "expected_length_px": 135.0,
+      "paired_limbs": {
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.175
+      },
+      "brightness_baseline": {
+        "match": true,
+        "extra": 6,
+        "nearest_error_body_lengths": 0.228
+      },
+      "shape_score": 0.942,
+      "axis_error_mod_180_degrees": 4.6
+    },
+    {
+      "frame": "measured-preview",
+      "sha256": "7150c2741dd4b52606e58dadf92b0248f0c4ee04744c84a8bc7738ae4860d211",
+      "placement": "central placement",
+      "truth": [
+        911,
+        367
+      ],
+      "expected_length_px": 135.0,
+      "paired_limbs": {
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.162
+      },
+      "brightness_baseline": {
+        "match": true,
+        "extra": 5,
+        "nearest_error_body_lengths": 0.218
+      },
+      "shape_score": 0.936,
+      "axis_error_mod_180_degrees": 1.2
+    },
+    {
+      "frame": "live-calibrated",
+      "sha256": "24ed7b77e41e44909b496d74cad72a471a8e432312db5cf2ea41b520a89f2495",
+      "placement": "central placement with person",
+      "truth": [
+        907,
+        368
+      ],
+      "expected_length_px": 135.0,
+      "paired_limbs": {
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.11
+      },
+      "brightness_baseline": {
+        "match": true,
+        "extra": 11,
+        "nearest_error_body_lengths": 0.183
+      },
+      "shape_score": 0.948,
+      "axis_error_mod_180_degrees": 4.7
+    },
+    {
+      "frame": "pose-window",
+      "sha256": "426c53c57807d39b48477ea8494f92c091be2e76eb58df8a89ad8a2fc1058bce",
+      "placement": "oblique goal-side placement",
+      "truth": [
+        449,
+        477
+      ],
+      "expected_length_px": 106.95,
+      "paired_limbs": {
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.142
+      },
+      "brightness_baseline": {
+        "match": true,
+        "extra": 9,
+        "nearest_error_body_lengths": 0.16
+      },
+      "shape_score": 0.817,
+      "axis_error_mod_180_degrees": null
+    },
+    {
+      "frame": "framing-check",
+      "sha256": "44ac606925202d3777305fb0520c18f65bce12aff24c5ad1cf63c80b219f7371",
+      "placement": "defocused; position unresolved",
+      "truth": null,
+      "expected_length_px": 135.0,
+      "paired_limbs": {
+        "match": false,
+        "extra": 0,
+        "nearest_error_body_lengths": null
+      },
+      "brightness_baseline": {
+        "match": false,
+        "extra": 0,
+        "nearest_error_body_lengths": null
+      }
+    }
+  ],
+  "controls": {
+    "erased_robot_proposals": [
+      {
+        "frame": "preview-window",
+        "count": 0
+      },
+      {
+        "frame": "adjustment",
+        "count": 0
+      },
+      {
+        "frame": "recheck",
+        "count": 0
+      },
+      {
+        "frame": "measured-preview",
+        "count": 0
+      },
+      {
+        "frame": "live-calibrated",
+        "count": 0
+      },
+      {
+        "frame": "pose-window",
+        "count": 0
+      }
+    ],
+    "alternate_fill": [
+      {
+        "frame": "recheck",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.193
+      },
+      {
+        "frame": "measured-preview",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.182
+      },
+      {
+        "frame": "live-calibrated",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.072
+      },
+      {
+        "frame": "pose-window",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.189
+      }
+    ],
+    "scale": [
+      {
+        "frame": "preview-window",
+        "scale": 0.8,
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.107
+      },
+      {
+        "frame": "preview-window",
+        "scale": 1.2,
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.032
+      },
+      {
+        "frame": "adjustment",
+        "scale": 0.8,
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.147
+      },
+      {
+        "frame": "adjustment",
+        "scale": 1.2,
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.073
+      },
+      {
+        "frame": "recheck",
+        "scale": 0.8,
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.175
+      },
+      {
+        "frame": "recheck",
+        "scale": 1.2,
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.181
+      },
+      {
+        "frame": "measured-preview",
+        "scale": 0.8,
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.162
+      },
+      {
+        "frame": "measured-preview",
+        "scale": 1.2,
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.171
+      },
+      {
+        "frame": "live-calibrated",
+        "scale": 0.8,
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.11
+      },
+      {
+        "frame": "live-calibrated",
+        "scale": 1.2,
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.105
+      },
+      {
+        "frame": "pose-window",
+        "scale": 0.8,
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.142
+      },
+      {
+        "frame": "pose-window",
+        "scale": 1.2,
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.137
+      }
+    ],
+    "quarter_occlusion": [
+      {
+        "frame": "preview-window",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.102
+      },
+      {
+        "frame": "adjustment",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.101
+      },
+      {
+        "frame": "recheck",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.168
+      },
+      {
+        "frame": "measured-preview",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.137
+      },
+      {
+        "frame": "live-calibrated",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.125
+      },
+      {
+        "frame": "pose-window",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.177
+      }
+    ],
+    "heavy_occlusion": [
+      {
+        "frame": "preview-window",
+        "match": false,
+        "extra": 0,
+        "nearest_error_body_lengths": null
+      },
+      {
+        "frame": "adjustment",
+        "match": false,
+        "extra": 0,
+        "nearest_error_body_lengths": null
+      },
+      {
+        "frame": "recheck",
+        "match": false,
+        "extra": 0,
+        "nearest_error_body_lengths": null
+      },
+      {
+        "frame": "measured-preview",
+        "match": false,
+        "extra": 0,
+        "nearest_error_body_lengths": null
+      },
+      {
+        "frame": "live-calibrated",
+        "match": false,
+        "extra": 0,
+        "nearest_error_body_lengths": null
+      },
+      {
+        "frame": "pose-window",
+        "match": false,
+        "extra": 0,
+        "nearest_error_body_lengths": null
+      }
+    ],
+    "width_896": [
+      {
+        "frame": "preview-window",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.025
+      },
+      {
+        "frame": "adjustment",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.069
+      },
+      {
+        "frame": "three-corners",
+        "match": false,
+        "extra": 0,
+        "nearest_error_body_lengths": null
+      },
+      {
+        "frame": "recheck",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.179
+      },
+      {
+        "frame": "measured-preview",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.164
+      },
+      {
+        "frame": "live-calibrated",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.11
+      },
+      {
+        "frame": "pose-window",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.144
+      },
+      {
+        "frame": "framing-check",
+        "match": false,
+        "extra": 0,
+        "nearest_error_body_lengths": null
+      }
+    ],
+    "dark_exposure": [
+      {
+        "frame": "preview-window",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.13
+      },
+      {
+        "frame": "adjustment",
+        "match": true,
+        "extra": 1,
+        "nearest_error_body_lengths": 0.075
+      },
+      {
+        "frame": "recheck",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.175
+      },
+      {
+        "frame": "measured-preview",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.188
+      },
+      {
+        "frame": "live-calibrated",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.132
+      },
+      {
+        "frame": "pose-window",
+        "match": true,
+        "extra": 0,
+        "nearest_error_body_lengths": 0.176
+      }
+    ],
+    "two_body_composites": [
+      {
+        "separation_body_lengths": 2.0,
+        "count": 2,
+        "matched_centers": 2
+      },
+      {
+        "separation_body_lengths": 1.0,
+        "count": 2,
+        "matched_centers": 2
+      },
+      {
+        "separation_body_lengths": 0.4,
+        "count": 1,
+        "matched_centers": 1
+      }
+    ]
+  }
+}

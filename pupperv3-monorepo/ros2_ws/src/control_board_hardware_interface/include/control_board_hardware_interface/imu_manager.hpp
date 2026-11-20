@@ -52,14 +52,10 @@ class IMUManager {
   std::optional<std::pair<BNO055::Output, uint32_t>> sample_imu_multiple_attempts(int max_samples,
                                                                                   int delay_ms);
 
-  void poll_imu();
+  bool poll_imu();
 
 
   void imu_read_thread_fn();
-
-  const char *RED_ANSI = "\033[1;31m";
-  const char *YELLOW_ANSI = "\033[1;33m";
-  const char *RESET_ANSI = "\033[0m";
 
   // mutex for imu
   std::mutex imu_mutex_;

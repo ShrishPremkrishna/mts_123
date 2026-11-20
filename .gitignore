@@ -17,6 +17,7 @@ gemini_pupper/tricks/.backups/
 
 # Checkout-local API environment.
 .venv-api
+.venv-fc/
 
 # A linked checkout may share this machine-local evidence directory.
 /artifacts

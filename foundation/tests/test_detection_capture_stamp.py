@@ -35,7 +35,7 @@ def viewer(monkeypatch):
     path = ROOT / "follow_me_pupper/robot/viser_camera.py"
     tree = ast.parse(path.read_text())
     selected = [item for item in tree.body if isinstance(item, (ast.ClassDef, ast.FunctionDef))
-                and item.name in ("RosSource", "DetectionWorker", "DetectionPublisher",
+                and item.name in ("RosSource", "LatestCompressedSource", "DetectionWorker", "DetectionPublisher",
                                   "detection_projection", "detector_source_frame", "display_detections",
                                   "load_identified_detector")]
     projection_tree = ast.parse((ROOT / "follow_me_pupper/robot/fisheye_converter.py").read_text())
@@ -71,6 +71,32 @@ def viewer(monkeypatch):
     strings.String = lambda: SimpleNamespace(data="")
     monkeypatch.setitem(sys.modules, "std_msgs.msg", strings)
     return SimpleNamespace(**scope, clock=clock)
+
+
+def test_fc_uses_latest_jpeg_only_and_one_obstacle_publication(viewer):
+    obj = object.__new__(viewer.LatestCompressedSource)
+    obj.lock = threading.Lock()
+    obj.frame = obj.last_image_stamp = None
+    obj.node = SimpleNamespace(get_clock=lambda: SimpleNamespace(now=lambda: SimpleNamespace(nanoseconds=100)))
+    viewer.clock.monotonic_ns = lambda: 10
+    def image(stamp):
+        return SimpleNamespace(header=SimpleNamespace(stamp=SimpleNamespace(sec=0, nanosec=stamp)),
+                               data=bytes([stamp]))
+    for stamp in (1, 2, 1, 101):
+        obj._on_image(image(stamp))
+    assert obj.take() == (bytes([2]), 2, 10, 100)
+    assert obj.take() is None
+    streams = []
+    messages = []
+    def make_publisher(kind, topic, depth):
+        streams.append(topic)
+        return SimpleNamespace(publish=messages.append)
+    node = SimpleNamespace(create_publisher=make_publisher, get_clock=obj.node.get_clock)
+    pub = viewer.DetectionPublisher(node, ["ball"], detector_identity={}, fc_only=True)
+    assert streams == ["/fc/obstacle_detections"]
+    assert pub.publish([], np.zeros((572, 700, 3)), capture_stamp_ns=2, received_at=viewer.clock.value) == 0
+    envelope = json.loads(messages[0].data)
+    assert envelope["healthy"] and envelope["captured_at_ros_ns"] == 2
 
 
 def source(viewer):

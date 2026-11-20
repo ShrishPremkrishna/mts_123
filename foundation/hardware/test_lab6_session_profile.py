@@ -42,6 +42,7 @@ def profile(monkeypatch, tmp_path):
     package_module.get_package_share_directory = lambda name: str(share)
     monkeypatch.setitem(sys.modules, "ament_index_python.packages", package_module)
     monkeypatch.setenv("ROS_DOMAIN_ID", "168")
+    monkeypatch.delenv("PUPPER_FC_IMU_RECOVERY", raising=False)
     monkeypatch.setenv("PUPPER_FOLLOWER_MODE", "disabled")
     monkeypatch.delenv("PUPPER_SESSION_MOTION_MODE", raising=False)
     monkeypatch.setenv("PUPPER_GEMINI_DIR", str(ROOT / "gemini_pupper"))
@@ -388,7 +389,56 @@ def test_fc_walk_kick_profile_owns_one_walker_and_a_model_bound_guard(profile, m
     assert spawners[-1].kwargs["arguments"][:3] == ["gemini_walk", "trick_leg_kick", "--inactive"]
 
 
+@pytest.mark.parametrize("mode", ["strict", "supported_standby", "supported_rehome"])
+def test_native_imu_profile_rehearsal(profile, monkeypatch, mode):
+    import xml.etree.ElementTree as ET
+
+    monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
+    monkeypatch.setenv("PUPPER_SESSION_SKILLS", "leg_kick")
+    monkeypatch.setenv("PUPPER_FC_IMU_RECOVERY", mode)
+    description = profile.generate_launch_description()
+    manifest = runtime_config.validate_session_catalog(load_tricks())
+    baseline = profile.ROOT / "floor_stock/baseline-expanded.urdf"
+    actual = Path(manifest["robot_description"])
+    assert (actual == baseline) == (mode == "strict")
+    assert manifest["fc_imu_recovery"] == mode
+    assert manifest["assets"][str(actual)] == hashlib.sha256(actual.read_bytes()).hexdigest()
+    assert hashlib.sha256(baseline.read_bytes()).hexdigest() == profile.URDF_SHA
+    manager = next(e for e in description.args[0] if getattr(e, "kwargs", {}).get("executable") == "ros2_control_node")
+    xml = manager.kwargs["parameters"][1]["robot_description"]
+    assert xml == actual.read_text()
+    field = ET.fromstring(xml).find("./ros2_control/hardware/param[@name='fc_imu_recovery']")
+    if mode == "strict":
+        assert field is None
+    else:
+        assert field.text == mode
+
+
+def test_invalid_imu_profile_fails_preparation(profile, monkeypatch):
+    monkeypatch.setenv("PUPPER_FC_IMU_RECOVERY", "always_run")
+    with pytest.raises(ValueError, match="PUPPER_FC_IMU_RECOVERY"):
+        profile.generate_launch_description()
+
+
 def test_wrong_fc_skill_fails_before_launch(profile, monkeypatch):
     monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
     with pytest.raises(ValueError, match="requires only leg_kick"):
+        profile.generate_launch_description()
+
+
+def test_fc_home_consumes_the_pinned_profile_without_regeneration(profile, monkeypatch):
+    monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
+    monkeypatch.setenv("PUPPER_SESSION_SKILLS", "leg_kick")
+    profile.generate_launch_description()
+    path = runtime_config.session_manifest_path()
+    monkeypatch.setenv("PUPPER_FC_PREPARED_MANIFEST_SHA256", hashlib.sha256(path.read_bytes()).hexdigest())
+    monkeypatch.setattr(profile, "prepare_session_profile", lambda *_: pytest.fail("Home rebuilt its inputs"))
+    profile.generate_launch_description()
+
+    config = Path(json.loads(path.read_text())["configuration"])
+    config.write_text(config.read_text() + "\n")
+    with pytest.raises(ValueError, match="input changed"):
+        profile.generate_launch_description()
+    path.write_text(path.read_text() + "\n")
+    with pytest.raises(ValueError, match="manifest pinned"):
         profile.generate_launch_description()

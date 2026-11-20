@@ -312,12 +312,30 @@ def test_strict_ros_adapter_has_only_string_topics_and_republishes_original_dead
     time.advance(.001)
     zero = DeadlineCommand(CLOCK, SOURCE, 1, time.mono, time.mono + 150_000_000, 0., 0., 0.)
     subscriptions[REQUEST_TOPIC](String(zero.encode()))
+    def latest_status():
+        return json.loads(publishers[guard_module.STATUS_TOPIC][-1].data)
+    assert latest_status()["state"] == "ready"
+    assert latest_status()["sampled_at_monotonic_ns"] == time.mono
     time.advance(.001)
     motion = DeadlineCommand(CLOCK, SOURCE, 2, time.mono, time.mono + 150_000_000, .2, 0., 0.)
     subscriptions[REQUEST_TOPIC](String(motion.encode()))
-    time.advance(.02)
-    timers[0]()
+    assert latest_status()["state"] == "passing"
+    status_count = len(publishers[guard_module.STATUS_TOPIC])
+    for _ in range(10):
+        time.advance(.002)
+        timers[0]()
+    assert len(publishers[guard_module.STATUS_TOPIC]) == status_count
     assert decode(publishers[ADMITTED_TOPIC][-1].data) == motion
+    # A new clear image renews only its own evidence; command expiry stays put.
+    time.advance(.001)
+    subscriptions[guard_module.FRAME_TOPIC](String(json.dumps(time.frame())))
+    assert latest_status()["sequence"] == time.sequence
+    assert latest_status()["sampled_at_monotonic_ns"] == time.mono
+    assert decode(publishers[ADMITTED_TOPIC][-1].data) == motion
+    time.advance(.001)
+    subscriptions[guard_module.FRAME_TOPIC](String(json.dumps(time.frame(detections=[obstacle("0")]))))
+    assert latest_status()["state"] == "hold"
+    assert latest_status()["sampled_at_monotonic_ns"] == time.mono
     node.publish_zero()
     assert decode(publishers[ADMITTED_TOPIC][-1].data) == motion.veto()
     assert json.loads(publishers[guard_module.STATUS_TOPIC][0].data)["command_contract"] == CONTRACT

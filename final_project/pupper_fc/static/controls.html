@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0a0e11"><title>Pupper FC · Match lobby</title>
+<link rel="stylesheet" href="/assets/controls.css"><script type="module" src="/assets/controls.mjs"></script></head>
+<body><main>
+<header><div class="brand"><b class="shield" aria-hidden="true">FC</b><span>PUPPER <i>FC</i></span></div>
+<span class="local"><i class="lamp"></i> Local arena</span><button id="stop-all" title="Stop all connected robots immediately">■ &nbsp; Stop <kbd>Esc</kbd></button></header>
+<section class="title"><div><div class="kicker">MATCHDAY</div><h1>Match lobby<span>.</span></h1></div>
+<div class="score" aria-label="Scoreboard"><span class="blue-ink">BLU</span><b id="score-blue">0</b><span class="dash">–</span><b id="score-red">0</b><span class="red-ink">RED</span></div></section>
+<div id="teams" aria-label="Choose your robots"></div>
+<template id="team"><section class="team"><div class="teamtop"><span class="team-label"></span><span class="connection" role="status">Offline</span></div>
+<div class="teamfoot"><h2></h2><div class="actions"><button class="connect">Connect</button><button class="options" aria-label="Team settings" aria-expanded="false" disabled>⚙</button></div></div>
+<div class="team-settings" hidden><label>Control mode <select class="mode"><option value="autonomous">Autonomous</option><option value="teleop">Teleop</option></select></label><p class="guide" hidden></p><button class="disconnect">Disconnect</button></div>
+<p class="feedback" role="status"></p></section></template>
+<div class="matchbar">
+<div class="camera"><div class="camera-icon" aria-hidden="true">◉</div><div><h3>Field camera</h3><p id="camera-status">Disconnected</p></div>
+<button id="camera-connect">Connect camera</button><button id="camera-settings" title="Camera settings" aria-label="Camera settings" aria-expanded="false">⚙</button></div>
+<div class="kickoff"><button id="end-match" hidden>End match</button><button id="resume-match" hidden>Resume play ▸</button><button id="start-match" disabled>Start match &nbsp; ▸</button></div>
+</div><p id="error" role="status" aria-live="polite">Connect a team and the field camera to play.</p>
+<section class="fieldpanel" id="fieldpanel" hidden><div class="preview"><img id="view" alt="Overhead field with detected tags, ball and robots" hidden><span id="preview-wait">Waiting for a camera frame</span></div>
+<div class="cameraform"><h2>Camera settings</h2><label>Camera <select id="camera-source"><option value="phone">Wireless iPhone</option><option value="0">System camera 0</option><option value="1">System camera 1</option><option value="2">System camera 2</option><option value="3">System camera 3</option><option value="sim">Simulated field preview</option></select></label>
+<label class="check"><input type="checkbox" id="appearance"> Preview robot bodies without tags</label><button id="apply-camera">Open camera</button>
+<p id="seen"></p><p>On this field, tags 0, 5 and 1 run west to east along the north sideline. Tags 3, 4 and 2 run along the south. Blue wears 10 and Red wears 11, with the top edge toward the nose.</p><button id="survey" disabled>Mark goalposts</button><p id="survey-help">The field calibrates from its floor tags. Mark the posts if your goals differ from the field profile.</p></div></section>
+</main></body></html>

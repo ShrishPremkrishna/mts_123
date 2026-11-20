@@ -271,7 +271,7 @@ class Perception:
         return float(r) if 0.005 < r < 0.5 else None
 
     # ---- per frame -------------------------------------------------------
-    def process(self, frame: np.ndarray, t_capture: float, t_now: float | None = None) -> dict:
+    def process(self, frame: np.ndarray, t_capture: float, t_now: float | None = None, *, match_only=False) -> dict:
         """t_capture: when the photons hit the sensor. t_now: when this state will be used.
 
         Reported positions are extrapolated to t_now; age_s says how old the
@@ -378,6 +378,9 @@ class Perception:
                 "measured_this_frame": measured, "measured_at": self.ball_f.t_meas,
             }
 
+        if match_only:
+            # The match director and walking executor own strategy and shot alignment.
+            return state
         # Shooting geometry per robot.
         ball = state["ball"]
         if self.calibration_valid and ball["visible"]:
