@@ -11,19 +11,18 @@ goal-directed shots, automatic offense/defense, smooth responsive execution and
 shared overhead tracking. First establish this sequence; earlier endurance targets
 remain qualification work after it is physically achievable.
 
-**First observable result.** From a marked start, repeat one short straight pulse
-and measure each stopped endpoint with tape and a heading reference. The stock
-floor-tested release and frozen client support this step today if the same
-release passes fresh preflight and supervised startup. Choose the target and
-number of attempts before the first run. Record every attempt, endpoint spread,
-target error and interruptions. The [first-trial procedure](ROBOT_BUILD_AND_TEST_HANDOFF.md#first-camera-free-straight-trial)
-uses a 20 cm nominal target. The prior 30-inch observation came from a different
-speed and duration.
+**Camera-free baseline.** The November 19 floor session established approximate
+forward travel at the 20 cm and 40 cm targets. The remaining repeatability test
+needs a measured forward and lateral endpoint for each attempt from the same
+mark. Choose the repeat count before starting and retain interruptions.
+[Physical results](README.md#current-agreement-and-owner-steering--november-19-2026)
+· [Trial procedure](ROBOT_BUILD_AND_TEST_HANDOFF.md#first-camera-free-straight-trial).
 
 **Next tracked result.** One tagged robot reaches a scripted field pose
 `(x, y, yaw)` under real overhead feedback. Use the same target as the
 camera-free trial. To add combined camera-free trials, qualify relative IMU
-turns separately on the selected newer client. Both trials can proceed without
+turns separately on the newer client. Its first +20° physical attempt timed
+out before the heading settled. Both trials can proceed without
 the ball. A later moving run-up needs a separate braking and contact test.
 
 1. The overhead producer, calibration-health correction and measured-clock adapter

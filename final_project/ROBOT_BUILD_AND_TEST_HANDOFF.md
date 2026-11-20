@@ -10,8 +10,10 @@ The last floor-tested release is `movement-20261117-logfix`. Its sprint profile
 produced the recorded forward and short lateral results. The
 [legacy guarded walk](../foundation/results/staged-field-session-20261119.json)
 was assembled on the Pi using the existing native binaries. Its loaded runtime,
-camera stopping and physical walking await qualification. The direct
-command-deadline mode still needs a target-built controller.
+camera stopping and physical walking await qualification. Direct command-deadline
+operation requires the selected Pi-compatible controller and a separate runtime
+check. The [staging report](../foundation/results/staged-field-session-20261119.json)
+records target build and release evidence.
 The [November 17 source kit](../artifacts/pupper-fc/2026-11-17/fc-strict-trial-source-kit-20261117T160403Z/summary.json)
 contains separate source archives for the native controller and software-Start
 gateway. It covers the guarded movement work through that date. The November 19
@@ -33,14 +35,15 @@ the currently running release.
 
 ## Target build for camera-guided play
 
-The first stock straight trial can run before this build. The direct-deadline
+Stock straight trials use the floor-tested release independently of this build. The direct-deadline
 controller and software Start gateway need the Pi's Debian 12 ARM64 runtime.
 The local Ubuntu Jazzy image is suitable for simulation and has incompatible
 C++/Python dependencies for deployment. [Build audit](../foundation/results/build-environment-audit-20261116.json).
 
 The prepared runner lives at
 `/home/pi/pupper-fc-source/native-build-runner-X6aa22bm/build-one.sh`.
-When the Pi is idle, run it with Bash and the single argument
+For a new build, check the staging report for completed packages first. When the
+Pi is idle, run the runner with Bash and the single argument
 `neural_controller`, then `joy_utils`. Each invocation uses an isolated build
 directory. The runner's source and dependency checks passed on the target.
 Retain its build log, behavioral test results and installed-file hashes before
@@ -80,12 +83,11 @@ awk 'BEGIN { RS="" } /DualSense|Wireless Controller|Handlers=.*js[0-9]/ { print 
 ```
 
 Confirm the expected controller has an input handler. If missing, reconnect it
-and repeat the check. The [post-reboot verification](../foundation/results/staged-field-session-20261119.json)
-identifies the replacement receipt from that boot. A later operator started
-another controller manager, so that receipt is historical. At handover,
-confirm the prior operator has closed their session and released the robot.
-Then verify idle hardware and create a fresh preflight in a new run directory,
-even if the boot and stock manifest still match:
+and repeat the check. The [November 19 field session](../foundation/results/staged-field-session-20261119.json)
+closed after the operator supported the robot, the driver deactivated and the
+recorder exited. Its preflight and loaded receipts belong to that session.
+For a new session, confirm ownership and idle hardware, then create a fresh
+preflight in a new run directory even if the boot and stock manifest still match:
 
 ```sh
 PUPPER_RUN=$(mktemp -d /home/pi/pupper-fc-runs/coordinate-stage1-XXXXXXXX)
@@ -202,11 +204,13 @@ python3 -u "$PUPPER_RELEASE/final_project/behaviors/tools/movement_trial.py" \
    endpoint. A paired x/y measurement counts even when heading was unavailable. Spread needs
    at least two endpoints. Heading errors use the recorded yaw independently.
 
-The frozen stock client supports timed axis pulses. The newer
-[Pi client](../foundation/results/staged-field-session-20261119.json)
-processed relative and absolute headings in synthetic tests. Select it
-separately and qualify isolated physical turns before combining them with
-translation. See the [movement runbook](behaviors/ROBOT_RUNBOOK.md#direct-deadline-qualification-candidate)
+The frozen stock client supports timed axis pulses. For the first physical
+IMU turn, the separately selected client at `dc3e124` verified the loaded
+stock runtime and accepted a relative +20° request. The IMU reported +15.6°
+at the six-second cutoff. Qualify sustained heading and a confirmed stop in
+isolated turns before combining them with translation.
+[Turn receipt and source selection](../foundation/results/staged-field-session-20261119.json).
+See the [movement runbook](behaviors/ROBOT_RUNBOOK.md#direct-deadline-qualification-candidate)
 for the guarded candidate, which also requires a real onboard camera producer.
 
 ## Mounted overhead camera, motors inactive
