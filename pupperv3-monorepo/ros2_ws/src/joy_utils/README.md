@@ -99,8 +99,9 @@ One deliberate browser Stand echoes a recent challenge from before the click
 and identifies the same owner in its service request. Admission requires the
 latched, idle gateway, released physical Stop, and selected `gemini_walk`.
 The gateway marks `fc_operator_armed` as soon as it admits the request and
-requires fresh inventory for dispatch. While armed, the gateway honors a
-physical Stop and consumes physical selection edges. Browser heartbeat loss
+requires fresh inventory for dispatch. Throughout FC mode a connected gamepad
+can issue physical Stop. Options, face buttons, and the ordinary Start service
+cannot activate a controller. In the default mode their behavior is unchanged. Browser heartbeat loss
 enters the ordinary Stop path on the 50 ms timer, publishes native damping,
 cancels queued activation and follows an in-flight activation with corrective
 deactivation. A software or physical Stop advances the epoch. Standing again

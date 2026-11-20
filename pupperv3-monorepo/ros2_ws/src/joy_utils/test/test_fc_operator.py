@@ -9,7 +9,7 @@ import time
 import rclpy
 from controller_manager_msgs.msg import ControllerState
 from controller_manager_msgs.srv import ListControllers, SwitchController
-from joy_utils.srv import FcStartMotion
+from joy_utils.srv import FcStartMotion, StartMotion
 from rclpy.executors import SingleThreadedExecutor
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import Joy
@@ -68,6 +68,7 @@ def main(gateway):
     stop_pub = client.create_publisher(Empty, "/estop_controller/request_stop", 10)
     joy = client.create_publisher(Joy, "/joy", 10)
     start = client.create_client(FcStartMotion, "/estop_controller/fc_start_motion")
+    legacy = client.create_client(StartMotion, "/estop_controller/start_motion")
     threads = [threading.Thread(target=e.spin) for e in executors]
     for thread in threads:
         thread.start()
@@ -113,9 +114,27 @@ def main(gateway):
         assert response.success, response.message
 
     try:
-        wait(lambda: stopped() and start.service_is_ready() and beat_pub.get_subscription_count()
+        wait(lambda: stopped() and start.service_is_ready() and legacy.service_is_ready() and beat_pub.get_subscription_count()
              and joy.get_subscription_count() and stop_pub.get_subscription_count(), "startup")
         assert status["fc_operator_control"] and status["fc_operator_lease_ms"] == 750
+        # Exercise every pre-lease activation path with a connected controller.
+        # Both Options and a face selection leave initialization latched, including
+        # when a valid legacy Start transaction cites a fresh physical Joy report.
+        def buttons(*pressed):
+            values = [0] * 13
+            for index in pressed:
+                values[index] = 1
+            joy.publish(Joy(buttons=values))
+
+        buttons(9, 0)
+        time.sleep(.15)
+        buttons()
+        state = status
+        old_start = legacy.call_async(StartMotion.Request(
+            instance_id=state["instance_id"], epoch=state["epoch"], sequence=state["sequence"],
+            selected_controller=state["selected_controller"]))
+        assert not result(old_start) and "dashboard" in old_start.result().message
+        assert stopped() and not activations and not status["fc_operator_owner"], "gamepad bypassed dashboard ownership"
         assert not result(request(status)), "FC Start without browser proof"
         ready = acquire()
         assert not result(request(ready, other)), "wrong owner captured Start"
@@ -129,6 +148,11 @@ def main(gateway):
             joy.publish(Joy())
             time.sleep(.075)
         assert status["fc_operator_armed"] and not status["latched"]
+        # Face/Options edges during a lease cannot reactivate or switch the walker.
+        buttons(0, 9)
+        time.sleep(.10)
+        buttons()
+        assert len(activations) == 1 and active == {"gemini_walk"}
         frozen = status
         previous = len(stops)
         began = time.monotonic()

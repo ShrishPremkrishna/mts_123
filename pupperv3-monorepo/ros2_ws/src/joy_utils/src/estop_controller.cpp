@@ -178,7 +178,7 @@ class StopBridge {
     check_operator(now);
     if (buttons.size() > stop_index_ && (buttons[stop_index_] == 0 || buttons[stop_index_] == 1)) {
       last_joy_ = now;
-      worker_->joy(buttons, !operator_armed_);
+      worker_->joy(buttons, !fc_operator_control_);
     } else {
       last_joy_.reset();
       // A disconnect/short report provides no evidence that a held Stop was released.
@@ -218,8 +218,8 @@ class StopBridge {
     std::lock_guard<std::mutex> lock(mutex_);
     const auto now = StopArbiter::Time::clock::now();
     check_operator(now);
-    if (operator_armed_) {
-      answer_start(service, header, false, "Standing is already owned by an FC browser");
+    if (fc_operator_control_) {
+      answer_start(service, header, false, "FC standing requires the enrolled dashboard Start");
       return;
     }
     if (!last_joy_ || now < *last_joy_ || now - *last_joy_ >= joy_freshness) {
