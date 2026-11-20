@@ -37,7 +37,7 @@ class Life:
             'pending': {}, 'events': []}
         self.states = {'manager': 'running', 'launch': 'running'}
         self.spawned = []; self.sent = []; self.closed = False
-        self.native_log = 'Finished homing!\n' + READY_SPAWNERS
+        self.native_log = 'Finished homing!\nSuccessfully activated!\n' + READY_SPAWNERS
     def coordinator(self):
         return SimpleNamespace(execution_lock=lambda *a: nullcontext())
     def check_support(self, run): pass
@@ -392,9 +392,9 @@ class SessionTests(unittest.TestCase):
                 log = 'Finished homing!\n[spawner-7] [INFO] [spawner_motion]: Loaded neural_controller_default\n'
             elif clock.waits == 2:
                 # All Loaded lines still do not prove final configuration completed.
-                log = 'Finished homing!\n' + READY_SPAWNERS.rsplit('[INFO] [spawner-7]', 1)[0]
+                log = 'Finished homing!\nSuccessfully activated!\n' + READY_SPAWNERS.rsplit('[INFO] [spawner-7]', 1)[0]
             else:
-                log = 'Finished homing!\n' + READY_SPAWNERS
+                log = 'Finished homing!\nSuccessfully activated!\n' + READY_SPAWNERS
             (self.run / 'robot.log').write_text(log)
         (self.run / 'native-readiness.json').unlink()  # Normally absent before first startup.
         with patch.object(session, 'time', SimpleNamespace(monotonic=lambda: clock.now, sleep=sleep)):
@@ -454,6 +454,22 @@ class SessionTests(unittest.TestCase):
         self.life.states['camera'] = 'exited'
         with self.assertRaisesRegex(ValueError, 'Previously owned camera has exited'):
             session.start_perception(self.run, self.plan, self.life)
+
+    def test_mechanical_fault_preserves_session_and_returns_cause(self):
+        (self.run / 'native-readiness.json').unlink()
+        self.life.native_log = ('[ros2_control_node-2] [ERROR] [ControlBoardHardwareInterface]: '
+                                'Mechanical Home stopped: nonfinite encoder feedback; neutral sent')
+        with self.assertRaisesRegex(ValueError, 'nonfinite encoder feedback.*Keep Pupper supported'):
+            session.start_native(self.run, self.plan, self.life)
+        self.assertFalse((self.run / 'native-readiness.json').exists())
+        self.assertNotEqual(self.life.load(self.run)['status'], 'stopped')
+
+    def test_pre_motor_motor_board_refusal(self):
+        log = ('[ros2_control_node-2] [ERROR] [1.2] [ControlBoardHardwareInterface]: '
+               'Home refused before motor enable: missing motor board reply (mask=1)')
+        self.assertEqual(session.pre_motor_fault(log), 'missing motor board reply (mask=1)')
+        self.assertIsNone(session.pre_motor_fault('Homing actuators...\n' + log))
+        self.assertIsNone(session.pre_motor_fault(log.replace('ros2_control_node', 'spawner')))
 
     def test_pre_motor_fault_cleans_even_if_launch_has_exited(self):
         self.deferred_fc_fixture()

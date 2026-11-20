@@ -105,6 +105,11 @@ class ControlBoardHardwareInterface : public hardware_interface::SystemInterface
   std::vector<float> bench_kds_;
   std::vector<double> prior_field_positions_;
   std::atomic<bool> field_backup_active_{false};
+  // Only the sensor observation owner writes the proof; claim callbacks read its expiry.
+  std::atomic<uint64_t> backup_claim_until_ns_{0};
+  std::atomic<uint64_t> backup_claim_generation_{0}, prepared_backup_generation_{0};
+  void publish_backup_claim_proof(std::chrono::steady_clock::time_point observed_at);
+  bool can_claim_on_field_imu(uint64_t generation) const;
   bool bench_joint_feedback_ok(std::chrono::steady_clock::time_point now) const;
   hardware_interface::return_type read_bench(const BNO055::Output &sample);
   void report_imu_fault(const BNO055::Output &sample, std::chrono::steady_clock::time_point now,

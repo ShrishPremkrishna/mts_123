@@ -18,8 +18,18 @@ class RedundantImu {
   int mode=1;
   bool qualified=false;
 
-  const char *select(const Output &raw, Time now, bool allow_hold, Output &selected) {
+  Time claim_deadline() const { return claim_until; }
+
+  enum class Gate {source_error, primary_feedback, alternate_feedback, alternate_accuracy, alternate_age,
+                   alternate_skew, overlap, disagreement, waiting_for_advance, accumulating, ready, count};
+  static constexpr std::array<const char *, static_cast<size_t>(Gate::count)> gate_names{
+    "source_error", "primary_feedback", "alternate_feedback", "alternate_accuracy", "alternate_age",
+    "alternate_skew", "overlap", "disagreement", "waiting_for_advance", "accumulating", "ready"};
+
+  const char *select(const Output &raw, Time now, bool allow_hold, Output &selected, Gate *gate=nullptr) {
     using namespace std::chrono;
+    if (gate) *gate=Gate::source_error;
+    claim_until={};
     selected=raw;
     const auto &a=raw.alternative;
     if (!initialized) {base_reset=a.reset_count; last_gaps=a.gap_count; initialized=true;}
@@ -30,10 +40,12 @@ class RedundantImu {
       last_gaps=a.gap_count;
     }
     const char *primary_error=feedback_error(raw,now);
-    const bool alternative_ok=!feedback_error(a,now) && a.quaternion_accuracy>=2 && a.gyro_accuracy>=2 &&
-        recent(a.quaternion_receipt_time,a.quaternion_minimum_age_at_receipt,now,milliseconds(40)) &&
-        recent(a.gyro_receipt_time,a.gyro_minimum_age_at_receipt,now,milliseconds(40)) &&
-        std::abs(duration_cast<milliseconds>(a.quaternion_receipt_time-a.gyro_receipt_time).count())<=20;
+    const char *alt_feedback=feedback_error(a,now);
+    const bool alt_accuracy=a.quaternion_accuracy>=2 && a.gyro_accuracy>=2;
+    const bool alt_age=recent(a.quaternion_receipt_time,a.quaternion_minimum_age_at_receipt,now,milliseconds(40)) &&
+                       recent(a.gyro_receipt_time,a.gyro_minimum_age_at_receipt,now,milliseconds(40));
+    const bool alt_skew=std::abs(duration_cast<milliseconds>(a.quaternion_receipt_time-a.gyro_receipt_time).count())<=20;
+    const bool alternative_ok=!alt_feedback && alt_accuracy && alt_age && alt_skew;
     const bool q_live=recent(raw.quaternion_receipt_time,raw.quaternion_minimum_age_at_receipt,now,max_receipt_age);
     const bool g_live=recent(raw.gyro_receipt_time,raw.gyro_minimum_age_at_receipt,now,max_receipt_age);
     if ((known_q!=Time{} && raw.quaternion_receipt_time<known_q) ||
@@ -50,6 +62,15 @@ class RedundantImu {
                                       a.quaternion_receipt_time,a.gyro_receipt_time};
     bool advanced=matched;
     for (size_t i=0;i<receipts.size();++i) advanced=advanced && receipts[i]>credited[i];
+    if (gate) {
+      if (primary_error) *gate=Gate::primary_feedback;
+      else if (alt_feedback) *gate=Gate::alternate_feedback;
+      else if (!alt_accuracy) *gate=Gate::alternate_accuracy;
+      else if (!alt_age) *gate=Gate::alternate_age;
+      else if (!alt_skew) *gate=Gate::alternate_skew;
+      else if (!matched) *gate=Gate::overlap;
+      else *gate=advanced?Gate::accumulating:Gate::waiting_for_advance;
+    }
     if (mode!=2 && !primary_error) {
       // GameRV uses an arbitrary yaw origin. Acquire a yaw-only world-frame
       // transform after a continuous period of overlapping, agreeing measurements.
@@ -61,7 +82,10 @@ class RedundantImu {
                                      1-2*(difference.y()*difference.y()+difference.z()*difference.z()));
           alignment=Eigen::AngleAxisf(float(yaw),Eigen::Vector3f::UnitZ());
         }
-        if (!consistent(raw, true, true)) reset_agreement();
+        if (!consistent(raw, true, true)) {
+          if (gate) *gate=Gate::disagreement;
+          reset_agreement();
+        }
         else if (advanced) {
           if (last_match!=Time{} && now-last_match>milliseconds(40)) {
             reset_agreement();
@@ -71,6 +95,15 @@ class RedundantImu {
           last_match=now;
           if (now-agreement_since>=milliseconds(500)) qualified=true;
         }
+      }
+      if (qualified && matched) {
+        // A duplicate may consume the remaining proof but cannot renew it.
+        claim_until=std::min({last_match+milliseconds(40),
+            raw.quaternion_receipt_time-raw.quaternion_minimum_age_at_receipt+milliseconds(30),
+            raw.gyro_receipt_time-raw.gyro_minimum_age_at_receipt+milliseconds(30),
+            a.quaternion_receipt_time-a.quaternion_minimum_age_at_receipt+milliseconds(40),
+            a.gyro_receipt_time-a.gyro_minimum_age_at_receipt+milliseconds(40)});
+        if (gate && claim_until>now) *gate=Gate::ready;
       }
       return nullptr;
     }
@@ -145,6 +178,6 @@ class RedundantImu {
   uint64_t base_reset=0,last_gaps=0;
   Eigen::Quaternionf alignment=Eigen::Quaternionf::Identity();
   std::array<Time,4> credited{};
-  Time last_restore{},agreement_since{},last_match{},deadline{},restore_since{},known_q{},known_g{};
+  Time claim_until{},last_restore{},agreement_since{},last_match{},deadline{},restore_since{},known_q{},known_g{};
 };
 }

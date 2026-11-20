@@ -2,6 +2,10 @@
 
 This candidate shortens the path from a powered robot to repeated soccer attempts. Keep the Pi, board driver, calibrated joint coordinates and walker alive between attempts. The laptop owns the overhead camera, field geometry, game roles and operator controls. The Pi owns its 12 actuator commands, balance feedback, onboard Hailo detector and physical Stop.
 
+## Blue's supported Home and startup investigation
+
+On Blue, a supported Home on the preceding release timed out before motor enable with fresh final primary IMU samples. The original error omitted both predicates' history. All six subsequent cold sensor trials passed on the same Pi, including two with the actual vision stack starting. Supported Home now needs verified primary balance and valid joint feedback. The alternate IMU agreement gates the first standing claim. Routine Home only defers perception. The operator can retry a verified pre-enable refusal from the lobby. [Measurements, service inventory and independent audits](../../foundation/results/fc-home-startup-investigation-20261120.md)
+
 ## Continuous pursuit and camera cadence · November 20
 
 The FC boot profile retains the installed Pupper eyes, touch display and Wi-Fi setup. The laptop runs the game lobby. A supported Home starts the native hardware session. The older headless archives described below are historical releases.
@@ -160,4 +164,4 @@ In an intercepted I²C test, the old reader completed a valid balance report, th
 3. In the lobby verify scale, posts, the correct colored team/body heading and the pink ball. With one operator and one robot, start with a short keyboard drive. End and start again on the same standing session. Time each click to first observable motion and verify Escape and physical Stop. Then try one autonomous approach and kick with the operator present. Repeat on the second robot before paired floor play.
 4. For rollback, support Pupper and shut down its owning native session. From the extracted Pi directory run `python3 foundation/hardware/fc_walk_kick_release.py rollback`. The helper restores the saved enrollment or disables a first managed installation. The saved native overlay must remain available. [Shutdown and rollback](../../foundation/hardware/FC_OPERATOR.md)
 
-The packed Pi still needs target build and enrollment, cold and warm physical timing, loaded driver and Stop verification, physical camera clearance, braking, thermal behavior, contact and paired play. The headless and native rehearsals use synthetic measurements or memory hardware. The recorded hardware runs identify their previous releases.
+The Pi verification record above supersedes the earlier packed-Pi checkpoint. Physical standing, Stop, braking, moving-ball contact and two-robot field operation need supervised acceptance on the selected build. The rehearsals use synthetic measurements or memory hardware.

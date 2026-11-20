@@ -91,4 +91,5 @@ void IMUManager::stop() {
   if (imu_read_thread_ && imu_read_thread_->joinable()) {
     imu_read_thread_->join();
   }
+  imu_.reset();  // Close the I2C descriptor before relinquishing board ownership.
 }

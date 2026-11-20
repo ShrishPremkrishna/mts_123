@@ -31,7 +31,7 @@ spi_command_t spi_command_drv;
 spi_data_t spi_data_drv;
 spi_torque_t spi_torque;
 
-pthread_mutex_t spi_mutex;
+pthread_mutex_t spi_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 const float max_torque[3] = {3.f, 3.f, 3.f};
 const float wimp_torque[3] = {0.5f, 0.5f, 0.5f};
@@ -124,10 +124,6 @@ void init_spi() {
   memset(&spi_command_drv, 0, sizeof(spi_command_drv));
   memset(&spi_data_drv, 0, sizeof(spi_data_drv));
 
-  if (pthread_mutex_init(&spi_mutex, NULL) != 0) {
-    printf("[ERROR: RT SPI] Failed to create spi data mutex\n");
-  }
-
   if (command_size != K_EXPECTED_COMMAND_SIZE) {
     printf("[RT SPI] Error command size is %ld, expected %d\n", command_size,
            K_EXPECTED_COMMAND_SIZE);
@@ -145,16 +141,19 @@ void init_spi() {
   spi_open();
 }
 
-/*!
- * Open SPI device
- */
+void close_spi() {
+  if (spi_1_fd>=0) { close(spi_1_fd); spi_1_fd=-1; }
+  if (spi_2_fd>=0) { close(spi_2_fd); spi_2_fd=-1; }
+}
+
+/*! Open both SPI devices. */
 int spi_open() {
   int rv = 0;
-  spi_1_fd = open("/dev/spidev0.0", O_RDWR);
+  spi_1_fd = open("/dev/spidev0.0", O_RDWR | O_CLOEXEC);
   if (spi_1_fd < 0) {
     perror("[ERROR] Couldn't open spidev 0.0");
   }
-  spi_2_fd = open("/dev/spidev0.1", O_RDWR);
+  spi_2_fd = open("/dev/spidev0.1", O_RDWR | O_CLOEXEC);
   if (spi_2_fd < 0) {
     perror("[ERROR] Couldn't open spidev 0.1");
   }

@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/.codex/worktrees/fc-teleop/cs123",
   "branch": "codex/pupper-fc-match",
   "mode": "fc_touchscreen_and_field_qualification",
-  "updated_utc": "2026-11-20T22:08:59.725996+00:00",
+  "updated_utc": "2026-11-20T22:45:56.958298+00:00",
   "current_report": "final_project/pupper_fc/RELEASE.md",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -70,7 +70,9 @@
     "offline_release": "foundation/results/fc-offline-release-20261120.json",
     "matchday_dashboard_release": "foundation/results/fc-matchday-release-20261120.json",
     "fc_appliance": "foundation/results/fc-appliance-release-20261120.json",
-    "match_imu": "foundation/results/fc-match-imu-release-20261120.json"
+    "match_imu": "foundation/results/fc-match-imu-release-20261120.json",
+    "fc_continuous_release": "foundation/results/fc-continuous-release-20261120.json",
+    "home_startup": "foundation/results/fc-home-startup-investigation-20261120.md"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -136,20 +138,20 @@
     "fc_appliance_release": "Verified offline: shipped both archive hashes and committed blobs, clean Mac launch and Chrome, standalone Pi stage/compile, systemd appliance rollback, and three final ROS rosters. See the appliance release record for timings and outstanding physical checks."
   },
   "hardware_session": {
-    "status": "Blue Pi accepted the November 20 interception build before reboot. The native Board and Walker compiled and the camera/Hailo ran, with motors idle. The operator observed a terminal after reboot. SSH and mDNS have not returned since. Restore the original eyes and touch Wi-Fi before working on powered Home.",
-    "observed_utc": "2026-11-20T22:08:59.725996+00:00",
+    "status": "Blue running original eyes/touch Wi-Fi, legacy robot services inactive. One supported Home on 0a479c1 timed out before enable. Manager, camera and recorder processes verified stopped. Four quiet and two loaded motor-free IMU restarts all passed in 3.105–3.113 s. Both motor boards answered 19/20 verified neutral probes. See the startup investigation for the candidate repair and target receipts.",
+    "observed_utc": "2026-11-20T22:18:59.578360+00:00",
     "ssh": "mts",
-    "current_boot_id": null,
+    "current_boot_id": "4f3d9a21-3bb7-4548-9979-b49bc6cab04b",
     "source_checkout": "/home/pi/pupper-fc-source/shared-main-9dPewsiT",
-    "selected_candidate": "/home/pi/pupper-fc-releases/fc-49bf557ab3091ac3",
+    "selected_candidate": "/home/pi/pupper-fc-releases/fc-deca4af28609d907",
     "platform_environment": null,
-    "selected_driver_sha256": null,
-    "selected_controller_sha256": null,
+    "selected_driver_sha256": "d6676536a1f6839518160e82d87ceef9ff3f8373773811e933898efd73a42eed",
+    "selected_controller_sha256": "dc90fa30b3df597806536623c270ceff1a52db4d937e30bcbd4b8f984a820500",
     "active_run": null,
     "processes_at_observation": "Last pre-reboot inventory showed Hailo service, no camera or ros2_control_node after diagnostic cleanup. Post-reboot process inventory awaits network recovery.",
     "policies_at_observation": {},
     "gateway_stop_latched_at_observation": null,
-    "qualification_report": "final_project/pupper_fc/RELEASE.md",
+    "qualification_report": "foundation/results/fc-continuous-release-20261120.json",
     "teammate_experiment": "/home/pi/kick preserved; do not modify or name-kill its processes",
     "previous_straight_trials": {
       "report": "foundation/results/staged-field-session-20261119.json",
@@ -197,10 +199,6 @@
     "offline_release_commit": "1e4247d644cf08dbd2ba1e07c188f8b62c566e5c"
   },
   "next": [
-    {
-      "id": "restore_touchscreen",
-      "action": "Repair the Blue Pi’s original eyes, touch Wi-Fi and FC boot. User has no local keyboard. Use trusted SSH over a working link or the authorized non-destructive USB boot-volume repair. Confirm the touchscreen with its operator."
-    },
     {
       "id": "supported_match_imu",
       "action": "In a sling, verify both IMU report pairs, native Stop and a two-second ROS delivery pause on one prepared Pi. Resume through the lobby and verify a fresh key action. Hardware bus interruption, braking distance and target firmware still need physical qualification."

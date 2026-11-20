@@ -87,7 +87,9 @@ def controlled_files(folder):
 def pi_files():
     files = {p: ROOT / p for p in selected_paths(ROOT)}
     files["READ-ME.md"] = DOC
-    for name in ("pupper-fc-install", "foundation/hardware/fc_appliance.py"):
+    for name in ("pupper-fc-install", "foundation/hardware/fc_appliance.py",
+                 "foundation/hardware/imu_diagnostic/probe_dual_startup.cpp",
+                 "foundation/hardware/imu_diagnostic/README.md"):
         files[name] = ROOT / name
     files["foundation/hardware/FC_OPERATOR.md"] = ROOT / "foundation/hardware/FC_OPERATOR.md"
     for package in ("control_board_hardware_interface", "joy_utils"):

@@ -55,3 +55,21 @@ Inspect has a 12-second operation bound; compare without `--enable-baseline` has
 Reads, writes, packets, quality flags, raw signed timing deltas and control replies remain in the new exclusive output directory. No reset, tare, calibration-enable or DCD command exists here. Host receipt times are not physical measurement times. Product/feature replies have no transaction ID; serial queries and draining reduce but cannot eliminate stale/unsolicited-reply ambiguity. Product-record completeness remains unknown after the bounded collection.
 
 `python3 summarize.py CAPTURE NEW_SUMMARY.json` compares 02 against 07 minus estimated bias using 5/20 ms host-receipt matching. Exit 0 confirms only procedure completion; missing or unmatched reports remain unavailable. It makes no health or calibration decision. `test_diagnostic.cpp` uses fake I2C only; fixtures distinguish captured 02/05/control bytes from constructed vendor-layout 07 data. The linked session preserves actual ownership checks, I2C responses, restoration, and failed attempts alongside the successful capture. Each later session must establish its own ownership and restoration evidence.
+
+## FC supported Home and dual-stream qualification
+
+The field profile requires three seconds of qualifying primary orientation and gyro before mechanical Home. Gyro peak, vector mean, gravity drift, freshness and BNO reset checks remain active. Mechanical Home uses primary feedback throughout, then leaves the legs disabled. The first full leg controller claim also requires 500 ms of advancing agreement with the alternate reports. The driver checks the agreement at prepare, perform and before the first enabled packet. An expired proof before controller acquisition leaves the completed Home available for a fresh request. Loss after committing that first claim neutralizes the board.
+
+On an FC startup refusal, the run directory receives `native-startup-trace.csv` after the neutral packet. Subsequent refusals in the same directory get a timestamped filename. Each row includes the primary stationary decision, the alternate agreement decision, both alternate receipts and quality ranks, minimum known batch ages, gap counts and resets. The first comment identifies whether the primary startup gate passed before a later mechanical fault. An explicit `PUPPER_IMU_STARTUP_TRACE` still records the primary startup outcome on success as well. The default successful run discards its bounded in-memory observations.
+
+The standalone [dual-stream probe](probe_dual_startup.cpp) resets the BNO and requests reports 02/05/07/08 every 10 ms using the production protocol. It collects 15 seconds of paired evidence. Only use it in a supported, motor-off session owned by the operator, with the native driver stopped. The external lock in the invocation is required. Build with Eigen headers and the same native source snapshot used for the driver.
+
+```sh
+board=pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface
+[ -d "$board" ] || board=native/src/control_board_hardware_interface
+c++ -std=c++17 -O2 -pthread -I"$board/include" -I/usr/include/eigen3 \
+  foundation/hardware/imu_diagnostic/probe_dual_startup.cpp "$board/src/rt/rt_bno055.cpp" -o /tmp/probe-dual-startup
+/tmp/probe-dual-startup --supported-no-motors NEW.csv
+```
+
+On November 20, 2026 the original supported Home timed out with fresh final primary receipts and no per-poll history. Four sensor-only cold starts and two more alongside camera, Hailo and recorder startup all reached the original joint qualification in 3.10–3.12 s. One quiet trial later measured a primary angular-rate peak of 0.084 rad/s. The failed Home's cause remains unresolved. [Quiet trial evidence](../../../outputs/pupper-fc-intercept/verification/physical-home/no-motor-dual-startup/evidence.json) · [Cold-start comparison](../../../outputs/pupper-fc-intercept/verification/imu-camera-startup/comparison.json)

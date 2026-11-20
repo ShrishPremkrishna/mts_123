@@ -16,7 +16,7 @@ BNO055::BNO055(int i2c_device_number, uint32_t micros_between_reports) {
   printf("[BNO055] Using device name %s\n", device_name.c_str());
 
   // open the device
-  m_fd = open(device_name.c_str(), O_RDWR);
+  m_fd = open(device_name.c_str(), O_RDWR | O_CLOEXEC);
   if (m_fd < 0) {
     printf("[BNO055] failed to open: %s\n", strerror(errno));
     m_okay = false;

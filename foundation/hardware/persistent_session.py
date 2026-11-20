@@ -441,7 +441,12 @@ def pre_motor_fault(log):
     fault = re.search(r'^\[ros2_control_node-\d+\][^\n]*?\[ControlBoardHardwareInterface\]: '
                       r'IMU startup check failed: IMU fault phase=startup reason=([^\r\n]{1,160}?) '
                       r'sampled_mono_us=\d+\b', clean, re.MULTILINE)
-    return fault.group(1) if fault else None
+    if fault:
+        return fault.group(1)
+    board = re.search(r'^\[ros2_control_node-\d+\][^\n]*?\[ControlBoardHardwareInterface\]: '
+                      r'Home refused before motor enable: (missing motor board reply \(mask=[0-3]\))$',
+                      clean, re.MULTILINE)
+    return board.group(1) if board else None
 
 
 def start_native(run, plan, life, *, defer_perception=False):
@@ -505,6 +510,11 @@ def start_native(run, plan, life, *, defer_perception=False):
                 except (OSError, ValueError, subprocess.SubprocessError) as exc:
                     raise ValueError(stopped + ' Process cleanup unconfirmed. Inspect the owned session: ' + str(exc)) from exc
                 raise ValueError(stopped + ' Owned setup processes exited. Select Prepare, then request supported Home again.')
+            mechanical = re.search(r'^\[ros2_control_node-\d+\][^\n]*?\[ControlBoardHardwareInterface\]: '
+                                   r'Mechanical Home stopped: ([^\r\n]{1,240})', log, re.MULTILINE)
+            if mechanical:
+                raise ValueError('Mechanical Home stopped. ' + mechanical.group(1)
+                                 + '. Keep Pupper supported. Inspect and shut down this session before retrying.')
             if life.state(target, receipt['session_id']) != 'running':
                 raise ValueError('Launch exited before homing completed; receipt retained')
             if 'IMU startup check failed:' in log or 'process has died' in log:
@@ -512,7 +522,9 @@ def start_native(run, plan, life, *, defer_perception=False):
             manager = receipt['processes'].get('manager')
             if manager and life.state(manager, receipt['session_id']) != 'running':
                 raise ValueError('Controller manager exited before native readiness; inspect robot.log and owned receipt')
-            if 'Finished homing!' in log and 'manager' in receipt['processes']:
+            completed = ('Successfully activated!' if plan['environment'].get('PUPPER_SESSION_MOTION_MODE') == 'fc_walk_kick'
+                         else 'Finished homing!')
+            if completed in log and 'manager' in receipt['processes']:
                 mapped = check_loaded(plan, receipt['processes']['manager'], allow_pending=True)
                 if not mapped or not spawners_ready(log, plan['controllers'], feedback):
                     # Homing precedes asynchronous motion-controller plugin loading.

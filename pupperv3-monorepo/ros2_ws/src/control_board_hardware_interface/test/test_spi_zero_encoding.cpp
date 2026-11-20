@@ -14,6 +14,12 @@ namespace {
 enum class Reply { good, short_transfer, failed, corrupt, empty };
 std::array<Reply, 2> replies;
 unsigned calls = 0;
+std::array<unsigned,2> closes{};
+}
+extern int spi_1_fd,spi_2_fd;
+extern "C" int __wrap_close(int fd) {
+  if(fd!=61 && fd!=62) throw std::runtime_error("unexpected close");
+  ++closes[fd-61]; return 0;
 }
 extern "C" int __wrap_ioctl(int, unsigned long request, ...) {
   if (request != SPI_IOC_MESSAGE(1)) throw std::runtime_error("unexpected device ioctl");
@@ -72,6 +78,10 @@ int main() {
           throw std::runtime_error("SPI receipt accepted invalid exchange or retained old good bit");
       }
     }
+    spi_1_fd=61; spi_2_fd=62;
+    close_spi(); close_spi();
+    if(closes[0]!=1 || closes[1]!=1 || spi_1_fd!=-1 || spi_2_fd!=-1)
+      throw std::runtime_error("SPI descriptors leaked or closed twice");
     std::cout << "PASS actual_serializer board_groups=2 all_command_values_zero=1 enable_flags=0\n";
     return 0;
   } catch (const std::exception &error) { std::cerr << error.what() << '\n'; return 1; }

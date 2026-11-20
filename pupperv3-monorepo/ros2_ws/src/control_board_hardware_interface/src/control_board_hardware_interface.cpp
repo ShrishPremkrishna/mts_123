@@ -14,6 +14,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <memory>
 #include <sstream>
 #include <string_view>
@@ -29,6 +30,21 @@ const char *RED_ANSI = "\033[1;31m";
 const char *YELLOW_ANSI = "\033[1;33m";
 const char *RESET_ANSI = "\033[0m";
 
+void ControlBoardHardwareInterface::publish_backup_claim_proof(std::chrono::steady_clock::time_point observed_at) {
+  const auto now=pupper_imu::BoardHealth::ns(observed_at);
+  const auto next=pupper_imu::BoardHealth::ns(redundant_.claim_deadline());
+  // A newly healthy read cannot revive a prepared claim whose observed proof expired
+  // between reads, even when no callback ran to explicitly clear that preparation.
+  if (next>now && backup_claim_until_ns_.load()<=now) ++backup_claim_generation_;
+  backup_claim_until_ns_=next;
+}
+
+bool ControlBoardHardwareInterface::can_claim_on_field_imu(uint64_t generation) const {
+  return !redundant_field_ || (generation && generation==backup_claim_generation_.load() &&
+      !board_health_.terminal && !field_backup_active_ &&
+      backup_claim_until_ns_.load() > pupper_imu::BoardHealth::ns(std::chrono::steady_clock::now()));
+}
+
 bool ControlBoardHardwareInterface::check_motor_feedback(const BNO055::Output &sample, const char *phase) {
   // Sample first, then read the clock. Validate and diagnose the same snapshot.
   const auto now = std::chrono::steady_clock::now();
@@ -36,6 +52,7 @@ bool ControlBoardHardwareInterface::check_motor_feedback(const BNO055::Output &s
   if (redundant_field_) {
     BNO055::Output primary;
     error = redundant_.select(sample, now, false, primary);
+    publish_backup_claim_proof(now);
   }
   if (error) {
     disable_for_imu_fault(sample, now, phase, error);
@@ -45,6 +62,7 @@ bool ControlBoardHardwareInterface::check_motor_feedback(const BNO055::Output &s
 }
 
 void ControlBoardHardwareInterface::terminal_health(const BNO055::Output &sample) {
+  backup_claim_until_ns_=0;
   if (board_health_.terminal.exchange(true)) return;
   ++board_health_.faults;
   fc_balance_mode_=4;
@@ -87,20 +105,18 @@ void ControlBoardHardwareInterface::report_imu_fault(const BNO055::Output &sampl
 }
 
 ControlBoardHardwareInterface::~ControlBoardHardwareInterface() {
-  // Release lock if we have it
   if (lock_fd_ != -1) {
-    flock(lock_fd_, LOCK_UN);
+    // Keep one stable lock inode and hold ownership through the last device I/O.
+    on_deactivate(rclcpp_lifecycle::State());
+    imu_manager_.stop();
+    if (spi_command_) close_spi();
     close(lock_fd_);
-    unlink("/tmp/control_board_hardware.lock");  // Delete the lock file
   }
-
-  // Deactivate everything when ctrl-c is pressed
-  on_deactivate(rclcpp_lifecycle::State());
 }
 
 hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
     const hardware_interface::HardwareInfo &info) {
-  lock_fd_ = open("/tmp/control_board_hardware.lock", O_CREAT, 0666);
+  lock_fd_ = open("/tmp/control_board_hardware.lock", O_CREAT | O_CLOEXEC, 0666);
   if (lock_fd_ == -1) {
     RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "Failed to open lock file");
     return hardware_interface::CallbackReturn::ERROR;
@@ -110,6 +126,7 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
     RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
                  "Another instance is already running");
     close(lock_fd_);
+    lock_fd_ = -1;
     return hardware_interface::CallbackReturn::ERROR;
   }
 
@@ -399,6 +416,14 @@ hardware_interface::return_type ControlBoardHardwareInterface::prepare_command_m
         field_state_ != FieldState::awaiting_claim)) return hardware_interface::return_type::ERROR;
     const auto state = field_state_.load();
     if (state == FieldState::awaiting_claim) {
+      fresh_claim_prepared_ = false;
+      const auto generation=backup_claim_generation_.load();
+      if (!can_claim_on_field_imu(generation)) {
+        RCLCPP_WARN(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                    "Supported Home retained; a fresh leg claim needs current, qualified primary and alternate IMU agreement");
+        return hardware_interface::return_type::ERROR;
+      }
+      prepared_backup_generation_=generation;
       fresh_claim_prepared_ = complete_joint_claim(start);
       if (!fresh_claim_prepared_) return hardware_interface::return_type::ERROR;
     } else if (state != FieldState::running) return hardware_interface::return_type::ERROR;
@@ -433,18 +458,16 @@ hardware_interface::return_type ControlBoardHardwareInterface::perform_command_m
         field_state_ != FieldState::awaiting_claim)) return hardware_interface::return_type::ERROR;
     const auto state = field_state_.load();
     if (state == FieldState::awaiting_claim) {
-      if (!fresh_claim_prepared_.exchange(false) || !complete_joint_claim(start))
+      if (!fresh_claim_prepared_.exchange(false) || !complete_joint_claim(start) ||
+          !can_claim_on_field_imu(prepared_backup_generation_))
         return hardware_interface::return_type::ERROR;
-      if (!check_motor_feedback(imu_manager_.get_imu_data(), "rearm")) return hardware_interface::return_type::ERROR;
-      clear_joint_commands();
-      *spi_command_ = spi_command_t{};
-      // The next healthy read sends only enable flags, never a saved target.
-      for (auto &flag : spi_command_->flags) flag = 1;
+      // Redundant mode uses the read owner's atomic dual-source proof here.
+      // Do not mutate its selector from the control-mode-switch callback.
+      if (!redundant_field_ && !check_motor_feedback(imu_manager_.get_imu_data(), "rearm"))
+        return hardware_interface::return_type::ERROR;
       auto expected = FieldState::awaiting_claim;
-      if (!field_state_.compare_exchange_strong(expected, FieldState::zero_first)) {
-        deactivate_motors();
+      if (!field_state_.compare_exchange_strong(expected, FieldState::zero_first))
         return hardware_interface::return_type::ERROR;
-      }
     } else if (state != FieldState::running) return hardware_interface::return_type::ERROR;
   }
   return hardware_interface::SystemInterface::perform_command_mode_switch(start, stop);
@@ -469,6 +492,7 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
   }
   redundant_ = {};
   field_backup_active_=false;
+  backup_claim_until_ns_=0;
   board_health_.terminal=false;
   fc_balance_mode_=5;
   board_health_.publish(5,BNO055::Output{},BNO055::Output{},0,false);
@@ -478,9 +502,10 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
   std::fill(hw_actuator_zero_positions_.begin(), hw_actuator_zero_positions_.end(), 0.0);
   clear_joint_commands();
   *spi_command_ = spi_command_t{};
+  // Retain the bounded startup observations until the mechanical Home also finishes.
+  auto trace=imu_manager_.enabled ? pupper_imu::StartupTrace::from_environment(board_health_.terminal) : nullptr;
   if (imu_manager_.enabled) {
     pupper_imu::StartupWindow stationary;
-    auto trace = pupper_imu::StartupTrace::from_environment();
     const auto finish_trace = [&](bool passed) {
       if (trace && !trace->finish(passed))
         RCLCPP_WARN(rclcpp::get_logger("ControlBoardHardwareInterface"),
@@ -490,34 +515,97 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
     RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
                 "Keep body supported and stationary: checking fresh IMU reports before motor enable");
     const auto startup_resets=imu_manager_.get_imu_data().alternative.reset_count;
+    std::array<unsigned, pupper_imu::RedundantImu::gate_names.size()> source_polls{};
+    unsigned polls=0, primary_ready_polls=0, backup_ready_polls=0;
+    unsigned bad_feedback=0, peak_rejections=0, gravity_rejections=0, mean_rejections=0, sampling_gaps=0;
+    double max_span=0, max_gyro=0;
     while (true) {
       if (field_rehome_ && field_state_ != FieldState::homing) return hardware_interface::CallbackReturn::ERROR;
       const auto sample = imu_manager_.get_imu_data();
       const auto observed_at = std::chrono::steady_clock::now();
       pupper_imu::StartupObservation observation;
-      const bool ready = stationary.observe(sample, observed_at, trace ? &observation : nullptr);
-      if (trace) trace->record(sample, observed_at, observation, ready);
+      const bool ready = stationary.observe(sample, observed_at, &observation);
+      ++polls;
+      primary_ready_polls+=ready;
+      max_span=std::max(max_span,observation.eligible_seconds);
+      max_gyro=std::max(max_gyro,double(sample.gyro.norm()));
+      sampling_gaps+=observation.observation_gap;
+      const std::string_view why(observation.reason);
+      bad_feedback+=why=="feedback"; peak_rejections+=why=="gyro_norm";
+      gravity_rejections+=why=="gravity"; mean_rejections+=why=="gyro_mean";
+      const char *primary_error=nullptr;
       bool sources_ready=true;
+      bool reset_during_startup=false;
+      const char *source_reason="not_configured";
       if (redundant_field_) {
         BNO055::Output observed;
-        const char *source_error=redundant_.select(sample,observed_at,false,observed);
-        sources_ready=!source_error && redundant_.qualified;
-        if (source_error && sample.alternative.reset_count!=startup_resets) {
-          disable_for_imu_fault(sample,observed_at,"startup",source_error);
-          finish_trace(false);
-          return hardware_interface::CallbackReturn::ERROR;
-        }
+        pupper_imu::RedundantImu::Gate gate;
+        primary_error=redundant_.select(sample,observed_at,false,observed,&gate);
+        ++source_polls[static_cast<size_t>(gate)];
+        source_reason=pupper_imu::RedundantImu::gate_names[static_cast<size_t>(gate)];
+        publish_backup_claim_proof(observed_at);
+        sources_ready=!primary_error && redundant_.claim_deadline()>observed_at;
+        backup_ready_polls+=sources_ready;
+        reset_during_startup=sample.alternative.reset_count!=startup_resets;
       }
-      if (ready && sources_ready) { finish_trace(true); break; }
-      if (std::chrono::steady_clock::now() >= deadline) {
-        const char *error = pupper_imu::feedback_error(sample, observed_at);
+      if (trace) trace->record(sample, observed_at, observation, ready, source_reason, redundant_field_ && sources_ready);
+      if (ready && !primary_error && !reset_during_startup) {
+        if (!sources_ready)
+          RCLCPP_WARN(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                      "Primary stationary check passed for supported Home; first leg claim awaits alternate IMU agreement (%s)",
+                      source_reason);
+        finish_trace(true);
+        break;
+      }
+      if (reset_during_startup || observed_at >= deadline) {
+        const char *error=primary_error ? primary_error : pupper_imu::feedback_error(sample,observed_at);
         disable_for_imu_fault(sample, observed_at, "startup",
+                              reset_during_startup ? "BNO reset during supported startup" :
                               error ? error : "stationary startup window timed out");
+        // Only after neutral. Record both independent gates even when no optional
+        // CSV was requested. Counts are control polls, not unique reports.
+        std::ostringstream detail;
+        detail << "IMU startup evidence before motor enable: polls=" << polls
+               << " primary_ready=" << primary_ready_polls << " max_stationary_s=" << max_span
+               << " max_gyro_rad_s=" << max_gyro << " primary_rejections={feedback:" << bad_feedback
+               << ",gyro_peak:" << peak_rejections << ",gravity:" << gravity_rejections
+               << ",gyro_mean:" << mean_rejections << ",observation_gap:" << sampling_gaps << "}";
+        if (redundant_field_) {
+          const auto &a=sample.alternative;
+          detail << " backup_ready=" << backup_ready_polls << " qualification_polls={";
+          for (size_t i=0;i<source_polls.size();++i)
+            detail << (i?",":"") << pupper_imu::RedundantImu::gate_names[i] << ":" << source_polls[i];
+          detail << "} alt_q={seq:" << a.quaternion_report_sequence << ",accuracy:" << int(a.quaternion_accuracy)
+                 << ",valid:" << a.quaternion_valid << "} alt_g={seq:" << a.gyro_report_sequence
+                 << ",accuracy:" << int(a.gyro_accuracy) << ",valid:" << a.gyro_valid
+                 << "} alt_gaps=" << a.gap_count << " sensor_resets=" << a.reset_count-startup_resets;
+        }
+        RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "%s", detail.str().c_str());
         finish_trace(false);
         return hardware_interface::CallbackReturn::ERROR;
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
+  }
+
+  // The boards can return an empty first reply while waking. Probe with every
+  // enable bit clear and never start the joint ramp on an unverified transport.
+  const auto board_deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+  while (true) {
+    if (field_rehome_ && field_state_ != FieldState::homing) return hardware_interface::CallbackReturn::ERROR;
+    *spi_command_ = {};
+    spi_driver_run();
+    if ((spi_data_->spi_driver_status & SPI_BOTH_REPLIES_VALID) == SPI_BOTH_REPLIES_VALID) break;
+    if (std::chrono::steady_clock::now() >= board_deadline) {
+      const int replies = spi_data_->spi_driver_status & SPI_BOTH_REPLIES_VALID;
+      deactivate_motors();
+      latch_field_fault();
+      terminal_health(BNO055::Output{});
+      RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                   "Home refused before motor enable: missing motor board reply (mask=%d)", replies);
+      return hardware_interface::CallbackReturn::ERROR;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
   }
 
   // Enable actuators. Send the command multiple times to ensure it is received.
@@ -533,7 +621,12 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
     spi_driver_run();
   }
   copy_actuator_states();
-  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  const auto enable_settle_until=std::chrono::steady_clock::now()+std::chrono::milliseconds(100);
+  while (std::chrono::steady_clock::now()<enable_settle_until) {
+    std::this_thread::sleep_until(std::min(enable_settle_until,std::chrono::steady_clock::now()+std::chrono::milliseconds(5)));
+    if (imu_manager_.enabled && !check_motor_feedback(imu_manager_.get_imu_data(),"enable settle"))
+      return hardware_interface::CallbackReturn::ERROR;
+  }
 
   // Homing
   if (!do_homing()) return hardware_interface::CallbackReturn::ERROR;
@@ -755,6 +848,8 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
       const bool running=field_state_==FieldState::running;
       const auto previous=redundant_.mode;
       const char *error=redundant_.select(raw,now,running,imu_output);
+      publish_backup_claim_proof(now);
+      if (redundant_.claim_deadline()<=now) fresh_claim_prepared_=false;
       if (!error && running && !bench_joint_feedback_ok(now)) error="invalid or interrupted joint feedback";
       if (error) {
         disable_for_imu_fault(raw, now, "read", error);
@@ -774,12 +869,25 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
     } else if (imu_manager_.enabled && !check_motor_feedback(imu_output, "read")) {
       return hardware_interface::return_type::ERROR;
     }
-    if (supported_standby_ || (field_rehome_ && field_state_ == FieldState::awaiting_claim)) {
+    const auto dispatch_state=field_state_.load();
+    if (field_rehome_ && dispatch_state==FieldState::zero_first) {
+      if (!can_claim_on_field_imu(prepared_backup_generation_)) {
+        disable_for_imu_fault(raw,std::chrono::steady_clock::now(),"first leg claim",
+                              "dual IMU agreement expired before first enabled packet");
+        return hardware_interface::return_type::ERROR;
+      }
+      // Construct the first packet on the device-I/O owner. Prepare/perform
+      // publish authority only and cannot race an awaiting-claim neutral write.
+      clear_joint_commands();
+      *spi_command_={};
+      for (auto &flag : spi_command_->flags) flag=1;
+    }
+    if (supported_standby_ || (field_rehome_ && dispatch_state!=FieldState::running && dispatch_state!=FieldState::zero_first)) {
       if (supported_damping_) last_joint_exchange_ = std::chrono::steady_clock::now();
       deactivate_motors();
     } else {
       spi_driver_run();
-      if (field_rehome_) {
+      if (field_rehome_ && dispatch_state==FieldState::zero_first) {
         auto expected = FieldState::zero_first;
         field_state_.compare_exchange_strong(expected, FieldState::running);
       }
@@ -895,14 +1003,65 @@ hardware_interface::return_type ControlBoardHardwareInterface::write(
 }
 
 bool ControlBoardHardwareInterface::do_homing() {
-  auto feedback_ok = [this]() {
+  using Clock = std::chrono::steady_clock;
+  constexpr int dt_ms = 10;
+  auto refuse = [this](const char *reason) {
+    deactivate_motors();
+    latch_field_fault();
+    std::fill(hw_actuator_is_homed_.begin(), hw_actuator_is_homed_.end(), false);
+    std::fill(hw_actuator_zero_positions_.begin(), hw_actuator_zero_positions_.end(), 0.0);
+    clear_joint_commands();
+    terminal_health(BNO055::Output{});
+    RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                 "Mechanical Home stopped: %s; neutral sent, supported Home required", reason);
+    return false;
+  };
+  // Axes in one stage travel together. Budget the full physical span plus the
+  // position error needed to detect the stop, then the longest return stroke.
+  std::map<int, double> stage_seconds;
+  std::vector<double> remaining_search(hw_state_positions_.size());
+  std::vector<double> return_tolerance(hw_state_positions_.size());
+  double return_seconds = 0;
+  for (size_t i = 0; i < hw_state_positions_.size(); ++i) {
+    const double speed = std::abs(hw_actuator_homing_velocities_[i]);
+    const double kp = hw_actuator_homing_kps_[i], threshold = hw_actuator_homing_torque_thresholds_[i];
+    const double low = hw_actuator_position_mins_[i], high = hw_actuator_position_maxs_[i];
+    const double stop = hw_actuator_homed_positions_[i], rest = hw_actuator_post_homing_positions_[i];
+    const auto kd = hw_actuator_homing_kds_[i];
+    if (!std::isfinite(speed) || speed <= 0 || !std::isfinite(kp) || kp <= 0 || !std::isfinite(kd) || kd < 0 ||
+        !std::isfinite(threshold) || threshold < 0 || !std::isfinite(low) ||
+        !std::isfinite(high) || high <= low || !std::isfinite(stop) || !std::isfinite(rest))
+      return refuse("unusable actuator homing parameters");
+    const double span = std::max(high, stop) - std::min(low, stop);
+    remaining_search[i] = 2.0 * (span + threshold / kp);
+    // A lag larger than the configured stop-load deflection can still
+    // represent a blocked motor. Preserve the original return settling band.
+    return_tolerance[i] = std::max(0.01, threshold / kp);
+    auto &duration = stage_seconds[hw_actuator_homing_stages_[i]];
+    duration = std::max(duration, (span + threshold / kp) / speed);
+    return_seconds = std::max(return_seconds, std::abs(rest - stop) / speed);
+  }
+  double travel_seconds = return_seconds;
+  for (const auto &stage : stage_seconds) travel_seconds += stage.second;
+  // Allow twice the ideal traversal and one second for exchange/filter settling.
+  const double budget_seconds = 1.0 + 2.0 * travel_seconds;
+  if (!std::isfinite(budget_seconds)) return refuse("unusable actuator travel budget");
+  const auto deadline = Clock::now() + std::chrono::duration<double>(budget_seconds);
+  auto feedback_ok = [&]() {
     if (field_rehome_ && field_state_ != FieldState::homing) return false;
+    if (Clock::now() >= deadline) return refuse("joint stop or return exceeded its travel budget");
+    if ((spi_data_->spi_driver_status & SPI_BOTH_REPLIES_VALID) != SPI_BOTH_REPLIES_VALID)
+      return refuse("missing or corrupt reply from a motor board");
+    for (size_t i = 0; i < hw_state_positions_.size(); ++i) {
+      // Offsets are unknown before Home. Only the finiteness of encoder data
+      // is meaningful here; calibrated position limits apply during walking.
+      if (!std::isfinite(hw_state_positions_[i]) || !std::isfinite(hw_state_velocities_[i]))
+        return refuse("nonfinite encoder feedback");
+    }
     return !imu_manager_.enabled || check_motor_feedback(imu_manager_.get_imu_data(), "homing");
   };
   if (!feedback_ok()) return false;
   RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Homing actuators...");
-
-  int dt_ms = 10;
 
   std::this_thread::sleep_for(std::chrono::milliseconds(dt_ms));
   copy_actuator_commands();
@@ -972,7 +1131,10 @@ bool ControlBoardHardwareInterface::do_homing() {
           hw_actuator_is_homed_[i] = true;
           RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Homed actuator %d", i);
         } else {
-          hw_command_positions_[i] += hw_actuator_homing_velocities_[i] * dt_ms * 0.001;
+          const double step = hw_actuator_homing_velocities_[i] * dt_ms * 0.001;
+          if (std::abs(step) > remaining_search[i]) return refuse("joint stop exceeded its search travel");
+          remaining_search[i] -= std::abs(step);
+          hw_command_positions_[i] += step;
           hw_command_velocities_[i] = hw_actuator_homing_velocities_[i];
           all_homed = false;
         }
@@ -990,16 +1152,16 @@ bool ControlBoardHardwareInterface::do_homing() {
     if (!feedback_ok()) return false;
     all_returned = true;
     for (auto i = 0u; i < hw_state_positions_.size(); i++) {
-      if (hw_command_positions_[i] < hw_actuator_post_homing_positions_[i] - 0.01) {
-        hw_command_positions_[i] += std::abs(hw_actuator_homing_velocities_[i]) * dt_ms * 0.001;
-        hw_command_velocities_[i] = std::abs(hw_actuator_homing_velocities_[i]);
-        all_returned = false;
-      } else if (hw_command_positions_[i] > hw_actuator_post_homing_positions_[i] + 0.01) {
-        hw_command_positions_[i] -= std::abs(hw_actuator_homing_velocities_[i]) * dt_ms * 0.001;
-        hw_command_velocities_[i] = -std::abs(hw_actuator_homing_velocities_[i]);
+      const auto rest = hw_actuator_post_homing_positions_[i];
+      const auto delta = rest - hw_command_positions_[i];
+      if (std::abs(delta) > 0.01) {
+        const auto speed = std::abs(hw_actuator_homing_velocities_[i]);
+        const auto step = speed * dt_ms * .001;
+        hw_command_positions_[i] += std::clamp(delta, -step, step);
+        hw_command_velocities_[i] = std::copysign(speed, delta);
         all_returned = false;
       } else {
-        hw_command_positions_[i] = hw_actuator_post_homing_positions_[i];
+        hw_command_positions_[i] = rest;
         hw_command_velocities_[i] = 0.0;
       }
     }
@@ -1007,10 +1169,15 @@ bool ControlBoardHardwareInterface::do_homing() {
     if (!feedback_ok()) return false;
     spi_driver_run();
     copy_actuator_states();
+    // Confirm the final exchange, including its encoder positions, before
+    // declaring the commanded return complete.
+    for (size_t i = 0; i < hw_state_positions_.size() && all_returned; ++i)
+      all_returned = std::abs(hw_state_positions_[i] - hw_actuator_post_homing_positions_[i]) <= return_tolerance[i];
 
     // Sleep for dt
     std::this_thread::sleep_for(std::chrono::milliseconds(dt_ms));
   }
+  if (!feedback_ok()) return false;
   RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Finished homing!");
   return true;
 }

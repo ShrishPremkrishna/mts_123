@@ -3,6 +3,7 @@
 #include "control_board_hardware_interface/control_board_hardware_interface.hpp"
 #include "control_board_hardware_interface/imu_health.hpp"
 #include "hardware_interface/resource_manager.hpp"
+#include "hardware_interface/component_parser.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include <atomic>
 #include <cstring>
@@ -47,7 +48,13 @@ std::chrono::steady_clock::time_point start_dropout(int component) {
   return last_report;
 }
 bool lose_during_enable=false;
+bool simulate_empty_wakeup=false;
 int spi_replies = SPI_BOTH_REPLIES_VALID;
+bool follow_without_endstop = false;
+bool follow_return = false;
+struct VirtualJointStop { float position; bool positive; };
+VirtualJointStop mechanical_stops[3][4]{};
+bool lose_reply_during_homing = false;
 constexpr int lock_fd=19322;
 void require(bool ok,const char *why) { if(!ok) throw std::runtime_error(why); }
 BNO055::Output output(std::chrono::steady_clock::time_point now) {
@@ -68,6 +75,8 @@ BNO055::Output output(std::chrono::steady_clock::time_point now) {
   if(aux_fault==2) a.gyro.z()=2;
   if(aux_fault==4) a.reset_count=1;
   if(aux_fault==5) a.gap_count=1;
+  if(aux_fault==6) a.quaternion_accuracy=1;
+  if(aux_fault==7) o.quaternion_minimum_age_at_receipt=std::chrono::milliseconds(24);
   if(aux_fault==3) a.quaternion_minimum_age_at_receipt=std::chrono::seconds(2);
   a.quaternion_report_sequence=report_tick(a.quaternion_receipt_time).time_since_epoch().count()&255;
   a.gyro_report_sequence=report_tick(a.gyro_receipt_time).time_since_epoch().count()&255;
@@ -455,6 +464,43 @@ void field_redundant_case(hardware_interface::HardwareInfo &info,const std::stri
   info.rw_rate=500;recovery_joints(info);
   manager.import_component(std::make_unique<control_board_hardware_interface::ControlBoardHardwareInterface>(),info);
   rclcpp_lifecycle::State active(State::PRIMARY_STATE_ACTIVE,"active");
+  if (scenario=="floor_home_reset" || scenario=="floor_home_bias") {
+    std::thread reset;
+    if (scenario=="floor_home_reset")
+      reset=std::thread([]{std::this_thread::sleep_for(milliseconds(180));aux_fault=4;});
+    else mode=3;
+    const auto activated=manager.set_component_state(info.name,active);
+    if(reset.joinable()) reset.join();
+    require(activated==Return::ERROR && receipt()[4]==0 && receipt()[7]==4,"failed startup completed Home");
+    neutral_only();
+    std::ifstream trace(std::string(directory)+"/native-startup-trace.csv");
+    std::string meta,columns,row,last;
+    std::getline(trace,meta); std::getline(trace,columns);
+    while(std::getline(trace,row)) last=row;
+    require(meta.find("startup_passed=0")!=std::string::npos && columns.find("source_reason,alternate_ready")!=std::string::npos &&
+            (scenario=="floor_home_reset" ? last.find(",source_error,0,")!=std::string::npos :
+             last.find(",gyro_norm,")!=std::string::npos && last.find(",ready,1,")!=std::string::npos),
+            "default failure trace omitted primary/alternate gate evidence");
+    std::filesystem::remove_all(directory);
+    return;
+  }
+  if (scenario=="floor_home_late_fault" || scenario=="floor_home_trace") {
+    const auto trace_path=std::string(directory)+"/native-startup-trace.csv";
+    const bool success=scenario=="floor_home_trace";
+    if(success) setenv("PUPPER_IMU_STARTUP_TRACE",trace_path.c_str(),1);
+    else lose_during_enable=true;
+    require(manager.set_component_state(info.name,active)==(success ? Return::OK : Return::ERROR),"unexpected Home result");
+    if(!success) require(!sent.empty() && sent.back().flags[0]==0 && receipt()[7]==4,"late fault without neutral");
+    std::ifstream trace(trace_path);
+    std::string meta; std::getline(trace,meta);
+    require(meta.find("startup_passed=1")!=std::string::npos &&
+            meta.find(success ? "later_home_fault=0" : "later_home_fault=1")!=std::string::npos,
+            "successful primary gate trace lost on explicit request or subsequent failure");
+    std::filesystem::remove_all(directory);
+    return;
+  }
+  const bool delayed_backup=scenario=="floor_first_claim" || scenario=="floor_first_packet";
+  if (delayed_backup) aux_fault=6;
   require(manager.set_component_state(info.name,active)==Return::OK,"field candidate supported Home");
   auto all=manager.available_command_interfaces();
   const auto dt=rclcpp::Duration::from_seconds(.005);
@@ -462,6 +508,61 @@ void field_redundant_case(hardware_interface::HardwareInfo &info,const std::stri
   auto mode_handle=manager.claim_state_interface("imu_sensor/fc_balance_mode");
   auto incident=manager.claim_state_interface("imu_sensor/fc_balance_incident");
   auto home=manager.claim_state_interface("imu_sensor/fc_balance_generation");
+  if (delayed_backup) {
+    require(read()==Return::OK,"neutral read after Home");
+    const auto home_id=receipt()[4];
+    require(home_id>0 && !std::filesystem::exists(std::string(directory)+"/native-startup-trace.csv"),
+            "supported Home must complete without default synchronous trace I/O");
+    sent.clear();
+    require(read()==Return::OK && !manager.prepare_command_mode_switch(all,{}) &&
+            !manager.perform_command_mode_switch(all,{}),"unqualified alternate admitted a leg claim");
+    neutral_only();
+    auto qualify=[&] {
+      aux_fault=0;
+      const auto end=steady_clock::now()+milliseconds(650);
+      while(steady_clock::now()<end) {require(read()==Return::OK,"warmup failed"); std::this_thread::sleep_for(milliseconds(5));}
+      require(manager.prepare_command_mode_switch(all,{}),"new qualified evidence did not release prepare");
+    };
+    qualify();
+    std::this_thread::sleep_for(milliseconds(45));
+    require(!manager.perform_command_mode_switch(all,{}),"expired cached proof allowed perform");
+    require(read()==Return::OK && !manager.perform_command_mode_switch(all,{}),"expired prepare reused");
+    qualify();
+    if (scenario=="floor_first_packet") {
+      require(manager.perform_command_mode_switch(all,{}),"fresh claim refused");
+      aux_fault=6; std::this_thread::sleep_for(milliseconds(20)); sent.clear();
+      require(read()==Return::ERROR && receipt()[7]==4,"lost agreement allowed first packet");
+      neutral_only();
+    } else {
+      aux_fault=6; std::this_thread::sleep_for(milliseconds(20));
+      require(read()==Return::OK && !manager.perform_command_mode_switch(all,{}),"low quality allowed perform");
+      neutral_only();
+      qualify();
+      // Give the same advancing primary a short known batch-age budget. Its
+      // proof expires with no read between prepare and renewal on fresh data.
+      aux_fault=7;
+      std::this_thread::sleep_for(milliseconds(15));
+      const auto until=steady_clock::now()+milliseconds(100);
+      bool prepared=false;
+      while (!prepared && steady_clock::now()<until) {
+        require(read()==Return::OK,"late batch receipt rejected primary");
+        prepared=manager.prepare_command_mode_switch(all,{});
+        if (!prepared) std::this_thread::sleep_for(milliseconds(1));
+      }
+      require(prepared,"fixture never observed a qualified short-life batch");
+      aux_fault=0;
+      std::this_thread::sleep_for(milliseconds(16));
+      require(read()==Return::OK && !manager.perform_command_mode_switch(all,{}),
+              "a newly healthy read revived a previously expired claim");
+      require(manager.prepare_command_mode_switch(all,{}) && manager.perform_command_mode_switch(all,{}) &&
+              read()==Return::OK,"fresh qualified claim rejected");
+      spi_command_t first{};for(auto &flag:first.flags)flag=1;
+      require(std::memcmp(&sent.back(),&first,sizeof first)==0 && receipt()[4]==home_id,
+              "first packet contained old commands or changed Home");
+    }
+    std::filesystem::remove_all(directory);
+    return;
+  }
   require(read()==Return::OK && manager.prepare_command_mode_switch(all,{}) &&
           manager.perform_command_mode_switch(all,{}) && read()==Return::OK,"field start");
   const auto archive_receipt=[&](const char *phase){
@@ -617,14 +718,47 @@ void unit_health() {
 }
 }
 void init_spi(){command={};data={};}
+void close_spi(){}
 spi_command_t *get_spi_command(){return &command;}
 spi_data_t *get_spi_data(){return &data;}
-void spi_driver_run(){sent.push_back(command);data.spi_driver_status = spi_replies;if(lose_during_enable && command.flags[0])mode=1;}
+void spi_driver_run() {
+  sent.push_back(command);
+  if (simulate_empty_wakeup && sent.size() == 1) { data.spi_driver_status = 0; return; }
+  if (lose_reply_during_homing && command.kp_abad[0] > 0) spi_replies = 1;
+  data.spi_driver_status = spi_replies;
+  if (lose_during_enable && command.flags[0]) mode = 1;
+  if (follow_without_endstop) {
+    for (int i = 0; i < 4; ++i) {
+      data.q_abad[i] = command.q_des_abad[i];
+      data.q_hip[i] = command.q_des_hip[i];
+      data.q_knee[i] = command.q_des_knee[i];
+    }
+  }
+  if (follow_return) {
+    float *positions[] = {data.q_abad, data.q_hip, data.q_knee};
+    const float *targets[] = {command.q_des_abad, command.q_des_hip, command.q_des_knee};
+    const float *gains[] = {command.kp_abad, command.kp_hip, command.kp_knee};
+    for (int i = 0; i < 4; ++i) {
+      for (int axis = 0; axis < 3; ++axis) {
+        if (gains[axis][i] <= 0) continue;
+        const auto stop = mechanical_stops[axis][i];
+        positions[axis][i] = stop.positive ? std::min(stop.position, targets[axis][i])
+                                          : std::max(stop.position, targets[axis][i]);
+      }
+    }
+  }
+}
 void BNO055::enable_redundant_reports(uint32_t) {}
 BNO055::BNO055(int,uint32_t){}
 BNO055::~BNO055(){}
 BNO055::Output BNO055::sample(){return output(std::chrono::steady_clock::now());}
-extern "C" int __wrap_open(const char *p,int,...){require(std::strcmp(p,"/tmp/control_board_hardware.lock")==0,"unexpected open");return lock_fd;}
+extern "C" int __real_open(const char *,int,...);
+extern "C" int __wrap_open(const char *p,int flags,...){
+  if (std::strcmp(p,"/tmp/control_board_hardware.lock")==0) return lock_fd;
+  const auto trace=std::filesystem::path(receipt_path).parent_path()/"native-startup-trace.csv";
+  require(!receipt_path.empty() && trace==p && flags==(O_CREAT|O_EXCL|O_WRONLY),"unexpected open");
+  return __real_open(p,flags,0600);
+}
 extern "C" int __wrap_open64(const char *p,int f,...){return __wrap_open(p,f);}
 extern "C" int __wrap_flock(int fd,int){require(fd==lock_fd,"unexpected flock");return 0;}
 extern "C" int __real_close(int);
@@ -638,6 +772,83 @@ int main(int argc,char **argv){try{
   auto driver=std::make_unique<control_board_hardware_interface::ControlBoardHardwareInterface>();
   hardware_interface::HardwareInfo info{};info.is_async=false;info.name="imu_guard_fake";info.type="system";
   hardware_interface::ComponentInfo sensor;sensor.name="imu_sensor";sensor.parameters={{"roll","0"},{"pitch","0"},{"yaw","0"}};info.sensors.push_back(sensor);
+  if (scenario.rfind("mechanical_", 0) == 0) {
+    recovery_joints(info);
+    follow_without_endstop = scenario == "mechanical_no_stop";
+    follow_return = scenario == "mechanical_return_valid";
+    if (follow_return || scenario == "mechanical_return_frozen") {
+      for (auto &joint : info.joints) {
+        auto &p = joint.parameters;
+        p["position_min"] = "-.25";
+        p["position_max"] = ".25";
+        p["post_homing_position"] = "-.15";
+        p["homing_torque_threshold"] = ".02";
+        p["homing_kd"] = "0";
+      }
+    }
+    if (follow_without_endstop) {
+      for (auto &joint : info.joints) {
+        auto &p = joint.parameters;
+        p["position_min"] = "-.01";
+        p["position_max"] = ".01";
+        p["homing_velocity"] = ".1";
+        p["homing_torque_threshold"] = ".01";
+        p["homing_kd"] = "0";
+      }
+    }
+    if (follow_return) {
+      // Optionally exercise the exact installed geometry across every stage.
+      if (const auto path = std::getenv("FC_TEST_MECHANICAL_URDF")) {
+        std::ifstream input(path);
+        require(input.good(), "selected mechanical test URDF unavailable");
+        const std::string xml{std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>()};
+        const auto systems = hardware_interface::parse_control_resources_from_urdf(xml);
+        require(systems.size()==1 && systems.front().joints.size()==12, "expected twelve enrolled axes");
+        info.joints = systems.front().joints;
+      }
+    }
+    require(driver->on_init(info) == hardware_interface::CallbackReturn::SUCCESS, "mechanical test initialization");
+    if (follow_return) {
+      float *positions[] = {data.q_abad, data.q_hip, data.q_knee};
+      for (const auto &joint : info.joints) {
+        const auto &p = joint.parameters;
+        const int axis = std::stoi(p.at("can_id")) - 1, channel = std::stoi(p.at("can_channel")) - 1;
+        require(axis >= 0 && axis < 3 && channel >= 0 && channel < 4, "invalid mechanical fixture CAN mapping");
+        const bool positive = std::stod(p.at("homing_velocity")) > 0;
+        mechanical_stops[axis][channel] = {std::stof(p.at("homed_position")), positive};
+        positions[axis][channel] = std::stof(p.at(positive ? "position_min" : "position_max"));
+      }
+    }
+    if (scenario == "mechanical_missing") spi_replies = 1;
+    if (scenario == "mechanical_nonfinite") data.q_abad[0] = std::numeric_limits<float>::infinity();
+    lose_reply_during_homing = scenario == "mechanical_lost";
+    const auto activated = driver->on_activate({});
+    if (follow_return) {
+      require(activated == hardware_interface::CallbackReturn::SUCCESS, "valid measured Home failed");
+      std::cout << "PASS " << scenario << "\n";
+      return 0;
+    }
+    require(activated == hardware_interface::CallbackReturn::ERROR, "invalid mechanical Home succeeded");
+    const spi_command_t zero{};
+    require(!sent.empty() && std::memcmp(&sent.back(), &zero, sizeof zero) == 0, "mechanical fault did not send neutral");
+    if (scenario == "mechanical_missing") neutral_only();
+    if (scenario == "mechanical_missing" || scenario == "mechanical_nonfinite") {
+      for (auto packet : sent) {
+        for (auto &flag : packet.flags) flag = 0;
+        require(std::memcmp(&packet, &zero, sizeof zero) == 0, "target escaped invalid initial feedback");
+      }
+    }
+    if (follow_without_endstop) {
+      float peak = 0.f;
+      for (const auto &packet : sent)
+        peak = std::max(peak, std::abs(packet.q_des_abad[0]));
+      std::cout << "no stop peak target excursion radians=" << peak << "\n";
+      // Two complete ideal traversals, including the configured stop preload.
+      require(peak <= .061f, "single missing stop exceeded the configured joint travel budget");
+    }
+    std::cout << "PASS " << scenario << "\n";
+    return 0;
+  }
   if(scenario.rfind("floor_",0)==0) {
     clocked_reports=true;field_redundant_case(info,scenario);return 0;
   }
@@ -706,10 +917,14 @@ int main(int argc,char **argv){try{
       require(driver->on_activate(rclcpp_lifecycle::State())==hardware_interface::CallbackReturn::ERROR,"lost IMU during homing accepted");
       require(!sent.empty() && sent.back().flags[0]==0,"homing fault did not disable");
     }else if(scenario=="activate_fresh"){
+      simulate_empty_wakeup=true;
       const auto start=std::chrono::steady_clock::now();
       require(driver->on_activate(rclcpp_lifecycle::State())==hardware_interface::CallbackReturn::SUCCESS,"stationary startup rejected");
       require(std::chrono::steady_clock::now()-start>=pupper_imu::stationary_window,"startup skipped window");
-      require(!sent.empty()&&sent.front().flags[0]==1,"fresh activation never enabled fake SPI");
+      const spi_command_t disabled{};
+      require(sent.size()>2 && std::memcmp(&sent[0], &disabled, sizeof disabled)==0 &&
+              std::memcmp(&sent[1], &disabled, sizeof disabled)==0 && sent[2].flags[0]==1,
+              "fresh Home did not wait for the first verified neutral response");
     }else throw std::runtime_error("unknown scenario");
   }
   driver.reset();std::cout<<"PASS "<<scenario<<" fake_SPI_packets="<<sent.size()<<'\n';return 0;

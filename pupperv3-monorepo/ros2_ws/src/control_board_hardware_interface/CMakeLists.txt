@@ -77,14 +77,14 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_driver_neutral_deactivate hardware_interface pluginlib rclcpp rclcpp_lifecycle tf2)
   target_link_options(test_driver_neutral_deactivate PRIVATE
     -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=close -Wl,--wrap=flock -Wl,--wrap=unlink)
-  foreach(scenario deactivate error destroy repeated)
+  foreach(scenario deactivate error destroy repeated lock_contention)
     add_test(NAME driver_neutral_${scenario} COMMAND test_driver_neutral_deactivate ${scenario})
     set_tests_properties(driver_neutral_${scenario} PROPERTIES TIMEOUT 10)
   endforeach()
   add_executable(test_spi_zero_encoding test/test_spi_zero_encoding.cpp src/rt/rt_spi.cpp)
   target_include_directories(test_spi_zero_encoding PRIVATE include)
   target_link_libraries(test_spi_zero_encoding pthread)
-  target_link_options(test_spi_zero_encoding PRIVATE -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=ioctl)
+  target_link_options(test_spi_zero_encoding PRIVATE -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=ioctl -Wl,--wrap=close)
   add_test(NAME driver_neutral_board_encoding COMMAND test_spi_zero_encoding)
   set_tests_properties(driver_neutral_board_encoding PROPERTIES TIMEOUT 10)
 
@@ -95,9 +95,13 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_imu_health_guard hardware_interface pluginlib rclcpp rclcpp_lifecycle tf2)
   target_link_options(test_imu_health_guard PRIVATE
     -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=close -Wl,--wrap=flock -Wl,--wrap=unlink)
-  foreach(scenario health init_missing read_gyro read_quat read_norm activate_bias homing_stale activate_fresh
+  foreach(scenario mechanical_missing mechanical_lost mechanical_nonfinite mechanical_no_stop
+      mechanical_return_valid mechanical_return_frozen
+      health init_missing read_gyro read_quat read_norm activate_bias homing_stale activate_fresh
       supported_standby supported_rehome damping_gyro damping_quat damping_both damping_stop damping_spi damping_joint
-      floor_gyro1 floor_quat2 floor_twice floor_total floor_long floor_queued floor_disagree floor_spi floor_reset floor_gap floor_jump floor_stop floor_rehome
+      floor_first_claim floor_first_packet floor_home_reset floor_home_bias floor_home_late_fault floor_home_trace
+      floor_gyro1 floor_quat2 floor_twice floor_total floor_long floor_queued floor_disagree floor_spi floor_reset
+      floor_gap floor_jump floor_stop floor_rehome
       damping_flap damping_gap damping_batch
       resource_manager resource_manager_strict strict_rehome)
     add_test(NAME imu_health_${scenario} COMMAND test_imu_health_guard ${scenario})
