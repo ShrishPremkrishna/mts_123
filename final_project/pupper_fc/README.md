@@ -2,6 +2,20 @@
 
 The interactive field defaults to one simulated Pupper steering toward a left-foot shot. It receives metric field position and yaw, steers on fresh observations, slows into the paw contact window and requests one kick. A simulated backend reports clip playback and walker restoration. The ball receives no kick impulse. The viewer can show roles, hold reasons, speed, yaw rate and decision input age throughout.
 
+## Walking and kicking in one release
+
+The `fc_walk_kick` profile runs the field executor, stock walking policy and Tej’s leg kick under one owner. Fresh field observations guide the approach. Once Pupper settles at the selected paw, the runner requests one kick and fences off walking until the native clip and walker recovery are confirmed. Each shot attempt has its own ID. The camera guard continues checking for obstacles during the transition.
+
+In two deterministic starts per foot, all four shots made first contact with the chosen front paw and the restored walker covered 20–21 cm. Three balls completely crossed the goal line. The left kick from an offset start missed. The conservative profile took 8.34 seconds from kick request to walker readiness. The model used a stationary size-five ball and delayed simulated tracks.
+
+The policy physics test runs an approach, measures first contact with the simulated ball, and gives the restored walker a new destination. Run it in the numerical environment with MuJoCo and a C++ compiler. The staged release check compares the selected files with those under test.
+
+```sh
+PYTHONPATH=pupper-mjlab/src python foundation/scripts/verify_fc_policy_cycle.py --staged-release "$FC_RELEASE" --output /tmp/fc-policy-cycle.json
+```
+
+A separate ROS test exercises the actual native controllers with in-memory joints through an initial velocity command, an applied kick frame and a fresh velocity command after reactivation. The [physics results](../../foundation/results/combined-walk-kick-physics-20261119.json), [native test](../../foundation/results/combined-walk-kick-native-20261119.json) and [Pi release procedure](../ROBOT_BUILD_AND_TEST_HANDOFF.md#combined-walk-and-leg-kick-release) identify the assumptions and deployment steps. Tej measures physical contact and return-to-walk on the selected release.
+
 ## One-robot software rehearsal
 
 Run the camera-to-kick matrix from the repo root with the API Python (NumPy is required for Ryan’s tracking filters).
@@ -78,7 +92,7 @@ The headless viewer uses the same Sandbox and Executor as the browser. With no e
 | --- | --- | --- |
 | Perception | `model.Observation`: capture time, robot pose/ID, optional ball position/velocity, fallen flag and goal event | The perception adapter supplies calibrated field coordinates and capture age. Missing data stays missing. The controller never receives simulator truth. |
 | Movement | `model.Command`: body-frame forward/lateral/yaw velocity, expiry and robot ID; `model.Limits` | Measured movement limits and a robot adapter replace simulated motion. Enforce expiry at the robot, exclusive command ownership and Stop before hardware use. |
-| Shooting | The field target places the chosen paw on the shot line. The kick handoff grants one request and holds walking until the backend reports release. | Qualify a compatible walking/kick runtime with Tej’s actual policy and measured paw geometry. |
+| Shooting | The field target places the chosen paw on the shot line. The kick handoff grants one request and holds walking until the backend reports release. | Tej measures the release’s real paw geometry, ball travel and first recovered step. |
 | Gameplay | `Executor` admits field frames and leased intents, then calls its `Controller` | Browser/API use the shared executor; the headless baseline calls the controller directly. The runtime owns simulated operator controls and metrics. |
 
 The [project brief](../README.md) records current owners and agreed outcomes for these interfaces.

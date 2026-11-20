@@ -1,0 +1,1206 @@
+{
+  "scope": "One unreset MuJoCo body and rigid ball. Learned RTNeural locomotion and kicking, real field ingress, field bridge, 50 Hz combined runtime, operator queue, deadline encoder, body-command guard and correlated receipts. Synthetic measured tracks at 26 Hz, delayed ~58 ms. Front camera supplies synthetic clear frames. Native lifecycle transcribed; ROS switch/Stop transport, graph and live camera localization modeled. Contact evidence comes from MuJoCo; the clip receipt alone does not establish ball contact.",
+  "versions": {
+    "mujoco": "3.10.0",
+    "numpy": "2.3.4"
+  },
+  "contact_model": {
+    "contract": "tracking_ground_hulls_v1",
+    "hull_count": 9,
+    "contype": 0,
+    "conaffinity": 1,
+    "scope": "Restore intended torso/leg contacts with terrain and active ball colliders; hulls do not collide with each other"
+  },
+  "ball_assumptions": {
+    "radius_m": 0.11,
+    "mass_kg": 0.43,
+    "friction": 0.6
+  },
+  "rate_hz": 520,
+  "actuator_delay_s": 0.016,
+  "release": {
+    "controllers": [
+      "gemini_walk",
+      "trick_leg_kick"
+    ],
+    "mode": "fc_walk_kick",
+    "walker_contract": "fc_deadline_v1",
+    "init_and_fade_s": {
+      "gemini_walk": [
+        2.0,
+        2.0
+      ],
+      "trick_leg_kick": [
+        0.5,
+        1.0
+      ]
+    },
+    "selected_files_sha256": "e2038dc5ecb00c2253f2613a30c5a8a7e3a8de34e65c963baf935dc81a86585b",
+    "selected_file_count": 70,
+    "staged_manifest_sha256": "4121e5c9d49d21d1b1caa8a9b87c340346b08ca213d78797bfc045d06b16be29",
+    "staged_source_commit": "01567fb932a9392207c1e2ac2ab20fb4147e6356"
+  },
+  "reproduction": {
+    "python": "/Users/shrish/workspace/cs123/.venv/bin/python",
+    "from": "repository root",
+    "environment": {
+      "PYTHONPATH": "pupper-mjlab/src"
+    },
+    "command": "python foundation/scripts/verify_fc_policy_cycle.py --staged-release RELEASE_DIR --output REPORT.json"
+  },
+  "policies": {
+    "pupper_gait_deploy/policies/default_policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "gemini_pupper/tricks/operator/leg_kick/policy.json": "9c841f2680d0747cb4fd484bd99218e2f661ac5e4257076f0a8027a76e22fc81"
+  },
+  "diagnosis": "The nominal cases exercise each selected paw offset. Offset starts and alternate stand-offs are sensitivity checks. A passing cycle requires first contact by the selected front paw, forward ball speed above 0.2 m/s, and actual walking before and after the matched kick.",
+  "sources": {
+    "foundation/configs/class-driver-joint-limits.json": "733302896259e7177cd8f74cea1029542ea31dd224dc79af7426ba131c7974d3",
+    "foundation/cpp/handoff_controller.cpp": "3b24f70d907d9bcb26214e2d1614d42d401074cfbe3e9753817de428021ef6b3",
+    "pupper_gait_deploy/src/trick_motion.hpp": "7628c14be10ec1a892620c04a1f03f200cfd7196c47b256b240f59b5f5fed5bc",
+    "gemini_pupper/lab/operator_kick.py": "405c041e5e4114cea6e19e93979671e1a4050f8d2c8b60ea246f2d231961f257",
+    "final_project/pupper_fc/integration.py": "5b6c28f6dba6cbee18e9f6e57951363906b11f68b7f9d5167695bc1f40a37d09",
+    "final_project/pupper_fc/paw_approach.py": "727ecc1b84c4d7d89fdb268bfa1013556c82b82579afe75771c6d41f5f59b353",
+    "final_project/pupper_fc/controller.py": "1919727c66db8031bfec7bb48ff432f76bc268820004d4a51fb5833acadfcd34",
+    "gemini_pupper/robot/fc_walk_kick.py": "57547673fd3fa30e0465b808a900f192f6b3f10c565837276e59886e17768ea5",
+    "final_project/behaviors/combined_fc_runner.py": "989a321ece9e4a7a7d2d3fce357a1cdd3c627219ae17a24f6c9505a742d85457",
+    "final_project/behaviors/overhead_ingress.py": "8e7a0453d0ec549dd65a736b7bf0bf5aad87e3264c755f1eb34dfd9586cb7f6b",
+    "final_project/pupper_fc/kick_rehearsal.py": "4a20b8c6a5afa8f25799c34ec0f83944c6e1704f6ff02bccbaa8f0cd1ad241f8",
+    "foundation/scripts/check_spider_handoff.py": "58f215c484f275dc254a4f86f2673a27eb94911bed133a549bc40c641efc69ee",
+    "foundation/scripts/verify_fc_policy_cycle.py": "0d34cd78549fee2d33a130c4ee1eb1c79bd3bc27a6c3b46fb0e3b5aa9773f72b"
+  },
+  "selected_summary": {
+    "cycles_completed": 4,
+    "full_ball_goal_crossings": 3,
+    "cases": 4,
+    "qualification": "Two deterministic starts per foot, ideal delayed pose and static ball. Endpoint errors are relative to the supplied return target in model coordinates. Camera errors, physical repeatability and actual ball performance remain unmeasured."
+  },
+  "cases": [
+    {
+      "side": "left",
+      "forward_offset_m": 0.258,
+      "docking_assist_enabled": true,
+      "motion_limits": {
+        "vx": 0.22,
+        "vy": 0.18,
+        "wz": 0.65,
+        "acceleration": 1.0,
+        "yaw_acceleration": 3.5
+      },
+      "first_robot_ball": {
+        "time_s": 10.8173,
+        "geom": "leg_front_l_3_collision",
+        "controller": "trick_leg_kick",
+        "clip": "kick_left",
+        "frame": 320,
+        "robot": {
+          "x": -0.271904852460871,
+          "y": -0.053224312085755204,
+          "yaw": -0.031636775007011224
+        },
+        "ball": {
+          "x": 0.0003341897729959391,
+          "y": 0.040019719112243515,
+          "vx": 0.17377868299514446,
+          "vy": 0.01025393732963369
+        },
+        "requested_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "base_height_m": 0.1592560239328311
+      },
+      "passed": true,
+      "failure": null,
+      "terminal_phase": "target_reached",
+      "events": [
+        [
+          4.2,
+          "approach",
+          "steering to the left paw position"
+        ],
+        [
+          4.9,
+          "align",
+          "steering to the left paw position"
+        ],
+        [
+          7.9,
+          "kick_in_flight",
+          "kick requested; waiting for matching clip and walker receipts"
+        ],
+        [
+          16.24,
+          "kick_complete",
+          "this kick attempt is retired"
+        ],
+        [
+          16.262,
+          "blocked",
+          "selected paw position lies outside the field"
+        ],
+        [
+          16.362,
+          "move",
+          "moving to the requested field pose"
+        ],
+        [
+          17.981,
+          "target_reached",
+          "at the requested field pose"
+        ]
+      ],
+      "policy_inferences": {
+        "gemini_walk": 513,
+        "trick_leg_kick": 189
+      },
+      "pre_kick_walk_m": 0.3338,
+      "post_kick_walk_m": 0.2057,
+      "post_kick_nonzero_walker_ticks": 842,
+      "nonzero_walk_ticks_with_trick_active": 0,
+      "kick_requests": 1,
+      "controller_switches": [
+        [
+          7.9019,
+          "trick_leg_kick"
+        ],
+        [
+          12.0269,
+          "gemini_walk"
+        ]
+      ],
+      "restored_source_zero_s": 12.0404,
+      "operator_evidence": {
+        "schema": "pupper_operator_kick_result_v1",
+        "side": "left",
+        "confirmed_clip": "kick_left",
+        "restored_controller": "gemini_walk"
+      },
+      "queue_outcome": "succeeded",
+      "queue_message": "controller confirmed kick_left at frame 380. Walker restoration confirmed. Ball contact unmeasured.",
+      "recovery_target": {
+        "x": -0.509803515649531,
+        "y": 0.0755249085954745,
+        "yaw": -0.012618888504038714
+      },
+      "recovery_position_error_m": 0.045,
+      "recovery_heading_error_deg": 0.27,
+      "end_pose": {
+        "x": -0.46919093275534474,
+        "y": 0.05615286013213163,
+        "yaw": -0.007897708934355726
+      },
+      "ball": {
+        "x": 1.744914658889169,
+        "y": 0.1985407937734056,
+        "vx": -0.05907321300223339,
+        "vy": 0.030730106894171477
+      },
+      "ball_motion_before_request_m": 0.0,
+      "max_ball_speed_after_request_m_s": 0.883,
+      "peak_forward_ball_m_s": 0.883,
+      "goal_crossed_s": 13.9044,
+      "goal_crossing_y_m": 0.0743,
+      "first_ball_geom_contacts": {
+        "leg_front_l_3_collision": [
+          10.8173,
+          "trick_leg_kick",
+          "kick_left",
+          320
+        ],
+        "leg_front_l_3_hull": [
+          10.8192,
+          "trick_leg_kick",
+          "kick_left",
+          320
+        ],
+        "goal_back": [
+          13.9885,
+          "gemini_walk",
+          null,
+          -1
+        ]
+      },
+      "max_tilt_deg": 4.63,
+      "min_root_height_m": 0.152,
+      "scenario": "nominal",
+      "initial_y_m": 0.0,
+      "initial_yaw_rad": 0.0
+    },
+    {
+      "side": "right",
+      "forward_offset_m": 0.27,
+      "docking_assist_enabled": true,
+      "motion_limits": {
+        "vx": 0.22,
+        "vy": 0.18,
+        "wz": 0.65,
+        "acceleration": 1.0,
+        "yaw_acceleration": 3.5
+      },
+      "first_robot_ball": {
+        "time_s": 10.1654,
+        "geom": "leg_front_r_3_collision",
+        "controller": "trick_leg_kick",
+        "clip": "kick_right",
+        "frame": 120,
+        "robot": {
+          "x": -0.28976314646911605,
+          "y": 0.04144697091849827,
+          "yaw": 0.04031838543824659
+        },
+        "ball": {
+          "x": 2.4835198303271063e-05,
+          "y": -0.046009521678285155,
+          "vx": 0.012914304044089962,
+          "vy": -0.004951273634943026
+        },
+        "requested_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "base_height_m": 0.16141081788307565
+      },
+      "passed": true,
+      "failure": null,
+      "terminal_phase": "target_reached",
+      "events": [
+        [
+          4.2,
+          "approach",
+          "steering to the right paw position"
+        ],
+        [
+          4.821,
+          "align",
+          "steering to the right paw position"
+        ],
+        [
+          7.24,
+          "kick_in_flight",
+          "kick requested; waiting for matching clip and walker receipts"
+        ],
+        [
+          15.581,
+          "kick_complete",
+          "this kick attempt is retired"
+        ],
+        [
+          15.781,
+          "move",
+          "moving to the requested field pose"
+        ],
+        [
+          17.321,
+          "target_reached",
+          "at the requested field pose"
+        ]
+      ],
+      "policy_inferences": {
+        "gemini_walk": 479,
+        "trick_leg_kick": 189
+      },
+      "pre_kick_walk_m": 0.3208,
+      "post_kick_walk_m": 0.2084,
+      "post_kick_nonzero_walker_ticks": 801,
+      "nonzero_walk_ticks_with_trick_active": 0,
+      "kick_requests": 1,
+      "controller_switches": [
+        [
+          7.2423,
+          "trick_leg_kick"
+        ],
+        [
+          11.3673,
+          "gemini_walk"
+        ]
+      ],
+      "restored_source_zero_s": 11.3808,
+      "operator_evidence": {
+        "schema": "pupper_operator_kick_result_v1",
+        "side": "right",
+        "confirmed_clip": "kick_right",
+        "restored_controller": "gemini_walk"
+      },
+      "queue_outcome": "succeeded",
+      "queue_message": "controller confirmed kick_right at frame 180. Walker restoration confirmed. Ball contact unmeasured.",
+      "recovery_target": {
+        "x": -0.538088394409771,
+        "y": 0.0588599333907881,
+        "yaw": -0.06613203831771622
+      },
+      "recovery_position_error_m": 0.0434,
+      "recovery_heading_error_deg": 0.5,
+      "end_pose": {
+        "x": -0.4946912061647642,
+        "y": 0.05791082293425757,
+        "yaw": -0.0573234668091435
+      },
+      "ball": {
+        "x": 1.9769723531037298,
+        "y": 0.00862229911532147,
+        "vx": -0.07027854290433469,
+        "vy": -0.14533646569032718
+      },
+      "ball_motion_before_request_m": 0.0,
+      "max_ball_speed_after_request_m_s": 0.29,
+      "peak_forward_ball_m_s": 0.29,
+      "goal_crossed_s": 16.9502,
+      "goal_crossing_y_m": 0.0352,
+      "first_ball_geom_contacts": {
+        "leg_front_r_3_collision": [
+          10.1654,
+          "trick_leg_kick",
+          "kick_right",
+          120
+        ],
+        "leg_front_r_3_hull": [
+          10.1654,
+          "trick_leg_kick",
+          "kick_right",
+          120
+        ],
+        "goal_back": [
+          17.1269,
+          "gemini_walk",
+          null,
+          -1
+        ]
+      },
+      "max_tilt_deg": 5.29,
+      "min_root_height_m": 0.151,
+      "scenario": "nominal",
+      "initial_y_m": 0.0,
+      "initial_yaw_rad": 0.0
+    },
+    {
+      "side": "left",
+      "forward_offset_m": 0.258,
+      "docking_assist_enabled": true,
+      "motion_limits": {
+        "vx": 0.22,
+        "vy": 0.18,
+        "wz": 0.65,
+        "acceleration": 1.0,
+        "yaw_acceleration": 3.5
+      },
+      "first_robot_ball": {
+        "time_s": 9.7462,
+        "geom": "leg_front_l_3_collision",
+        "controller": "trick_leg_kick",
+        "clip": "kick_left",
+        "frame": 320,
+        "robot": {
+          "x": -0.28017535550297945,
+          "y": -0.05585059741343143,
+          "yaw": 0.00817491660727397
+        },
+        "ball": {
+          "x": 9.084622043507391e-05,
+          "y": 0.04001931866169912,
+          "vx": 0.04724003548418153,
+          "vy": 0.01004570322512044
+        },
+        "requested_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "base_height_m": 0.15943946979026505
+      },
+      "passed": true,
+      "failure": null,
+      "terminal_phase": "target_reached",
+      "events": [
+        [
+          4.2,
+          "approach",
+          "steering to the left paw position"
+        ],
+        [
+          4.94,
+          "align",
+          "steering to the left paw position"
+        ],
+        [
+          6.821,
+          "kick_in_flight",
+          "kick requested; waiting for matching clip and walker receipts"
+        ],
+        [
+          15.162,
+          "kick_complete",
+          "this kick attempt is retired"
+        ],
+        [
+          15.181,
+          "blocked",
+          "no ball-clear staging pose fits behind the ball"
+        ],
+        [
+          15.2,
+          "move",
+          "moving to the requested field pose"
+        ],
+        [
+          16.84,
+          "target_reached",
+          "at the requested field pose"
+        ]
+      ],
+      "policy_inferences": {
+        "gemini_walk": 454,
+        "trick_leg_kick": 189
+      },
+      "pre_kick_walk_m": 0.3277,
+      "post_kick_walk_m": 0.2098,
+      "post_kick_nonzero_walker_ticks": 853,
+      "nonzero_walk_ticks_with_trick_active": 0,
+      "kick_requests": 1,
+      "controller_switches": [
+        [
+          6.8231,
+          "trick_leg_kick"
+        ],
+        [
+          10.9481,
+          "gemini_walk"
+        ]
+      ],
+      "restored_source_zero_s": 10.9615,
+      "operator_evidence": {
+        "schema": "pupper_operator_kick_result_v1",
+        "side": "left",
+        "confirmed_clip": "kick_left",
+        "restored_controller": "gemini_walk"
+      },
+      "queue_outcome": "succeeded",
+      "queue_message": "controller confirmed kick_left at frame 380. Walker restoration confirmed. Ball contact unmeasured.",
+      "recovery_target": {
+        "x": -0.5278253030831496,
+        "y": 0.07265850153717802,
+        "yaw": 0.058411893746931315
+      },
+      "recovery_position_error_m": 0.0407,
+      "recovery_heading_error_deg": 0.29,
+      "end_pose": {
+        "x": -0.48757330798400444,
+        "y": 0.06686494692720611,
+        "yaw": 0.06347481211536135
+      },
+      "ball": {
+        "x": 1.730703663521987,
+        "y": 0.9404357583328731,
+        "vx": 0.24226927292069142,
+        "vy": 0.12867458467861245
+      },
+      "ball_motion_before_request_m": 0.0,
+      "max_ball_speed_after_request_m_s": 0.404,
+      "peak_forward_ball_m_s": 0.402,
+      "goal_crossed_s": null,
+      "goal_crossing_y_m": null,
+      "first_ball_geom_contacts": {
+        "leg_front_l_3_collision": [
+          9.7462,
+          "trick_leg_kick",
+          "kick_left",
+          320
+        ],
+        "leg_front_l_3_hull": [
+          9.7462,
+          "trick_leg_kick",
+          "kick_left",
+          320
+        ]
+      },
+      "max_tilt_deg": 6.94,
+      "min_root_height_m": 0.153,
+      "scenario": "offset_start",
+      "initial_y_m": 0.025,
+      "initial_yaw_rad": 0.04
+    },
+    {
+      "side": "right",
+      "forward_offset_m": 0.27,
+      "docking_assist_enabled": true,
+      "motion_limits": {
+        "vx": 0.22,
+        "vy": 0.18,
+        "wz": 0.65,
+        "acceleration": 1.0,
+        "yaw_acceleration": 3.5
+      },
+      "first_robot_ball": {
+        "time_s": 10.9231,
+        "geom": "leg_front_r_3_collision",
+        "controller": "trick_leg_kick",
+        "clip": "kick_right",
+        "frame": 120,
+        "robot": {
+          "x": -0.28648503142925846,
+          "y": 0.050323348902562626,
+          "yaw": 0.04572778476675321
+        },
+        "ball": {
+          "x": 0.00038373252031866236,
+          "y": -0.04600086239783066,
+          "vx": 0.19954091162178605,
+          "vy": -0.00044844792759103744
+        },
+        "requested_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "base_height_m": 0.16131971934921782
+      },
+      "passed": true,
+      "failure": null,
+      "terminal_phase": "target_reached",
+      "events": [
+        [
+          4.2,
+          "approach",
+          "steering to the right paw position"
+        ],
+        [
+          4.821,
+          "align",
+          "steering to the right paw position"
+        ],
+        [
+          8.0,
+          "kick_in_flight",
+          "kick requested; waiting for matching clip and walker receipts"
+        ],
+        [
+          16.34,
+          "kick_complete",
+          "this kick attempt is retired"
+        ],
+        [
+          16.362,
+          "move",
+          "moving to the requested field pose"
+        ],
+        [
+          18.04,
+          "target_reached",
+          "at the requested field pose"
+        ]
+      ],
+      "policy_inferences": {
+        "gemini_walk": 517,
+        "trick_leg_kick": 189
+      },
+      "pre_kick_walk_m": 0.3325,
+      "post_kick_walk_m": 0.1998,
+      "post_kick_nonzero_walker_ticks": 873,
+      "nonzero_walk_ticks_with_trick_active": 0,
+      "kick_requests": 1,
+      "controller_switches": [
+        [
+          8.0019,
+          "trick_leg_kick"
+        ],
+        [
+          12.1269,
+          "gemini_walk"
+        ]
+      ],
+      "restored_source_zero_s": 12.1404,
+      "operator_evidence": {
+        "schema": "pupper_operator_kick_result_v1",
+        "side": "right",
+        "confirmed_clip": "kick_right",
+        "restored_controller": "gemini_walk"
+      },
+      "queue_outcome": "succeeded",
+      "queue_message": "controller confirmed kick_right at frame 180. Walker restoration confirmed. Ball contact unmeasured.",
+      "recovery_target": {
+        "x": -0.5272219534303865,
+        "y": 0.0684618920397199,
+        "yaw": -0.03790622836826449
+      },
+      "recovery_position_error_m": 0.0503,
+      "recovery_heading_error_deg": 0.21,
+      "end_pose": {
+        "x": -0.47856696250332403,
+        "y": 0.05582514273582353,
+        "yaw": -0.04157301660887353
+      },
+      "ball": {
+        "x": 1.7077658675176919,
+        "y": -0.21967669750684263,
+        "vx": -0.06657798524653924,
+        "vy": -0.03822340283169013
+      },
+      "ball_motion_before_request_m": 0.0,
+      "max_ball_speed_after_request_m_s": 0.695,
+      "peak_forward_ball_m_s": 0.695,
+      "goal_crossed_s": 13.752,
+      "goal_crossing_y_m": -0.0577,
+      "first_ball_geom_contacts": {
+        "leg_front_r_3_collision": [
+          10.9231,
+          "trick_leg_kick",
+          "kick_right",
+          120
+        ],
+        "leg_front_r_3_hull": [
+          10.9231,
+          "trick_leg_kick",
+          "kick_right",
+          120
+        ],
+        "goal_back": [
+          13.8269,
+          "gemini_walk",
+          null,
+          -1
+        ]
+      },
+      "max_tilt_deg": 4.21,
+      "min_root_height_m": 0.152,
+      "scenario": "offset_start",
+      "initial_y_m": 0.025,
+      "initial_yaw_rad": 0.04
+    },
+    {
+      "side": "right",
+      "forward_offset_m": 0.258,
+      "docking_assist_enabled": false,
+      "motion_limits": {
+        "vx": 0.22,
+        "vy": 0.18,
+        "wz": 0.65,
+        "acceleration": 1.0,
+        "yaw_acceleration": 3.5
+      },
+      "first_robot_ball": {
+        "time_s": 6.475,
+        "geom": "base_link_hull",
+        "controller": "gemini_walk",
+        "clip": null,
+        "frame": -1,
+        "robot": {
+          "x": -0.2582951899359469,
+          "y": -0.019596719508465067,
+          "yaw": 0.018143970743887277
+        },
+        "ball": {
+          "x": 7.690688995114731e-05,
+          "y": -0.04601070844295063,
+          "vx": 0.039991583167809513,
+          "vy": -0.005568390728871479
+        },
+        "requested_velocity": [
+          0.012273215099273586,
+          0.012360374105354318,
+          0.043385848085841255
+        ],
+        "base_height_m": 0.15644610940409875
+      },
+      "passed": false,
+      "failure": "walker touched ball before kick",
+      "terminal_phase": "align",
+      "events": [
+        [
+          4.2,
+          "approach",
+          "steering to the right paw position"
+        ],
+        [
+          4.9,
+          "align",
+          "steering to the right paw position"
+        ]
+      ],
+      "policy_inferences": {
+        "gemini_walk": 233
+      },
+      "pre_kick_walk_m": 0.0,
+      "post_kick_walk_m": 0.0,
+      "post_kick_nonzero_walker_ticks": 0,
+      "nonzero_walk_ticks_with_trick_active": 0,
+      "kick_requests": 0,
+      "controller_switches": [],
+      "restored_source_zero_s": null,
+      "operator_evidence": null,
+      "queue_outcome": null,
+      "queue_message": null,
+      "recovery_target": null,
+      "recovery_position_error_m": null,
+      "recovery_heading_error_deg": null,
+      "end_pose": {
+        "x": -0.2582951899359469,
+        "y": -0.019596719508465067,
+        "yaw": 0.018143970743887277
+      },
+      "ball": {
+        "x": 7.690688995114731e-05,
+        "y": -0.04601070844295063,
+        "vx": 0.039991583167809513,
+        "vy": -0.005568390728871479
+      },
+      "ball_motion_before_request_m": 0.0,
+      "max_ball_speed_after_request_m_s": 0.0,
+      "peak_forward_ball_m_s": 0.0,
+      "goal_crossed_s": null,
+      "goal_crossing_y_m": null,
+      "first_ball_geom_contacts": {
+        "base_link_hull": [
+          6.475,
+          "gemini_walk",
+          null,
+          -1
+        ]
+      },
+      "max_tilt_deg": 2.95,
+      "min_root_height_m": 0.154,
+      "scenario": "original_right",
+      "initial_y_m": 0.0,
+      "initial_yaw_rad": 0.0
+    },
+    {
+      "side": "left",
+      "forward_offset_m": 0.258,
+      "docking_assist_enabled": false,
+      "motion_limits": {
+        "vx": 0.22,
+        "vy": 0.18,
+        "wz": 0.65,
+        "acceleration": 1.0,
+        "yaw_acceleration": 3.5
+      },
+      "first_robot_ball": {
+        "time_s": 9.7462,
+        "geom": "leg_front_l_3_collision",
+        "controller": "trick_leg_kick",
+        "clip": "kick_left",
+        "frame": 320,
+        "robot": {
+          "x": -0.28017535550297945,
+          "y": -0.05585059741343143,
+          "yaw": 0.00817491660727397
+        },
+        "ball": {
+          "x": 9.084622043507391e-05,
+          "y": 0.04001931866169912,
+          "vx": 0.04724003548418153,
+          "vy": 0.01004570322512044
+        },
+        "requested_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "base_height_m": 0.15943946979026505
+      },
+      "passed": true,
+      "failure": null,
+      "terminal_phase": "target_reached",
+      "events": [
+        [
+          4.2,
+          "approach",
+          "steering to the left paw position"
+        ],
+        [
+          4.94,
+          "align",
+          "steering to the left paw position"
+        ],
+        [
+          6.821,
+          "kick_in_flight",
+          "kick requested; waiting for matching clip and walker receipts"
+        ],
+        [
+          15.162,
+          "kick_complete",
+          "this kick attempt is retired"
+        ],
+        [
+          15.181,
+          "blocked",
+          "no ball-clear staging pose fits behind the ball"
+        ],
+        [
+          15.2,
+          "move",
+          "moving to the requested field pose"
+        ],
+        [
+          16.84,
+          "target_reached",
+          "at the requested field pose"
+        ]
+      ],
+      "policy_inferences": {
+        "gemini_walk": 454,
+        "trick_leg_kick": 189
+      },
+      "pre_kick_walk_m": 0.3277,
+      "post_kick_walk_m": 0.2098,
+      "post_kick_nonzero_walker_ticks": 853,
+      "nonzero_walk_ticks_with_trick_active": 0,
+      "kick_requests": 1,
+      "controller_switches": [
+        [
+          6.8231,
+          "trick_leg_kick"
+        ],
+        [
+          10.9481,
+          "gemini_walk"
+        ]
+      ],
+      "restored_source_zero_s": 10.9615,
+      "operator_evidence": {
+        "schema": "pupper_operator_kick_result_v1",
+        "side": "left",
+        "confirmed_clip": "kick_left",
+        "restored_controller": "gemini_walk"
+      },
+      "queue_outcome": "succeeded",
+      "queue_message": "controller confirmed kick_left at frame 380. Walker restoration confirmed. Ball contact unmeasured.",
+      "recovery_target": {
+        "x": -0.5278253030831496,
+        "y": 0.07265850153717802,
+        "yaw": 0.058411893746931315
+      },
+      "recovery_position_error_m": 0.0407,
+      "recovery_heading_error_deg": 0.29,
+      "end_pose": {
+        "x": -0.48757330798400444,
+        "y": 0.06686494692720611,
+        "yaw": 0.06347481211536135
+      },
+      "ball": {
+        "x": 1.730703663521987,
+        "y": 0.9404357583328731,
+        "vx": 0.24226927292069142,
+        "vy": 0.12867458467861245
+      },
+      "ball_motion_before_request_m": 0.0,
+      "max_ball_speed_after_request_m_s": 0.404,
+      "peak_forward_ball_m_s": 0.402,
+      "goal_crossed_s": null,
+      "goal_crossing_y_m": null,
+      "first_ball_geom_contacts": {
+        "leg_front_l_3_collision": [
+          9.7462,
+          "trick_leg_kick",
+          "kick_left",
+          320
+        ],
+        "leg_front_l_3_hull": [
+          9.7462,
+          "trick_leg_kick",
+          "kick_left",
+          320
+        ]
+      },
+      "max_tilt_deg": 6.94,
+      "min_root_height_m": 0.153,
+      "scenario": "unassisted_offset",
+      "initial_y_m": 0.025,
+      "initial_yaw_rad": 0.04
+    },
+    {
+      "side": "left",
+      "forward_offset_m": 0.27,
+      "docking_assist_enabled": true,
+      "motion_limits": {
+        "vx": 0.22,
+        "vy": 0.18,
+        "wz": 0.65,
+        "acceleration": 1.0,
+        "yaw_acceleration": 3.5
+      },
+      "first_robot_ball": {
+        "time_s": 11.9288,
+        "geom": "leg_front_l_3_collision",
+        "controller": "trick_leg_kick",
+        "clip": "kick_left",
+        "frame": 321,
+        "robot": {
+          "x": -0.28567172237796173,
+          "y": -0.053668746582018076,
+          "yaw": -0.004958385553555316
+        },
+        "ball": {
+          "x": 3.0197168448162627e-05,
+          "y": 0.04000904927983157,
+          "vx": 0.015702528840665846,
+          "vy": 0.0047056242733921495
+        },
+        "requested_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "base_height_m": 0.15940791602991322
+      },
+      "passed": true,
+      "failure": null,
+      "terminal_phase": "target_reached",
+      "events": [
+        [
+          4.2,
+          "approach",
+          "steering to the left paw position"
+        ],
+        [
+          4.862,
+          "align",
+          "steering to the left paw position"
+        ],
+        [
+          9.0,
+          "kick_in_flight",
+          "kick requested; waiting for matching clip and walker receipts"
+        ],
+        [
+          17.34,
+          "kick_complete",
+          "this kick attempt is retired"
+        ],
+        [
+          17.362,
+          "blocked",
+          "selected paw position lies outside the field"
+        ],
+        [
+          17.5,
+          "move",
+          "moving to the requested field pose"
+        ],
+        [
+          19.021,
+          "target_reached",
+          "at the requested field pose"
+        ]
+      ],
+      "policy_inferences": {
+        "gemini_walk": 568,
+        "trick_leg_kick": 189
+      },
+      "pre_kick_walk_m": 0.3234,
+      "post_kick_walk_m": 0.2094,
+      "post_kick_nonzero_walker_ticks": 780,
+      "nonzero_walk_ticks_with_trick_active": 0,
+      "kick_requests": 1,
+      "controller_switches": [
+        [
+          9.0019,
+          "trick_leg_kick"
+        ],
+        [
+          13.1269,
+          "gemini_walk"
+        ]
+      ],
+      "restored_source_zero_s": 13.1404,
+      "operator_evidence": {
+        "schema": "pupper_operator_kick_result_v1",
+        "side": "left",
+        "confirmed_clip": "kick_left",
+        "restored_controller": "gemini_walk"
+      },
+      "queue_outcome": "succeeded",
+      "queue_message": "controller confirmed kick_left at frame 380. Walker restoration confirmed. Ball contact unmeasured.",
+      "recovery_target": {
+        "x": -0.5253350206984261,
+        "y": 0.07536800165861939,
+        "yaw": 0.028457846494097203
+      },
+      "recovery_position_error_m": 0.0414,
+      "recovery_heading_error_deg": 0.61,
+      "end_pose": {
+        "x": -0.4841510789278962,
+        "y": 0.07118747331189144,
+        "yaw": 0.039043639635835535
+      },
+      "ball": {
+        "x": 1.9546239610719436,
+        "y": 0.1969005762578615,
+        "vx": -0.02561266543209201,
+        "vy": 0.07492992120625036
+      },
+      "ball_motion_before_request_m": 0.0,
+      "max_ball_speed_after_request_m_s": 0.577,
+      "peak_forward_ball_m_s": 0.577,
+      "goal_crossed_s": 17.5513,
+      "goal_crossing_y_m": 0.0959,
+      "first_ball_geom_contacts": {
+        "leg_front_l_3_collision": [
+          11.9288,
+          "trick_leg_kick",
+          "kick_left",
+          321
+        ],
+        "leg_front_l_3_hull": [
+          11.9288,
+          "trick_leg_kick",
+          "kick_left",
+          321
+        ],
+        "goal_back": [
+          17.7,
+          "gemini_walk",
+          null,
+          -1
+        ]
+      },
+      "max_tilt_deg": 5.21,
+      "min_root_height_m": 0.151,
+      "scenario": "longer_left",
+      "initial_y_m": 0.0,
+      "initial_yaw_rad": 0.0
+    },
+    {
+      "side": "right",
+      "forward_offset_m": 0.28,
+      "docking_assist_enabled": true,
+      "motion_limits": {
+        "vx": 0.22,
+        "vy": 0.18,
+        "wz": 0.65,
+        "acceleration": 1.0,
+        "yaw_acceleration": 3.5
+      },
+      "first_robot_ball": {
+        "time_s": 10.2923,
+        "geom": "leg_front_r_3_collision",
+        "controller": "trick_leg_kick",
+        "clip": "kick_right",
+        "frame": 121,
+        "robot": {
+          "x": -0.2983471032438666,
+          "y": 0.04209999720827256,
+          "yaw": 0.04019563324166518
+        },
+        "ball": {
+          "x": -1.3984661382373295e-05,
+          "y": -0.046025321787189634,
+          "vx": -0.007272022971388211,
+          "vy": -0.013167330286228759
+        },
+        "requested_velocity": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "base_height_m": 0.16183282032376245
+      },
+      "passed": false,
+      "failure": "forward ball speed at most 0.2 m/s",
+      "terminal_phase": "target_reached",
+      "events": [
+        [
+          4.2,
+          "approach",
+          "steering to the right paw position"
+        ],
+        [
+          4.781,
+          "align",
+          "steering to the right paw position"
+        ],
+        [
+          7.362,
+          "kick_in_flight",
+          "kick requested; waiting for matching clip and walker receipts"
+        ],
+        [
+          15.7,
+          "kick_complete",
+          "this kick attempt is retired"
+        ],
+        [
+          15.781,
+          "move",
+          "moving to the requested field pose"
+        ],
+        [
+          17.521,
+          "target_reached",
+          "at the requested field pose"
+        ]
+      ],
+      "policy_inferences": {
+        "gemini_walk": 489,
+        "trick_leg_kick": 189
+      },
+      "pre_kick_walk_m": 0.3101,
+      "post_kick_walk_m": 0.1963,
+      "post_kick_nonzero_walker_ticks": 905,
+      "nonzero_walk_ticks_with_trick_active": 0,
+      "kick_requests": 1,
+      "controller_switches": [
+        [
+          7.3635,
+          "trick_leg_kick"
+        ],
+        [
+          11.4885,
+          "gemini_walk"
+        ]
+      ],
+      "restored_source_zero_s": 11.5,
+      "operator_evidence": {
+        "schema": "pupper_operator_kick_result_v1",
+        "side": "right",
+        "confirmed_clip": "kick_right",
+        "restored_controller": "gemini_walk"
+      },
+      "queue_outcome": "succeeded",
+      "queue_message": "controller confirmed kick_right at frame 180. Walker restoration confirmed. Ball contact unmeasured.",
+      "recovery_target": {
+        "x": -0.544358792532833,
+        "y": 0.0586815847330539,
+        "yaw": -0.05776403080700473
+      },
+      "recovery_position_error_m": 0.0548,
+      "recovery_heading_error_deg": 0.24,
+      "end_pose": {
+        "x": -0.4952169865875017,
+        "y": 0.03446632570364354,
+        "yaw": -0.05360472464382418
+      },
+      "ball": {
+        "x": 0.5984886047070964,
+        "y": -0.19747773881602285,
+        "vx": 0.08307546295034585,
+        "vy": -0.020924479736546812
+      },
+      "ball_motion_before_request_m": 0.0,
+      "max_ball_speed_after_request_m_s": 0.086,
+      "peak_forward_ball_m_s": 0.085,
+      "goal_crossed_s": null,
+      "goal_crossing_y_m": null,
+      "first_ball_geom_contacts": {
+        "leg_front_r_3_collision": [
+          10.2923,
+          "trick_leg_kick",
+          "kick_right",
+          121
+        ],
+        "leg_front_r_3_hull": [
+          10.2923,
+          "trick_leg_kick",
+          "kick_right",
+          121
+        ]
+      },
+      "max_tilt_deg": 5.62,
+      "min_root_height_m": 0.152,
+      "scenario": "longer_right",
+      "initial_y_m": 0.0,
+      "initial_yaw_rad": 0.0
+    }
+  ]
+}

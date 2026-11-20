@@ -25,6 +25,7 @@ checkout. The kit has no Pi binaries, camera environment or field calibration.
 | Existing stock release | Twist through mux to native | Select its existing whole release/profile. |
 | Guarded legacy candidate | Twist through mux and camera guard | Staged walk profile, all-obstacle guard, original native binaries. |
 | Direct FC candidate (`fc_deadline_v1`) | Original-deadline command through camera guard to native | Target-built controller and strict 15-role source index; explicitly select the new controller digest. No active mux. |
+| Combined walk and leg kick (`fc_walk_kick`) | Guarded Gemini walker → one leg-kick clip → same walker | Frozen application, prepared native session and continuous camera/field input. See the selection below. |
 
 The [hardware checklist](../foundation/HARDWARE_CHECKLIST.md#guarded-walk-candidate)
 owns assembly commands. Assembly copies files and starts nothing. The software-Start
@@ -32,6 +33,74 @@ service additionally requires a target-built gateway and its generated service
 bindings; controller-only assembly does not add it. The accepted Options activation
 path remains available. A source kit, successful build or file copy never selects
 the currently running release.
+
+## Combined walk and leg-kick release
+
+From the checked-out commit on the target, choose an unused absolute release
+directory. Staging and verifying both generate the actual controller YAML in a
+temporary directory and exercise disarmed planner startup. Save the manifest
+digest printed by staging.
+
+```sh
+python3 foundation/hardware/fc_walk_kick_release.py stage \
+  --expected-commit "$(git rev-parse HEAD)" --destination "$FC_RELEASE"
+python3 "$FC_RELEASE/foundation/hardware/fc_walk_kick_release.py" verify \
+  --release "$FC_RELEASE" --manifest-sha256 "$FC_MANIFEST_SHA"
+```
+
+The bundle selects the stock walker and Tej's left/right leg-kick clips.
+Field entry uses fresh settled pose observations and rechecks the field
+authorization at the switch. The kick uses 0.5 s of initialization and 1.0 s of
+blending. The runner waits for the applied clip frame at 2.6 s before switching
+back. Walking readiness allows 4.2 s for the walker's 2.0 s initialization and
+2.0 s blend. Physical transfer time includes controller
+switching and receipt latency. The walker alone consumes original-deadline
+velocity commands. The native switch gateway covers both leg controllers.
+The dedicated field runner owns kick submissions. The guard exempts the selected
+COCO sports-ball class and gates other obstacles. The HEF is supplied by the
+Pi's Hailo setup, and its digest and label order are checked in the camera
+envelopes. In the camera owner's Hailo/ROS environment, run the following
+after the supervised session has its camera service. It subscribes to that
+service and publishes obstacle observations in the same ROS domain.
+
+```sh
+ROS_DOMAIN_ID=168 python3 "$FC_RELEASE/follow_me_pupper/robot/viser_camera.py" \
+  --source ros --detect --publish-detections --model "$FC_HEF"
+```
+
+To prepare files without starting motors, select the Pi ROS overlay containing
+the reviewed controller and IMU, and use that session's Python. Set
+`PUPPER_SESSION_MOTION_MODE=fc_walk_kick`, `PUPPER_SESSION_SKILLS=leg_kick`,
+`PUPPER_FOLLOWER_MODE=disabled` and `ROS_DOMAIN_ID=168` in the environment.
+Select the exact library paths and hashes from the target build or prior
+release receipt. Screen the native library, then prepare a fresh run directory.
+
+```sh
+python3 "$FC_RELEASE/foundation/hardware/fc_walk_kick_release.py" inspect-native \
+  --library "$FC_NATIVE"
+python3 "$FC_RELEASE/foundation/hardware/persistent_session.py" prepare \
+  --run-dir "$FC_RUN" --app-manifest "$FC_RELEASE/app-stage-manifest.json" \
+  --app-manifest-sha256 "$FC_MANIFEST_SHA" \
+  --native-library "$FC_NATIVE" --native-sha256 "$FC_NATIVE_SHA" \
+  --imu-library "$FC_IMU" --imu-sha256 "$FC_IMU_SHA" \
+  --telemetry-topics "$FC_RELEASE/foundation/hardware/fc-walk-kick-topics.json"
+```
+
+Preparation checks the selected ARM64 controller for the native walking and
+kick-receipt contracts. Supervised startup separately verifies which controller
+and IMU libraries the live manager loaded. Only the separate `start-native`
+operation can home the legs. With the resulting owned session and walker
+active, the selected runner opens disarmed and verifies the owned guard.
+Run it in the prepared ROS environment with the measured field configuration
+and actual overhead producer ID.
+
+```sh
+python3 "$FC_RELEASE/final_project/behaviors/combined_fc_runner.py" \
+  --run-dir "$FC_RUN" --field-config "$FC_FIELD" --producer-id "$FC_PRODUCER" \
+  --robot-id pupper-1 --side right
+```
+
+Tej owns physical kick trials.
 
 ## Target build for camera-guided play
 

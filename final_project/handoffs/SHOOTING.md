@@ -2,7 +2,7 @@
 
 November 19, 2026 · [Demo testing order](../PLAN.md#current-sprint--november-19)
 
-The selected demo shot uses Tej’s left or right leg kick. Shrish owns the field-guided approach and the handoff from walking. The single-robot foot mode steers into a leg-kick request and rehearses the handoff offline. Tej owns physical kick and recovery testing. A compatible selected runtime is still needed for the physical demo. [Software rehearsal](../pupper_fc/README.md#one-robot-software-rehearsal)
+The selected demo shot uses Tej’s left or right leg kick. Shrish owns the field-guided approach and the handoff from walking. The combined release drives one walking policy into either kick, observes the applied clip and resumes walking on a new native activation. Tej owns physical kick and recovery testing. [Selected release and simulation evidence](../pupper_fc/README.md#walking-and-kicking-in-one-release)
 
 ## Fast transition candidate
 
@@ -15,7 +15,7 @@ Tej’s u5 release uses direct kick clip entry, a short walker restart from stan
 
 The native controller log isolates the interval from activating the kick to activating the walker. It fell from 3.25 s on both legs to 2.70 s left and 2.75 s right. Tej reports 12.5 s for the whole job on the older u3 release. His default-u5 estimate of 2.3 s from walk end to impact uses the clip’s expected contact frame. Actual impact, direction and the first resumed walking step were unmeasured in these four jobs. The later 16:58 Pi records supersede the branch note that the faster settings were untried. A newer kickfast4 log contained two approach-only dry runs. [Pi record and log identities](../../foundation/results/staged-field-session-20261119.json) · [Tej’s branch report](https://github.com/ShrishPremkrishna/mts_123/blob/30b84a096deab79a43a966224ccd571c21f5662a/gemini_pupper/docs/kick-ball.md#timing-of-the-kick-all-kick-tools)
 
-Keep the fast transition as a selective integration candidate. The donor can count a return to the idle clip as completion, and the optional walker settings need binding to the active launch as well as the tool process. Main’s operator kick checks the requested side/clip and verifies walker restoration. Its kick blend is still 0.5 s initialization plus 1.0 s fade. The field-game bridge currently requires the stock walker, while the kick tool requires Gemini’s walker and trick controller. Use one compatible runtime that gives walking, kick and Stop exclusive ownership in turn. [Operator kick](../../gemini_pupper/lab/operator_kick.py) · [Field-game bridge](../behaviors/fc_executor_bridge.py)
+Keep the fast transition as a selective integration candidate. The donor can count a return to the idle clip as completion, and the optional walker settings need binding to the active launch as well as the tool process. Main’s operator kick checks the requested side/clip and verifies walker restoration. Its kick blend is still 0.5 s initialization plus 1.0 s fade. The combined profile runs the stock gait weights in the guarded `gemini_walk` controller. It transfers leg control to `trick_leg_kick` for the chosen clip, then requires a new walker binding before another movement. [Operator kick](../../gemini_pupper/lab/operator_kick.py) · [Combined release procedure](../ROBOT_BUILD_AND_TEST_HANDOFF.md#combined-walk-and-leg-kick-release)
 
 ## Approach and ball tracking
 

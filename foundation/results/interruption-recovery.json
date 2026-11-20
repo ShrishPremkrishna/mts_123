@@ -3,9 +3,9 @@
   "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej\u2019s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/.codex/worktrees/fc-demo-staging/cs123",
   "branch": "main",
-  "mode": "single_robot_software_rehearsal",
-  "updated_utc": "2026-11-20T04:20:46+00:00",
-  "current_report": "foundation/results/field-kick-rehearsal-20261119.json",
+  "mode": "combined_walk_kick_release",
+  "updated_utc": "2026-11-20T04:46:33+00:00",
+  "current_report": "foundation/results/combined-walk-kick-physics-20261119.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -53,7 +53,9 @@
     "recovery_side_feasibility": "artifacts/pupper-fc/2026-11-17/recovery-side-feasibility/experiment-summary.json",
     "delivery_preparation": "artifacts/pupper-fc/2026-11-17/deliverable-prep/editorial-validation.json",
     "perception_integration_nov19": "foundation/results/perception-integration-review-20261119.json",
-    "single_robot_kick_rehearsal": "foundation/results/field-kick-rehearsal-20261119.json"
+    "single_robot_kick_rehearsal": "foundation/results/field-kick-rehearsal-20261119.json",
+    "combined_policy_physics": "foundation/results/combined-walk-kick-physics-20261119.json",
+    "combined_native_wire": "foundation/results/combined-walk-kick-native-20261119.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -62,7 +64,7 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "Offline software, simulation and review authorized. Sync the dedicated FC source checkout when the Pi is back and check ownership first. Tej owns physical kick testing. FC motion, startup and native build resumption are outside this work block.",
+  "authorization": "Publish the combined release to main. When the Pi is reachable and available, sync and verify the separate FC source checkout and staged release. Tej owns physical kick tests. This delivery starts no motion or services.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
@@ -91,7 +93,7 @@
   },
   "activity": {
     "automation": "No automation controls the physical session.",
-    "compute": "Single-thread target build manually suspended at 75% of controller compile with native tests and gateway build unstarted. Review hold receipt before any explicitly agreed resumption.",
+    "compute": "The earlier target build stopped after linking its controller library. Archived controller inputs match this release. The Pi binary and its dependencies still require target verification.",
     "owners": {
       "physical_robot": "Owner reported batteries depleted and charging. Tej owns physical kick/recovery. No FC motion session.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -101,7 +103,7 @@
       "arena": "Shrish",
       "project_lead": "Root operates the isolated main worktree. Other agents own their own branches and worktrees."
     },
-    "goal_status": "Single-robot software and simulation. Field camera, opt-in compatible physical actuator and second robot remain later acceptance work.",
+    "goal_status": "One-robot field-guided walk, trained leg kick and restored walking verified in simulation. Tej owns physical kick acceptance. Mounted tracking and a second Pupper follow.",
     "pending_archives": [],
     "processes": {
       "local_practice": {
@@ -115,10 +117,10 @@
       "unowned_port_8765": "Historical November 17 observation: PID 95237 was reelrelay serve, left untouched. Not rechecked November 19.",
       "completed": "Source and preflight verified on the new boot. Forward tape trials and bounded heading experiment complete. Driver deactivation, manager/launch exit and bag closure confirmed."
     },
-    "software_verification": "22/22 field-to-kick simulation cases passed. Combined FC, camera bridge and release packaging regressions: 818 passed, 48 subtests. Gemini suite: 1221 passed, including both field-originated operator kicks with fake native hardware."
+    "software_verification": "Four of four selected MuJoCo trials walked, contacted with the selected foot and walked again. Three goals; offset left missed. Handoff 8.34 s with the conservative transition. The production field path runs at 50 Hz. A separate Linux ROS test measured native walking, kick playback, fresh walker source binding and resumed velocity. See both combined reports."
   },
   "hardware_session": {
-    "status": "Batteries depleted and charging per owner. Last SSH check saw shutdown. The dedicated FC checkout last confirmed at e297393; new software sync pending power.",
+    "status": "Owner reported charging batteries. The dedicated Pi main checkout was last verified at e297393. See the per-commit delivery receipt for a subsequent verified source and release sync.",
     "ssh": "mts",
     "observed_utc": "2026-11-20T01:40:26+00:00",
     "current_boot_id": "0b821fb1-480f-4575-9e5c-bd4565bd690e",
@@ -137,7 +139,7 @@
     "prepared_run": null,
     "prepared_state": "The closed session receipt is evidence for these trials. Start a new preflight for the next physical session.",
     "local_candidate": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
-    "candidate_state": "Last physical release was stock sprint. Compatible IMU client from dc3e124 was checked against the running manager. Five forward pulses passed. First feedback turn failed to settle at six seconds. Direct-deadline candidate remains unbuilt.",
+    "candidate_state": "The last physical FC release was stock sprint. An isolated target controller build linked a candidate library; target dependency checks and loaded controller identity remain pending. The combined software profile is separate.",
     "client_update": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
     "client_update_sha256": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
     "persistent_tool_session_id": null,
@@ -176,15 +178,15 @@
   "next": [
     {
       "id": "source_sync",
-      "action": "When power returns, check robot ownership, fast-forward the clean dedicated FC source checkout and verify its commit. Keep active services and physical controls untouched."
+      "action": "When the Pi becomes available, fast-forward its clean dedicated main checkout, stage the frozen combined release and compare every selected file with the tested bundle. The local delivery receipt belongs under artifacts/pupper-fc/2026-11-19/combined-delivery/<commit>/delivered.json."
     },
     {
-      "id": "recorded_field",
-      "action": "When Ryan has the mount and tags, shadow-replay a real normalized session, measure pose noise and capture age against the rehearsal and tune only demonstrated deficits."
+      "id": "kick_qualification",
+      "action": "Tej checks the native target and real contact geometry for each foot, identifies the first stable post-kick step, and compares his faster transition against this conservative selection."
     },
     {
-      "id": "compatible_runtime",
-      "action": "Use Tej\u2019s measured kick wind-up and paw alignment from the chosen runtime. Qualify a single gait/kick owner before physical field execution. Robot two follows successful one-robot play."
+      "id": "field_camera",
+      "action": "With Ryan\u2019s mounted camera, measure field scale, heading, capture age and paw-placement noise. Replay an actual session before field steering. Add the second Pupper after one complete physical approach, kick and recovery."
     }
   ],
   "recorded_open_items": {
@@ -213,6 +215,9 @@
     "claude": "claude --print --model claude-fable-5-2 (bounded read-only tools, approved account/network path)",
     "evidence": "foundation/results/takeover-audit-20261116.json",
     "practice": ".venv-api/bin/python -m final_project.pupper_fc --port 8766 (check the port before starting a new local viewer)",
-    "kick_matrix": ".venv-api/bin/python -m final_project.pupper_fc.kick_rehearsal"
+    "kick_matrix": ".venv-api/bin/python -m final_project.pupper_fc.kick_rehearsal",
+    "combined_physics": "From repo root using the numerical Python: PYTHONPATH=pupper-mjlab/src python foundation/scripts/verify_fc_policy_cycle.py --staged-release <frozen-release> --output <report.json>",
+    "combined_native": "python3 final_project/behaviors/tools/walk_kick_wire/run.py",
+    "combined_release": "python3 foundation/hardware/fc_walk_kick_release.py stage --expected-commit <full-source-SHA> --destination <unused-absolute-directory>"
   }
 }

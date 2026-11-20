@@ -387,7 +387,9 @@ async def drive(plant, side, rig, runtime_type, forward_m):
     events, switches = [], []
     phase = failure = None
     request_count = walk_inputs_after = kicks_driven_by_walker = 0
-    goal_crossed_at = None
+    goal_crossed_at = goal_crossing_y = None
+    prior_ball = born
+    goal_plane = field.length / 2 + field.ball_radius
     field_hz = round(1 / TICK_S)
 
     for n in range(45 * HZ):
@@ -488,12 +490,13 @@ async def drive(plant, side, rig, runtime_type, forward_m):
         if staged:
             max_ball_speed = max(max_ball_speed, math.hypot(ball.vx, ball.vy))
             peak_forward_speed = max(peak_forward_speed, ball.vx)
-        if (
-            goal_crossed_at is None
-            and ball.x >= field.length / 2 + field.ball_radius
-            and abs(ball.y) + field.ball_radius < field.goal_width / 2
-        ):
-            goal_crossed_at = round(plant.now, 4)
+        if goal_crossed_at is None and prior_ball.x < goal_plane <= ball.x:
+            fraction = (goal_plane - prior_ball.x) / (ball.x - prior_ball.x)
+            crossing_y = prior_ball.y + fraction * (ball.y - prior_ball.y)
+            if abs(crossing_y) + field.ball_radius <= field.goal_width / 2:
+                goal_crossed_at = round(plant.now - (1 - fraction) / HZ, 4)
+                goal_crossing_y = round(crossing_y, 4)
+        prior_ball = ball
         if plant.first_robot_ball and plant.first_robot_ball["controller"] == "gemini_walk":
             failure = "walker touched ball before kick"
             break
@@ -566,12 +569,20 @@ async def drive(plant, side, rig, runtime_type, forward_m):
         operator_evidence=evidence,
         queue_outcome=final.get("terminal_state"),
         queue_message=final.get("message"),
+        recovery_target=asdict(endpoint) if endpoint else None,
+        recovery_position_error_m=round(distance(endpoint, end), 4) if endpoint else None,
+        recovery_heading_error_deg=round(
+            abs(math.degrees(math.remainder(end.yaw - endpoint.yaw, math.tau))), 2
+        )
+        if endpoint
+        else None,
         end_pose=asdict(end),
         ball=asdict(plant.ball()),
         ball_motion_before_request_m=round(pre_kick_ball_motion, 4),
         max_ball_speed_after_request_m_s=round(max_ball_speed, 3),
         peak_forward_ball_m_s=round(peak_forward_speed, 3),
         goal_crossed_s=goal_crossed_at,
+        goal_crossing_y_m=goal_crossing_y,
         first_ball_geom_contacts=plant.contact,
         max_tilt_deg=round(plant.peak_tilt, 2),
         min_root_height_m=round(plant.low_height, 3),
@@ -633,6 +644,7 @@ def selected_profile(folder, staged, entries):
         "selected_files_sha256": selection_digest,
         "selected_file_count": len(entries),
         "staged_manifest_sha256": stage_receipt["manifest_sha256"] if stage_receipt else None,
+        "staged_source_commit": stage_receipt["source_commit"] if stage_receipt else None,
     }
     return params, receipt
 
@@ -719,6 +731,19 @@ def main():
                 ROOT / "foundation/scripts/check_spider_handoff.py",
                 Path(__file__).resolve(),
             )
+        },
+        selected_summary={
+            "cycles_completed": sum(
+                r["passed"] for r in results if r["scenario"] in ("nominal", "offset_start")
+            ),
+            "full_ball_goal_crossings": sum(
+                r["goal_crossed_s"] is not None
+                for r in results
+                if r["scenario"] in ("nominal", "offset_start")
+            ),
+            "cases": 4,
+            "qualification": "Two deterministic starts per foot, ideal delayed pose and static ball. Endpoint errors are relative "
+            "to the supplied return target in model coordinates. Camera errors, physical repeatability and actual ball performance remain unmeasured.",
         },
         cases=results,
     )

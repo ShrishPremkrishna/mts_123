@@ -11,7 +11,7 @@ goal-directed shots, automatic offense/defense, smooth responsive execution and
 shared overhead tracking. First establish this sequence; earlier endurance targets
 remain qualification work after it is physically achievable.
 
-**Current sprint — software only.** Use a single simulated Pupper and the real overhead input adapter to prove smooth feedback steering, near-ball braking, paw placement, one kick and a return to walking. Run varied start poses, speed limits and degraded observations. Reuse the same controller for a stream of metric positions and headings. The [rehearsal and footage](pupper_fc/README.md#one-robot-software-rehearsal) and [measured results](../foundation/results/field-kick-rehearsal-20261119.json) are the reference for this sprint. Sync the verified source to the separate FC checkout once the Pi is powered and ownership is checked.
+**Current sprint — software only.** Use a single simulated Pupper and the real overhead input adapter to prove smooth feedback steering, near-ball braking, paw placement, one kick and a return to walking. Run varied start poses, speed limits and degraded observations. Reuse the same controller for a stream of metric positions and headings. The [field rehearsal](pupper_fc/README.md#one-robot-software-rehearsal) covers tracking faults and speed changes. The [policy physics test](../foundation/results/combined-walk-kick-physics-20261119.json) follows the same body through walking, paw contact and restored movement. Stage the verified combined release in the separate FC directory once the Pi has power and ownership is checked.
 
 **Tej’s parallel work.** Tej owns the physical kick, recovery, measured wind-up and paw contact window. The [shooting handoff](handoffs/SHOOTING.md) records candidate identities and physical evidence. No physical test is part of the current software sprint.
 
@@ -27,8 +27,7 @@ overhead pose to steer continuously and slow for the final alignment. Measure th
 safe kicking position and heading window on the real ball before adopting
 acceptance thresholds. Use one command owner, stop walking, dispatch one leg kick,
 confirm the requested clip and walking recovery, and reacquire field state.
-Until the leg action is connected and qualified, hold at the kick position.
-The foot-mode executor exercises this handoff offline. The legacy run-through is available for historical replay.
+The combined release performs this handoff in simulation. On the field, enable the kick after Tej qualifies contact and walking recovery on that release. The legacy run-through is available for historical replay.
 
 **Next increments.** Measure ball displacement during the wind-up and update
 moving-ball targets up to commitment. Commission robot two, validate each team's

@@ -1,0 +1,62 @@
+{
+  "passed": true,
+  "phase": "returned walking",
+  "first_generation": 1,
+  "native": {
+    "activation_mono_ns": 116372744740936,
+    "bound_source_instance": "09aa3714d7a54a1fb61cb2e1fe78feea",
+    "clock_id": "linux-monotonic:b5e43d97-29ce-438b-b22f-d81e16d2c89b:4026531834",
+    "generation": 3,
+    "sampled_mono_ns": 116372769120770,
+    "schema": "pupper_command_authority_v1"
+  },
+  "saw_inactive_endpoints": true,
+  "authority_publishers": [
+    [
+      "gemini_walk",
+      "std_msgs/msg/String",
+      "BEST_EFFORT",
+      "VOLATILE"
+    ]
+  ],
+  "hardware": false,
+  "source": "09aa3714d7a54a1fb61cb2e1fe78feea",
+  "guard_error": null,
+  "native_error": null,
+  "walk-before": "0.16 1",
+  "clip-playing": "kick_right playing frame 50 queued 0 execution bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb request none",
+  "walk-after": "0.16 3",
+  "command": "python3 final_project/behaviors/tools/walk_kick_wire/run.py",
+  "generated_from_selected_release": true,
+  "fixture": "Memory-backed command and state interfaces. C++ lifecycle methods invoked directly. Synthetic clear frames from /viser_camera. No driver, ros2_control manager, or physical contact.",
+  "bounds": "Walker observation reads use post-fade simulated controller time. Kick receipt records native entry and first applied frame. This check does not measure transition latency.",
+  "evidence_directory": "artifacts/pupper-fc/2026-11-19/wire-rebind",
+  "pins": {
+    "pupper_gait_deploy/src/gait_reference.hpp": "59950dcd0786b52162db7a1e1eb8eef43293a57e02b05c0363a304e931f0ba16",
+    "pupper_gait_deploy/src/obs_spec.hpp": "ecf1e2d5cc6048952de06f993fcc8f599174c2617406d4ab79be259e961ee7f4",
+    "pupper_gait_deploy/src/trick_motion.hpp": "7628c14be10ec1a892620c04a1f03f200cfd7196c47b256b240f59b5f5fed5bc",
+    "pupper_gait_deploy/src/neural_controller.hpp": "dd5970d02a75409e2084f3e1b45f4c7dae72cc26f3f499147ed1f710ecc4dab8",
+    "pupper_gait_deploy/src/reference_execution.hpp": "7eb46ded5ef59f1dce1a2275d14ca69dc5a6a1203ef586589b70d5909e5a6c7b",
+    "pupper_gait_deploy/src/gait_reference_json.hpp": "ad7e898e21750bdd97f8e075f8f6ff97288f3483dcc248e904fd89ffafdeb751",
+    "pupper_gait_deploy/src/command_deadline.hpp": "ed760811d7d98323197c84a16dd32bcfcf85788246061f4d160e0c1b09dffe14",
+    "pupper_gait_deploy/src/neural_controller_parameters.yaml": "c5bfaf02e4cb8529024ff29862d8c874406fa19a377301f68d71df19a22ae3aa",
+    "pupper_gait_deploy/src/command_filter.hpp": "2513561c1f01613f1be6ccd2ce3acd494e5c60ee6f309887df8e4b30699a9c9d",
+    "pupper_gait_deploy/src/neural_controller.cpp": "745b6c46dd9f4311a938f48ef1d289d326483b86c45c7a56ddc5f58585e618cf",
+    "pupper_gait_deploy/src/position_target_slew.hpp": "1ee40882f02151f35ca4627425c512a8239b1f4f3ae3d0fdb8a454bf56b8b36d",
+    "libneural_controller.so": "624dc560c03a1f2f2b0bab44580900d699fdabcce8a1557ac6acd49550180a75",
+    "controllers.cpp": "fadf9e428ec0773b5c0723b8d4bc6988573dd3cc8cc30adccb720ef65b433a4d",
+    "client.py": "b9e88036b7fad5c3f156a90b31152fdc6f5791c541776ff0430ae9064327b0e3",
+    "run.py": "1b347affe8c547d09af5e28dc83b928415907675edafa7f7785c02a094a4ac97",
+    "docker_image": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44"
+  },
+  "release_inputs": {
+    "foundation/hardware/lab6_session.launch.py": "4a4e5e0eb6a638e361409c6d443556b76019ce9954c16dd4bab2df6796a1205c",
+    "pupper_gait_deploy/policies/default_policy.json": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712",
+    "final_project/behaviors/combined_fc_runner.py": "989a321ece9e4a7a7d2d3fce357a1cdd3c627219ae17a24f6c9505a742d85457",
+    "final_project/behaviors/body_command_guard.py": "f7f5665cc7747cf4967b919795a2dd81be3e2d1aa11cb4a12d12ae3dc6b7258b",
+    "final_project/behaviors/command_path_evidence.py": "81509b67fb4ee5248bb964dc4e8f15e279c9fec0b8d399f34c207d006e28b916",
+    "gemini_pupper/robot/fc_release_profile.py": "e99385dadff3a5fb784878f437cd888f824d5793ea95ba77328d31675b6d22b3",
+    "gemini_pupper/tricks/operator/leg_kick/policy.json": "9c841f2680d0747cb4fd484bd99218e2f661ac5e4257076f0a8027a76e22fc81",
+    "gemini_pupper/tricks/operator/leg_kick/trick.yaml": "de482d6d0e8373c34c1e9a7bbc31225fc4e755373147fb719e66b81ee0db5ffa"
+  }
+}
