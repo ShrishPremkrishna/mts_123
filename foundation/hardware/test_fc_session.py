@@ -535,3 +535,25 @@ def test_imu_delivery_restores_only_the_sensor_without_resuming(case):
         assert switches == [False, True]
         assert rows[0].state == ("inactive" if case == "ignored_restore" else "active")
     assert rows[1].state == "active" and rows[2].state == ("active" if case=="kick" else "inactive")
+
+
+def test_laptop_stand_requires_same_live_owner_and_reuses_home(setup, capsys, monkeypatch):
+    from fc_operator import valid_owner
+    template_path = Path(cli.read(setup.profile)["platform_template"])
+    template = cli.read(template_path)
+    template["components"]["gateway"] = {"path": "/native/gateway", "sha256": "test"}
+    template["fc_operator_control"] = True
+    cli.write_new(template_path, template)
+    connect = ("match", "--runner-only", "--connect")
+    setup.call(*connect)
+    row = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert row["event"] == "home_required" and row["fc_operator_control"] and not row["homed"]
+    setup.call("home", "--supported", "--home-only")
+    assert json.loads(capsys.readouterr().out)["homed"]
+    setup.call(*connect)
+    assert json.loads(capsys.readouterr().out)["homed"]
+    owner = "ab" * 16
+    assert valid_owner(owner)
+    with pytest.raises(ValueError, match="no longer owns"):
+        setup.call(*connect, "--operator-owner", owner)
+    assert setup.calls == ["prepare", "home", "--read-hardware"]

@@ -52,6 +52,9 @@ def environment(template, profile):
                PUPPER_FC_DETECTOR_MODEL=str(Path(profile["detector_model"]).resolve(strict=True)))
     if gateway := template.get("components", {}).get("gateway"):
         env.update(PUPPER_FC_GATEWAY=gateway["path"], PUPPER_FC_GATEWAY_SHA256=gateway["sha256"])
+    if (template.get("fc_operator_control") is True and gateway
+            and profile.get("imu_recovery", "strict") in ("strict", "supported_rehome", "field_redundant_imu")):
+        env["PUPPER_FC_OPERATOR_CONTROL"] = "1"
     return env
 
 
@@ -76,6 +79,7 @@ def check_run(run, profile, env):
             or plan["environment"].get("ROS_LOCALHOST_ONLY") != "1"
             or plan["environment"].get("PUPPER_FC_DETECTOR_MODEL") != env["PUPPER_FC_DETECTOR_MODEL"]
             or plan["environment"].get("PUPPER_FC_IMU_RECOVERY", "strict") != env["PUPPER_FC_IMU_RECOVERY"]
+            or plan["environment"].get("PUPPER_FC_OPERATOR_CONTROL") != env.get("PUPPER_FC_OPERATOR_CONTROL")
             or plan["environment"].get("PUPPER_FC_RECORDING","full") != env["PUPPER_FC_RECORDING"]
             or plan["components"]["app_manifest"]["sha256"] != profile["manifest_sha256"]):
         raise ValueError("run differs from selected FC profile or lacks loopback isolation; prepare a fresh session")
@@ -202,7 +206,7 @@ def acquire_run(action, args, profile_path, profile, template, env, boot, python
                            timeout=160 if args.recover_imu else 80)
             if args.supported and not args.home_only:
                 (run / "awaiting-standing.json").unlink(missing_ok=True)
-    elif action in ("match", "field", "test-imu-delivery"):
+    elif action in ("match", "field", "operator", "test-imu-delivery"):
         check_manager(run, plan, boot)
     return run, plan
 
@@ -403,7 +407,7 @@ def read_event(line):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("action", choices=("prepare", "home", "match", "field", "describe", "test-imu-delivery"))
+    p.add_argument("action", choices=("prepare", "home", "match", "field", "describe", "operator", "test-imu-delivery"))
     p.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
     p.add_argument("--robot-id", choices=("pupper-1", "pupper-2"))
     p.add_argument("--supported", action="store_true")
@@ -412,6 +416,8 @@ def main(argv=None):
     p.add_argument("--recover-imu", action="store_true", help="explicitly rehome a supported robot after a verified IMU fault")
     p.add_argument("--runner-only", action="store_true")
     p.add_argument("--connect", action="store_true", help="Prepare on a cold dashboard connection; prompt before Home")
+    p.add_argument("--owner", help="Laptop owner of the dedicated operator connection")
+    p.add_argument("--operator-owner", help="Standing owner attaching its match connection")
     p.add_argument("--camera-session")
     p.add_argument("--source-session")
     p.add_argument("--source-host")
@@ -452,7 +458,15 @@ def main(argv=None):
         p.error("--pitch belongs to a match field feed")
     if args.action == "field" and not args.epoch:
         p.error("field needs the current match epoch")
+    from fc_operator import attached, valid_owner
+    if (args.action == "operator" and not valid_owner(args.owner)) or (args.owner is not None and args.action != "operator"):
+        p.error("operator requires its browser owner")
+    if args.operator_owner is not None and (not args.connect or not valid_owner(args.operator_owner)):
+        p.error("--operator-owner requires a valid owner and match --runner-only --connect")
     env = environment(template, profile)
+    fc_control = env.get("PUPPER_FC_OPERATOR_CONTROL") == "1"
+    if (args.action == "operator" or args.operator_owner) and not fc_control:
+        raise ValueError("Selected platform does not provide laptop Stop")
     boot = (PROC / "sys/kernel/random/boot_id").read_text().strip()
     python = template["interpreter"]["executable"]
     helper = ROOT / "foundation/hardware/persistent_session.py"
@@ -468,14 +482,21 @@ def main(argv=None):
             return 0
         if args.connect:
             bench = profile.get("imu_recovery") in ("supported_standby", "supported_damping")
-            if bench or not (run / "owned_session.json").exists() or (run / "awaiting-standing.json").exists():
+            homed = (run / "owned_session.json").is_file() and (run / "native-readiness.json").is_file()
+            if args.operator_owner and not attached(run, plan["session_id"], args.operator_owner):
+                raise ValueError("The standing operator no longer owns this robot")
+            if bench or not homed or (run / "awaiting-standing.json").exists() or (fc_control and not args.operator_owner):
                 print(json.dumps(dict(event="home_required", robot_id=profile["robot_id"], run=str(run),
                                       imu_recovery=profile.get("imu_recovery", "strict"), match_capable=not bench,
+                                      fc_operator_control=fc_control, homed=homed,
                                       joystick_listed=any(Path("/dev/input").glob("js[0-9]*")))),
                       flush=True)
                 return 0
         if args.action == "match":
             start_deferred_perception(run, python, helper, env)
+    if args.action == "operator":
+        os.execve(python, [python, "-B", "-s", str(Path(__file__).resolve()), "--serve-fc-operator",
+                           str(run), profile["robot_id"], args.owner], {**env, **plan["environment"]})
     if args.action == "field":
         cmd = field_command(args, profile, run, python, args.epoch, continuous=True)
         cmd.append("--stop-on-eof")
@@ -488,7 +509,8 @@ def main(argv=None):
         return run_match(args, profile, plan, run, python, env)
     print(json.dumps({"run": str(run), "robot_id": profile["robot_id"], "stage": args.action,
                       "state": "session prepared" if args.action == "prepare" else "homed, hardware active; match disarmed",
-                      "match_armed": False, "home_only": args.home_only,
+                      "match_armed": False, "home_only": args.home_only, "fc_operator_control": fc_control,
+                      "homed": (run / "owned_session.json").is_file() and (run / "native-readiness.json").is_file(),
                       "imu_recovery": profile.get("imu_recovery", "strict")}))
     return 0
 
@@ -811,6 +833,16 @@ def read_hardware(stand=False, recover=None, *, dashboard=False):
 
 if __name__ == "__main__":
     try:
+        if len(sys.argv) == 5 and sys.argv[1] == "--serve-fc-operator":
+            from fc_operator import serve
+            from fc_walk_kick_release import verify_running_session
+            run = Path(sys.argv[2]).resolve(strict=True)
+            plan = read(run / "selected-session.json")
+            if plan["environment"].get("PUPPER_FC_OPERATOR_CONTROL") != "1" or sys.argv[3] not in ("pupper-1", "pupper-2"):
+                raise ValueError("This run has no selected laptop Stop gateway")
+            check_manager(run, plan, (PROC / "sys/kernel/random/boot_id").read_text().strip())
+            verify_running_session(run, ROOT, operator_controls=True)
+            sys.exit(serve(run, sys.argv[3], sys.argv[4]))
         if len(sys.argv) == 3 and sys.argv[1] == "--supported-imu-delivery":
             sys.exit(supported_imu_delivery(Path(sys.argv[2]).resolve(strict=True)))
         if sys.argv[1:2] in (["--dashboard-stand"], ["--supported-stand"], ["--recover-supported"]):
