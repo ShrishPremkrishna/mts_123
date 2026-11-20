@@ -1,6 +1,6 @@
 # Pupper build and test handoff
 
-Updated November 17, 2026. The [checkpoint](../foundation/results/interruption-recovery.json)
+Updated November 19, 2026. The [checkpoint](../foundation/results/interruption-recovery.json)
 owns the selected release, profile hashes, current operator and next actions.
 This document describes the procedure; historical releases do not assign work.
 
@@ -9,8 +9,11 @@ This document describes the procedure; historical releases do not assign work.
 The last floor-tested release is `movement-20261117-logfix`. Its sprint profile
 produced the recorded forward and short lateral results. The new guarded walk
 and direct command-deadline modes are software candidates, not deployed releases.
-Use the complete source kit linked by the checkpoint for their target build.
-Its native controller and software-Start gateway have separate source companions.
+The [November 17 source kit](../artifacts/pupper-fc/2026-11-17/fc-strict-trial-source-kit-20261117T160403Z/summary.json)
+contains separate source archives for the native controller and software-Start
+gateway. It covers the guarded movement work through that date. The November 19
+overhead producer, clock adapter and offline pose planner live in the active
+checkout. The kit has no Pi binaries, camera environment or field calibration.
 
 | Selection | Motion path | Preparation |
 | --- | --- | --- |
@@ -112,7 +115,7 @@ Keep the owning terminal and logs. From the same selected environment, check:
 
 ```sh
 python3 "$PUPPER_RELEASE/foundation/hardware/runtime_identity.py" loaded \
-  --receipt "$PUPPER_RUN/preflight.json"
+  --receipt "$PUPPER_RUN/preflight.json" > "$PUPPER_RUN/loaded.json"
 ```
 
 The check verifies the supplied configuration, mapped libraries and required
@@ -129,6 +132,59 @@ Record actual distance, heading, stability and braking separately from command
 receipts. The stock observation layout is 20 frames × 48 values, with command
 indices 6:9 in the newest frame.
 
+## First camera-free straight trial
+
+Use the stock release `/home/pi/pupper-fc-releases/movement-20261117-logfix`
+and its `sprint-manifest.json` for this comparison. Set `PUPPER_RELEASE` to
+that directory, `PUPPER_PROFILE=sprint`, and `PUPPER_MANIFEST` to
+`$PUPPER_RELEASE/sprint-manifest.json`. The recorded `PUPPER_MANIFEST_SHA256` is
+`a4656f22a8c0e5d96bcfec6d3bbbacd6c45e8bc67ea73473a1b139d3756b44c1`.
+The profile identifies the native settings used for the prior floor run.
+The trial below requests only 0.2 m/s. Its stock path uses no camera or gameplay
+bridge. Follow the fresh-run preflight and supported startup above. Preserve the
+native and recorder outputs for each session. [Floor evidence](../foundation/results/gait-gate-20261116.json).
+
+On the Mac, generate the nominal 20 cm straight target from the active repository.
+The scale of 1 is an initial estimate. Keep the plan and mark the start position,
+heading, target and the robot reference point used for tape measurements.
+
+```sh
+.venv-api/bin/python final_project/behaviors/tools/pose_trial.py \
+  --start 0 0 0 --target 0.2 0 0 --speed 0.2 --distance-scale 1
+```
+
+On the Pi, use the same release environment, profile and run directory as the
+native terminal. With the robot ready and one deliberate Options activation
+confirmed, start its resident trial client once:
+
+```sh
+python3 "$PUPPER_RELEASE/final_project/behaviors/tools/movement_trial.py" \
+  --session --execute --profile "$PUPPER_PROFILE" \
+  --runtime-receipt "$PUPPER_RUN/preflight.json" --out "$PUPPER_RUN/trials"
+```
+
+1. Send `{"command":"status"}` and check readiness. In a clear lane, send
+   `{"command":"prepare","axis":"forward","speed":0.2,"duration":1}`. When the
+   operator is watching and the returned problem is clear, send
+   `{"command":"run","token":"RETURNED_TOKEN"}` with that attempt’s token.
+2. Read the individual trial receipt. Require `outcome=completed`,
+   `command_verification.passed=true` and a recorded
+   `summary.zero_confirmed_in_observation_s`. Observe the physical stop, then
+   measure the endpoint before repositioning. Preserve interruptions, refusals
+   and missing measurements. Check the cause before another attempt.
+3. Restore the start and heading for each repeat. Use a fresh prepare/run token.
+   On the Mac, record a JSON array with a unique `trial_id`, `outcome`, `x` and
+   `y` in metres and `yaw` in **radians** for each attempt. Use `null` for
+   unmeasured values. Score with
+   `.venv-api/bin/python final_project/behaviors/tools/pose_trial.py --target 0.2 0 0 --measurements endpoints.json`.
+   The score reports RMS distance to the target and RMS spread about the mean
+   endpoint. Only measured endpoints contribute to those distances.
+
+The frozen stock client supports timed axis pulses. It has no IMU-heading
+request. Select the newer client and qualify isolated turns before combining
+them with translation. See the [movement runbook](behaviors/ROBOT_RUNBOOK.md#direct-deadline-qualification-candidate)
+for the guarded candidate, which also requires a real onboard camera producer.
+
 ## Close and recover
 
 Zero velocity, controller Stop and full driver shutdown have different effects.
@@ -136,6 +192,9 @@ The owner supports the robot as needed, closes ingress and the owned native
 session, then verifies process exits and recording closure using the
 [shutdown procedure](../foundation/HARDWARE_CHECKLIST.md). Keep failed runs and
 uncertain observations; do not kill by broad process name or overwrite evidence.
+On the frozen stock client, idle `quit` or `stop` exits the client while the
+native session can remain active. Check native deactivation and driver shutdown
+separately.
 
 Rollback selects a previously recorded **whole release/profile** after the old
 session closes. Never replace a live library or mix historical manifests. Native

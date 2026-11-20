@@ -11,26 +11,25 @@ goal-directed shots, automatic offense/defense, smooth responsive execution and
 shared overhead tracking. First establish this sequence; earlier endurance targets
 remain qualification work after it is physically achievable.
 
-**Next observable result:** one tagged robot repeatedly reaches a scripted field
-pose `(x, y, yaw)` using its real overhead observations. Inject targets, not robot
-feedback. The exact same target interface will later accept a shot staging pose.
-No ball is needed for this navigation test. Stopping at a pose and making a moving
-run-up are separate tests; a timer or simulated position does not measure either.
+**First observable result.** From a marked start, repeat one short straight pulse
+and measure each stopped endpoint with tape and a heading reference. The stock
+floor-tested release and frozen client support this step today if the same
+release passes fresh preflight and supervised startup. Choose the target and
+number of attempts before the first run. Record every attempt, endpoint spread,
+target error and interruptions. The [first-trial procedure](ROBOT_BUILD_AND_TEST_HANDOFF.md#first-camera-free-straight-trial)
+uses a 20 cm nominal target. The prior 30-inch observation came from a different
+speed and duration.
 
-The owner additionally requested a camera-free repeatability block first: restore
-the same marked starting pose, repeat a short destination plan, and measure every
-endpoint. This measures precision separately from accuracy. Use existing IMU
-turns and bounded timed translation with an explicitly declared distance scale;
-do not fake tag observations or claim position feedback. `behaviors/tools/pose_trial.py`
-prepares these requests and scores independent measurements. Its tracked target
-format stays the same when camera feedback becomes available. IMU turning and
-the selected candidate release still require physical qualification before a
-combined trial; short straight repeats can use the known movement baseline.
+**Next tracked result.** One tagged robot reaches a scripted field pose
+`(x, y, yaw)` under real overhead feedback. Use the same target as the
+camera-free trial. To add combined camera-free trials, qualify relative IMU
+turns separately on the selected newer client. Both trials can proceed without
+the ball. A later moving run-up needs a separate braking and contact test.
 
-1. Integrate the incoming perception source with the existing executor, resolve
-   its demonstrated calibration-health defect, and normalize actual measurements,
-   IDs and capture ages into each robot's clock. Its UDP-to-ROS `--drive` sketch
-   is not the execution path; keep one motion owner.
+1. The overhead producer, calibration-health correction and measured-clock adapter
+   are integrated locally. Use the normalized ingress with the existing executor
+   when qualifying tracking. The producer’s `--drive` example has a separate
+   command path.
 2. Establish camera-only field calibration and robot-tag coverage at the real mount.
    Floor corner IDs are 0 west-south, 1 east-south, 2 east-north, 3 west-north.
    IDs 10/11 identify robots; their names do not lock their soccer roles.
@@ -58,9 +57,10 @@ records incoming commits, tests, reproduced defects and deferred work.
 The separately supplied `tej/gemini-ball-kick` handoff at `07ed0fd` corrects the
 earlier branch inventory: it contains leg-kick assets and tools. Review found
 unrelated gate removal, timed navigation and concrete speed/freshness/result
-defects. Do not merge it wholesale. Discuss narrow kick-in-place extraction with
-the owner first, preserving main behavior and requiring corrected receipt/return
-semantics. Reported earlier contact and unverified fast transitions are distinct.
+defects. Do not merge it wholesale. The selected extraction is an explicitly enabled operator kick in place. Record
+actual clip entry and completion, then verify return to the walker. Prior contact
+is a teammate report. Faster transitions still need qualification on a selected
+runtime. Keep the first straight trials on the stock motion release.
 
 ## Outcome and ownership
 
@@ -103,7 +103,7 @@ features and qualify the existing candidate: target-compatible build and source
 selection, fixed-camera evidence, supported routing/Stop, then measured short
 motion and heading trials. Keep the last floor-tested release as rollback.
 Preparation must finish before requesting motor supervision. The first complete
-real-perception play follows when the producer is available.
+real-perception play follows mounted-source and target-runtime qualification.
 
 Deferred beyond this immediate sprint: the one-cue/two-bridge match operator
 (correlation and goal-cycle binding need work), final two-robot commissioning,
@@ -127,7 +127,7 @@ Work advances by evidence. The resident-client freshness defects and command-rou
 
 Each experiment states its question, comparison, observable result and stopping limit before it runs. Prepare dependencies, builds and rehearsals before requesting physical time. Aim for less than a minute between prepared trials in one homed session; measure the interval and fix a recurring delay once. Stop a failing path after it no longer separates plausible causes. Keep one owner per file/robot; use bounded independent reviews for uncertain faults and verify the integrated checkout after edits freeze.
 
-Use the existing checkpoint for active owners, exact next action, verified commands, failures and pending archives. Use this plan for outcomes/decisions and the brief for capabilities; replace superseded claims. The current chat's active goal and bounded delegates support continued execution. No scheduled task, cloud compute, remote robot monitor or background motion is implied. A chat/platform interruption still requires a resumable checkpoint; repository edits alone cannot cure UI latency.
+Use the existing checkpoint for active owners, exact next action, verified commands, failures and pending archives. Use this plan for outcomes/decisions and the brief for capabilities; replace superseded claims. No scheduled task, cloud compute, remote robot monitor or background motion is implied. A chat/platform interruption still requires a resumable checkpoint; repository edits alone cannot cure UI latency.
 
 ## Game behavior and proposed rules
 
@@ -199,7 +199,7 @@ Simulation of game decisions does not establish physical contact or sim-to-real 
 
 ## Owner steering and audited architecture — November 17, 2026
 
-The owner requests native object detection, explicit offense/defense roles, coordinate and angle targets, rigorous directional/combined movement tests, latency measurement and gait improvement. The owner likes the architecture and authorized offline implementation and adversarial audits. Clarified scope: front-camera stop/hold/resume to prevent driving into visible people/objects is sufficient; all-around coverage, overhead person fusion and detouring are not required. Ryan's live pose/heading feed is unavailable for several work sessions. Contact trials using the temporary ball are deferred: the intended ball is a pink size-5 soccer ball with flower patterns. Overhead perception remains authoritative for future field localization and shot geometry. Current hardware/process state belongs in the checkpoint, not this plan.
+The owner requests native object detection, explicit offense/defense roles, coordinate and angle targets, rigorous directional/combined movement tests, latency measurement and gait improvement. The owner likes the architecture and authorized offline implementation and adversarial audits. Clarified scope: front-camera stop/hold/resume to prevent driving into visible people/objects is sufficient; all-around coverage, overhead person fusion and detouring are not required. On November 17 the live feed was unavailable. The November 19 integration brought in its producer and clock adapter. The mounted-field feed still needs qualification. Contact trials using the temporary ball are deferred: the intended ball is a pink size-5 soccer ball with flower patterns. Overhead perception remains authoritative for future field localization and shot geometry. Current hardware/process state belongs in the checkpoint, not this plan.
 
 - Separate persistent **role** (offense/defense), **action phase** (navigate, align, strike, guard) and **motion authority** (execute, yield/replan, hold for stale tracking, stopped/fallen). These are two opponents, so roles are selected independently; do not force one global attacker/defender assignment. Start with a deterministic threat/opportunity rule and hysteresis.
 - Ryan supplies timestamped robot poses/headings, ball state, goals and validity, plus optional staging/shot targets. Agree one owner for shot geometry; the existing controller already computes it. A target alone cannot close the navigation loop. Build against synthetic/replayed state now; physical coordinate acceptance needs independently measured live pose, even if only an early AprilTag feed.
@@ -217,7 +217,7 @@ Two bounded local policy comparisons are complete, including 30-second direction
 
 ## Overnight execution — November 17, 2026
 
-The owner authorized offline work for the rest of the night and up to **$50 total additional cloud compute**. This is an aggregate cap, including setup and storage, not a per-experiment allowance. Existing subscription/local resources are authorized. No robot motion or deployment is part of this block. The checkpoint owns live jobs, costs and next actions; this section defines the intended outputs.
+The November 17 offline work block is closed. Its **$50 total additional cloud compute** cap applied to that block. The items below record the original scope. The checkpoint owns current work, access and costs.
 
 1. **Motion harness:** feedback-controlled relative angles and absolute IMU headings in the existing persistent client; fresh capture evidence, execution-time anchoring, bounded commands, cancellation, verified zero feedback and truthful receipts. Prepare subsequent body-command camera gating using the same command owner.
 2. **Gameplay:** leased automatic role selection connected to the existing executor, a goalie that keeps facing the ball, separate role/action/hold reasons and replayable interruption behavior. Keep explicit teammate targets and automatic planning mutually exclusive.

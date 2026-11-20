@@ -1,0 +1,59 @@
+{
+  "recorded_utc": "2026-11-20T00:40:10.271037+00:00",
+  "baseline_integration": "4bf115c",
+  "kick_stage": "a33645c",
+  "branch": "main",
+  "prior_integration_report": "foundation/results/perception-harness-integration-20261119.json",
+  "pi": {
+    "host": "mts",
+    "boot": "529bf7d6-a3cd-49a8-80f9-620859fa3ac3",
+    "release": "/home/pi/pupper-fc-releases/movement-20261117-logfix",
+    "profile": "sprint",
+    "manifest": "a4656f22a8c0e5d96bcfec6d3bbbacd6c45e8bc67ea73473a1b139d3756b44c1",
+    "trial_client": "783c0e19d43234cd6346974492db3f7da07a9fc691d77fbcb79dc897ee53b8db",
+    "preflight": "/home/pi/pupper-fc-runs/coordinate-stage1-diuJj7pE/preflight.json",
+    "source_checkout": "/home/pi/pupper-fc-source/shared-main-9dPewsiT",
+    "cpu_temperature_c_sample": 61.7,
+    "throttled_sample": "0x0",
+    "motion_started": false
+  },
+  "target_preparation": {
+    "source_directory": "/home/pi/pupper-fc-source/build-prep-nov19",
+    "source_controller_files_verified": 779,
+    "source_gateway_files_verified": 11,
+    "ros_dependencies_found": 23,
+    "build_completed": false,
+    "local_evidence": "artifacts/pupper-fc/2026-11-19/pi-build-prep/summary.json"
+  },
+  "kick": {
+    "source_branch": "tej/gemini-ball-kick",
+    "source_tip": "07ed0fd",
+    "candidate_sha256": "9c841f2680d0747cb4fd484bd99218e2f661ac5e4257076f0a8027a76e22fc81",
+    "scope": "Explicitly selected kick in place. Clip and restoration checked independently. Uses existing 0.5 s initialization and 1.0 s fade.",
+    "focused_tests": 20,
+    "broad_tests": 1277,
+    "main_worktree_tests": 33,
+    "physical_acceptance": false
+  },
+  "trial": {
+    "start": [
+      0,
+      0,
+      0
+    ],
+    "target": [
+      0.2,
+      0,
+      0
+    ],
+    "speed_m_s": 0.2,
+    "nominal_duration_s": 1.0,
+    "endpoint": "pending measurement",
+    "independent_physical_readiness": "required before homing"
+  },
+  "tracked_play": {
+    "source_integrated": true,
+    "mounted_camera_qualified": false,
+    "native_release_qualified": false
+  }
+}

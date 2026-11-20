@@ -1,6 +1,6 @@
 # Perception — Ryan
 
-November 12, 2026 · [Pupper FC brief](../README.md)
+Updated November 19, 2026 · [Pupper FC brief](../README.md)
 
 **Outcome:** Turn overhead mounted iPhone video into usable shared state for two autonomous Pupper soccer players on a roughly 8×12 ft field. Track both robot IDs, positions and headings, the bright ground ball's position and velocity, goals, and derived shot angles, with capture timestamps, age, uncertainty, and validity.
 
@@ -8,14 +8,14 @@ Coordinate the mount, field/robot AprilTags, goals, and ball with Shrish, who ow
 
 These are optional workstream notes. An incoming agent's role follows its user's current task and relevant source, not this document's title. Current activity and access are in the [checkpoint](../../foundation/results/interruption-recovery.json).
 
-## Status — November 18, 2026
+## Status — November 19, 2026
 
 Code: [overhead_perception](../overhead_perception/README.md), on `main` since November 19. That README holds the commands, interfaces, measured results and the list of what is not done.
 
 - **Works (simulation, 56 tests; includes a top-down dashboard drawn from the published state):** camera calibration from measured floor tags, from four corner tags that define the field's position, direction and size, from 2+ unmeasured tags, or from clicked floor points; two tagged robots with heading; a ball by configurable colour ranges plus outline fit (config now set for a pink ball, range untuned); velocities; ages; each robot's view of the ball and goal (body-frame x/y, distance, bearing, shot-line angles; conventions in the package README); a bridge to `pupper_fc` `Observation`; and a line-up-then-run approach planner driven only by a robot-relative ball and goal, exercised on a fake field with no camera (`scripts/fake_approach.py`), not on real perception or a robot.
 - **Observed live (desk, iPhone via Continuity Camera, November 16):** 1080p30 into the pipeline; printed tags read; ball outline fitted on one saved frame. No comparison against tape measurements.
 - **Decisions so far:** tag36h11, 17 cm floor tags and 8 cm robot tags (ids 0–5, 10, 11); JSON over UDP; field frame identical to `pupper_fc/model.py`. All remain easy to change.
-- **Open against the deliverables below:** physical-reference accuracy, lens and latency calibration, replay fixture and live sample, identity-swap / miss / false-detection counts, clock convention with the robot, and camera coverage of the full arena (straight-down 1080p needs about 3.8 m of height, where 8 cm robot tags become marginal).
+- **Open against the deliverables below:** physical-reference accuracy, lens and latency calibration, replay fixture and live sample, identity-swap / miss / false-detection counts, measured clock uncertainty on each physical Pi, and camera coverage of the full arena (straight-down 1080p needs about 3.8 m of height, where 8 cm robot tags become marginal).
 
 ## Immediate working baseline
 
@@ -36,15 +36,14 @@ Agree on field/body frames and units, robot IDs, goal identity, angle signs, cap
 
 iPhone capture method, computation placement, estimator/filter, update rate, state schema, and transport remain open. Use the [hardware procedure](../../foundation/HARDWARE_CHECKLIST.md) when coordinating trials involving moving robots.
 
-## Internal adapter candidate — November 17
+## Overhead adapter — November 19
 
-The [executor contract](../pupper_fc/README.md#shared-state-executor-and-deliberate-game-resume)
-and [ROS bridge](../behaviors/README.md#continuous-gameplay-bridge) can now be
-exercised with synthetic same-host inputs while the real feed is unavailable.
-This does not prescribe Ryan's wire format. The adapter will map an actual sample
-into metres, counterclockwise heading, fixed calibrated goals, explicit missing
-tracks, and capture times with a known clock/age relationship. It must preserve
-capture times rather than label a delayed image as newly captured.
+The [overhead ingress](../behaviors/overhead_ingress.py) maps Ryan’s UDP packets
+to the [executor’s frame contract](../pupper_fc/README.md#shared-state-executor-and-deliberate-game-resume).
+It checks the producer, session and calibration revision, converts capture times
+to the robot’s monotonic clock using a measured offset bound, and emits normalized
+observations to the existing [ROS bridge](../behaviors/README.md#continuous-gameplay-bridge)
+when publication is selected. Camera capture latency requires its own measurement.
 
 For a shared match, the internal adapter now supports required participant IDs
 and original `captured_at` on each robot row. A missing or stale peer holds
@@ -54,10 +53,8 @@ capture must be at least as recent as every included row. Do not carry a cached
 ball or robot forward with a new image's timestamp. Missing observations stay
 missing. This is an internal normalization contract, not a required Ryan schema.
 
-The first executable bridge accepts a named local Linux monotonic clock only;
-cross-device camera clock conversion is still unimplemented. Frames never renew
-motion authority: action intents have a separate maximum 0.5-second lease.
-After a camera hold, fresh field capture and freshly issued intent are required;
-an interrupted finite shot gets a new action ID. Operator arm and goal resume
-remain outside perception ingress. One real sample plus its capture-clock
-convention is the next integration input; recorded replay can precede hardware.
+The bridge keeps action authority separate from frames. Intents have a maximum
+0.5-second lease. After a camera hold, resumption needs a fresh field capture
+and intent. An interrupted finite shot gets a new action ID. Operators own arm
+and goal resume. The next tracking evidence is a measured run across the actual
+mount, network and Pi. [Local integration evidence](../../foundation/results/perception-harness-integration-20261119.json).

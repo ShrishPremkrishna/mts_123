@@ -3,7 +3,7 @@
 Working delivery script, November 17, 2026. The [delivery plan](PLAN.md#course-deliverables)
 owns deadlines and acceptance targets. This is the production plan for the narrated
 video and five-minute presentation. It is not a record of completed filming or
-submission. The [brief](README.md#implementation-and-evidence--november-17-2026)
+submission. The [brief](README.md)
 owns current capability claims.
 
 The story is a complete soccer decision cycle: observe the field, choose a role,
