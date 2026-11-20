@@ -1,0 +1,7 @@
+fastapi==0.141.1
+uvicorn==0.54.0
+websockets==15.0.1
+numpy==2.5.5
+opencv-python==5.1.0.95
+PyYAML==6.0.3
+zeroconf==0.154.0

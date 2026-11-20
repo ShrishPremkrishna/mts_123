@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+"""Open the local Pupper FC lobby, or run its hardware-free acceptance checks."""
+import argparse
+import fcntl
+import hashlib
+import http.client
+import json
+import os
+from pathlib import Path
+import shutil
+import signal
+import subprocess
+import sys
+import time
+import webbrowser
+
+
+ROOT = Path(__file__).resolve().parent
+ENV = ROOT / ".venv-fc"
+PYTHON = ENV / "bin/python"
+PACKAGE = ROOT / "final_project/pupper_fc"
+TESTS = [
+    "final_project/pupper_fc/tests/test_teleop_console.py",
+    "final_project/pupper_fc/tests/test_match_lobby.py",
+    "final_project/pupper_fc/tests/test_balance_lobby.py",
+    "final_project/overhead_perception/tests",
+]
+
+
+def installation_id():
+    digest = hashlib.sha256(os.fsencode(ROOT))
+    stamp = ROOT / "release-source.json"
+    if stamp.exists():
+        digest.update(stamp.read_bytes())
+    return digest.hexdigest()
+
+
+def prepare(check):
+    wheels = ROOT / "wheels"
+    if not PYTHON.is_file():
+        source = shutil.which("python3.12")
+        if not source and not wheels.exists():
+            source = sys.executable if sys.version_info >= (3, 12) else shutil.which("python3.13")
+        if not source:
+            raise RuntimeError("Install Python 3.12, then run this command again.")
+        print("Setting up the Pupper FC laptop environment…", flush=True)
+        subprocess.run([source, "-m", "venv", str(ENV)], check=True)
+    manifests = [PACKAGE / ("requirements-macos-arm64-py312.lock" if wheels.is_dir() else "requirements.txt")]
+    if check:
+        manifests.append(PACKAGE / "requirements-check.txt")
+    # Probe the actual environment. An interrupted install can always be retried.
+    probe = """
+import importlib.metadata as m, sys
+for pinned in sys.argv[1:]:
+    name, version = pinned.split('==')
+    try:
+        if m.version(name) != version: sys.exit(1)
+    except m.PackageNotFoundError: sys.exit(1)
+"""
+    pins = [line.split()[0] for path in manifests for line in path.read_text().splitlines()
+            if line.strip() and not line.lstrip().startswith("#")]
+    if subprocess.run([str(PYTHON), "-I", "-c", probe, *pins]).returncode:
+        print("Installing Pupper FC dependencies…", flush=True)
+        options = [item for path in manifests for item in ["-r", str(path)]]
+        if wheels.is_dir():
+            options.extend(["--no-index", "--find-links", str(wheels), "--require-hashes", "--only-binary=:all:"])
+        subprocess.run([str(PYTHON), "-m", "pip", "install", "--disable-pip-version-check",
+                        "--no-input", "-q", *options], check=True)
+
+
+def lobby_at(port):
+    """Distinguish unused ports from other software without following redirects."""
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=.7)
+    try:
+        conn.request("GET", "/health")
+        reply = conn.getresponse()
+        if reply.status == 200 and json.loads(reply.read(4096)).get("app") == "pupper-fc-lobby":
+            return "lobby" if reply.getheader("X-Pupper-FC-Installation") == installation_id() else "other lobby"
+    except ConnectionRefusedError:
+        return "free"
+    except (ValueError, AttributeError, TimeoutError, ConnectionError, http.client.HTTPException):
+        pass
+    finally:
+        conn.close()
+    return "occupied"
+
+
+def show(url, open_browser):
+    print(f"Pupper FC is ready at {url}", flush=True)
+    if open_browser:
+        webbrowser.open(url)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--port", type=int, default=8766)
+    parser.add_argument("--blue", metavar="SSH_HOST")
+    parser.add_argument("--red", metavar="SSH_HOST")
+    parser.add_argument("--no-open", action="store_true", help="print the address without opening a browser")
+    checks = parser.add_mutually_exclusive_group()
+    checks.add_argument("--self-test", action="store_true", help="check the installed laptop using a synthetic field")
+    checks.add_argument("--check", action="store_true",
+                        help="run offline laptop lobby and camera checks" if (PACKAGE / "requirements-check.txt").is_file() else argparse.SUPPRESS)
+    args = parser.parse_args()
+    if args.check and not (PACKAGE / "requirements-check.txt").is_file():
+        parser.error("run ./pupper-fc-check in the source checkout, or use --self-test in the ZIP")
+    if not 1 <= args.port <= 65535:
+        parser.error("choose a port from 1 to 65535")
+    url = f"http://127.0.0.1:{args.port}"
+    launch_lobby = not (args.check or args.self_test)
+    child = None
+    try:
+        ENV.mkdir(exist_ok=True)
+        with (ENV / ".launch-lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            if launch_lobby:
+                status = lobby_at(args.port)
+                if status == "lobby":
+                    if args.blue or args.red:
+                        raise RuntimeError("A lobby is already open. Stop it before changing its SSH hosts.")
+                    show(url, not args.no_open)
+                    return 0
+                if status == "other lobby":
+                    raise RuntimeError("Another Pupper FC installation is open. Close its terminal or choose a different --port.")
+                if status == "occupied":
+                    raise RuntimeError(f"Another service uses port {args.port}. Choose a different --port.")
+            prepare(args.check)
+            if launch_lobby:
+                command = [str(PYTHON), "-m", "final_project.pupper_fc.teleop", "--port", str(args.port)]
+                for slot in ("blue", "red"):
+                    if getattr(args, slot):
+                        command.extend(["--" + slot, getattr(args, slot)])
+                child = subprocess.Popen(command, cwd=ROOT, start_new_session=True,
+                                         env={**os.environ, "PUPPER_FC_INSTALLATION": installation_id()})
+                until = time.monotonic() + 15
+                while time.monotonic() < until:
+                    if child.poll() is not None:
+                        raise RuntimeError(f"The lobby exited during startup with status {child.returncode}.")
+                    if lobby_at(args.port) == "lobby":
+                        break
+                    time.sleep(.08)
+                else:
+                    raise RuntimeError("The lobby did not respond to its startup check within 15 seconds.")
+        if args.self_test:
+            return subprocess.call([str(PYTHON), "-m", "final_project.pupper_fc.self_test"], cwd=ROOT)
+        if args.check:
+            print("Running offline Pupper FC acceptance checks…", flush=True)
+            return subprocess.call([str(PYTHON), "-m", "pytest", "-q", "-p", "no:cacheprovider", *TESTS], cwd=ROOT)
+        show(url, not args.no_open)
+        return child.wait()
+    finally:
+        if child is not None and child.poll() is None:
+            child.terminate()
+            try:
+                child.wait(timeout=15)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait()
+
+
+if __name__ == "__main__":
+    def interrupt(*_):
+        raise KeyboardInterrupt
+    signal.signal(signal.SIGTERM, interrupt)
+    try:
+        sys.exit(main())
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except (OSError, RuntimeError, subprocess.CalledProcessError) as exc:
+        sys.exit(f"Pupper FC could not start. {exc}")

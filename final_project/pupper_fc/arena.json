@@ -1,0 +1,17 @@
+{
+  "name": "Mounted Pupper FC field",
+  "field": {"length": 2.7482693750646883, "width": 1.442886155351121, "goal_width": 0.6096, "ball_radius": 0.11},
+  "tags": {
+    "0": [-1.3634817252478666, 0.7283230588443763],
+    "1": [1.3710989517358858, 0.714563096506745],
+    "2": [1.3771704233288025, -0.7145630965067448],
+    "3": [-1.384787649816822, -0.7283230588443761],
+    "4": [0.009604601869357667, 0.7265175220459477],
+    "5": [-0.0145938787487354, -0.7311447378487849]
+  },
+  "corner_ids": {"west_south": 3, "east_south": 2, "east_north": 1, "west_north": 0},
+  "floor_size": 0.15875,
+  "camera": {"width": 1280, "height": 720, "latency_s": 0.12},
+  "processing_width": 1280,
+  "source": "First calibrated 896-pixel field observation in the archived November 20 field run. The goal width, ball radius, and camera latency are setup estimates. Survey the physical posts in camera settings."
+}

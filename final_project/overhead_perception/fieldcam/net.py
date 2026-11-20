@@ -19,8 +19,7 @@ STATE_PROTOCOL = "fieldcam_state_v1"
 PROBE_PROTOCOL = "fieldcam_clock_probe_v1"
 REPLY_PROTOCOL = "fieldcam_clock_reply_v1"
 MAX_DRAIN = 32
-# Declared engineering bounds, not a precision-clock certification. Exceeding
-# the measured bound invalidates this publisher session until explicit restart.
+# Maximum bracket width and wall-step tolerance for accepted clock measurements.
 WALL_STEP_S = .002
 CLOCK_DRIFT = .0005
 
@@ -46,7 +45,7 @@ class StatePublisher:
         self.wire_seq = 0
         self.clock_valid = True
         self._last_pair = self._pair()
-        self.clock_start_wall = self._last_pair[1]
+        self.clock_start_wall = self._last_pair[1] if self._last_pair is not None else None
         self._closing = threading.Event()
         self._worker = None
         if clock_worker:
@@ -63,13 +62,18 @@ class StatePublisher:
                 break
 
     def _pair(self):
-        before = self.monotonic()
-        wall = self.wall()
-        after = self.monotonic()
-        if (not all(math.isfinite(v) for v in (before, wall, after))
-                or before > after or after - before > WALL_STEP_S):
-            self.clock_valid = False
-        return before, wall, max(0., after - before)
+        for _ in range(2):
+            before = self.monotonic()
+            wall = self.wall()
+            after = self.monotonic()
+            if not all(math.isfinite(v) for v in (before, wall, after)) or before > after:
+                self.clock_valid = False
+                return None
+            if after - before <= WALL_STEP_S:
+                return before, wall, after - before
+        # Preemption can widen both brackets on a healthy clock. Drop this
+        # measurement and keep the previous precise pair for discontinuity checks.
+        return None
 
     def _identity(self):
         return {"source_id": self.source_id, "source_session": self.source_session,
@@ -98,13 +102,19 @@ class StatePublisher:
                 continue
 
     def send(self, state: dict):
-        before, wall, span = self._pair()
-        last_mono, last_wall, last_span = self._last_pair
-        elapsed = before - last_mono
-        if (elapsed < 0 or abs((wall - last_wall) - elapsed)
-                > WALL_STEP_S + span + last_span + max(0., elapsed) * CLOCK_DRIFT):
-            self.clock_valid = False  # A wall step must never silently re-date a frame.
-        self._last_pair = before, wall, span
+        pair = self._pair()
+        if pair is None:
+            return  # Existing evidence expires at its original capture deadline.
+        before, wall, span = pair
+        if self._last_pair is None:
+            self.clock_start_wall = wall
+        else:
+            last_mono, last_wall, last_span = self._last_pair
+            elapsed = before - last_mono
+            if (elapsed < 0 or abs((wall - last_wall) - elapsed)
+                    > WALL_STEP_S + span + last_span + max(0., elapsed) * CLOCK_DRIFT):
+                self.clock_valid = False  # A wall step must never silently re-date a frame.
+        self._last_pair = pair
         self.wire_seq += 1
         packet = {**state, "_transport": {**self._identity(), "protocol": STATE_PROTOCOL,
                   "live": self.live, "wire_seq": self.wire_seq, "sent_mono": before,
