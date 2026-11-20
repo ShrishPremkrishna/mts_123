@@ -119,7 +119,69 @@ python3 "$FC_RELEASE/final_project/behaviors/combined_fc_runner.py" \
   --robot-id pupper-1 --side right
 ```
 
-Tej owns physical kick trials.
+For a live single-striker trial, use the Pi-side
+[`live_field_attack.py`](behaviors/live_field_attack.py) from this checkout.
+It can run as a standalone file beside an existing release. Set `FC_LIVE_SOURCE`
+to its path and `FC_CAMERA_SESSION`, `FC_CAMERA_HOST`, `FC_CAL_REV`, `FC_FIELD`
+and `FC_PRODUCER` from the current camera and run. Use the full-precision
+geometry reported by this camera session, including opposite attack signs. Set
+`FC_EPOCH` to a fresh operator-selected value for the attempt. The source and
+runner must use the same epoch, producer, field JSON and Pi ROS domain.
+
+```bash
+source_args=(--release "$FC_RELEASE" --field-config "$FC_FIELD"
+  --source-host "$FC_CAMERA_HOST" --source-session "$FC_CAMERA_SESSION"
+  --calibration-revision "$FC_CAL_REV" --producer-id "$FC_PRODUCER"
+  --epoch "$FC_EPOCH" --robot-id pupper-1)
+python3 "$FC_LIVE_SOURCE" "${source_args[@]}" --approach-only --side right --duration 10
+```
+
+This first command listens on UDP 5005 and prints actual paired measurements,
+the configured opponent goal, the proposed standoff and hold reasons. It opens
+no ROS publisher. Verify the striker heading against the robot's nose and the
+goal direction against the field. Stop any prior observer on this port before
+starting the next receiver. Keep the combined runner's operator stdin open.
+
+For the **walking-only curve**, run the following in the sourced Pi environment.
+It emits only MOVE intents. The target uses the selected paw's lateral offset
+on the line from the measured ball to the configured opponent goal. With the
+0.16 m robot radius, 0.19 m bumper and 0.11 m ball, this target is 0.42 m
+behind the ball. The first trial needs a straight, ball-clear centre-to-target
+segment, and the body and destination must fit inside the field. Walking may
+translate and turn together. A blocked segment, lost pair or source timeout
+withdraws motion authority. The runner remains responsible for native Stop.
+
+```bash
+python3 "$FC_LIVE_SOURCE" "${source_args[@]}" --approach-only --side right \
+  --publish --duration 12 --trace "$FC_RUN/approach-$FC_EPOCH.jsonl"
+```
+
+With the path ready and the operator supervising, type an arm event into the
+combined runner's stdin, e.g. `{"command":"arm","epoch":"trial-1"}` if
+`FC_EPOCH=trial-1`. Type `{"command":"stop"}` to end the runner. The trace
+file must be new. Each line records the original normalized frame, what
+capture was forwarded, and the issued intent or hold reason.
+
+For **one trained kick**, start a separate supervised attempt, use a fresh
+epoch and rebuild `source_args` with that epoch. Select the foot on the
+**combined runner** with `--side left` or `--side right`. Allow time for the
+full approach, clip and walker return before the source exits.
+
+```bash
+python3 "$FC_LIVE_SOURCE" "${source_args[@]}" --publish --duration 60 \
+  --trace "$FC_RUN/attack-$FC_EPOCH.jsonl"
+```
+
+The attack controller routes behind the ball
+when needed, faces the measured goal and checks the foot-specific contact
+window. Its forward/lateral offsets in metres are (+0.258, +0.040) for left
+and (+0.270, −0.046) for right. Renewals keep one attempt ID through the kick
+and walker return. Each renewal expires 300 ms after the original mapped
+capture. Kick commitment needs several stable observations spanning at least
+200 ms, with original capture ages and inter-capture gaps within the 150 ms
+docking budget. A lost pair during a committed kick revokes the
+in-flight job. Confirm clip completion and walker return on the runner, and
+measure ball contact and travel separately. Tej owns physical kick trials.
 
 ## Target build for camera-guided play
 
