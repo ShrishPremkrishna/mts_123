@@ -252,3 +252,42 @@ def test_setup_reaps_unwritable_child_when_operator_leaves_before_standing_promp
             ws.send_json({"action":"home","supported":True})
             assert ws.receive_json()["stage"] == "running"
     assert processes[0].returncode == 0
+
+
+def test_saved_team_address_scopes_discovery_and_connect_to_owning_window():
+    import uuid
+    from final_project.pupper_fc.lobby import Lobby
+
+    scans, connections = [], []
+    async def connect(host, robot_id):
+        connections.append((host, robot_id))
+        return Runner(robot_id)
+    def scan():
+        scans.append(True)
+        return {"pupper-1":["blue-pi.local"],"pupper-2":["red-pi.local"]}
+    lobby = Lobby()
+    owner, other = (str(uuid.uuid4()) for _ in range(2))
+    local = {"origin":"http://localhost","host":"localhost"}
+    headers = {**local,"x-pupper-fc":owner}
+    with TestClient(create_app(lobby=lobby, scan=scan, connect=connect), base_url="http://localhost") as c:
+        def choose(slot, host, **kw):
+            return c.post("/api/discover", json={"slot":slot,"host":host,**kw}, headers=headers)
+        assert choose("blue","-oCommand=x",save_address=True).status_code == 409
+        assert choose("blue","mts",save_address=True).json()["host"] == "mts"
+        assert not scans and not connections
+        assert choose("red","pi@MTS.",save_address=True).status_code == 409
+        assert c.post("/api/discover",json={"slot":"blue","host":"other"},headers={**headers,"origin":"http://other.invalid"}).status_code == 403
+        with pytest.raises(WebSocketDisconnect), c.websocket_connect("/play/blue?owner="+other, headers=local):
+            pass
+        assert choose("blue","mts").is_success
+        with c.websocket_connect("/play/blue?owner="+owner, headers=local) as ws:
+            assert ws.receive_json()["robot_id"] == "pupper-1"
+            assert choose("blue","other",save_address=True).status_code == 409
+        assert connections == [("mts","pupper-1")] and not scans
+        assert choose("blue","",save_address=True).is_success and not scans
+        assert choose("blue","").json()["host"] == "blue-pi.local" and scans == [True]
+        lobby.owner = other
+        assert choose("red","red-ssh",save_address=True).status_code == 409
+        lobby.owner, lobby.phase = None, "starting"
+        assert choose("red","red-ssh",save_address=True).status_code == 409
+        lobby.phase = "idle"

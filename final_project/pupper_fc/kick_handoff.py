@@ -12,6 +12,10 @@ import math
 from .model import Decision
 
 
+# The combined runner renews kick authority on its 50 Hz output boundary.
+KICK_CONTROL_PERIOD_S = .020
+
+
 @dataclass(frozen=True)
 class KickRequest:
     robot_id: str
@@ -144,6 +148,9 @@ class KickHandoff:
         if not authorized or any((command.vx, command.vy, command.wz)):
             return KickStep(replace(decision, command=stopped, phase="kick_hold",
                                     reason="kick requires a current stationary authorized decision"))
+        if command.expires_at <= now + KICK_CONTROL_PERIOD_S:
+            return KickStep(replace(decision, command=stopped, phase="kick_hold",
+                                    reason="waiting for fresh evidence through the next kick check"))
         self.active = KickRequest(self.robot_id, epoch, attempt_id, side, now, command.expires_at)
         self.clip_started = False
         self._clip_seen = False

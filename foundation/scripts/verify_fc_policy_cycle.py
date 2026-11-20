@@ -278,7 +278,7 @@ def relay_native_status(rig, plant, output):
     rig.robot.send(f"/{plant.controller}/clip_status", SimpleNamespace(data=payload))
 
 
-async def run_case(plant, side, forward_m):
+async def run_case(plant, side, forward_m, *, duration_s=45):
     # Install the maintained no-ROS service transport before importing Robot.
     # Its synthetic clip encoder is disabled: all frames below come from RTNeural.
     sys.path.insert(0, str(ROOT / "gemini_pupper/robot"))
@@ -293,13 +293,13 @@ async def run_case(plant, side, forward_m):
         if not await rig.settle():
             raise RuntimeError("queue did not initialize")
         rig.robot.emit_interactive_status = rig.robot.emit_finite_status = lambda: None
-        return await drive(plant, side, rig, CombinedRuntime, forward_m)
+        return await drive(plant, side, rig, CombinedRuntime, forward_m, duration_s=duration_s)
     finally:
         rig.close()
         await asyncio.sleep(0)
 
 
-async def drive(plant, side, rig, runtime_type, forward_m):
+async def drive(plant, side, rig, runtime_type, forward_m, *, duration_s=45):
     clock = PlantClock(rig.clock)
     field = Field(ball_radius=0.11, goal_width=0.6096)
     ingress = instrument_camera(field)
@@ -392,7 +392,7 @@ async def drive(plant, side, rig, runtime_type, forward_m):
     goal_plane = field.length / 2 + field.ball_radius
     field_hz = round(1 / TICK_S)
 
-    for n in range(45 * HZ):
+    for n in range(round(duration_s * HZ)):
         await clock.advance(plant.now)
         now = rig.ts.now()
         if n % 10 == 0:
@@ -505,7 +505,7 @@ async def drive(plant, side, rig, runtime_type, forward_m):
             break
 
     if phase != "target_reached" and not failure:
-        failure = "45 s simulated budget elapsed"
+        failure = f"{duration_s:g} s simulated budget elapsed"
     end = plant.pose()
     travel = distance(start, staged) if start and staged else 0.0
     after = distance(restored, end) if restored else 0.0

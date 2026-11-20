@@ -65,6 +65,7 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
     if len(set(hosts.values())) != len(hosts):
         raise ValueError("Blue and Red must have different SSH hosts")
     configured = dict(hosts)
+    selected_by = {}
     lobby = lobby or Lobby()
 
     @asynccontextmanager
@@ -139,18 +140,35 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
                 slot = data.get("slot")
                 if slot not in ROBOTS:
                     raise ValueError("Choose Blue or Red")
-                if slot not in configured:
+                def can_select():
+                    lobby.check_owner(token)
+                    if lobby.phase != "idle" or slot in owners:
+                        raise ValueError("Disconnect this team and end the match before changing its connection")
+                can_select()
+                explicit = data.get("host", "")
+                if not isinstance(explicit, str):
+                    raise ValueError("Enter an SSH alias or leave the address blank")
+                host = ssh_host(explicit) if explicit else configured.get(slot)
+                saving = data.get("save_address") is True
+                if not host and not saving:
                     from .discovery import discover
                     found = await asyncio.to_thread(scan or discover)
                     choices = found.get(ROBOTS[slot], [])
                     if len(choices) != 1:
                         raise ValueError("Two robots advertise the same team" if choices else
-                                         "No " + slot + " robot found. Check power, Wi-Fi and team pairing.")
+                                         "No " + slot + " robot found. Check Wi-Fi or enter an SSH address in team setup.")
                     host = ssh_host(choices[0])
-                    if host in (v for k,v in hosts.items() if k != slot):
+                    can_select()  # A connection or kickoff may have started during discovery.
+                if host:
+                    key = host.rsplit("@", 1)[-1].lower().rstrip(".")
+                    if any(v.rsplit("@", 1)[-1].lower().rstrip(".") == key for k,v in hosts.items() if k != slot):
                         raise ValueError("Two teams resolved to the same robot")
                     hosts[slot] = host
-                return {"robot_id":ROBOTS[slot], "host":hosts[slot]}
+                    selected_by[slot] = token
+                else:
+                    hosts.pop(slot, None)
+                    selected_by.pop(slot, None)
+                return {"robot_id":ROBOTS[slot], "host":host}
             raise HTTPException(404, "Unknown action")
         except (ValueError, OSError, RuntimeError, TimeoutError) as exc:
             raise HTTPException(409, str(exc) or "The operation timed out") from None
@@ -161,7 +179,8 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
 
     def available(ws, slot):
         origin = urlsplit(ws.headers.get("origin", ""))
-        return (slot in hosts and slot not in owners and origin.scheme == "http"
+        return (slot in hosts and slot not in owners
+                and (slot not in selected_by or selected_by[slot] == ws.query_params.get("owner")) and origin.scheme == "http"
                 and origin.netloc == ws.headers.get("host") and origin.hostname in ("localhost", "127.0.0.1"))
 
     @app.websocket("/setup/{slot}")

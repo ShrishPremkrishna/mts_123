@@ -231,3 +231,51 @@ def test_27hz_partial_age_capture_and_50hz_ticks_permit_only_fresh_settled_kicks
     for age in (.151, .205, .34, .36):
         late = ctrl.tick(Observation(stamp, robot, ball), stamp + age, shot_target=GOAL)
         assert late.phase != "kick_ready" and late.command.vx == 0.
+
+
+def test_stalled_crossing_uses_one_fresh_lateral_pulse_at_the_setback():
+    ctrl = controller()
+    robot = Pose(-.365, -.060, 0.)
+    roll_through(ctrl, (0., .20), robot=Pose(-.365, -.11, 0.), age=.06)
+    assert ctrl._paw.crossing
+    ball = Ball(0., 0.)
+    pulses = []
+    for n in range(53):
+        stamp = .4 + n * .035
+        decision = ctrl.tick(Observation(stamp, robot, ball), stamp + .06, shot_target=GOAL)
+        if "lateral stall" in decision.reason:
+            pulses.append(stamp)
+            assert decision.target[0] == pytest.approx(robot.x)
+            assert decision.target[1] > robot.y
+            assert decision.command.vy <= LIMITS.vy
+            assert decision.phase == "approach"
+    assert pulses and pulses[0] >= .4 + .55 and pulses[-1] - pulses[0] <= .16
+    # A repeated frame cannot create a second pulse, moving and near-body
+    # cases retain the full crossing clearance, and no goal-side motion opens.
+    last_stamp = .4 + 52 * .035
+    repeated = ctrl.tick(Observation(last_stamp, robot, ball), last_stamp + .149, shot_target=GOAL)
+    assert "lateral stall" not in repeated.reason
+    advancing = ctrl.tick(Observation(last_stamp + .15, robot, Ball(0., .003, 0., .10)),
+                          last_stamp + .21, shot_target=GOAL)
+    assert "lateral stall" not in advancing.reason
+    near = Pose(-.28, -.060, 0.)
+    retreat = ctrl.tick(Observation(last_stamp + .20, near, ball), last_stamp + .26, shot_target=GOAL)
+    assert retreat.target[0] < near.x and retreat.target[1] == pytest.approx(near.y)
+
+
+def test_lateral_pulse_requires_the_entire_setback_reference_inside_the_measured_field():
+    ctrl = controller()
+    # The unclipped 30 mm lateral reference crosses the touchline. Clipping
+    # its y alone would send the robot 23 mm in +x instead of along the line.
+    robot = Pose(.824358, 1.06, -.865248)
+    ball = Ball(1.127954, .824174)
+    ctrl.tick(Observation(0., robot, ball), .06, shot_target=GOAL)
+    ctrl._paw.crossing = True
+    reasons = []
+    for i in range(1, 51):
+        stamp = i * .035
+        decision = ctrl.tick(Observation(stamp, robot, ball), stamp + .06, shot_target=GOAL)
+        assert decision.target == ctrl._reachable(*decision.target)
+        reasons.append(decision.reason)
+    assert all("behind the crossing ball" in reason and "lateral stall" not in reason for reason in reasons)
+    assert ctrl._paw.dock_anchor is None

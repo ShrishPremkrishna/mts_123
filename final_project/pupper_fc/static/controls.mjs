@@ -96,7 +96,7 @@ function render() {
         t.ball.state === 'tracked' ? 'Ball tracked · ' + t.ball.source + bearing : 'Camera · ' + t.ball.state;
     }
     if (!t.online) {
-      t.connect.disabled = t.connecting || t.setup.busy || state.phase !== 'idle';
+      t.connect.disabled = t.connecting || t.setup.busy || t.savingAddress || state.phase !== 'idle';
       t.options.disabled = t.connecting || (state.phase !== 'idle' && !t.setup.busy);
       t.options.setAttribute('aria-expanded', String(setupTeam === t));
     }
@@ -132,10 +132,17 @@ async function action(path, data) {
   finally { pending = false; render(); }
 }
 
+function addressKey(slot) { return 'pupper-fc-address-' + slot; }
+function savedAddress(slot) {
+  try { return localStorage.getItem(addressKey(slot)) || ''; } catch { return ''; }
+}
+const discoverTeam = slot => post('discover', {slot, host:savedAddress(slot)});
+
 function showSetup(t) {
   if (setupTeam !== t) {
     $('setup-supported').checked = false;
     $('setup-home-mode').value = 'stand';
+    $('setup-address').value = t ? savedAddress(t.slot) : '';
   }
   setupTeam = t;
   $('robot-setup').hidden = !t;
@@ -146,7 +153,8 @@ function renderSetup() {
   const t = setupTeam;
   if (!t) return;
   const setup = t.setup;
-  const locked = setup.busy || state.phase !== 'idle';
+  const locked = setup.busy || t.savingAddress || state.phase !== 'idle';
+  $('setup-address').disabled = $('save-address').disabled = locked || t.connecting || t.online;
   if (setup.busy && setup.action === 'home') {
     $('setup-supported').checked = true;
     $('setup-home-mode').value = setup.homeOnly ? 'home-only' : 'stand';
@@ -206,7 +214,7 @@ async function beginSetup(t, action) {
   t.connection.textContent = 'Setting up…';
   render();
   try {
-    if (!setup.discovered) await post('discover', {slot:t.slot});
+    if (!setup.discovered) await discoverTeam(t.slot);
     if (t.setup !== setup) return;
     setup.discovered = true;
     const socket = new WebSocket('ws://' + location.host + '/setup/' + t.slot + '?owner=' + owner);
@@ -252,6 +260,20 @@ async function beginSetup(t, action) {
   }
 }
 
+$('save-address').onclick = async () => {
+  const t = setupTeam;
+  if (!t || t.savingAddress || t.setup.busy || t.connecting || t.online || state.phase !== 'idle') return;
+  t.savingAddress = true; render();
+  const host = $('setup-address').value.trim();
+  try {
+    await post('discover', {slot:t.slot, host, save_address:true});
+    if (host) localStorage.setItem(addressKey(t.slot), host);
+    else localStorage.removeItem(addressKey(t.slot));
+    t.setup = {message:host ? 'Saved SSH address: ' + host : 'Default connection restored.'};
+    if (setupTeam === t) { $('setup-supported').checked = false; $('setup-address').value = host; }
+  } catch (error) { t.setup.message = error.message; }
+  finally { t.savingAddress = false; render(); }
+};
 $('setup-close').onclick = () => { const opener = setupTeam?.options; showSetup(null); opener?.focus(); };
 $('setup-supported').onchange = renderSetup;
 $('setup-home-mode').onchange = renderSetup;
@@ -291,13 +313,13 @@ function addTeam(slot, config) {
   t.modeEl.onchange = () => { t.requested = {mode:t.modeEl.value, expires:performance.now()+400}; clearKeys(slot); t.modeEl.blur(); };
   t.openRunner = async (alreadyDiscovered = false) => {
     if (t.online) { toggle(settings.hidden); return; }
-    if (t.connecting || t.socket || t.setup.busy) return;
+    if (t.connecting || t.socket || t.setup.busy || t.savingAddress) return;
     if (setupTeam === t) showSetup(null);
     const attempt = Symbol();
     t.attempt=attempt; t.connecting=true; t.connect.disabled=true; t.stopping=false; t.feedback.textContent='';
     el('connection').textContent='Searching…'; message('');
     try {
-      if (!alreadyDiscovered) await post('discover',{slot});
+      if (!alreadyDiscovered) await discoverTeam(slot);
       if(t.attempt!==attempt) return;
       const sock = new WebSocket('ws://' + location.host + '/play/' + slot + '?owner=' + owner);
       t.socket = sock; el('connection').textContent='Connecting…';

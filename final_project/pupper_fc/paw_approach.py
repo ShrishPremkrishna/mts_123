@@ -278,6 +278,7 @@ class PawApproach:
         c, s = math.cos(robot.yaw), math.sin(robot.yaw)
         lateral_error = -(ball.x - robot.x) * s + (ball.y - robot.y) * c - PAW_LEFT_M[self.side]
         lateral_speed = -ball.vx * s + ball.vy * c
+        was_crossing = self.crossing
         if (self.roll is not None and now <= self.plan_until and abs(lateral_speed) >= .025
                 and abs(lateral_error) > 2 * LATERAL_WINDOW_M):
             self.crossing = True
@@ -291,6 +292,8 @@ class PawApproach:
                 self.crossing = False
                 self.aligned_capture = None
             self.crossing_capture = captured
+        if was_crossing != self.crossing:
+            self.reset_dock_progress()
         return self.crossing
 
     def reset_dock_progress(self):

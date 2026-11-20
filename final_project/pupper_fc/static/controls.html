@@ -14,6 +14,7 @@
 <p class="feedback" role="status"></p></section></template>
 <section id="robot-setup" class="setup-panel" aria-labelledby="setup-title" hidden>
 <div class="setup-heading"><h2 id="setup-title">Robot setup</h2><button id="setup-close" aria-label="Close robot setup">×</button></div>
+<div class="setup-step"><label for="setup-address">Team SSH address (optional)</label> <input id="setup-address" type="text" placeholder="Automatic discovery" autocomplete="off" spellcheck="false"> <button id="save-address">Save address</button><p>Use a trusted SSH alias such as mts or pi@robot.local. Leave blank for the default connection. Saved in this browser.</p></div>
 <div class="setup-grid"><div class="setup-step"><h3>Prepare session</h3><p>Connect prepares a cold session automatically. Prepare is also available on its own.</p><button id="setup-prepare">Prepare</button></div>
 <div class="setup-step home-step"><h3>Home on stand</h3><label class="support"><input id="setup-supported" type="checkbox"> Pupper is supported on its stand.</label><label class="home-mode">After homing <select id="setup-home-mode"><option value="stand">Stand for a match</option><option value="home-only">Finish homed · no gamepad</option></select></label>
 <p id="setup-hint">Standing requires a connected Stop gamepad and a fresh cue after homing.</p><button id="setup-home" disabled>Home</button><button id="setup-stand" hidden>Enable standing</button></div></div>

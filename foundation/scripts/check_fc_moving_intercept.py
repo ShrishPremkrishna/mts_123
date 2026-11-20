@@ -45,6 +45,8 @@ class Shot:
     second_pass: tuple = ()
     noise_m: float = 0.
     extra_camera_ticks: int = 0
+    robot_y_bias_m: float = 0.
+    duration_s: float = 45.
 
 
 SHOTS = (
@@ -64,24 +66,27 @@ PROBES = (
     replace(REDIRECT, name="redirect_short_latency", extra_camera_ticks=0),
     replace(REDIRECT, name="redirect_exact_delayed", noise_m=0.),
     replace(SHOTS[0], name="stock_stationary_delayed", extra_camera_ticks=40),
+    replace(SHOTS[-1], name="fast_extended", duration_s=65.),
+    replace(SHOTS[-1], name="fast_y_plus3mm", robot_y_bias_m=.003),
+    replace(SHOTS[-1], name="fast_y_minus3mm", robot_y_bias_m=-.003),
 )
 
 
-def released_controller():
+def released_modules():
     """Isolate both old planner modules while sharing the unchanged message types."""
     name = "pupper_fc_released_intercept_test"
     package = ModuleType(name)
     package.__path__ = []
     sys.modules[name] = package
     sys.modules[name + ".model"] = field_model
-    for part in ("paw_approach", "controller"):
+    for part in ("paw_approach", "controller", "kick_handoff"):
         path = f"final_project/pupper_fc/{part}.py"
         source = subprocess.check_output(["git", "show", f"{BASELINE}:{path}"], cwd=cycle.ROOT)
         module = ModuleType(f"{name}.{part}")
         module.__package__ = name
         sys.modules[module.__name__] = module
         exec(compile(source, f"{BASELINE}:{path}", "exec"), module.__dict__)
-    return sys.modules[name + ".controller"].Controller
+    return sys.modules[name + ".controller"].Controller, sys.modules[name + ".kick_handoff"].KickHandoff
 
 
 def scene(spec):
@@ -126,11 +131,11 @@ class RollingTrial(cycle.PolicyPlant):
                                    target=self.decision.target if self.decision else None,
                                    phase=self.decision.phase if self.decision else None,
                                    steering=self.decision.reason if self.decision else None,
-                                   owner=self.controller))
+                                   requested_body_m_s=command[:2], owner=self.controller))
         return super().advance(command)
 
 
-def outcome(plant, controller):
+def outcome(plant, controller, handoff):
     shot = plant.shot
     durations_us = []
     observation_ages_ms = []
@@ -149,6 +154,8 @@ def outcome(plant, controller):
             x, y = rng.normal(0., shot.noise_m, 2)
             ball = replace(observation.ball, x=observation.ball.x + x, y=observation.ball.y + y)
             observation = replace(observation, ball=ball)
+        if shot.robot_y_bias_m:
+            observation = replace(observation, robot=replace(observation.robot, y=observation.robot.y + shot.robot_y_bias_m))
         return source(ingress, observation, field, sequence, now, filters)
 
     class MeasuredController(controller):
@@ -181,9 +188,15 @@ def outcome(plant, controller):
 
             super().__init__(*args, **dict(options, monotonic_ns=issue_ns))
 
+    original_drive = cycle.drive
+    async def drive_with_handoff(body, side, rig, runtime_type, forward, **options):
+        runtime_module = sys.modules[runtime_type.__module__]
+        with patch.object(runtime_module, "KickHandoff", handoff):
+            return await original_drive(body, side, rig, runtime_type, forward, **options)
+
     with (patch.object(integration, "Controller", MeasuredController), patch.object(cycle, "camera_datagram", camera),
-          patch.object(cycle, "BridgeCore", PhysicsBridge)):
-        result = asyncio.run(cycle.run_case(plant, shot.side, COMBINED_PAW_FORWARD_M[shot.side]))
+          patch.object(cycle, "BridgeCore", PhysicsBridge), patch.object(cycle, "drive", drive_with_handoff)):
+        result = asyncio.run(cycle.run_case(plant, shot.side, COMBINED_PAW_FORWARD_M[shot.side], duration_s=shot.duration_s))
     first = result["first_robot_ball"]
     stop = first["time_s"] - START if first else math.inf
     rolling = [row for row in plant.trace if row["t"] <= stop and row["owner"] == "gemini_walk" and
@@ -294,9 +307,13 @@ def main():
         params, release = cycle.selected_profile(work, args.staged_release, cycle.selection())
         binary = args.native_host or cycle.build_controller(work)[0]
         for strategy in (("released", "intercept") if args.strategy == "both" else (args.strategy,)):
-            controller = released_controller() if strategy == "released" else import_module("final_project.pupper_fc.controller").Controller
+            if strategy == "released":
+                controller, handoff = released_modules()
+            else:
+                controller = import_module("final_project.pupper_fc.controller").Controller
+                handoff = import_module("final_project.pupper_fc.kick_handoff").KickHandoff
             source_hashes = {}
-            for filename in ("controller.py", "paw_approach.py"):
+            for filename in ("controller.py", "paw_approach.py", "kick_handoff.py"):
                 path = "final_project/pupper_fc/" + filename
                 data = (subprocess.check_output(["git", "show", f"{BASELINE}:{path}"], cwd=cycle.ROOT)
                         if strategy == "released" else (cycle.ROOT / path).read_bytes())
@@ -306,8 +323,9 @@ def main():
                 plant_model, contact = models[surface]
                 plant = RollingTrial(plant_model, binary, shot, params)
                 try:
-                    result = outcome(plant, controller)
+                    result = outcome(plant, controller, handoff)
                     result.update(
+                        handoff_sha256=source_hashes["kick_handoff.py"],
                         strategy=strategy, baseline=BASELINE, planner_sha256=source_hashes, release=release,
                         policy_host_sha256=cycle.sha(binary), walking_policy_sha256=cycle.sha(cycle.WALK),
                         kick_policy_sha256=cycle.sha(cycle.KICK), mujoco=mujoco.__version__, contact_model=contact,

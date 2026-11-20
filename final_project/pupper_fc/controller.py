@@ -523,7 +523,7 @@ class Controller:
                            self._travel_heading(robot, home, facing), self.limits.vx, now, robot_id)
 
     def _paw_attack(self, robot, ball, goal, captured_at, now, robot_id):
-        from .paw_approach import COMMAND_LEASE_S, MAX_CAPTURE_GAP_S, contact_window, paw_pose
+        from .paw_approach import COMMAND_LEASE_S, LATERAL_WINDOW_M, MAX_CAPTURE_GAP_S, contact_window, paw_pose
         forward_m = self._paw.forward_m
         pose = paw_pose(ball, goal, self.kick_side, forward_m=forward_m)
         target = (pose.x, pose.y)
@@ -571,13 +571,14 @@ class Controller:
             return routed
         self._guard_waypoint = self._guard_side = None
         distance = math.hypot(pose.x - robot.x, pose.y - robot.y)
-        speed_floor = self._paw.docking_speed_floor(robot, ball, distance, heading_error, captured_at, now)
         if crossing:
+            speed_floor = 0.
             # A sideways adjustment at the contact standoff can sweep the nose
             # through a crossing ball. Stay behind its measured line first.
             clearance = defensive_clearance(self.field)
             lead = intercept or pose
             if along < clearance - CLEARANCE_MARGIN / 2 and abs(across) < clearance:
+                self._paw.reset_dock_progress()
                 retreat = clearance + CLEARANCE_MARGIN / 2 - along
                 target = self._reachable(robot.x - c * retreat, robot.y - s * retreat)
                 reason = "backing clear of the measured crossing ball"
@@ -588,7 +589,20 @@ class Controller:
                 advance = min(0., (pose.x - lead.x) * c + (pose.y - lead.y) * s)
                 target = self._reachable(lead.x + c * (advance - extra), lead.y + s * (advance - extra))
                 reason = (pursuit or "aligning with the measured ball") + " from behind the crossing ball"
-            return self._drive("approach", reason, robot, target, pose.yaw, self.limits.vx, now, robot_id)
+                lateral = -(target[0] - robot.x) * s + (target[1] - robot.y) * c
+                lateral_target = (robot.x - s * lateral, robot.y + c * lateral)
+                if abs(lateral) > LATERAL_WINDOW_M and self._reachable(*lateral_target) == lateral_target:
+                    speed_floor = self._paw.docking_speed_floor(robot, ball, abs(lateral), heading_error, captured_at, now)
+                else:
+                    self._paw.reset_dock_progress()
+                if speed_floor:
+                    # The walker can stall millimetres outside the alignment
+                    # gate. Pulse only across the shot line at the safe setback.
+                    target = lateral_target
+                    reason = "correcting a measured lateral stall behind the ball"
+            return self._drive("approach", reason, robot, target, pose.yaw, self.limits.vx, now, robot_id,
+                               min_speed=speed_floor)
+        speed_floor = self._paw.docking_speed_floor(robot, ball, distance, heading_error, captured_at, now)
         if intercept is not None:
             # Test the next command lease and braking distance against the ball
             # actually seen. Recheck on every capture, even when the new stance
