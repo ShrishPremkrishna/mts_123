@@ -14,6 +14,27 @@ def valid_owner(owner):
     return isinstance(owner, str) and re.fullmatch(r"[0-9a-f]{32}", owner) is not None
 
 
+def board_error(run):
+    """Latest native driver error in this run after its most recent successful board activation."""
+    try:
+        with (Path(run) / "robot.log").open("rb") as log:
+            log.seek(0, 2)
+            log.seek(max(0, log.tell() - 256_000))
+            lines = log.read().decode(errors="replace").splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        match = re.fullmatch(r"\[ros2_control_node-\d+\] \[(INFO|ERROR|FATAL)\] \[[0-9.]+\] "
+                             r"\[ControlBoardHardwareInterface\]: (.+)", line)
+        if match:
+            level, detail = match.groups()
+            if level in ("ERROR", "FATAL"):
+                return detail.split(" sampled_mono_us=", 1)[0][:350]
+            if detail.startswith("Successfully activated!"):
+                break
+    return None
+
+
 def attached(run, session_id, owner):
     """An exited SSH relay cannot authorize a match with its old receipt."""
     if not valid_owner(owner):
@@ -69,17 +90,39 @@ def serve(run, robot_id, owner):
         def emit(event, **values):
             print(json.dumps(dict(event=event, robot_id=robot_id, **values)), flush=True)
 
-        def stop(reason):
-            receipt.unlink(missing_ok=True)
-            if gateway.stop_result is not None:
+        stop_requested = False
+
+        def stop(reason, *, failed=False):
+            nonlocal stop_requested
+            if stop_requested:
                 return
-            gateway.request_stop(reason)
-            while rclpy.ok():
-                rclpy.spin_once(node, timeout_sec=.02)
-                result = gateway.poll_stop()
-                if result is not None:
-                    emit("operator_stop", confirmed=result.get("confirmed") is True and not result.get("uncertain"), reason=reason)
-                    break
+            stop_requested = True
+            result = {}
+            try:
+                # Send damping and fence motion before inspecting logs or writing diagnostics.
+                gateway.request_stop(reason)
+                receipt.unlink(missing_ok=True)
+                while rclpy.ok():
+                    rclpy.spin_once(node, timeout_sec=.02)
+                    reply = gateway.poll_stop()
+                    if reply is not None:
+                        result = reply
+                        break
+            finally:
+                confirmed = result.get("confirmed") is True and not result.get("uncertain")
+                fault = board_error(run) if failed or reason == "Pi revoked laptop control" else None
+                if fault:
+                    reason = f"{reason.rstrip('.')}. Board reported: {fault}."
+                terminal = dict(confirmed=confirmed, reason=reason)
+                if failed or fault:
+                    try:
+                        write_new(run / "fc-operator-failure.json", dict(
+                            terminal, robot_id=robot_id, session_id=session_id, monotonic_ns=time.monotonic_ns(),
+                            phase="standing" if standing else "stand", board_error=fault,
+                            gateway_epoch=result.get("gateway_epoch")))
+                    except OSError:
+                        pass  # A failed diagnostic write must still deliver the Stop result.
+                emit("operator_stop", **terminal)
 
         try:
             while rclpy.ok():
@@ -122,7 +165,10 @@ def serve(run, robot_id, owner):
                 if inventory_request is not None and inventory_request.done() and fresh and state.get("fc_operator_armed"):
                     rows = {c.name: c.state for c in inventory_request.result().controller}
                     if rows.get("gemini_walk") != "active" or rows.get("trick_leg_kick") != "inactive" or state.get("fc_operator_owner") != owner:
-                        raise ValueError("Standing controller or laptop ownership unconfirmed")
+                        raise ValueError("Standing unconfirmed. Pi controller states: gemini_walk="
+                                         + str(rows.get("gemini_walk", "missing")) + ", trick_leg_kick="
+                                         + str(rows.get("trick_leg_kick", "missing")) + ". Laptop owner "
+                                         + ("matches" if state.get("fc_operator_owner") == owner else "changed"))
                     inventory_request = None
                     standing = True
                     ticks = Path("/proc/self/stat").read_text().rsplit(")", 1)[1].split()[19]
@@ -172,10 +218,10 @@ def serve(run, robot_id, owner):
                         if challenge not in echoed:
                             echoed.add(challenge)
                             heart.publish(String(data=challenge + " " + owner))
-        except BaseException:
+        except BaseException as exc:
             if touched:
                 try:
-                    stop("Standing or operator connection interrupted")
+                    stop(str(exc).strip()[:450] or type(exc).__name__, failed=True)
                 except (OSError, ValueError, RuntimeError):
                     pass
             raise

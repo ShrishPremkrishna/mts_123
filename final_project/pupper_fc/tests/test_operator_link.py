@@ -143,3 +143,17 @@ def test_native_connection_commands_name_the_operator(monkeypatch):
     assert calls[0][-1].split()[2:] == ["operator", "--robot-id", "pupper-1", "--owner", OWNER.replace("-", "")]
     assert calls[1][-1].endswith("--operator-owner " + OWNER.replace("-", ""))
     assert all(argv[1] == "-T" and "BatchMode=yes" in argv for argv in calls)
+
+
+def test_older_pi_stop_receipt_does_not_hide_its_standing_diagnostic():
+    async def launch(host, robot, owner):
+        proc = OperatorPi(robot)
+        proc.emit(event="operator_stop", confirmed=True, reason="Standing or operator connection interrupted")
+        proc.stdout.feed_data(b"Pupper FC: Standing refused: controller switch failed\n")
+        return proc
+
+    app = create_app({"blue":"blue-pi"}, operator=launch)
+    with TestClient(app, base_url="http://localhost") as client:
+        with client.websocket_connect("/operator/blue?owner=" + OWNER, headers=LOCAL) as ws:
+            assert receive(ws,"operator_stop")["confirmed"]
+            assert receive(ws,"operator_diagnostic")["reason"] == "Standing refused: controller switch failed"

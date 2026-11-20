@@ -258,10 +258,15 @@ function openOperator(t) {
       t.setup.message = 'Pi confirmed standing.';
       if (setupTeam === t) showSetup(null);
       void t.openRunner(true);
+    } else if (event.event === 'operator_diagnostic' && op.result && event.reason) {
+      op.result += ' ' + event.reason;
+      t.feedback.textContent = t.setup.message = op.result;
     } else if (event.event === 'operator_stop' || event.event === 'error') {
+      op.terminal = true;
       op.stopping = true; op.standing = op.ready = false;
       op.result = event.event === 'error' ? (event.reason || 'Pi operator connection failed.') :
         (event.confirmed ? 'Pi confirmed Stop.' : 'Stop unconfirmed. Check Pupper.') + (event.reason ? ' ' + event.reason : '');
+      if (op.runnerError) op.result += ' ' + op.runnerError;
       t.feedback.textContent = t.setup.message = op.result;
     }
     render();
@@ -472,6 +477,7 @@ function addTeam(slot, config) {
           if (event.event === 'home_required') {
             t.needsHome = true;
             t.fcOperator = event.fc_operator_control === true;
+            t.previousFault = typeof event.previous_fault === 'string' ? event.previous_fault : '';
             t.homed = event.homed === true;
             t.joystickListed = event.joystick_listed;
           }
@@ -485,6 +491,7 @@ function addTeam(slot, config) {
           return;
         }
         if (event.event === 'stop_result') {
+          if (t.operator?.terminal) return;
           if (t.operator?.lost) {
             if (event.confirmed) {
               t.operator.result = 'Stop connection lost. Pi confirmed Stop through match controls.';
@@ -494,7 +501,13 @@ function addTeam(slot, config) {
           return;
         }
         if (event.event !== 'controls') {
-          if ((event.event==='error'||event.accepted===false) && event.reason) t.feedback.textContent=event.reason;
+          if ((event.event==='error'||event.accepted===false) && event.reason) {
+            if (event.event === 'error' && t.operator) {
+              t.operator.runnerError = event.reason;
+              if (t.operator.result) t.operator.result += ' ' + event.reason;
+            }
+            t.feedback.textContent = t.operator?.result || event.reason;
+          }
           return;
         }
         if (t.stopping || t.operator?.stopping) return;
@@ -539,6 +552,10 @@ function addTeam(slot, config) {
           t.setup = {prepared:true, discovered:true, message:t.matchCapable ?
             'Connected. Support Pupper on the stand, then select Home.' :
             'Supported damping bench profile. Keep Pupper supported for the entire test.'};
+          if (t.previousFault) {
+            t.setup.message = 'The previous session reported a board fault: ' + t.previousFault +
+              '. Inspect Pupper and support it before requesting a fresh Home.';
+          }
           const readyToStand = t.fcOperator && t.homed;
           t.connection.textContent = readyToStand ? 'Homed' : 'Needs Home';
           t.connect.textContent = readyToStand ? 'Set up' : 'Home';

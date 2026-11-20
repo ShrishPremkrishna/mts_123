@@ -61,6 +61,19 @@ class OperatorLink:
                     self.stopping = True
                 await ws.send_json(row)
                 if event in ("operator_stop", "error"):
+                    # Earlier Pi builds printed the actual Stand exception to stderr
+                    # immediately after a generic Stop receipt. Keep both on screen.
+                    if row.get("reason") == "Standing or operator connection interrupted":
+                        try:
+                            async with asyncio.timeout(1):
+                                while tail := await proc.stdout.readline():
+                                    detail = tail.decode(errors="replace").strip()
+                                    if detail.startswith("Pupper FC: "):
+                                        await ws.send_json(dict(event="operator_diagnostic", robot_id=self.robot,
+                                                                reason=detail.removeprefix("Pupper FC: ")[:500]))
+                                        break
+                        except TimeoutError:
+                            pass
                     return
             raise ValueError(diagnostic)
 
