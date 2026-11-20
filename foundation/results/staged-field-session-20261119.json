@@ -377,17 +377,28 @@
           "settle_s": 0.15,
           "leave_s": 2.6,
           "left_s": 5.761479,
-          "right_s": 5.62522
+          "right_s": 5.62522,
+          "kick_to_walker_activation_s": {
+            "left": 3.25,
+            "right": 3.249
+          }
         },
         {
           "time_local": "16:58",
           "settle_s": 0.0,
           "leave_s": 2.1,
           "left_s": 4.980931,
-          "right_s": 5.030687
+          "right_s": 5.030687,
+          "kick_to_walker_activation_s": {
+            "left": 2.7,
+            "right": 2.75
+          }
         }
       ],
-      "outcome": "All four terminal jobs succeeded and reported side-specific playback and locomotion active. Ball contact explicitly unmeasured. No direct timing of physical paw impact or first resumed walking step."
+      "outcome": "All four terminal jobs succeeded and reported side-specific playback and locomotion active. Ball contact explicitly unmeasured. No direct timing of physical paw impact or first resumed walking step.",
+      "native_log": "20261119-kickfast3/robot.log",
+      "native_interval": "Controller-manager activation of trick_leg_kick to activation of gemini_walk. Excludes the approach, walker readiness delay and subsequent physical step.",
+      "native_log_sha256": "0971bc5ce561de036eebde11d22f435c830f197768c9d485b1cc0cb2f1a126bf"
     },
     "kickfast4": {
       "file": "20261119-kickfast4/server.log",
