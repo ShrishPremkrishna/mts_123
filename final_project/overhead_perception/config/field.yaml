@@ -1,0 +1,142 @@
+# Pupper FC arena + perception config.
+#
+# Field frame (everything published is in this frame):
+#   origin = centre of the field, on the floor
+#   +x     = toward the "east" goal (long axis)
+#   +y     = left when facing +x
+#   +z     = up
+#   yaw    = radians, CCW from +x
+# All lengths in metres. MEASURE these with a tape; errors here are errors everywhere.
+
+# The frame and field size match the gameplay model (final_project/pupper_fc/model.py):
+# 12 x 8 ft arena. Replace with tape measurements once the arena is built, and change
+# both places together.
+field:
+  length: 3.66       # x extent, goal line to goal line
+  width: 2.44        # y extent
+  goal_width: 0.82   # mouth width, centred on y = 0
+
+tags:
+  # Side of the printed BLACK square, metres. Check with a ruler after printing.
+  # Only the no-measuring modes use these (key t, and scripts/measure_tags.py).
+  floor_size: 0.17
+  robot_size: 0.08
+  # CORNER TAGS (key f, or --corners): one floor tag on each corner of the field defines
+  # the field itself, position, direction and size, with nothing measured. Seen from
+  # above the four go counter-clockwise; the east goal (+x) is between east_south and
+  # east_north. The field size above is then replaced by what the tags measure.
+  corner_ids: {west_south: 0, east_south: 1, east_north: 2, west_north: 3}
+  # If the sheets sit inside the lines, say how far each tag CENTRE is from the true
+  # corner along the length and along the width, metres. [0, 0] = centre on the corner.
+  corner_inset: [0.0, 0.0]
+  # Floor tags used to locate the camera. Only the tag CENTRES matter, so their
+  # rotation and printed size don't need to be exact. Need >= 4, more is better,
+  # spread as widely as possible. Keep them where robots rarely stand.
+  field:
+    # PLACEHOLDERS (10 cm inside the lines). Measure the real tag centres.
+    0: [-1.73, -1.12]
+    1: [ 1.73, -1.12]
+    2: [ 1.73,  1.12]
+    3: [-1.73,  1.12]
+    4: [ 0.00, -1.12]
+    5: [ 0.00,  1.12]
+
+# Calibrating WITHOUT floor tags: press m in the live window and click these
+# floor points in this order. Leave this out to use the four field corners.
+# Any >= 4 points whose positions you measured work (more is better), as long
+# as they are on the floor, spread wide, and not all in one line.
+# manual_points:
+#   - {name: "tape mark A", xy: [-0.50, -0.30]}
+#   - {name: "tape mark B", xy: [ 0.50, -0.30]}
+#   - {name: "tape mark C", xy: [ 0.50,  0.30]}
+#   - {name: "tape mark D", xy: [-0.50,  0.30]}
+
+robots:
+  # tag_height: floor -> tag surface while standing/walking. This one number
+  #   matters: a 2 cm error here is ~1 cm of position error near the field edge.
+  # tag_offset: tag centre expressed in the robot body frame [forward, left].
+  # yaw_offset_deg: add if the top edge of the printed tag does not point at the nose.
+  striker:
+    tag_id: 10
+    tag_height: 0.18
+    tag_offset: [0.0, 0.0]
+    yaw_offset_deg: 0.0
+    attacks: east
+  keeper:
+    tag_id: 11
+    tag_height: 0.18
+    tag_offset: [0.0, 0.0]
+    yaw_offset_deg: 0.0
+    attacks: west
+
+ball:
+  # PINK ball. MEASURE its radius: wrap a string around it, radius = circumference / 6.283.
+  # 0.08 is a placeholder left over from the mini basketball; the detector tolerates a
+  # wrong value, but the position is off by roughly the error near the edge of the view.
+  radius: 0.08
+  # Colours that belong to the ball, as OpenCV HSV ranges (H 0-179, S and V 0-255).
+  # A pixel in ANY range counts; the ball's exact outline is then found from its edge.
+  # EASIEST WAY TO SET THIS: run the live view, put the cursor on the ball, press b.
+  # It prints the lines to paste here. Do it under the arena lights.
+  # The range below is a generic pink / magenta guess, NOT tuned on the real ball.
+  colors:
+    - {lo: [140, 60, 90], hi: [175, 255, 255]}    # pink
+  # The earlier red / blue / grey mini basketball, for reference:
+  #   - {lo: [0, 110, 70],   hi: [8, 255, 255]}     # red
+  #   - {lo: [172, 110, 70], hi: [179, 255, 255]}   # red (other side of the hue wrap)
+  #   - {lo: [98, 110, 60],  hi: [125, 255, 255]}   # blue
+
+camera:
+  # Which camera. "phone" = the phone plugged into (or wirelessly paired with) this Mac,
+  # whatever number macOS gives it today. Also accepted: part of a camera's name
+  # ("iPhone", "Pixel"), a number from scripts/find_camera.py, a video file, a stream
+  # URL, or "sim".
+  source: phone
+  width: 1920
+  height: 1080
+  fps: 30
+  hfov_deg: 69.0       # only used when no intrinsics file exists
+  intrinsics: config/intrinsics.yaml
+  latency_s: 0.12      # glass-to-frame-in-Python delay; measure with scripts/measure_latency.py
+
+tracking:
+  ball_accel_sigma: 4.0     # m/s^2, how violently the ball may change velocity
+  robot_accel_sigma: 2.0
+  meas_sigma: 0.01          # m
+  lost_after_s: 0.5         # coast this long on prediction, then report not visible
+
+shot:
+  standoff: 0.30            # robot centre -> ball centre at the moment the strike policy starts
+  pos_tol: 0.04             # m, how close to the staging point counts as "there"
+  yaw_tol_deg: 8.0
+  ball_still_speed: 0.08    # m/s, ball must be slower than this to trigger
+  post_margin: 0.10         # aim at least this far inside each post
+  max_state_age_s: 0.25     # never trigger on data older than this
+
+approach:
+  max_vx: 0.40
+  max_vy: 0.25
+  max_wz: 1.2
+  kp_pos: 1.5
+  kp_yaw: 2.5
+  ball_clearance: 0.30      # keep the body this far from the ball while circling behind it
+  turn_first_dist: 0.45     # farther than this: face the waypoint and walk; closer: strafe in at the shot yaw
+
+# Line-up-then-run approach (fieldcam/approach.py, scripts/fake_approach.py). All optional;
+# these are the defaults, and they are starting guesses, not measured Pupper values.
+approach_plan:
+  run_up: 0.60          # m, nominal line-up distance behind the ball
+  run_min: 0.45         # m, the run may start anywhere from here ...
+  run_max: 1.20         # m, ... to here behind the ball, once on the line
+  lat_tol: 0.04         # m, sideways distance from the shot line that counts as on it
+  yaw_tol: 5            # degrees, facing along the shot line closely enough
+  ball_clearance: 0.35  # m, keep this far from the ball while walking round it
+  walk_speed: 0.35      # m/s
+  creep_speed: 0.15     # m/s, forward speed while converging onto the line
+  strafe_speed: 0.20    # m/s, sideways (the Pupper strafes slowly)
+  run_speed: 0.45       # m/s
+  follow_through: 0.25  # m, keep running this far past the contact point
+
+net:
+  host: 127.0.0.1           # set to the Pupper's IP (or a broadcast address) on the arena network
+  port: 5005

@@ -1,0 +1,10 @@
+# Local environment and run outputs
+.venv/
+out/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Per-camera lens calibration written by scripts/calibrate_intrinsics.py.
+# Commit it deliberately once the arena camera is fixed.
+config/intrinsics.yaml

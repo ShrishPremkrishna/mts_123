@@ -11,8 +11,8 @@ robot adapter and mounted-arena qualification are still missing. The next sprint
 is **real tracked robot pose → scripted target pose → measured repeatable arrival**,
 without a ball, followed by strike qualification and the two-robot demo. The
 [current plan](PLAN.md#current-sprint--november-19) replaces the earlier wait-for-code
-assumption. The incoming perception and local overnight harness have not yet been
-merged together in this checkout.
+assumption. The incoming perception source is now merged with the local overnight harness;
+the live connection and corrective changes are in progress.
 
 - Shrish currently owns movement/sprinting, locomotion-based headbutts, gameplay and integration. Tej iterates on the foot-kick policy. Ryan owns overhead perception, localization and proposed actions/shot targets; our harness translates those into responsive robot execution. Marcus’s existing gait exports remain available for comparison; the active ownership checkpoint governs robot access. Shrish builds the 8 × 12-foot arena with approximately 2-foot goals; no bumper is fitted yet.
 - The owner accepted manual ball replacement and one deliberate resume cue after goals for the first working game; robots reposition themselves with software still running. Physical self-righting gets a bounded feasibility investigation before a demo commitment. Fall stopping, ordinary standing and physical get-up remain distinct capabilities.
@@ -58,6 +58,8 @@ not recover. No side-to-stand capability or native recovery policy is available.
 The [build/test handoff](ROBOT_BUILD_AND_TEST_HANDOFF.md) distinguishes the Ubuntu test container from Pi-compatible deployment binaries; source synchronization does not select the running release. [Policy comparison](../foundation/results/movement-readiness-20261116.json) and [Pi reconciliation](PI_RECONCILIATION.md) retain candidate/provenance details without assigning new work.
 
 Current processes, authorization, pending recording archives and next actions belong only in the [checkpoint](../foundation/results/interruption-recovery.json). The [delivery plan](PLAN.md) holds the course deadlines and accepted progression and acceptance targets. The [demo and recording script](DEMO.md) contains the 2:50 video cut, five-minute presentation, footage priorities and live fallback procedure. These are production drafts; filming and submission remain open.
+
+November 18: [overhead perception](overhead_perception/README.md) is now in source (merged into `main` on November 19). It turns one overhead camera into robot poses, ball position/velocity, goals and capture-time ages in the gameplay field frame, publishes each robot's body-frame view of the ball and goal with explicit angle conventions, and `fieldcam/gameplay.py` converts that state into `model.Observation`; a test feeds it to the real `Controller.tick`. The ball colour is now configured for a pink ball with an untuned range and an on-screen picker. A top-down dashboard draws the field, goals, floor tags, ball and robots from that state. Four tags on the field's corners can define the field with nothing measured. A fake-field runner exercises a line-up-then-run approach from robot-relative ball and goal only. Evidence so far is simulation (56 tests) plus a desk bring-up on a live iPhone feed: tags read, ball outline fitted on one frame, nothing measured against physical references. No arena, mounted camera, robot tag on a robot, lens or latency calibration, clock alignment or robot transport yet. Camera coverage of the full 12 × 8 ft arena at usable tag resolution is an open problem described in that README.
 
 Reusable robot components live in [Gemini Pupper](../gemini_pupper/README.md), [native deployment](../pupper_gait_deploy/README.md), [training](../pupper-mjlab/README.md) and the [Lab 5 follower](../follow_me_pupper/README.md). The [repository map](../README.md) lists setup and resources.
 
