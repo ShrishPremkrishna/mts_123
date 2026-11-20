@@ -192,3 +192,17 @@ failure message includes the first outstanding joint for the lobby. A joint
 that has yet to find its reference reports its current encoder coordinate.
 Reproduce a single axis frozen on return with the real driver and fake SPI
 using `ctest --test-dir <board-build> -V -R imu_health_mechanical_return_frozen`.
+
+
+For the generated FC field redundant IMU profile, each right knee returns to
++0.20 rad and each left knee to −0.20 rad. The mechanical reference remains
+±0.71 rad. The return target is 0.41 rad inside its nearest walking limit, with
+an existing settling tolerance of about 0.364 rad. Every measured joint must
+also be inside its own walking interval for Home to finish. The board then
+sends disabled packets. First standing and warm standing after Stop also need
+a valid joint exchange in the preceding 50 ms, scoped to the current
+qualification interval. A leg that drifts out of range while disabled leaves
+Home intact and blocks a fresh claim. After the operator restores an admissible
+supported pose, a new deliberate Stand can use the same reference. An invalid
+powered exchange sends neutral and faults. The driver records the specific
+joint or board predicate, observed value and limits.

@@ -107,9 +107,19 @@ class ControlBoardHardwareInterface : public hardware_interface::SystemInterface
   std::atomic<bool> field_backup_active_{false};
   // Only the sensor observation owner writes the proof; claim callbacks read its expiry.
   std::atomic<uint64_t> backup_claim_until_ns_{0};
-  std::atomic<uint64_t> backup_claim_generation_{0}, prepared_backup_generation_{0};
+  std::atomic<uint64_t> joint_claim_until_ns_{0};
+  bool unclaimed_joint_fault_reported_ = false;
+  std::atomic<uint64_t> field_claim_generation_{0}, prepared_field_generation_{0};
   void publish_backup_claim_proof(std::chrono::steady_clock::time_point observed_at);
-  bool can_claim_on_field_imu(uint64_t generation) const;
+  bool can_claim_on_field_feedback(uint64_t generation) const;
+  struct JointIssue {
+    const char *reason = nullptr;
+    size_t axis = static_cast<size_t>(-1);
+    double value = 0, low = 0, high = 0;
+  };
+  JointIssue joint_issue(std::chrono::steady_clock::time_point now, double step_dt = -1) const;
+  void log_joint_issue(const JointIssue &issue, const char *phase) const;
+  void publish_joint_claim_proof(std::chrono::steady_clock::time_point now, const JointIssue &issue);
   bool bench_joint_feedback_ok(std::chrono::steady_clock::time_point now) const;
   hardware_interface::return_type read_bench(const BNO055::Output &sample);
   void report_imu_fault(const BNO055::Output &sample, std::chrono::steady_clock::time_point now,

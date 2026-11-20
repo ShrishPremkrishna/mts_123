@@ -420,6 +420,16 @@ def test_native_imu_profile_rehearsal(profile, monkeypatch, mode):
     manager = next(e for e in description.args[0] if getattr(e, "kwargs", {}).get("executable") == "ros2_control_node")
     xml = manager.kwargs["parameters"][1]["robot_description"]
     assert xml == actual.read_text()
+    # Compare the selected physical geometry with the untouched course file.
+    base_joints = ET.parse(baseline).findall("./ros2_control/joint")
+    selected_joints = ET.fromstring(xml).findall("./ros2_control/joint")
+    assert len(base_joints) == len(selected_joints) == 12
+    for original, selected in zip(base_joints, selected_joints):
+        assert selected.get("name") == original.get("name")
+        parameters = {p.get("name"): p.text for p in original.findall("param")}
+        if mode == "field_redundant_imu" and selected.get("name").endswith("_3"):
+            parameters["post_homing_position"] = "0.20" if "_r_" in selected.get("name") else "-0.20"
+        assert {p.get("name"): p.text for p in selected.findall("param")} == parameters
     config = yaml.safe_load(Path(manifest["configuration"]).read_text())
     owner = config["controller_manager"]["ros__parameters"]["gemini_walk"]["type"]
     assert owner == ("control_board_hardware_interface/SupportedDampingLease" if mode == "supported_damping"

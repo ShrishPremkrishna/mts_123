@@ -35,14 +35,15 @@ void ControlBoardHardwareInterface::publish_backup_claim_proof(std::chrono::stea
   const auto next=pupper_imu::BoardHealth::ns(redundant_.claim_deadline());
   // A newly healthy read cannot revive a prepared claim whose observed proof expired
   // between reads, even when no callback ran to explicitly clear that preparation.
-  if (next>now && backup_claim_until_ns_.load()<=now) ++backup_claim_generation_;
+  if (next>now && backup_claim_until_ns_.load()<=now) ++field_claim_generation_;
   backup_claim_until_ns_=next;
 }
 
-bool ControlBoardHardwareInterface::can_claim_on_field_imu(uint64_t generation) const {
-  return !redundant_field_ || (generation && generation==backup_claim_generation_.load() &&
+bool ControlBoardHardwareInterface::can_claim_on_field_feedback(uint64_t generation) const {
+  const auto now = pupper_imu::BoardHealth::ns(std::chrono::steady_clock::now());
+  return !redundant_field_ || (generation && generation==field_claim_generation_.load() &&
       !board_health_.terminal && !field_backup_active_ &&
-      backup_claim_until_ns_.load() > pupper_imu::BoardHealth::ns(std::chrono::steady_clock::now()));
+      backup_claim_until_ns_.load() > now && joint_claim_until_ns_.load() > now);
 }
 
 bool ControlBoardHardwareInterface::check_motor_feedback(const BNO055::Output &sample, const char *phase) {
@@ -63,6 +64,7 @@ bool ControlBoardHardwareInterface::check_motor_feedback(const BNO055::Output &s
 
 void ControlBoardHardwareInterface::terminal_health(const BNO055::Output &sample) {
   backup_claim_until_ns_=0;
+  joint_claim_until_ns_=0;
   if (board_health_.terminal.exchange(true)) return;
   ++board_health_.faults;
   fc_balance_mode_=4;
@@ -143,7 +145,7 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
     imu_manager_.redundant_reports = redundant_field_;
     field_rehome_ = profile->second == "supported_rehome" || supported_damping_ || redundant_field_;
     if (redundant_field_) RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
-        "FC_FIELD_REDUNDANT_IMU_V1 candidate: independent SH-2 report receipts, same sensor/bus");
+        "FC_FIELD_REDUNDANT_IMU_V1 FC_JOINT_CLAIM_V1: qualified joint exchange and independent SH-2 reports");
     if (redundant_field_ && info_.joints.size()!=12) return hardware_interface::CallbackReturn::ERROR;
     if (supported_damping_) {
       if (info_.joints.size() != 12) return hardware_interface::CallbackReturn::ERROR;
@@ -417,13 +419,14 @@ hardware_interface::return_type ControlBoardHardwareInterface::prepare_command_m
     const auto state = field_state_.load();
     if (state == FieldState::awaiting_claim) {
       fresh_claim_prepared_ = false;
-      const auto generation=backup_claim_generation_.load();
-      if (!can_claim_on_field_imu(generation)) {
+      const auto generation=field_claim_generation_.load();
+      if (!can_claim_on_field_feedback(generation)) {
         RCLCPP_WARN(rclcpp::get_logger("ControlBoardHardwareInterface"),
-                    "Supported Home retained; a fresh leg claim needs current, qualified primary and alternate IMU agreement");
+                    "Supported Home retained; a fresh leg claim requires qualified primary and alternate IMU agreement "
+                    "and current, in-range joint feedback");
         return hardware_interface::return_type::ERROR;
       }
-      prepared_backup_generation_=generation;
+      prepared_field_generation_=generation;
       fresh_claim_prepared_ = complete_joint_claim(start);
       if (!fresh_claim_prepared_) return hardware_interface::return_type::ERROR;
     } else if (state != FieldState::running) return hardware_interface::return_type::ERROR;
@@ -439,6 +442,7 @@ hardware_interface::return_type ControlBoardHardwareInterface::perform_command_m
     deactivate_motors();
     clear_joint_commands();
     fresh_claim_prepared_ = false;
+    joint_claim_until_ns_ = 0; // A warm Start must observe the newly disabled exchange.
     const bool stopping_in_loss = (supported_damping_ && damping_deadline_ != std::chrono::steady_clock::time_point{}) ||
                                   (redundant_field_ && field_backup_active_);
     const auto next = stopping_in_loss ? FieldState::fault : FieldState::awaiting_claim;
@@ -459,7 +463,7 @@ hardware_interface::return_type ControlBoardHardwareInterface::perform_command_m
     const auto state = field_state_.load();
     if (state == FieldState::awaiting_claim) {
       if (!fresh_claim_prepared_.exchange(false) || !complete_joint_claim(start) ||
-          !can_claim_on_field_imu(prepared_backup_generation_))
+          !can_claim_on_field_feedback(prepared_field_generation_))
         return hardware_interface::return_type::ERROR;
       // Redundant mode uses the read owner's atomic dual-source proof here.
       // Do not mutate its selector from the control-mode-switch callback.
@@ -493,6 +497,7 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
   redundant_ = {};
   field_backup_active_=false;
   backup_claim_until_ns_=0;
+  joint_claim_until_ns_=0;
   board_health_.terminal=false;
   fc_balance_mode_=5;
   board_health_.publish(5,BNO055::Output{},BNO055::Output{},0,false);
@@ -634,6 +639,10 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
   if (field_rehome_) {
     deactivate_motors();
     clear_joint_commands();
+    if (redundant_field_) {
+      copy_actuator_states();
+      last_joint_exchange_ = std::chrono::steady_clock::now();
+    }
   }
   if (supported_standby_) {
     deactivate_motors();
@@ -713,17 +722,56 @@ bool ControlBoardHardwareInterface::hw_states_contains_nan() {
          contains_nan(hw_state_imu_linear_acceleration_);
 }
 
-bool ControlBoardHardwareInterface::bench_joint_feedback_ok(std::chrono::steady_clock::time_point now) const {
-  using namespace std::chrono;
-  if ((spi_data_->spi_driver_status & SPI_BOTH_REPLIES_VALID) != SPI_BOTH_REPLIES_VALID ||
-      last_joint_exchange_ == steady_clock::time_point{} || now - last_joint_exchange_ > milliseconds(50))
-    return false;
+ControlBoardHardwareInterface::JointIssue ControlBoardHardwareInterface::joint_issue(
+    std::chrono::steady_clock::time_point now, double step_dt) const {
+  const int mask = spi_data_->spi_driver_status & SPI_BOTH_REPLIES_VALID;
+  constexpr size_t no_axis = static_cast<size_t>(-1);
+  if (mask != SPI_BOTH_REPLIES_VALID)
+    return {"spi_reply_mask", no_axis, static_cast<double>(mask), SPI_BOTH_REPLIES_VALID, SPI_BOTH_REPLIES_VALID};
+  const double age = std::chrono::duration<double>(now - last_joint_exchange_).count();
+  if (last_joint_exchange_ == std::chrono::steady_clock::time_point{} || age < 0 || age > 0.050)
+    return {"exchange_age_s", no_axis, age, 0., 0.050};
+  if (step_dt > 0.050) return {"exchange_interval_s", no_axis, step_dt, 0., 0.050};
   for (size_t i = 0; i < hw_state_positions_.size(); ++i) {
     const double q = hw_state_positions_[i], v = hw_state_velocities_[i];
-    if (!std::isfinite(q) || !std::isfinite(v) || q < hw_actuator_position_mins_[i] ||
-        q > hw_actuator_position_maxs_[i] || std::abs(v) > hw_actuator_velocity_maxs_[i]) return false;
+    const double low = hw_actuator_position_mins_[i], high = hw_actuator_position_maxs_[i];
+    const double vmax = hw_actuator_velocity_maxs_[i];
+    if (!std::isfinite(q) || q < low || q > high)
+      return {"position_rad", i, q, low, high};
+    if (!std::isfinite(v) || std::abs(v) > vmax)
+      return {"velocity_rad_s", i, v, -vmax, vmax};
+    if (step_dt >= 0) {
+      const double delta = q - prior_field_positions_[i], limit = .02 + vmax * step_dt;
+      if (std::abs(delta) > limit) return {"displacement_rad", i, delta, -limit, limit};
+    }
   }
-  return true;
+  return {};
+}
+
+void ControlBoardHardwareInterface::log_joint_issue(const JointIssue &issue, const char *phase) const {
+  const char *joint = issue.axis < info_.joints.size() ? info_.joints[issue.axis].name.c_str() : "board";
+  RCLCPP_WARN(rclcpp::get_logger("ControlBoardHardwareInterface"),
+              "FC joint feedback phase=%s predicate=%s joint=%s observed=%.9g min=%.9g max=%.9g",
+              phase, issue.reason, joint, issue.value, issue.low, issue.high);
+}
+
+void ControlBoardHardwareInterface::publish_joint_claim_proof(std::chrono::steady_clock::time_point now,
+                                                            const JointIssue &issue) {
+  if (issue.reason) {
+    joint_claim_until_ns_ = 0;
+    fresh_claim_prepared_ = false;
+    if (!unclaimed_joint_fault_reported_) log_joint_issue(issue, "unclaimed");
+    unclaimed_joint_fault_reported_ = true;
+    return;
+  }
+  unclaimed_joint_fault_reported_ = false;
+  const auto stamp = pupper_imu::BoardHealth::ns(now);
+  if (joint_claim_until_ns_.load() <= stamp) ++field_claim_generation_;
+  joint_claim_until_ns_ = pupper_imu::BoardHealth::ns(now + std::chrono::milliseconds(50));
+}
+
+bool ControlBoardHardwareInterface::bench_joint_feedback_ok(std::chrono::steady_clock::time_point now) const {
+  return !joint_issue(now).reason;
 }
 
 hardware_interface::return_type ControlBoardHardwareInterface::read_bench(const BNO055::Output &sample) {
@@ -850,7 +898,14 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
       const char *error=redundant_.select(raw,now,running,imu_output);
       publish_backup_claim_proof(now);
       if (redundant_.claim_deadline()<=now) fresh_claim_prepared_=false;
-      if (!error && running && !bench_joint_feedback_ok(now)) error="invalid or interrupted joint feedback";
+      if (!error && running) {
+        const auto issue = joint_issue(now);
+        if (issue.reason) {
+          disable_for_imu_fault(raw, now, "read", issue.reason);
+          log_joint_issue(issue, "before_exchange");
+          return hardware_interface::return_type::ERROR;
+        }
+      }
       if (error) {
         disable_for_imu_fault(raw, now, "read", error);
         return hardware_interface::return_type::ERROR;
@@ -871,9 +926,9 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
     }
     const auto dispatch_state=field_state_.load();
     if (field_rehome_ && dispatch_state==FieldState::zero_first) {
-      if (!can_claim_on_field_imu(prepared_backup_generation_)) {
+      if (!can_claim_on_field_feedback(prepared_field_generation_)) {
         disable_for_imu_fault(raw,std::chrono::steady_clock::now(),"first leg claim",
-                              "dual IMU agreement expired before first enabled packet");
+                              "joint or dual IMU proof expired before first enabled packet");
         return hardware_interface::return_type::ERROR;
       }
       // Construct the first packet on the device-I/O owner. Prepare/perform
@@ -893,13 +948,16 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
       }
     }
     copy_actuator_states();
-    if (redundant_field_ && (field_state_==FieldState::running || field_state_==FieldState::zero_first)) {
-      bool continuous=bench_joint_feedback_ok(std::chrono::steady_clock::now());
-      for (size_t i=0;i<hw_state_positions_.size();++i)
-        if (std::abs(hw_state_positions_[i]-prior_field_positions_[i])> .02+hw_actuator_velocity_maxs_[i]*field_dt)
-          continuous=false;
-      if (!continuous) {
-        disable_for_imu_fault(raw,std::chrono::steady_clock::now(),"read","invalid or discontinuous joint exchange");
+    if (redundant_field_) {
+      const auto sampled = std::chrono::steady_clock::now();
+      const auto issue = joint_issue(sampled, field_dt);
+      if (dispatch_state == FieldState::awaiting_claim) {
+        // An unpowered leg may settle outside the walking envelope. Keep the reference
+        // and refuse a new claim until the operator restores a valid supported pose.
+        publish_joint_claim_proof(sampled, issue);
+      } else if ((dispatch_state == FieldState::running || dispatch_state == FieldState::zero_first) && issue.reason) {
+        disable_for_imu_fault(raw, sampled, "read", issue.reason);
+        log_joint_issue(issue, "after_exchange");
         return hardware_interface::return_type::ERROR;
       }
     }
@@ -1021,7 +1079,10 @@ bool ControlBoardHardwareInterface::do_homing() {
         const double rest = hw_actuator_post_homing_positions_[i];
         const double error = hw_state_positions_[i] - rest;
         const bool at_target = std::abs(hw_command_positions_[i] - rest) <= 0.01;
-        if (returning ? at_target && std::abs(error) <= return_tolerance[i] : hw_actuator_is_homed_[i]) continue;
+        const bool in_range = hw_state_positions_[i] >= hw_actuator_position_mins_[i] &&
+                              hw_state_positions_[i] <= hw_actuator_position_maxs_[i];
+        if (returning ? at_target && std::abs(error) <= return_tolerance[i] && (!redundant_field_ || in_range)
+                      : hw_actuator_is_homed_[i]) continue;
         if (pending_axes++ == 0)
           summary << " first_pending_joint=" << info_.joints[i].name << " command_rad=" << hw_command_positions_[i]
                   << " measured_rad=" << hw_state_positions_[i] << " rest_rad=" << rest
@@ -1029,11 +1090,11 @@ bool ControlBoardHardwareInterface::do_homing() {
         RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
                      "Home travel evidence phase=%s axis=%zu joint=%s stage=%d referenced=%d "
                      "command_rad=%.6f measured_rad=%.6f rest_rad=%.6f measured_minus_rest_rad=%.6f "
-                     "tolerance_rad=%.6f target_reached=%d",
+                     "tolerance_rad=%.6f target_reached=%d position_min_rad=%.6f position_max_rad=%.6f",
                      returning ? "return" : "search", i, info_.joints[i].name.c_str(),
                      static_cast<int>(hw_actuator_homing_stages_[i]), static_cast<int>(hw_actuator_is_homed_[i]),
                      hw_command_positions_[i], hw_state_positions_[i], rest, error, return_tolerance[i],
-                     static_cast<int>(at_target));
+                     static_cast<int>(at_target), hw_actuator_position_mins_[i], hw_actuator_position_maxs_[i]);
       }
       summary << " pending_axes=" << pending_axes;
       travel_summary = summary.str();
@@ -1202,7 +1263,9 @@ bool ControlBoardHardwareInterface::do_homing() {
     // Confirm the final exchange, including its encoder positions, before
     // declaring the commanded return complete.
     for (size_t i = 0; i < hw_state_positions_.size() && all_returned; ++i)
-      all_returned = std::abs(hw_state_positions_[i] - hw_actuator_post_homing_positions_[i]) <= return_tolerance[i];
+      all_returned = std::abs(hw_state_positions_[i] - hw_actuator_post_homing_positions_[i]) <= return_tolerance[i] &&
+          (!redundant_field_ || (hw_state_positions_[i] >= hw_actuator_position_mins_[i] &&
+                                hw_state_positions_[i] <= hw_actuator_position_maxs_[i]));
 
     // Sleep for dt
     std::this_thread::sleep_for(std::chrono::milliseconds(dt_ms));

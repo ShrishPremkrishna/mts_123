@@ -38,6 +38,13 @@ def selected_robot_description(urdf, directory, motion_mode):
     if source.count(plugin) != 1 or 'name="fc_imu_recovery"' in source:
         raise ValueError("unexpected control board description for FC IMU recovery")
     if recovery == "field_redundant_imu":
+        # The frozen course file returns the four knees to their mechanical stops.
+        # Leave 0.41 rad from the walking bound for settling (2 / 5.5 rad) and quantization.
+        for sign in ("", "-"):
+            original = f'<param name="post_homing_position">{sign}0.71</param>'
+            if source.count(original) != 2:
+                raise ValueError("unexpected FC knee return geometry")
+            source = source.replace(original, f'<param name="post_homing_position">{sign}0.20</param>')
         marker = '<sensor name="imu_sensor">'
         if source.count(marker) != 1:
             raise ValueError("expected one board IMU sensor")
