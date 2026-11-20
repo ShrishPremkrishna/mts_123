@@ -3,8 +3,8 @@
   "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej’s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/.codex/worktrees/fc-teleop/cs123",
   "branch": "codex/pupper-fc-match",
-  "mode": "fc_match_imu_offline_candidate",
-  "updated_utc": "2026-11-20T20:00:18+00:00",
+  "mode": "fc_touchscreen_and_field_qualification",
+  "updated_utc": "2026-11-20T22:08:59.725996+00:00",
   "current_report": "final_project/pupper_fc/RELEASE.md",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -79,7 +79,7 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "Owner ended the final test and confirmed support for shutdown. No active physical test.",
+  "authorization": "Shrish authorized release installation and supervised Home. The touch interface and network recovery take priority. No motion has been requested since the latest boot.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
@@ -110,7 +110,7 @@
     "automation": "No automation controls the physical session.",
     "compute": "The installed Pi controller and gateway passed target tests. Both selected feet completed walk, kick, walking recovery and acknowledged Stop on isolated memory joints.",
     "owners": {
-      "physical_robot": "Packed for the night. No robot owner or live session.",
+      "physical_robot": "Shrish at the robot, root coordinating the installation and touchscreen restoration.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Shrish and project lead own gait readiness, pose/heading, kick approach and defense.",
       "shooting": "Tej owns the leg kick. Shrish and project lead own the transition from field-guided gameplay.",
@@ -136,31 +136,20 @@
     "fc_appliance_release": "Verified offline: shipped both archive hashes and committed blobs, clean Mac launch and Chrome, standalone Pi stage/compile, systemd appliance rollback, and three final ROS rosters. See the appliance release record for timings and outstanding physical checks."
   },
   "hardware_session": {
-    "status": "CLOSED after the last supervised test. The front-camera guard refused offense. Gateway Stop acknowledged at epoch 2, both leg controllers inactive before driver shutdown, all owned processes exited, recordings closed.",
-    "observed_utc": "2026-11-20T09:01:47.341976+00:00",
+    "status": "Blue Pi accepted the November 20 interception build before reboot. The native Board and Walker compiled and the camera/Hailo ran, with motors idle. The operator observed a terminal after reboot. SSH and mDNS have not returned since. Restore the original eyes and touch Wi-Fi before working on powered Home.",
+    "observed_utc": "2026-11-20T22:08:59.725996+00:00",
     "ssh": "mts",
-    "current_boot_id": "74798bf0-4852-4a5a-b222-c44e967b210d",
+    "current_boot_id": null,
     "source_checkout": "/home/pi/pupper-fc-source/shared-main-9dPewsiT",
-    "selected_candidate": "/home/pi/pupper-fc-releases/fc-walk-kick-3bd1bc9f54db",
-    "platform_environment": "/home/pi/pupper-fc-releases/fc-platform-3bd1bc9f54db/environment.sh",
-    "selected_driver_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
-    "selected_controller_sha256": "b393bf88376a718036f2ea0eb5cc4e5ba9f8936d418ae650461bf49b9d998c56",
+    "selected_candidate": "/home/pi/pupper-fc-releases/fc-49bf557ab3091ac3",
+    "platform_environment": null,
+    "selected_driver_sha256": null,
+    "selected_controller_sha256": null,
     "active_run": null,
-    "processes_at_observation": {
-      "camera": "exited",
-      "child_22354_142110": "exited",
-      "child_22404_142237": "exited",
-      "child_22408_142237": "exited",
-      "child_22410_142237": "exited",
-      "child_22416_142238": "exited",
-      "child_23131_147128": "exited",
-      "launch": "exited",
-      "manager": "exited",
-      "recorder": "exited"
-    },
+    "processes_at_observation": "Last pre-reboot inventory showed Hailo service, no camera or ros2_control_node after diagnostic cleanup. Post-reboot process inventory awaits network recovery.",
     "policies_at_observation": {},
-    "gateway_stop_latched_at_observation": true,
-    "qualification_report": "foundation/results/pi-combined-walk-kick-20261119.json",
+    "gateway_stop_latched_at_observation": null,
+    "qualification_report": "final_project/pupper_fc/RELEASE.md",
     "teammate_experiment": "/home/pi/kick preserved; do not modify or name-kill its processes",
     "previous_straight_trials": {
       "report": "foundation/results/staged-field-session-20261119.json",
@@ -177,7 +166,8 @@
       "imu_sensor_broadcaster": "active",
       "trick_leg_kick": "inactive",
       "joint_state_broadcaster": "active"
-    }
+    },
+    "last_reachable_boot_id": "0a2832ca-47e0-440a-ac2c-7daf33f8e246"
   },
   "preservation": {
     "movement_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
@@ -208,12 +198,16 @@
   },
   "next": [
     {
+      "id": "restore_touchscreen",
+      "action": "Repair the Blue Pi’s original eyes, touch Wi-Fi and FC boot. User has no local keyboard. Use trusted SSH over a working link or the authorized non-destructive USB boot-volume repair. Confirm the touchscreen with its operator."
+    },
+    {
       "id": "supported_match_imu",
       "action": "In a sling, verify both IMU report pairs, native Stop and a two-second ROS delivery pause on one prepared Pi. Resume through the lobby and verify a fresh key action. Hardware bus interruption, braking distance and target firmware still need physical qualification."
     },
     {
       "id": "verify_physical_release",
-      "action": "On the prepared Pi, install the extracted archive for its Blue/Red team and verify headless startup, battery monitor, SSH and discovery after reboot. Connect in the laptop lobby. Support it for Home and give a fresh standing cue with the independent Stop gamepad. Verify physical Stop on the stand."
+      "action": "Verify the corrected FC boot retains the touchscreen, battery monitor, SSH and discovery. Test Connect, supported Home and the standing cue from the laptop lobby on the installed release."
     },
     {
       "id": "field_setup",

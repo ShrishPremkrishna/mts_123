@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Boot personality switch for the FC robot-soccer appliance (Raspberry Pi, systemd).
 
-    fc_appliance.py enable    next boot comes up headless with course/vendor robot units skipped
+    fc_appliance.py enable    next boot starts the normal touchscreen with course/vendor robot units skipped
     fc_appliance.py normal    undo: restore the recorded boot target and remove everything owned
     fc_appliance.py status    current mode, problems, and remaining boot launch surfaces
 
@@ -12,7 +12,7 @@ What `enable` writes (nothing else is touched, all of it is removed by `normal`)
   /etc/systemd/system/<unit>.d/90-fc-appliance.conf
                                             [Unit] ConditionPathExists=!<marker>, one per
                                             suppressed unit (additive, unit files untouched)
-  /etc/systemd/system/default.target        -> multi-user.target (the original link is journaled)
+  /etc/systemd/system/default.target        -> graphical.target (the original link is journaled)
 
 What it never does: enable/disable/mask units, start or stop anything, reload systemd, signal
 processes, or touch network, SSH, mDNS, Bluetooth or battery configuration. Changes take effect
@@ -52,7 +52,7 @@ ETC_UNITS = "/etc/systemd/system"
 DEFAULT_LINK = ETC_UNITS + "/default.target"
 DROPIN_NAME = "90-fc-appliance.conf"
 TMP_PREFIX = ".fc-appliance-tmp."
-HEADLESS_TARGET = "multi-user.target"
+APPLIANCE_TARGET = "graphical.target"
 
 # Highest priority first, as systemd searches them.
 UNIT_DIRS = (
@@ -71,20 +71,17 @@ PACKAGE_UNIT_DIRS = ("/lib/systemd/system/", "/usr/lib/systemd/system/")
 CONFLICTING_UNITS = (
     "robot.service",
     "course-robot.service",
-    "pupper-gui.service",
     "llm-agent.service",
-    # Enabled on the archived course image; these serve the desktop, printer,
-    # audio UI or legacy local robot console. Socket/path activation is included.
     "cups.path", "cups.service", "cups.socket", "cups-browsed.service",
-    "change_tty1_permissions.service", "glamor-test.service", "rpi-display-backlight.service",
-    "volume-max.service", "wayvnc-control.service", "wayvnc.service",
+    "change_tty1_permissions.service", "volume-max.service", "wayvnc-control.service", "wayvnc.service",
 )
-DISPLAY_MANAGER_ALIAS = "display-manager.service"
-# lightdm is what the recorded image aliases display-manager.service to; the rest only if installed.
-DISPLAY_MANAGERS = ("lightdm.service",)
-OTHER_DISPLAY_MANAGERS = (
-    "gdm.service", "gdm3.service", "sddm.service", "greetd.service",
-    "lxdm.service", "xdm.service", "nodm.service", "slim.service",
+
+# The enrolled GUI runs under the installed graphical login and compositor.
+# Headless selector v1 journaled these as suppressed. Migrate only its own files.
+DISPLAY_UNITS = (
+    "pupper-gui.service", "display-manager.service", "lightdm.service", "gdm.service", "gdm3.service",
+    "sddm.service", "greetd.service", "lxdm.service", "xdm.service", "nodm.service", "slim.service",
+    "glamor-test.service", "rpi-display-backlight.service",
 )
 
 # Never suppressed (refused for --also-suppress); also the reason shown for kept units.
@@ -98,6 +95,7 @@ PROTECTED = (
     ("battery_monitor*", "battery"),
     ("dbus*", "OS"), ("systemd-*", "OS"), ("polkit*", "OS"),
     ("getty@*", "console"), ("serial-getty@*", "console"),
+    *((unit, "touchscreen") for unit in DISPLAY_UNITS),
 )
 SUPERVISORS = ("docker.service", "containerd.service", "podman-restart.service",
                "supervisor.service", "pm2-*.service")
@@ -116,6 +114,9 @@ SYSTEM_EXEC_PREFIXES = ("/usr/bin/", "/usr/sbin/", "/bin/", "/sbin/", "/usr/lib/
 NONSYSTEM_ARG_PREFIXES = ("/home/", "/opt/", "/usr/local/", "/srv/", "/root/", "/mnt/", "/media/",
                           "/tmp/", "/var/tmp/", "~", "./", "$HOME", "${HOME}")
 SHELLS = ("sh", "bash", "dash", "zsh")
+COURSE_LAUNCH_RE = re.compile(
+    r"\bros2\s+(?:launch|run(?:\s+[^\s;&]+))\b|\bros2_control_node\b|"
+    r"\b(?:start_all_services\.sh|robot\.sh|start-native|launch_robot\.sh|llm[-_]agent\.py)\b")
 
 SYSTEMCTL_CANDIDATES = ("/usr/bin/systemctl", "/bin/systemctl")
 SYSTEMCTL_ENV = {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin", "LC_ALL": "C",
@@ -668,31 +669,16 @@ class FcAppliance:
                     "resolvable": bool(exists)}
         return {"source": None, "link": None, "effective": None, "resolvable": False}
 
-    def _headless_link_text(self):
+    def _appliance_link_text(self):
         for directory in UNIT_DIRS:
-            path = "%s/%s" % (directory, HEADLESS_TARGET)
+            path = "%s/%s" % (directory, APPLIANCE_TARGET)
             resolved, exists = self.fs.chase(path)
-            if (exists and os.path.basename(resolved) == HEADLESS_TARGET
+            if (exists and os.path.basename(resolved) == APPLIANCE_TARGET
                     and self.fs.kind(resolved) == "file"):
                 return path
         raise ApplianceError(
             "%s not found under %s: this does not look like a systemd OS tree, nothing changed"
-            % (HEADLESS_TARGET, self.fs.root))
-
-    def _display_units(self):
-        units = list(DISPLAY_MANAGERS)
-        alias = ETC_UNITS + "/" + DISPLAY_MANAGER_ALIAS
-        kind = self.fs.kind(alias)
-        if kind == "symlink":
-            target = os.path.basename(self.fs.readlink(alias) or "")
-            if target.endswith(".service") and SUPPRESSIBLE_RE.match(target):
-                units.append(target)
-        elif kind == "file":
-            units.append(DISPLAY_MANAGER_ALIAS)
-        for unit in OTHER_DISPLAY_MANAGERS:
-            if self._unit_info(unit)["state"] != "not-installed":
-                units.append(unit)
-        return [u for u in units if not protected_reason(u)]
+            % (APPLIANCE_TARGET, self.fs.root))
 
     def _suppress_set(self, extra):
         for unit in extra:
@@ -702,10 +688,22 @@ class FcAppliance:
             if reason:
                 raise ApplianceError("refusing to suppress %s: preserved (%s)" % (unit, reason))
         ordered = []
-        for unit in list(CONFLICTING_UNITS) + self._display_units() + list(extra):
+        for unit in list(CONFLICTING_UNITS) + list(extra):
             if unit not in ordered:
                 ordered.append(unit)
         return ordered
+
+    def _touchscreen_problems(self):
+        problems = []
+        for unit in ("display-manager.service", "pupper-gui.service"):
+            if self._unit_info(unit)["state"] not in ("installed", "linked"):
+                problems.append("existing touchscreen unit is unavailable: " + unit)
+        gui = self._unit_info("pupper-gui.service")["path"]
+        installed = self.fs.chase(gui) if gui else (None, False)
+        if not installed[1] or not any(self.fs.chase(f"{d}/graphical.target.{suffix}/pupper-gui.service") == installed
+                                       for d in UNIT_DIRS for suffix in ("wants", "requires")):
+            problems.append("the installed Pupper GUI is not enabled for graphical.target")
+        return problems
 
     def _unit_names(self, unit):
         """Canonical and alias names referring to this systemd unit."""
@@ -785,15 +783,16 @@ class FcAppliance:
 
     def _enable(self, extra):
         self._aliases = None
+        self._enabled_cache = None
         try:
             prior = self._load_state()
         except StateError as exc:
             raise ApplianceError("%s; run `normal` first to clean up" % exc)
         self._require_real_dirs(ETC_UNITS)
-        link_text = self._headless_link_text()
+        link_text = self._appliance_link_text()
 
         # Preflight: decide every step and find every collision before the first write.
-        collisions = []
+        collisions = self._touchscreen_problems()
         for path, allowed in ((OWNED_DIR, ("absent", "dir")), (MARKER, ("absent", "file")),
                               (STATE, ("absent", "file"))):
             kind = self.fs.kind(path)
@@ -809,12 +808,12 @@ class FcAppliance:
             collisions.append("%s is a %s, not a symlink; set the boot target back to a symlink "
                               "first" % (DEFAULT_LINK, link_kind))
         target = self._boot_target()
-        relink = not (target["effective"] == HEADLESS_TARGET and target["resolvable"])
+        relink = not (target["effective"] == APPLIANCE_TARGET and target["resolvable"])
         if prior:
             default = dict(prior["default_target"])
             original_link = default["original"].get("target")
             current_link = self.fs.readlink(DEFAULT_LINK)
-            if current_link and current_link not in (original_link, default.get("applied")):
+            if current_link and current_link not in (original_link, default.get("applied"), default.get("previous_applied")):
                 collisions.append("%s changed since enable; run normal before selecting a new boot target" % DEFAULT_LINK)
         else:
             original = {"kind": "absent"}
@@ -822,12 +821,33 @@ class FcAppliance:
                 original = {"kind": "symlink", "target": self.fs.readlink(DEFAULT_LINK)}
             default = {"original": original, "applied": None}
         if relink:
+            if default.get("applied") and default["applied"] != link_text:
+                default["previous_applied"] = default["applied"]
             default["applied"] = link_text
 
         journaled = {e["unit"]: dict(e) for e in prior["dropins"]} if prior else {}
+        for unit in DISPLAY_UNITS:
+            if unit not in journaled and self._dropin_status(unit) != "missing":
+                collisions.append("unjournaled touchscreen drop-in; left in place: " + self.dropin_path(unit))
         plan, pending = [], []
-        for unit in list(journaled) + [u for u in self._suppress_set(extra) if u not in journaled]:
+        required = self._suppress_set(extra)
+        for unit in required:
+            collisions.extend("later unit customization can clear the motion fence: " + path
+                              for path in self._condition_resets(unit))
+        # A graphical login executes desktop autostarts. Refuse the transition
+        # if a direct course launch bypasses all the fenced service units.
+        retained = {u for u in journaled if self._protected_alias(u) not in DISPLAY_UNITS}
+        audit = Audit(self, set(required) | retained)
+        audit.run()
+        collisions.extend("unfenced automatic robot launch: " + path for path in sorted(audit.direct_launches))
+        retiring = []
+        for unit in list(journaled) + [u for u in required if u not in journaled]:
             protected = self._protected_alias(unit)
+            if unit in journaled and unit not in required and protected in DISPLAY_UNITS:
+                if self._dropin_status(unit) not in ("missing", "ok"):
+                    collisions.append("touchscreen drop-in was changed; left in place: " + self.dropin_path(unit))
+                retiring.append(journaled[unit])
+                continue
             if protected:
                 collisions.append("refusing to suppress %s: shares a unit with protected %s" % (unit, protected))
                 continue
@@ -857,12 +877,12 @@ class FcAppliance:
         if collisions:
             raise ApplianceError("path collision, nothing changed:\n  " + "\n  ".join(collisions))
 
-        if (prior and prior["phase"] == "enabled" and not pending and not relink
+        if (prior and prior["phase"] == "enabled" and not pending and not retiring and not relink
                 and not make_marker and all(action == "keep" for _, _, action in plan)):
             return {"result": "already-enabled", "warnings": []}
 
         state = {"tool": TOOL, "schema": SCHEMA, "phase": "enabling", "default_target": default,
-                 "dropins": [entry for entry, _, _ in plan],
+                 "dropins": [entry for entry, _, _ in plan] + retiring,
                  "own_dir_created": prior.get("own_dir_created", True) if prior else make_owned_dir}
         try:
             if make_owned_dir:
@@ -875,15 +895,28 @@ class FcAppliance:
                     self._write_new(self.dropin_path(entry["unit"]), DROPIN_TEXT)
                 elif action == "rewrite":
                     self._write_atomic(self.dropin_path(entry["unit"]), DROPIN_TEXT, "repair")
-            if relink:
-                self._symlink_atomic(DEFAULT_LINK, link_text)
             if make_marker:
                 self._write_new(MARKER, MARKER_TEXT)  # commit point: suppression becomes active
+            # Fence course workloads before enabling graphical startup. Keep the old
+            # entries in the journal until all their exact owned files are gone.
+            for entry in retiring:
+                errors, warnings = [], []
+                self._remove_dropin(entry, errors, warnings)
+                if errors or warnings:
+                    raise ApplianceError("; ".join(errors + warnings))
+            if relink:
+                self._symlink_atomic(DEFAULT_LINK, link_text)
+            state["dropins"] = [entry for entry, _, _ in plan]
+            state["default_target"].pop("previous_applied", None)
             state["phase"] = "enabled"
             self._save_state(state)
             if not self.dry_run:
                 self._verify_written(state)
         except BaseException as exc:
+            if prior and (retiring or prior["phase"] == "enabling"):
+                # A retry or normal can recover both link values from the
+                # migration journal. Do not take down existing motion fences.
+                raise ApplianceError("touchscreen migration interrupted; course fences retained, rerun enable: %s" % exc) from exc
             leftovers = self._rollback(state, prior, pending)
             if not isinstance(exc, (OSError, ApplianceError)):
                 raise
@@ -904,7 +937,7 @@ class FcAppliance:
             raise ApplianceError("drop-in verification failed for " + ", ".join(bad))
         if self.fs.kind(MARKER) != "file":
             raise ApplianceError("marker verification failed")
-        if target["effective"] != HEADLESS_TARGET or not target["resolvable"]:
+        if target["effective"] != APPLIANCE_TARGET or not target["resolvable"]:
             raise ApplianceError("boot target verification failed (%s)" % target["effective"])
 
     def _rollback(self, state, prior, pending):
@@ -987,7 +1020,7 @@ class FcAppliance:
         if state is not None and state["default_target"].get("applied") is not None:
             default = state["default_target"]
             current = self.fs.readlink(DEFAULT_LINK) if self.fs.kind(DEFAULT_LINK) == "symlink" else None
-            if current == default["applied"]:
+            if current is not None and current in (default["applied"], default.get("previous_applied")):
                 if default["original"]["kind"] == "absent":
                     attempt("remove " + DEFAULT_LINK, self._unlink, DEFAULT_LINK)
                 elif default["original"]["target"] != current:
@@ -1060,7 +1093,7 @@ class FcAppliance:
                 key, eq, value = tok.partition("=")
                 if eq and key in ("systemd.unit", "systemd.wants", "init"):
                     shown = key + "=" + (value if SAFE_TOKEN_RE.match(value) else "<redacted>")
-                    overrides = key == "systemd.unit" and value != HEADLESS_TARGET
+                    overrides = key == "systemd.unit" and value != APPLIANCE_TARGET
                 elif tok in ("1", "5", "s", "S", "single", "rescue", "emergency"):
                     shown, overrides = tok, True
                 else:
@@ -1137,9 +1170,10 @@ class FcAppliance:
                 for name in row["condition_reset_by"]:
                     problems.append("%s can clear or supersede the appliance condition for %s"
                                     % (name, row["unit"]))
-            if target["effective"] != HEADLESS_TARGET:
+            problems.extend(self._touchscreen_problems())
+            if target["effective"] != APPLIANCE_TARGET:
                 problems.append("next boot target is %s, not %s"
-                                % (target["effective"], HEADLESS_TARGET))
+                                % (target["effective"], APPLIANCE_TARGET))
             elif not target["resolvable"]:
                 problems.append("%s does not resolve to a unit file" % target["source"])
             for tok in target["cmdline"]:
@@ -1152,7 +1186,11 @@ class FcAppliance:
                                 % (reported, target["effective"]))
             report["mode"] = "degraded" if problems else "appliance"
         if audit:
-            report["audit"] = Audit(self, set(units)).run()
+            checker = Audit(self, set(units))
+            report["audit"] = checker.run()
+            if report["mode"] != "normal" and checker.direct_launches:
+                problems.extend("unfenced automatic robot launch: " + p for p in sorted(checker.direct_launches))
+                report["mode"] = "degraded"
         return report
 
     def _condition_resets(self, unit):
@@ -1222,6 +1260,28 @@ class Audit:
         self.unreadable = []
         self.quiet_units = 0
         self.autologin_users = set()
+        self.direct_launches = set()
+
+    def check_launch(self, path, command):
+        """Record executable startup lines, including an explicit script wrapper."""
+        for line in command.splitlines():
+            try:
+                args = shlex.split(line.lstrip("@"), comments=True)
+            except ValueError:
+                args = line.strip().split()
+            if not args or args[0] in ("export", "alias"):
+                continue
+            if COURSE_LAUNCH_RE.search(" ".join(args)):
+                self.direct_launches.add(path)
+                return
+            for arg in args[:3]:
+                if not arg.startswith(("/home/", "/opt/", "/usr/local/", "/etc/")) or ".." in arg.split("/"):
+                    continue
+                script, _ = self.fs.read_text(arg)
+                if script and script.startswith("#!") and any(
+                        COURSE_LAUNCH_RE.search(l.split("#", 1)[0]) for l in script.splitlines()):
+                    self.direct_launches.add(path)
+                    return
 
     def add(self, level, surface, where, detail):
         self.items.append({"level": level, "surface": surface, "where": where, "detail": detail})
@@ -1322,6 +1382,8 @@ class Audit:
             service = data.get("Service", {})
             for key in ("ExecStartPre", "ExecStart", "ExecStartPost"):
                 for value in service.get(key, []):
+                    if triggers:
+                        self.check_launch(info["path"], value)
                     head = command_head(value)
                     if head["head"] and head["head"] not in heads:
                         heads.append(head["head"])
@@ -1341,7 +1403,7 @@ class Audit:
         elif reasons and keep:
             level, detail = "kept", detail + "; preserved by policy (%s)" % keep
         elif reasons and all(t == "graphical.target" for t in triggers):
-            level, detail = "desktop", detail + "; only pulled in by graphical.target"
+            level, detail = "review", detail + "; starts with the touchscreen graphical session"
         elif reasons:
             level = "review"
         elif custom:
@@ -1381,9 +1443,9 @@ class Audit:
             found = re.search(r"^\s*autologin-user\s*=\s*(\S+)", self.read(path) or "", re.M)
             if found:
                 user = found.group(1) if USER_RE.match(found.group(1)) else "<redacted>"
+                self.autologin_users.add(user)
                 self.add("desktop", "desktop-autologin", path,
-                         "display manager logs in user %s; inactive while the display manager "
-                         "is suppressed" % user)
+                         "display manager logs in user %s for the touchscreen session" % user)
 
     def shell_startup(self):
         files = [("/etc/profile", None), ("/etc/bash.bashrc", None)]
@@ -1394,6 +1456,8 @@ class Audit:
             text = self.read(path)
             if text is None:
                 continue
+            if user is None or user in self.autologin_users:
+                self.check_launch(path, text)
             _, flagged = scan_lines(text, skip_env=True)
             if flagged:
                 when = "runs at every login including SSH"
@@ -1414,6 +1478,7 @@ class Audit:
             self.add("info", "rc.local", "/etc/rc.local",
                      "%d active line(s) but not executable, so not run at boot" % len(lines))
             return
+        self.check_launch("/etc/rc.local", text)
         detail = "runs as root at boot: %d active line(s)" % len(lines)
         if flagged:
             detail += "; line(s) %s match robot-workload hints" % ", ".join(map(str, flagged))
@@ -1435,6 +1500,8 @@ class Audit:
                     continue
                 head = command_head(line.strip().split(None, skip)[skip])
                 at_boot = fields[0] == "@reboot"
+                if at_boot:
+                    self.check_launch(path, line.strip().split(None, skip)[skip])
                 if not at_boot and not head["reasons"]:
                     periodic += 1
                     continue
@@ -1480,6 +1547,7 @@ class Audit:
                     text = self.read(link) if exists else None
                     heads, reasons = [], []
                     for value in parse_unit(text or "").get("Service", {}).get("ExecStart", []):
+                        self.check_launch(link, value)
                         head = command_head(value)
                         heads.append(head["head"])
                         reasons += [r for r in head["reasons"] if r not in reasons]
@@ -1507,6 +1575,7 @@ class Audit:
                 if (entry.get("Hidden") or [""])[-1].lower() == "true" or not entry.get("Exec"):
                     continue
                 head = command_head(entry["Exec"][-1])
+                self.check_launch(directory + "/" + name, entry["Exec"][-1])
                 if head["reasons"] or list_all:
                     self.add("desktop", "desktop-autostart", directory + "/" + name,
                              "exec: %s%s" % (head["head"], "; " + ", ".join(head["reasons"])
@@ -1516,7 +1585,8 @@ class Audit:
             if quiet:
                 self.add("desktop", "desktop-autostart", directory,
                          "%d entr%s with nothing flagged" % (quiet, "y" if quiet == 1 else "ies"))
-        scripts = ["/etc/xdg/labwc/autostart"]
+        scripts = ["/etc/xdg/labwc/autostart", "/etc/xdg/wayfire.ini"]
+        scripts += ["/etc/xdg/lxsession/%s/autostart" % n for n in self.ls("/etc/xdg/lxsession")]
         for home, _ in self.homes:
             scripts += [home + "/.config/labwc/autostart", home + "/.config/wayfire.ini"]
             scripts += ["%s/.config/lxsession/%s/autostart" % (home, n)
@@ -1527,6 +1597,7 @@ class Audit:
                 continue
             if path.endswith(".ini"):
                 text = "\n".join(v for vals in parse_unit(text).get("autostart", {}).values() for v in vals)
+            self.check_launch(path, text)
             active, flagged = scan_lines(text)
             if active and (flagged or not path.startswith("/etc/")):
                 self.add("desktop", "desktop-autostart", path, "%d active line(s)%s" % (
@@ -1600,10 +1671,10 @@ def _add_common(parser, top):
 def build_parser():
     parser = argparse.ArgumentParser(
         prog="fc_appliance.py",
-        description="Switch the next boot between the headless FC appliance and the normal image.")
+        description="Switch the next boot between the touchscreen FC appliance and the normal image.")
     _add_common(parser, top=True)
     sub = parser.add_subparsers(dest="command", required=True)
-    enable = sub.add_parser("enable", help="next boot: headless appliance, robot units suppressed")
+    enable = sub.add_parser("enable", help="next boot: touchscreen appliance, robot units suppressed")
     enable.add_argument("--also-suppress", metavar="UNIT", action="append", default=[],
                         help="additional unit to suppress (repeatable)")
     normal = sub.add_parser("normal", help="undo enable: restore boot target, remove owned files")

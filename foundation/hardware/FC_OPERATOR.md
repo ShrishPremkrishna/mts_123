@@ -2,6 +2,8 @@
 
 On an enrolled Pi, **Connect** selects the release, prepares a cold session and opens its Home panel. Support the robot and select **Home**. A connected physical Stop gamepad and a fresh standing cue are required for soccer. A warm connection skips Home when the session is healthy. End match keeps the robot standing. The next Start match creates a fresh kickoff on the existing connection.
 
+The Pi starts with its original Pupper eyes and touch Wi-Fi controls. The laptop runs the game. Course motion services stay idle at boot.
+
 The Pi archive supplies `./pupper-fc-install blue` (or `red`) for initial appliance installation on a prepared FC platform, and `sudo python3 foundation/hardware/fc_appliance.py normal` to restore its previous boot target on the next boot.
 
 
