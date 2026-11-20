@@ -19,8 +19,8 @@ def ssh_host(host):
     return host
 
 
-def remote_argv(host, *arguments):
-    return ["ssh", "-T", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
+def remote_argv(host, *arguments, tty=False):
+    return ["ssh", "-tt" if tty else "-T", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
             "-o", "ConnectTimeout=5", "-o", "ServerAliveInterval=2", "-o", "ServerAliveCountMax=2",
             "--", ssh_host(host), shlex.join(["python3", SESSION, *arguments])]
 

@@ -176,6 +176,14 @@ class Result:
         return result
 
 
+async def prepare_motion_handoff(robot: Robot) -> str | Result:
+    """Release any pending follower ownership before a new motion is queued."""
+    result = await robot.prepare_follow_handoff()
+    if not result.ok:
+        return result
+    return "Stopped following the person first." if result.details["following"]["changed"] else ""
+
+
 def with_note(note: str, res: Result) -> Result:
     """``res`` with ``note`` (e.g. "Stopped following the person first.") in front."""
     return Result(res.ok, f"{note.strip()} {res.message}", res.details) if note.strip() else res
@@ -239,18 +247,23 @@ class Robot:
         self.node = Node("gemini_pupper_tools")
         self.switch_client = self.node.create_client(SwitchController, "/controller_manager/switch_controller")
         self.list_client = self.node.create_client(ListControllers, "/controller_manager/list_controllers")
-        self.follow_on = self.node.create_client(Trigger, "activate_person_following")
-        self.follow_off = self.node.create_client(Trigger, "deactivate_person_following")
-        self.cmd_pub = self.node.create_publisher(Twist, "/llm_cmd_vel", 10)
-        self.ref_pub = self.node.create_publisher(Float32MultiArray, f"/{WALK_CONTROLLER}/reference_trick", 10)
+        # The field runner owns deadline-stamped velocity and the obstacle camera.
+        # Classroom motion, reference clips and conversational images use separate ROS endpoints.
+        field_session = runtime_config.session_motion_mode() == "fc_walk_kick"
+        self.follow_on = self.follow_off = None
+        self.cmd_pub = self.ref_pub = None
         self.reference_request_id: str | None = None
         self.reference_status: tuple[str, str] | None = None
-        self.node.create_subscription(String, f"/{WALK_CONTROLLER}/reference_status", self._on_reference_status, 10)
-        self.walk_since = None  # monotonic time gemini_walk was last activated
-
+        self.walk_since = None
         self.latest_image: queue.Queue[CompressedImage] = queue.Queue(maxsize=1)
         self.latest_camera_frame: tuple[CompressedImage, float] | None = None
-        self.node.create_subscription(CompressedImage, "/camera/image_raw/compressed", self._on_image, 1)
+        if not field_session:
+            self.follow_on = self.node.create_client(Trigger, "activate_person_following")
+            self.follow_off = self.node.create_client(Trigger, "deactivate_person_following")
+            self.cmd_pub = self.node.create_publisher(Twist, "/llm_cmd_vel", 10)
+            self.ref_pub = self.node.create_publisher(Float32MultiArray, f"/{WALK_CONTROLLER}/reference_trick", 10)
+            self.node.create_subscription(String, f"/{WALK_CONTROLLER}/reference_status", self._on_reference_status, 10)
+            self.node.create_subscription(CompressedImage, "/camera/image_raw/compressed", self._on_image, 1)
 
         # The state Pupper is in right now (set by switch_to, a fall, the e-stop),
         # and the one it will be in once everything queued so far has run (set by
@@ -292,7 +305,7 @@ class Robot:
         self._follow_jobs: set[str] = set()
         self._follow_activation_pending = False
         self._follow_activation_count = 0
-        self.follow_available = not observe_only  # a field observer may only read controller state
+        self.follow_available = not observe_only and not field_session
         self.follow_state_uncertain = False
         self.startup_error: str | None = None
         self.controller_fault: str | None = None
@@ -989,6 +1002,12 @@ class Robot:
         with self._stop_lock:
             if self._observing:
                 raise MotionBlockedError("an unclaimed client cannot publish velocity")
+            if self.cmd_pub is None:
+                if any(values):
+                    raise MotionBlockedError("FC velocity requires the guarded field source")
+                # Generic switch cleanup also issues a zero on the classroom channel.
+                # FC sends its zero through the field source before controller handoff.
+                return
             reason = self.motion_block_reason() if any(values) else None
             if any(values) and (reason or self.fallen):
                 self.cmd_pub.publish(t)  # clear a previous velocity before refusing
@@ -1465,6 +1484,8 @@ class Robot:
         """
         if reason := self.motion_block_reason():
             return Result(False, reason)
+        if self.ref_pub is None:
+            return Result(False, "reference tricks are unavailable in the soccer session")
         reference = reference_message_data(trick)
         res = await self.switch_to(LOCOMOTION_CONTROLLER)
         if not res.ok:

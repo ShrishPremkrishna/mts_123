@@ -23,6 +23,7 @@ CONFIG_SHA = "d7542febd4fd382d3c3e71e0c5a3fb8ea7a5b140f87ff1cb12ead1982d3854c0"
 URDF_SHA = "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44"
 
 
+FULL_FEEDBACK = ("joint_state_broadcaster", "imu_sensor_broadcaster")
 STOCK_POLICY_SHA = "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
 
 
@@ -111,9 +112,20 @@ def prepare_session_profile(config_path, urdf):
             combined[trick.walk_controller] = {"ros__parameters": catalog_module.walk_policy_params(trick, base)}
 
     motion_controllers = ["neural_controller_default", "gemini_walk", *controllers]
+    feedback_broadcasters = FULL_FEEDBACK
     if motion_mode == "fc_walk_kick":
         fc_release_profile.select(combined, names, follower.mode)
         motion_controllers = list(fc_release_profile.CONTROLLERS)
+        if os.environ.get("PUPPER_FC_RECORDING") == "events":
+            # Native controllers read joint handles directly. The field uses overhead poses.
+            feedback_broadcasters = ("imu_sensor_broadcaster",)
+        plugins = (*motion_controllers, *feedback_broadcasters)
+        used_nodes = ("controller_manager", "estop_controller", "floor_physical_joy", *plugins)
+        combined = {name: combined[name] for name in used_nodes}
+        manager = combined["controller_manager"]["ros__parameters"]
+        for name, value in list(manager.items()):
+            if isinstance(value, dict) and "type" in value and name not in plugins:
+                del manager[name]
 
     validator_path = runtime_config.component_dir("pupper_gait_deploy", "PUPPER_GAIT_DEPLOY_DIR") / "download_policy.py"
     spec = importlib.util.spec_from_file_location("persistent_policy_validator", validator_path)
@@ -135,13 +147,15 @@ def prepare_session_profile(config_path, urdf):
     config_out.write_text(yaml.dump(combined, Dumper=NoAliasDumper, sort_keys=False))
     description_path, imu_recovery = selected_robot_description(urdf, manifest_path.parent, motion_mode)
     assets = [config_path, urdf, description_path, Path(__file__), config_out, *models,
-              Path(runtime_config.__file__), Path(catalog_module.__file__), validator_path,
-              *(repo / "robot" / name for name in ("robot_api.py", "server.py", "tool_registry.py")),
-              *sorted((repo / "lab").glob("*.py")), repo / "lab/prompt.md"]
+              Path(runtime_config.__file__), Path(catalog_module.__file__), validator_path]
     if motion_mode == "fc_walk_kick":
         assets.extend(repo.parent / p for p in (*fc_release_profile.FIELD_FILES, fc_release_profile.WALK_MODEL))
         for trick in selected.values():
             assets.extend((trick.path, trick.path.parent / "trick.yaml"))
+    else:
+        assets.extend(repo / "robot" / name for name in ("robot_api.py", "server.py", "tool_registry.py"))
+        assets.extend(sorted((repo / "lab").glob("*.py")))
+        assets.append(repo / "lab/prompt.md")
     if follower.service_dir is not None:
         service = follower.service_dir
         required_follower = [service / name for name in (
@@ -157,6 +171,7 @@ def prepare_session_profile(config_path, urdf):
         assets.extend(sorted(service.glob("*.py")))
         assets.extend(sorted((service.parent / "lab").glob("*.py")))
     manifest = {"schema": runtime_config.SESSION_SCHEMA, "skills": list(names),
+                "feedback_broadcasters": feedback_broadcasters,
                 "follower": runtime_config.follower_identity(follower),
                 "motion_mode": motion_mode,
                 "motion_controllers": motion_controllers,
@@ -260,7 +275,7 @@ def generate_launch_description():
     common = ["--controller-manager", "/controller_manager",
               "--controller-manager-timeout", "60", "--service-call-timeout", "10"]
     feedback = Node(package="controller_manager", executable="spawner",
-        arguments=["joint_state_broadcaster", "imu_sensor_broadcaster", *common], output="screen")
+        arguments=[*manifest.get("feedback_broadcasters", FULL_FEEDBACK), *common], output="screen")
     motion = Node(package="controller_manager", executable="spawner",
         arguments=[*motion_controllers, "--inactive", "--param-file", str(generated_config), *common], output="screen")
     return LaunchDescription([*guards, *required, feedback, motion, *extra])

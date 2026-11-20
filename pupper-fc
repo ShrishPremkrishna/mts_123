@@ -101,7 +101,9 @@ def main():
     parser.add_argument("--blue", metavar="SSH_HOST")
     parser.add_argument("--red", metavar="SSH_HOST")
     parser.add_argument("--no-open", action="store_true", help="print the address without opening a browser")
-    parser.add_argument("--check", action="store_true",
+    checks = parser.add_mutually_exclusive_group()
+    checks.add_argument("--self-test", action="store_true", help="check the installed laptop using a synthetic field")
+    checks.add_argument("--check", action="store_true",
                         help="run offline match, operator and camera checks" if (PACKAGE / "requirements-check.txt").is_file() else argparse.SUPPRESS)
     args = parser.parse_args()
     if args.check and not (PACKAGE / "requirements-check.txt").is_file():
@@ -109,12 +111,13 @@ def main():
     if not 1 <= args.port <= 65535:
         parser.error("choose a port from 1 to 65535")
     url = f"http://127.0.0.1:{args.port}"
+    launch_lobby = not (args.check or args.self_test)
     child = None
     try:
         ENV.mkdir(exist_ok=True)
         with (ENV / ".launch-lock").open("a") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
-            if not args.check:
+            if launch_lobby:
                 status = lobby_at(args.port)
                 if status == "lobby":
                     if args.blue or args.red:
@@ -126,7 +129,7 @@ def main():
                 if status == "occupied":
                     raise RuntimeError(f"Another service uses port {args.port}. Choose a different --port.")
             prepare(args.check)
-            if not args.check:
+            if launch_lobby:
                 command = [str(PYTHON), "-m", "final_project.pupper_fc.teleop", "--port", str(args.port)]
                 for slot in ("blue", "red"):
                     if getattr(args, slot):
@@ -142,6 +145,8 @@ def main():
                     time.sleep(.08)
                 else:
                     raise RuntimeError("The lobby did not respond to its startup check within 15 seconds.")
+        if args.self_test:
+            return subprocess.call([str(PYTHON), "-m", "final_project.pupper_fc.self_test"], cwd=ROOT)
         if args.check:
             print("Running offline Pupper FC acceptance checks…", flush=True)
             return subprocess.call([str(PYTHON), "-m", "pytest", "-q", "-p", "no:cacheprovider", *TESTS], cwd=ROOT)

@@ -2,7 +2,17 @@
 
 This candidate shortens the path from a powered robot to repeated soccer attempts. Keep the Pi, board driver, calibrated joint coordinates and walker alive between attempts. The laptop owns the overhead camera, field geometry, game roles and operator controls. The Pi owns its 12 actuator commands, balance feedback, onboard Hailo detector and physical Stop.
 
-## Verified release · November 20
+## Dashboard and runtime update · November 20
+
+The laptop now runs the enrolled Pi's Prepare and Home helpers from each team card. A cold session requires support during Home and a fresh cue to enable standing. A connected Stop gamepad is still required for standing. Full Home attaches the runner. End match keeps a healthy session standing and the next Start match uses the existing connections. Camera settings and `./pupper-fc --self-test` run the same motor-free check of six floor tags, both body tags, ball tracking and kickoff using synthetic images. Developers can run `./pupper-fc-check --ros` for the quick checks plus Blue, Red and paired ROS rehearsals.
+
+The selected Pi application dropped from 79 files to 56. The old wildcard packaged 23 unused files (315,083 source bytes), including the conversational server, chat client, classroom exercises and fake-server tests. The match profile selects its required files explicitly. It retains a shared controller-switching client, leg-kick implementation, safety gateway, native ROS controller, board driver and Hailo detector. Only the selected walk and kick controllers own the legs.
+
+Normal match configuration now has six sections instead of 14. It omits the unused joint broadcaster, derived dynamic joint transforms and per-frame detector timing file. Full recording still provides those diagnostics. The FC runner removes six unused ROS connections for conversational images, person following, legacy velocity and reference tricks. The balance watchdog and direct native joint feedback remain active. In seven alternating software trials, median cold Prepare fell from 268.6 to 221.6 ms. Warm Prepare stayed near 22 ms. Preparing the Home launch description fell from 133.9 to 126.9 ms. These are ARM64 Jazzy measurements with no motors. [Runtime inventory and comparison](../../foundation/results/fc-runtime-path-20261120.json)
+
+A separate guard and native walker rehearsal withheld front-camera detections for 1.0, 2.0 and 3.0 seconds. Walking-policy input reached zero after 276–298 ms and stayed zero through the dropout. All three trials required new clearance, a source zero and a new drive. The same walker activation then received 0.16 m/s again 192–224 ms after frames returned. This measured the actual ROS guard and compiled policy on memory interfaces. Balance-sensor loss still trips the separate 100 ms watchdog. Physical braking and floor recovery remain open.
+
+## Previous verified release · November 20
 
 The downloadable source release is `7236bc6c3899ec8265c46a318defd61ed1d126e9` on `codex/pupper-fc-match`. A fresh clone at that commit rebuilt both archives byte for byte. SHA-256 verification covered the delivered files. [Laptop ZIP](../../outputs/pupper-fc-release/pupper-fc-laptop.zip) · [Pi tarball](../../outputs/pupper-fc-release/pupper-fc-pi.tar.gz) · [SHA256SUMS](../../outputs/pupper-fc-release/SHA256SUMS) · [Portable installation](PACKAGING.md)
 

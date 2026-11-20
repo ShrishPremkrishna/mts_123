@@ -1,7 +1,6 @@
 """Play one explicitly selected soccer kick from an already active walker."""
 
-from part3_follow import prepare_to_move
-from robot_api import ACTIVATION_GATE, FELL_MESSAGE, LOCOMOTION, LOCOMOTION_CONTROLLER, Result, Robot, with_note
+from robot_api import ACTIVATION_GATE, FELL_MESSAGE, LOCOMOTION, LOCOMOTION_CONTROLLER, Result, Robot, prepare_motion_handoff, with_note
 from tricks import TRICK_FADE_S, TRICK_INIT_S, WALK_READY_S, Trick
 
 
@@ -59,7 +58,7 @@ async def kick_in_place(robot: Robot, side: str, *, entry_gate=None, return_gate
         return Result(False, f"selected policy lacks the required {clip} motion")
     if reason := interrupted(robot):
         return Result(False, reason)
-    note = await prepare_to_move(robot)
+    note = await prepare_motion_handoff(robot)
     if isinstance(note, Result):
         return note
 

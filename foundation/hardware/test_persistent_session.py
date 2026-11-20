@@ -403,6 +403,31 @@ class SessionTests(unittest.TestCase):
         self.assertEqual([r[0] for r in self.life.spawned], ['camera', 'recorder', 'launch'])
         self.assertEqual(self.life.receipt['status'], 'running')
 
+    def test_events_home_waits_only_for_selected_imu_and_motion_spawners(self):
+        self.plan["environment"].update(PUPPER_SESSION_MOTION_MODE="fc_walk_kick", PUPPER_FC_RECORDING="events")
+        self.plan["components"]["detector_model"] = {"path": "/test/selected.hef"}
+        manifest = self.run / "runtime-manifest.json"
+        session.write(manifest, {"feedback_broadcasters": ["imu_sensor_broadcaster"]})
+        self.plan["runtime_manifest"] = {"path": str(manifest)}
+        self.life.native_log = "\n".join(line for line in self.life.native_log.splitlines()
+                                          if "joint_state_broadcaster" not in line)
+        result = session.start_native(self.run, self.plan, self.life)
+        self.assertTrue(result["controller_spawners_finished"])
+        detector = next(command for role, _, command in self.life.spawned if role == "detector")
+        self.assertIn("--fc-headless", detector)
+        self.assertNotIn("--fc-timings", detector)
+        self.assertFalse(session.spawners_ready(self.life.native_log, self.plan["controllers"],
+                                               ["joint_state_broadcaster", "imu_sensor_broadcaster"]))
+        self.assertFalse(session.spawners_ready(self.life.native_log.replace("imu_sensor_broadcaster", "other"),
+                                               self.plan["controllers"], ["imu_sensor_broadcaster"]))
+
+    def test_full_recording_keeps_detector_timings(self):
+        self.plan["environment"]["PUPPER_FC_RECORDING"] = "full"
+        self.plan["components"]["detector_model"] = {"path": "/test/selected.hef"}
+        session.start_native(self.run, self.plan, self.life)
+        detector = next(command for role, _, command in self.life.spawned if role == "detector")
+        self.assertEqual(detector[detector.index("--fc-timings") + 1], str(self.run / "detector-timings.jsonl"))
+
     def test_native_start_preserves_one_camera_recorder_and_current_launch(self):
         result = session.start_native(self.run, self.plan, self.life)
         self.assertTrue(result['homing_finished'])

@@ -350,7 +350,7 @@ def check_loaded(plan, manager, *, allow_pending=False):
     return not missing
 
 
-def spawners_ready(log, controllers):
+def spawners_ready(log, controllers, feedback):
     """Current-run spawner completion, not just homing or a Loaded message.
 
     The selected launch configures motion controllers with --inactive. Each
@@ -367,7 +367,7 @@ def spawners_ready(log, controllers):
     if not controllers:
         raise ValueError('Prepared profile has no selected motion controllers')
     return (all(loaded.get(name) in finished for name in controllers) and
-            all(active.get(name) in finished for name in ('joint_state_broadcaster', 'imu_sensor_broadcaster')))
+            all(active.get(name) in finished for name in feedback))
 
 
 def receipt_for(life, run, plan):
@@ -384,7 +384,11 @@ def start_native(run, plan, life):
             raise ValueError('Session already started; inspect receipt, never retry initialization automatically')
         if any((run / name).exists() for name in ('robot.log', 'camera.log', 'recorder.log', 'telemetry')):
             raise ValueError('Startup output already exists; refuse stale readiness/reused recording')
-        if plan['environment'].get('PUPPER_SESSION_MOTION_MODE') != 'fc_walk_kick':
+        feedback = ('joint_state_broadcaster', 'imu_sensor_broadcaster')
+        if plan['environment'].get('PUPPER_SESSION_MOTION_MODE') == 'fc_walk_kick':
+            manifest = json.loads(Path(plan['runtime_manifest']['path']).read_text())
+            feedback = manifest.get('feedback_broadcasters', feedback)
+        else:
             port_free(int(plan['environment']['PORT']))  # FC has no ordinary HTTP server.
         for proc in life.PROC.iterdir():
             if proc.name.isdigit():
@@ -415,10 +419,11 @@ def start_native(run, plan, life):
                                           '-o', str(run / 'telemetry'), *topics])
         if 'detector_model' in plan['components']:
             detector = str(Path(plan['app_root']) / 'follow_me_pupper/robot/viser_camera.py')
-            life.spawn(run, 'detector', detector, [
-                sys.executable, '-B', '-s', detector, '--source', 'ros', '--detect', '--publish-detections',
-                '--fc-headless', '--fc-timings', str(run / 'detector-timings.jsonl'),
-                '--model', plan['components']['detector_model']['path']])
+            command = [sys.executable, '-B', '-s', detector, '--source', 'ros', '--detect',
+                       '--publish-detections', '--fc-headless', '--model', plan['components']['detector_model']['path']]
+            if plan['environment'].get('PUPPER_FC_RECORDING', 'full') == 'full':
+                command.extend(['--fc-timings', str(run / 'detector-timings.jsonl')])
+            life.spawn(run, 'detector', detector, command)
         life.spawn(run, 'launch', launch, ['ros2', 'launch', launch])
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
@@ -433,7 +438,7 @@ def start_native(run, plan, life):
                 raise ValueError('Native startup failed; inspect robot.log and owned receipt')
             if 'Finished homing!' in log and 'manager' in receipt['processes']:
                 mapped = check_loaded(plan, receipt['processes']['manager'], allow_pending=True)
-                if not mapped or not spawners_ready(log, plan['controllers']):
+                if not mapped or not spawners_ready(log, plan['controllers'], feedback):
                     # Homing precedes asynchronous motion-controller plugin loading.
                     # Missing maps/completion is pending within the same deadline;
                     # genuine identity, mapping conflicts and I/O errors still fail.

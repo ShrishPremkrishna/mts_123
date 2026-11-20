@@ -99,6 +99,24 @@ def check_manager(run, plan, boot):
     # An inactive hardware interface may leave this same manager PID alive.
 
 
+def run_home_probe(command, *, env, timeout):
+    # The terminal delivers Ctrl-C or hangup to the parent and foreground probe.
+    # Let the probe finish its Stop acknowledgement and ROS cleanup before the
+    # parent releases ownership. subprocess.run kills a child on KeyboardInterrupt.
+    interrupted = False
+    def defer(signum, frame):
+        nonlocal interrupted
+        interrupted = True
+    with ExitStack() as cleanup:
+        for sig in (signal.SIGINT, signal.SIGHUP):
+            cleanup.callback(signal.signal, sig, signal.signal(sig, defer))
+        try:
+            subprocess.run(command, env=env, check=True, timeout=timeout)
+        finally:
+            if interrupted:
+                raise KeyboardInterrupt
+
+
 def acquire_run(action, args, profile_path, profile, template, env, boot, python, helper):
     current = profile_path.with_suffix(".current.json")
     state = read(current) if current.exists() else {}
@@ -149,14 +167,17 @@ def acquire_run(action, args, profile_path, profile, template, env, boot, python
                 raise ValueError("motor recovery requires an enrolled supported_rehome board driver")
             probe.extend(["--recover-supported-only" if args.home_only else "--recover-supported", str(run)])
         else:
-            probe.append("--supported-stand" if args.supported and not args.home_only else "--read-hardware")
+            if args.supported and not args.home_only:
+                probe.append("--dashboard-stand" if args.dashboard else "--supported-stand")
+            else:
+                probe.append("--read-hardware")
         with ExitStack() as stack:
             if args.supported and not args.recover_imu and not args.home_only:
                 # Cold/warm motor enable may only belong to this supervised terminal.
                 for path in ("fc-runner.lock", "field-source.lock"):
                     owner = stack.enter_context((run / path).open("a"))
                     fcntl.flock(owner, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            subprocess.run(probe, env={**env, **plan["environment"]}, check=True,
+            run_home_probe(probe, env={**env, **plan["environment"]},
                            timeout=160 if args.recover_imu else 80)
     elif action in ("match", "field"):
         check_manager(run, plan, boot)
@@ -352,6 +373,7 @@ def main(argv=None):
     p.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
     p.add_argument("--robot-id", choices=("pupper-1", "pupper-2"))
     p.add_argument("--supported", action="store_true")
+    p.add_argument("--dashboard", action="store_true", help="report the live standing cue to the laptop setup screen")
     p.add_argument("--home-only", action="store_true", help="home on the stand without requesting walker Start")
     p.add_argument("--recover-imu", action="store_true", help="explicitly rehome a supported robot after a verified IMU fault")
     p.add_argument("--runner-only", action="store_true")
@@ -366,6 +388,9 @@ def main(argv=None):
     args = p.parse_args(argv)
     if args.duration is None:
         args.duration = 3600 if args.action == "field" else 60
+    if args.dashboard and (args.action not in ("prepare", "home") or args.recover_imu
+                           or (args.action == "home" and not args.supported)):
+        p.error("--dashboard is for ordinary prepare and supported home")
     if args.home_only and (args.action != "home" or not args.supported):
         p.error("home-only requires home --supported --home-only")
     if args.recover_imu and (args.action != "home" or not args.supported):
@@ -398,7 +423,7 @@ def main(argv=None):
             os.execve(python, cmd, env)
     if args.action == "match":
         return run_match(args, profile, plan, run, python, env)
-    print(json.dumps({"run": str(run), "stage": args.action,
+    print(json.dumps({"run": str(run), "robot_id": profile["robot_id"], "stage": args.action,
                       "state": "session prepared" if args.action == "prepare" else "homed, hardware active; match disarmed",
                       "match_armed": False, "home_only": args.home_only}))
     return 0
@@ -418,7 +443,7 @@ def service(node, rclpy, service_type, endpoint, *, request=None, timeout=2):
         node.destroy_client(client)
 
 
-def supervised_stand(node, rclpy):
+def supervised_stand(node, rclpy, *, dashboard=False):
     import select
     import termios
     from controller_manager_msgs.srv import ListControllers
@@ -440,7 +465,10 @@ def supervised_stand(node, rclpy):
     if not sys.stdin.isatty():
         raise ValueError("walker inactive; use a supervised terminal for home --supported (ssh -t)")
     termios.tcflush(sys.stdin, termios.TCIFLUSH)
-    print("Keep Pupper supported. Press Enter to enable standing, or use gamepad Options.", file=sys.stderr, flush=True)
+    if dashboard:
+        print(json.dumps({"event": "stand_prompt"}), flush=True)
+    else:
+        print("Keep Pupper supported. Press Enter to enable standing, or use gamepad Options.", file=sys.stderr, flush=True)
     deadline = time.monotonic() + 45
     while time.monotonic() < deadline:
         rclpy.spin_once(node, timeout_sec=.02)
@@ -494,7 +522,8 @@ def recover_board(node, rclpy, run):
     check_manager(run, plan, boot)
     manifest = plan["runtime_manifest"]
     pinned(Path(manifest["path"]), manifest["sha256"])
-    if (read(manifest["path"]).get("fc_imu_recovery") != "supported_rehome"
+    native_manifest = read(manifest["path"])
+    if (native_manifest.get("fc_imu_recovery") != "supported_rehome"
             or plan["environment"].get("PUPPER_FC_IMU_RECOVERY") != "supported_rehome"):
         raise ValueError("this live native release did not select supported full rehoming")
     imu = plan["components"]["imu"]
@@ -544,11 +573,12 @@ def recover_board(node, rclpy, run):
     from controller_manager_msgs.srv import SwitchController
     sensors = {"joint_state_broadcaster": "joint_state_broadcaster/JointStateBroadcaster",
                "imu_sensor_broadcaster": "imu_sensor_broadcaster/IMUSensorBroadcaster"}
+    selected = native_manifest.get("feedback_broadcasters", sensors)
     controllers = inventory()
-    if any(name not in controllers or controllers[name].type != kind
-           or controllers[name].state not in ("active", "inactive") for name, kind in sensors.items()):
+    if any(name not in sensors or name not in controllers or controllers[name].type != sensors[name]
+           or controllers[name].state not in ("active", "inactive") for name in selected):
         raise ValueError("restart the selected state broadcasters before standing")
-    inactive = [name for name in sensors if controllers[name].state == "inactive"]
+    inactive = [name for name in selected if controllers[name].state == "inactive"]
     if inactive:
         restore = SwitchController.Request()
         restore.activate_controllers = inactive
@@ -557,16 +587,19 @@ def recover_board(node, rclpy, run):
         reply = service(node, rclpy, SwitchController, "/controller_manager/switch_controller",
                         request=restore, timeout=4)
         controllers = inventory()
-        if not reply.ok or any(controllers[name].state != "active" for name in sensors) or not owners_quiet():
+        if not reply.ok or any(controllers[name].state != "active" for name in selected) or not owners_quiet():
             raise ValueError("read-only state broadcasters did not recover; standing remains unavailable")
     write_new(run / "last-supported-imu-recovery.json", {"fault_end": fault, "submitted": True, "restored": True})
 
 
-def read_hardware(stand=False, recover=None):
+def read_hardware(stand=False, recover=None, *, dashboard=False):
     """Check current hardware state even when an old manager survived a sensor fault."""
     import rclpy
     from controller_manager_msgs.srv import ListHardwareComponents
-    rclpy.init()
+    from rclpy.signals import SignalHandlerOptions
+    # The standing probe owns the Stop/ack path on terminal interrupt. Keep
+    # its DDS context live until the finally block releases the node.
+    rclpy.init(signal_handler_options=SignalHandlerOptions.NO if stand else None)
     node = rclpy.create_node("fc_home_status", enable_rosout=False, start_parameter_services=False)
     try:
         if recover is not None:
@@ -582,7 +615,7 @@ def read_hardware(stand=False, recover=None):
         if matches != ["active"]:
             raise ValueError("hardware is not active; inspect the motor fault before recovery")
         if stand:
-            supervised_stand(node, rclpy)
+            supervised_stand(node, rclpy, dashboard=dashboard)
     finally:
         node.destroy_node()
         rclpy.shutdown()
@@ -590,12 +623,14 @@ def read_hardware(stand=False, recover=None):
 
 if __name__ == "__main__":
     try:
+        if sys.argv[1:2] in (["--dashboard-stand"], ["--supported-stand"], ["--recover-supported"]):
+            signal.signal(signal.SIGHUP, signal.default_int_handler)
         if len(sys.argv) == 3 and sys.argv[1] in ("--recover-supported","--recover-supported-only"):
             if not sys.stdin.isatty():
                 raise ValueError("use home --supported --recover-imu in the supervised terminal")
             sys.exit(read_hardware(sys.argv[1] == "--recover-supported", Path(sys.argv[2]).resolve(strict=True)))
-        if sys.argv[1:] in (["--read-hardware"], ["--supported-stand"]):
-            sys.exit(read_hardware(sys.argv[1] == "--supported-stand"))
+        if sys.argv[1:] in (["--read-hardware"], ["--supported-stand"], ["--dashboard-stand"]):
+            sys.exit(read_hardware(sys.argv[1] != "--read-hardware", dashboard=sys.argv[1] == "--dashboard-stand"))
         sys.exit(main())
     except KeyboardInterrupt:
         sys.exit(130)

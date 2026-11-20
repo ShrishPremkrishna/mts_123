@@ -6,9 +6,9 @@ The laptop and Pi archives are independently installable. The desktop app runs o
 
 1. Expand `pupper-fc-laptop.zip` into a writable local folder. Keep the extracted `Pupper FC` folder together.
 2. On an Apple Silicon Mac running macOS 15 or later with CPython 3.12 installed, double-click **Pupper FC.command**. The ZIP includes all 19 runtime wheels, pinned by SHA-256. The first launch creates `.venv-fc` and installs directly from the ZIP’s extracted wheels. Later launches reuse that environment. The full source checkout also supports installation from the package index.
-3. Connect the Blue or Red team. Connect the field camera. You can choose the simulated preview in Camera settings to inspect the field without a robot. A live match needs an enrolled Pi, trusted SSH key, active homed walker and live calibrated camera.
+3. For a cold robot choose **Set up** on its team card, click **Prepare**, then **Home** with the robot supported. Confirm **Enable standing** when the Pi reports ready. The full Home flow connects the runner. Use **Connect** directly for an already standing robot. Connect the field camera. You can choose the simulated preview in Camera settings to inspect the field without a robot. A live match needs an enrolled Pi, trusted SSH key, active homed walker and live calibrated camera.
 
-For terminal use, run `./pupper-fc --no-open` and open the local URL it prints. Host overrides and the port are listed by `./pupper-fc --help`. The full-project developer tests and `pupper-fc-check` stay in the source checkout.
+For terminal use, run `./pupper-fc --no-open` and open the local URL it prints. Host overrides and the port are listed by `./pupper-fc --help`. Run **Camera settings → Run offline check** or `./pupper-fc --self-test` for a repeatable check of the installed camera pipeline and kickoff on synthetic frames. The source checkout adds `./pupper-fc-check` for quick regressions and `./pupper-fc-check --ros` for the quick suite followed by all three match rosters in ROS Jazzy. The ROS rehearsal requires Docker and the local `ros:jazzy-ros-base` image.
 
 ## Pi
 

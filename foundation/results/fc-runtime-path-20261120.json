@@ -1,0 +1,269 @@
+{
+  "date": "2026-11-20",
+  "comparison_commit": "7236bc6c3899ec8265c46a318defd61ed1d126e9",
+  "candidate_source_sha256": {
+    "foundation/hardware/lab6_session.launch.py": "81c2358dd6de17c279440db77111dd54f327d0fdb120e73e6132fab387c23952",
+    "foundation/hardware/persistent_session.py": "bb17cfcc31b04851432173255cc05f3246f5ea15526fa98646fc1756dbc5482d"
+  },
+  "scope": "Offline ARM64 ROS Jazzy on development Mac. No target hardware processes were started. The only live instrumented ROS executable was robot_state_publisher.",
+  "cold_path": {
+    "prepare": "Verify and pin selected source, policies, native overlay, interpreter and detector once per session; create controller YAML and manifest. Reuse the same run on warm Prepare. No hardware process.",
+    "home_processes": [
+      "Pi onboard camera (camera_ros)",
+      "MCAP event recorder",
+      "headless Hailo perception publisher",
+      "ROS launch supervisor",
+      "robot_state_publisher (supplies robot description)",
+      "ros2_control_node (board driver, IMU and joint handles, selected controllers)",
+      "joy_node (physical Stop gamepad)",
+      "estop_controller (Stop and controller-switch arbitration)",
+      "body_command_guard (body-command authority and front-camera clearance)"
+    ],
+    "spawners": [
+      "Selected feedback plugin(s) activated; spawner exits",
+      "gemini_walk and trick_leg_kick configured inactive; spawner exits"
+    ],
+    "cold_hardware": "One supported Home physically measures 12 joint origins and qualifies fresh stationary balance. Separate standing cue uses the independent Stop gamepad.",
+    "warm_match": "Reuse Pi processes, homing, healthy walker, SSH runner and laptop camera. Open one ephemeral field-input subprocess per participant; run kickoff agreement before dispatching nonzero intents."
+  },
+  "recording": {
+    "events": "Routine match loads only IMUSensorBroadcaster. Native walker and kick read local joint position/velocity interfaces. The operator client consumes IMU for tilt. Detector per-frame timing log and dynamic joint transform stream omitted.",
+    "full": "Restores JointStateBroadcaster, joint-state/IMU recording, dynamic transforms, and detector per-frame timing log.",
+    "preceding_release": "Event-only recording had already removed raw topics from the default bag. This change removes the live joint publisher itself."
+  },
+  "legacy_remaining": [
+    "Lab-derived shared launcher and lifecycle helper",
+    "Selected Gemini queue, kick, Stop and controller switching client",
+    "Native Pupper hardware driver, neural controller, gateway, target underlay, detector firmware/HEF",
+    "Control board, joint, IMU, gamepad and camera interlocks; target cold behavior remains unqualified",
+    "The shared native neural controller still publishes policy observations, output and latency diagnostics. Their cost on the target Pi is unmeasured."
+  ],
+  "staged_config": {
+    "baseline": {
+      "configuration_bytes": 11017,
+      "manifest_asset_count": 65,
+      "controllers": [
+        "gemini_walk",
+        "trick_leg_kick"
+      ],
+      "feedback_broadcasters": [
+        "joint_state_broadcaster",
+        "imu_sensor_broadcaster"
+      ]
+    },
+    "events": {
+      "configuration_bytes": 3498,
+      "manifest_asset_count": 56,
+      "controllers": [
+        "gemini_walk",
+        "trick_leg_kick"
+      ],
+      "feedback_broadcasters": [
+        "imu_sensor_broadcaster"
+      ]
+    },
+    "full": {
+      "configuration_bytes": 3678,
+      "manifest_asset_count": 56,
+      "controllers": [
+        "gemini_walk",
+        "trick_leg_kick"
+      ],
+      "feedback_broadcasters": [
+        "joint_state_broadcaster",
+        "imu_sensor_broadcaster"
+      ]
+    },
+    "sections": {
+      "baseline": 14,
+      "events": 6,
+      "full": 7
+    },
+    "retained_values": "Same absolute mounted /fc and manifest path per run. Each retained node from both new profiles matched SHA-256 of the old release’s canonical JSON parameter map. All retained controller-manager fields matched individually, including its 520 Hz update rate and plugin types."
+  },
+  "live_ros_description": {
+    "description_sha256": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44",
+    "joint_publishers": 0,
+    "joint_subscribers": 1,
+    "fixed_joints_in_urdf": 0,
+    "dynamic_transforms_before_joint_input": 0,
+    "positive_control_joint_count": 12,
+    "dynamic_transforms_after_one_joint_message": 12
+  },
+  "historical_joint_traffic": {
+    "fc-field-74798bf0": {
+      "messages": 161473,
+      "bag_seconds": 1186.528505214,
+      "messages_per_bag_second": 136.1
+    },
+    "fc-final-74798bf0-0051": {
+      "messages": 69616,
+      "bag_seconds": 325.264165239,
+      "messages_per_bag_second": 214.0
+    },
+    "source": "Each recording’s telemetry/metadata.yaml in final-offense-74798bf0; rates include idle time in the denominator. These measure historical publishes, not CPU savings."
+  },
+  "motor_inactive_timing": {
+    "method": "Actual benchmark_fc_prepare.py on each staged release inside the same network-isolated ARM64 Linux/Jazzy container. Eight alternating-order pairs, first pair excluded. New temporary run per cold sample, subsequent warm Prepare reuses it. Warm file cache; original ARM64 native fixtures, final per-report IMU binary and identical approved HEF. Home constructs the launch description without executing it.",
+    "medians_s": {
+      "old": {
+        "cold_prepare_process_s": 0.2686,
+        "warm_prepare_process_s": 0.0221,
+        "home_launch_description_s": 0.1339
+      },
+      "candidate": {
+        "cold_prepare_process_s": 0.2216,
+        "warm_prepare_process_s": 0.0222,
+        "home_launch_description_s": 0.1269
+      }
+    },
+    "samples_s": {
+      "old": [
+        {
+          "cold_prepare_process_s": 0.2686,
+          "warm_prepare_process_s": 0.0222,
+          "home_launch_description_s": 0.1421
+        },
+        {
+          "cold_prepare_process_s": 0.2711,
+          "warm_prepare_process_s": 0.0218,
+          "home_launch_description_s": 0.1355
+        },
+        {
+          "cold_prepare_process_s": 0.2747,
+          "warm_prepare_process_s": 0.0228,
+          "home_launch_description_s": 0.1335
+        },
+        {
+          "cold_prepare_process_s": 0.2216,
+          "warm_prepare_process_s": 0.0224,
+          "home_launch_description_s": 0.1339
+        },
+        {
+          "cold_prepare_process_s": 0.2153,
+          "warm_prepare_process_s": 0.0221,
+          "home_launch_description_s": 0.1445
+        },
+        {
+          "cold_prepare_process_s": 0.2734,
+          "warm_prepare_process_s": 0.022,
+          "home_launch_description_s": 0.1337
+        },
+        {
+          "cold_prepare_process_s": 0.2194,
+          "warm_prepare_process_s": 0.0217,
+          "home_launch_description_s": 0.1334
+        }
+      ],
+      "candidate": [
+        {
+          "cold_prepare_process_s": 0.2168,
+          "warm_prepare_process_s": 0.0222,
+          "home_launch_description_s": 0.1298
+        },
+        {
+          "cold_prepare_process_s": 0.2203,
+          "warm_prepare_process_s": 0.0219,
+          "home_launch_description_s": 0.1264
+        },
+        {
+          "cold_prepare_process_s": 0.2216,
+          "warm_prepare_process_s": 0.0225,
+          "home_launch_description_s": 0.126
+        },
+        {
+          "cold_prepare_process_s": 0.2675,
+          "warm_prepare_process_s": 0.0223,
+          "home_launch_description_s": 0.1318
+        },
+        {
+          "cold_prepare_process_s": 0.2304,
+          "warm_prepare_process_s": 0.0222,
+          "home_launch_description_s": 0.1325
+        },
+        {
+          "cold_prepare_process_s": 0.2149,
+          "warm_prepare_process_s": 0.0218,
+          "home_launch_description_s": 0.1269
+        },
+        {
+          "cold_prepare_process_s": 0.2263,
+          "warm_prepare_process_s": 0.0223,
+          "home_launch_description_s": 0.1269
+        }
+      ]
+    }
+  },
+  "tests": "84 targeted launch/profile/home/recovery/standby/enrollment-related tests and 10 subtests passed; recheck tests on final release once all source changes land.",
+  "limitations": "No Pi network/inference, hardware travel, elapsed click-to-motion, actuator response, power, or temperature measurement on this candidate.",
+  "front_camera_dropout": {
+    "scope": "Real Linux ROS Jazzy/DDS guard node and production GuardedPath, BridgeCore and deadline encoder. Real release neural controller/policy on memory interfaces, synthetic clear front-camera detections at 25 Hz (5 ms declared age). Only one native activation, no hardware. Script issues repeated fresh forward proposals during silence to challenge the runner brake. The full interactive runner main, gateway, camera inference and physical joint outputs are outside this experiment.",
+    "rows": [
+      {
+        "silence_s": 1.0001,
+        "last_frame_to_first_zero_request_ms": 302.5,
+        "first_zero_request_after_silence_began_ms": 280.7,
+        "first_zero_policy_input_after_silence_began_ms": 276.4,
+        "zero_requests_after_braking": 34,
+        "native_zero_samples_verified": 126,
+        "replay_rejection": "older source sequence",
+        "fresh_nonzero_before_new_zero": "vetoed",
+        "fresh_zero_sequence": 64,
+        "recovered_policy_vx": 0.16,
+        "first_returning_frame_period_to_motion_ms": 200.3,
+        "walker_generation": 1
+      },
+      {
+        "silence_s": 2.0039,
+        "last_frame_to_first_zero_request_ms": 310.0,
+        "first_zero_request_after_silence_began_ms": 309.8,
+        "first_zero_policy_input_after_silence_began_ms": 298.1,
+        "zero_requests_after_braking": 80,
+        "native_zero_samples_verified": 382,
+        "replay_rejection": "older source sequence",
+        "fresh_nonzero_before_new_zero": "vetoed",
+        "fresh_zero_sequence": 167,
+        "recovered_policy_vx": 0.16,
+        "first_returning_frame_period_to_motion_ms": 223.9,
+        "walker_generation": 1
+      },
+      {
+        "silence_s": 3.0011,
+        "last_frame_to_first_zero_request_ms": 319.0,
+        "first_zero_request_after_silence_began_ms": 289.8,
+        "first_zero_policy_input_after_silence_began_ms": 291.1,
+        "zero_requests_after_braking": 117,
+        "native_zero_samples_verified": 556,
+        "replay_rejection": "older source sequence",
+        "fresh_nonzero_before_new_zero": "vetoed",
+        "fresh_zero_sequence": 306,
+        "recovered_policy_vx": 0.16,
+        "first_returning_frame_period_to_motion_ms": 191.5,
+        "walker_generation": 1
+      }
+    ],
+    "source_sha256": {
+      "final_project/behaviors/body_command_guard.py": "ea4b1355653c7d66f4a2324806a516f0d1dd70101b8cd221a02488fb643b21bd",
+      "final_project/behaviors/command_deadline.py": "865441a30dd9c3019c2cac597e683d21cc92765e8770d86d809f9a16d53412fa",
+      "final_project/behaviors/command_path_evidence.py": "81509b67fb4ee5248bb964dc4e8f15e279c9fec0b8d399f34c207d006e28b916",
+      "final_project/behaviors/combined_fc_runner.py": "0b54be56cc081f8f41d184a9705233a515a52e01c90e2fad6a0cd14fdd853abc",
+      "final_project/behaviors/fc_executor_bridge.py": "d3bb181325dd9211b331b413746c54f3edb0dde35e41b698c920d587991b4cbb",
+      "pupper_gait_deploy/src/neural_controller.cpp": "745b6c46dd9f4311a938f48ef1d289d326483b86c45c7a56ddc5f58585e618cf",
+      "/fresh-build/libneural_controller.so": "624dc560c03a1f2f2b0bab44580900d699fdabcce8a1557ac6acd49550180a75"
+    },
+    "passed": true
+  },
+  "application_selection": {
+    "previous_files": 79,
+    "current_files": 56,
+    "removed_files": 23,
+    "uncompressed_removed_source_bytes": 315083,
+    "remaining_lab_file": "gemini_pupper/lab/operator_kick.py",
+    "excluded_examples": [
+      "Conversational server and tool registry",
+      "Gemini chat",
+      "Fake API server and classroom test harness",
+      "Follower exercises and prompt"
+    ]
+  }
+}

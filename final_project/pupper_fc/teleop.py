@@ -1,4 +1,4 @@
-"""Laptop controls for already prepared Pupper FC sessions over existing SSH identities."""
+"""Laptop setup and match controls for enrolled Pupper FC robots over their SSH identities."""
 import argparse
 import asyncio
 from contextlib import asynccontextmanager, suppress
@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .field_transport import finish_runner, remote_argv, ssh_host
 from .lobby import Lobby, Peer
+from .setup_session import open_setup, run_setup
 
 STATIC = Path(__file__).with_name("static")
 ROBOTS = {"blue": "pupper-1", "red": "pupper-2"}
@@ -56,7 +57,7 @@ def operator_message(data, robot_id):
     raise ValueError("Invalid operator control")
 
 
-def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None):
+def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=open_setup):
     hosts = hosts or {}
     hosts = {slot: ssh_host(host) for slot, host in hosts.items() if slot in ROBOTS and host}
     if len(set(hosts.values())) != len(hosts):
@@ -74,6 +75,7 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None):
     app = FastAPI(title="Pupper FC", docs_url=None, redoc_url=None, lifespan=lifespan)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1"])
     owners = set()
+    setting_up = set()
 
     @app.get("/")
     async def home():
@@ -106,6 +108,8 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None):
             raise HTTPException(403, "Open the controls on this laptop") from None
         try:
             if action == "match/start":
+                if setting_up:
+                    raise ValueError("Finish robot setup before kickoff")
                 return await lobby.start(token)
             if action == "match/end":
                 return await lobby.end(token)
@@ -114,6 +118,11 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None):
             data = await request.json()
             if not isinstance(data, dict):
                 raise ValueError("Invalid settings")
+            if action == "self-test":
+                if lobby.phase != "idle":
+                    raise ValueError("End the match before running the offline check")
+                from .self_test import check
+                return await asyncio.to_thread(check)
             if action == "camera":
                 return await lobby.attach_camera(data, token)
             if action == "goals":
@@ -142,11 +151,39 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None):
     async def slots():
         return {slot: {"configured": slot in hosts, "robot_id": robot} for slot, robot in ROBOTS.items()}
 
+    def available(ws, slot):
+        origin = urlsplit(ws.headers.get("origin", ""))
+        return (slot in hosts and slot not in owners and origin.scheme == "http"
+                and origin.netloc == ws.headers.get("host") and origin.hostname in ("localhost", "127.0.0.1"))
+
+    @app.websocket("/setup/{slot}")
+    async def setup_robot(ws: WebSocket, slot: str):
+        if not available(ws, slot):
+            await ws.close(code=1008)
+            return
+        owners.add(slot)
+        setting_up.add(slot)
+        try:
+            await ws.accept()
+            owner = str(uuid.UUID(ws.query_params.get("owner", "")))
+            lobby.check_owner(owner)
+            if lobby.phase != "idle":
+                raise ValueError("End the current match before robot setup")
+            await run_setup(ws, hosts[slot], ROBOTS[slot], setup)
+        except WebSocketDisconnect:
+            pass
+        except (ValueError, OSError, RuntimeError) as exc:
+            with suppress(RuntimeError, WebSocketDisconnect):
+                await ws.send_json(dict(event="setup", stage="error", message=str(exc) or "Robot setup failed"))
+        finally:
+            owners.discard(slot)
+            setting_up.discard(slot)
+            with suppress(RuntimeError, WebSocketDisconnect):
+                await ws.close()
+
     @app.websocket("/play/{slot}")
     async def play(ws: WebSocket, slot: str):
-        origin = urlsplit(ws.headers.get("origin", ""))
-        if (slot not in hosts or slot in owners or origin.scheme != "http"
-                or origin.netloc != ws.headers.get("host") or origin.hostname not in ("localhost", "127.0.0.1")):
+        if not available(ws, slot):
             await ws.close(code=1008)
             return
         owners.add(slot)

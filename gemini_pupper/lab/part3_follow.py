@@ -9,7 +9,7 @@ The person follower itself is provided (robot.set_following). The rule is yours:
 
 from __future__ import annotations
 
-from robot_api import Result, Robot, not_written  # noqa: F401
+from robot_api import Result, Robot, not_written, prepare_motion_handoff  # noqa: F401
 from tool_registry import Param, tool
 
 
@@ -53,10 +53,7 @@ async def prepare_to_move(robot: Robot) -> str | Result:
     # a submitted follow activation must be confirmed off before admission.
     # Pending FIFO entry is superseded without cancelling earlier ordinary
     # jobs. Only confirmed active-follow shutdown warrants the spoken note.
-    result = await robot.prepare_follow_handoff()
-    if not result.ok:
-        return result
-    return "Stopped following the person first." if result.details["following"]["changed"] else ""
+    return await prepare_motion_handoff(robot)
     # ====================================
 
 

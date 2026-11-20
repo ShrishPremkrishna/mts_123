@@ -37,7 +37,7 @@ def setup(tmp_path, monkeypatch):
         assert env["ROS_LOCALHOST_ONLY"] == "1" and "ROS_STATIC_PEERS" not in env
         args = list(map(str, argv))
         if "--run-dir" not in args:
-            assert args[-1] in ("--read-hardware", "--supported-stand")
+            assert args[-1] in ("--read-hardware", "--supported-stand", "--dashboard-stand")
             calls.append(args[-1])
             return
         folder = Path(args[args.index("--run-dir") + 1])
@@ -114,7 +114,8 @@ def test_home_does_not_depend_on_field_camera(setup):
     assert setup.calls.count("home") == 1
 
 
-def test_recovery_consumes_fault_once_and_requires_positive_board_identity(tmp_path, monkeypatch):
+@pytest.mark.parametrize("feedback", [None, ["imu_sensor_broadcaster"]])
+def test_recovery_consumes_fault_once_and_requires_positive_board_identity(tmp_path, monkeypatch, feedback):
     import types
     board_name = "control_board_hardware_interface"
     field = lambda **kw: SimpleNamespace(**kw)
@@ -126,7 +127,10 @@ def test_recovery_consumes_fault_once_and_requires_positive_board_identity(tmp_p
     boot.write_text("test")
     monkeypatch.setattr(cli, "PROC", tmp_path/"proc")
     (run/"owned_session.json").write_text('{"processes":{"manager":{"pid":12}}}')
-    (run/"manifest.json").write_text('{"fc_imu_recovery":"supported_rehome"}')
+    native_manifest = {"fc_imu_recovery": "supported_rehome"}
+    if feedback is not None:
+        native_manifest["feedback_broadcasters"] = feedback
+    (run/"manifest.json").write_text(json.dumps(native_manifest))
     selected = {"environment":{"PUPPER_FC_IMU_RECOVERY":"supported_rehome"},
                 "components":{"imu":{"path":"/tmp/driver","sha256":"pin"}},
                 "runtime_manifest":{"path":str(run/"manifest.json"),"sha256":"pin"}}
@@ -153,6 +157,8 @@ def test_recovery_consumes_fault_once_and_requires_positive_board_identity(tmp_p
     controllers={name:field(name=name,state="inactive",claimed_interfaces=[],type=kind) for name,kind in (
         ("gemini_walk","native"),("trick_leg_kick","native"),("joint_state_broadcaster","joint_state_broadcaster/JointStateBroadcaster"),
         ("imu_sensor_broadcaster","imu_sensor_broadcaster/IMUSensorBroadcaster"))}
+    if feedback is not None:
+        del controllers["joint_state_broadcaster"]
     def query(node, ros, svc, endpoint, *, request=None, timeout=None):
         if svc == services.ListHardwareComponents: return field(component=[board])
         if svc == services.ListControllers: return field(controller=list(controllers.values()))
@@ -164,7 +170,7 @@ def test_recovery_consumes_fault_once_and_requires_positive_board_identity(tmp_p
             return field(ok=True)
         if svc == Switch:
             calls.append("state only")
-            assert set(request.activate_controllers) == {"joint_state_broadcaster","imu_sensor_broadcaster"}
+            assert set(request.activate_controllers) == set(feedback or ["joint_state_broadcaster","imu_sensor_broadcaster"])
             for name in request.activate_controllers: controllers[name].state="active"
             return field(ok=True)
         raise AssertionError(endpoint)
@@ -259,3 +265,131 @@ def test_runner_emits_the_bound_ssh_profile_before_exec(setup, monkeypatch, caps
     assert profile == {"event": "profile", "robot_id": "pupper-1", "source_host": "192.0.2.5",
                        "robot_host": "192.0.2.70", "port": 5005, "producer_id": "fc-field",
                        "field_config": cli.read(setup.field)}
+
+def test_dashboard_uses_same_home_once_and_reports_validated_team(setup, capsys):
+    setup.call("prepare", "--dashboard", "--robot-id", "pupper-1")
+    prepared = json.loads(capsys.readouterr().out)
+    assert prepared["stage"] == "prepare" and prepared["robot_id"] == "pupper-1"
+    with pytest.raises(ValueError, match="team identity"):
+        setup.call("home","--dashboard","--supported","--robot-id","pupper-2")
+    assert setup.calls == ["prepare"]
+    setup.call("home","--dashboard","--supported","--home-only")
+    setup.call("home","--dashboard","--supported")
+    receipts = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert all(r["run"] == prepared["run"] and not r["match_armed"] for r in receipts)
+    assert [r["home_only"] for r in receipts] == [True, False]
+    assert setup.calls == ["prepare", "home", "--read-hardware", "--dashboard-stand"]
+
+
+def test_dashboard_standing_prompt_discards_early_enter_on_a_real_terminal(monkeypatch):
+    import io
+    import pty
+    import select
+    from contextlib import ExitStack
+    from types import ModuleType
+
+    # Keep the real terminal flush, readiness loop and input checks. Only the
+    # ROS controller inventory and gamepad gateway are device-free stand-ins.
+    active = []
+    gateway = SimpleNamespace(
+        stop_capable=True, ready=lambda: True, stop_publisher=SimpleNamespace(get_subscription_count=lambda: 1),
+        state={"latched": True}, capture=lambda *, pressed_at: pressed_at, send=active.append,
+        poll=lambda: {"success": True}, request_stop=lambda _: None, poll_stop=lambda: True)
+    modules = {"controller_manager_msgs.srv": {"ListControllers": object},
+               "software_start": {"attach": lambda *args, **kwargs: gateway}}
+    for name, members in modules.items():
+        mod = ModuleType(name)
+        vars(mod).update(members)
+        monkeypatch.setitem(sys.modules, name, mod)
+    monkeypatch.setattr(cli, "service", lambda *args: SimpleNamespace(controller=[
+        SimpleNamespace(name="gemini_walk",state="active" if active else "inactive"),
+        SimpleNamespace(name="trick_leg_kick",state="inactive")]))
+    master, slave = pty.openpty()
+    with ExitStack() as stack:
+        stream = stack.enter_context(os.fdopen(slave, "r"))
+        stack.callback(os.close, master)
+        assert stream.isatty()
+        monkeypatch.setattr(sys, "stdin", stream)
+        output = io.StringIO()
+        monkeypatch.setattr(sys, "stdout", output)
+        os.write(master, b"\n")
+        assert select.select([stream], [], [], .1)[0]
+        def spin(node, timeout_sec):
+            if not active:
+                assert json.loads(output.getvalue()) == {"event":"stand_prompt"}
+                assert not select.select([stream], [], [], 0)[0]
+                os.write(master, b"\n")
+        cli.supervised_stand(None, SimpleNamespace(spin_once=spin), dashboard=True)
+        assert len(active) == 1
+
+
+def test_pty_interrupt_allows_probe_to_finish_stop_before_parent_releases(tmp_path):
+    import pty
+    import select
+    import signal
+    import time
+
+    log = tmp_path/"events"
+    child = tmp_path/"probe.py"
+    hw = str(Path(cli.__file__).parent)
+    child.write_text("""
+import sys, time
+from importlib.util import find_spec
+from pathlib import Path
+from types import ModuleType, SimpleNamespace as N
+sys.path.insert(0,sys.argv[1])
+import fc_session
+log=Path(sys.argv[2])
+def add(value):
+    with log.open('a') as f: f.write(value+'\\n')
+stop_at=[]
+real_ros=find_spec('rclpy') is not None
+if real_ros: import rclpy
+def stop(reason):
+    add('stop requested')
+    stop_at.append(time.monotonic())
+def stopped():
+    assert not real_ros or rclpy.ok()
+    if time.monotonic()-stop_at[0] < .55: return False
+    add('stop confirmed')
+    return True
+g=N(stop_capable=True, ready=lambda:True, stop_publisher=N(get_subscription_count=lambda:1),
+    state={'latched':True}, capture=lambda **kwargs:1, send=lambda ticket:add('start submitted'),
+    poll=lambda:None, request_stop=stop, poll_stop=stopped)
+for name,attrs in {'controller_manager_msgs.srv':{'ListControllers':object,'ListHardwareComponents':object},'software_start':{'attach':lambda *a,**kw:g}}.items():
+    m=ModuleType(name);vars(m).update(attrs);sys.modules[name]=m
+fc_session.service=lambda *a:N(component=[N(name='control_board_hardware_interface',state=N(label='active'))],
+    controller=[N(name='gemini_walk',state='inactive'),N(name='trick_leg_kick',state='inactive')])
+try:
+    if real_ros: fc_session.read_hardware(True,dashboard=True)
+    else: fc_session.supervised_stand(None,N(spin_once=lambda *a,**kw:time.sleep(.01)),dashboard=True)
+except KeyboardInterrupt: pass
+finally: add('probe cleanup')
+""")
+    parent = ("import os,sys;from pathlib import Path\n"
+              "sys.path.insert(0,sys.argv[1]); import fc_session\n"
+              "try: fc_session.run_home_probe([sys.executable,sys.argv[2],sys.argv[1],sys.argv[3]],env=os.environ,timeout=5)\n"
+              "except KeyboardInterrupt:\n with Path(sys.argv[3]).open('a') as f: f.write('parent released\\n')\n")
+    pid, terminal = pty.fork()
+    if pid == 0:
+        os.execl(sys.executable, sys.executable, "-c", parent, hw, str(child), str(log))
+    try:
+        assert select.select([terminal], [], [], 4)[0]
+        assert b'stand_prompt' in os.read(terminal, 1024)
+        os.write(terminal, b"\n")
+        end = time.monotonic() + 3
+        while time.monotonic() < end and (not log.exists() or "start submitted" not in log.read_text()):
+            time.sleep(.01)
+        assert "start submitted" in log.read_text()
+        os.write(terminal, b"\x03")  # Real foreground group signal to parent and child.
+        child_pid, status = os.waitpid(pid, 0)
+        pid = None
+        assert os.waitstatus_to_exitcode(status) == 0
+        assert log.read_text().splitlines() == ["start submitted", "stop requested", "stop confirmed",
+                                                "probe cleanup", "parent released"]
+    finally:
+        os.close(terminal)
+        if pid is not None:
+            try: os.killpg(pid, signal.SIGKILL)
+            except ProcessLookupError: pass
+            os.waitpid(pid, 0)

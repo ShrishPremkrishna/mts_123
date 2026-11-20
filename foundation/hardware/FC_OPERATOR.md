@@ -1,15 +1,19 @@
 # Pupper FC operator commands
 
-Open **Pupper FC.command** on the laptop. For a cold session, run these two commands per enrolled robot. Replace `mts` with its SSH host.
+Open **Pupper FC.command** on the laptop. For each cold, enrolled robot, open its team setup and click **Prepare**. Support that robot on its stand, confirm support and click **Home**. When the Pi reports that homing is complete, **Enable standing** sends a fresh standing cue through the same terminal used by Home. Gamepad Options also works. The dashboard connects the match runner after the Pi confirms an active walker. A prepared, standing robot can use **Connect** directly.
+
+The terminal equivalents below use `mts` as the robot’s SSH host.
 
 ```sh
 ssh mts python3 /home/pi/pupper-fc/bin/fc_session.py prepare
 ssh -t mts python3 /home/pi/pupper-fc/bin/fc_session.py home --supported
 ```
 
-**Prepare** pins the installed FC release and existing native platform and reuses the current run on this boot. It opens no motor, ROS or camera processes. **Home** starts one supported hardware session, the onboard camera, the headless detector and the recorder. Its one standing cue is Enter in the same terminal after homing, or Options on the gamepad. The gateway requires a connected gamepad for software Start. Keep Pupper supported through that cue. A repeated home checks the original manager and live hardware state. The standing cue is skipped while the walker is already active.
+**Prepare** pins the installed FC release and existing native platform and reuses the current run on this boot. It opens no motor, ROS or camera processes. **Home** starts one supported hardware session, the onboard camera, the headless detector and the recorder. The terminal standing cue is Enter after homing, or Options on the gamepad. The gateway requires a connected gamepad for software Start. Keep Pupper supported through that cue. A repeated home checks the original manager and live hardware state. The standing cue is skipped while the walker is already active.
 
-For controller-free homing, run `home --supported --home-only`. It initializes the supported hardware once and queries the board state. The command requests no walker activation. Later `home --supported` reuses that home and accepts Enter to stand while the connected gamepad provides the independent Stop path. Preparing and homing do not wait for joystick messages.
+For controller-free homing, choose **Finish homed · no gamepad** before clicking Home, or run `home --supported --home-only`. It initializes the supported hardware once and queries the board state. The command requests no walker activation. Later `home --supported` reuses that home and accepts Enter to stand while the connected gamepad provides the independent Stop path. Preparing and homing do not wait for joystick messages.
+
+Closing setup revokes its pending software standing cue. If mechanical homing has started, keep the robot on its stand while the Pi finishes its readiness checks. The physical gamepad Stop remains available during setup.
 
 **Start match** is the third action. In the lobby, connect each team and the live overhead camera once. Check that the ball and each team's body tag are visible. Choose autonomous or keyboard play per team and click **Start match**. After a normal **End match** the walker stays standing and the connections stay open. Click **Start match** again. After a goal, replace the ball, let the autonomous players reach home, then click **Resume play**.
 
@@ -43,7 +47,7 @@ Enrollment stages and verifies this source, the stock walker, both leg-kick clip
 
 A previously qualified Pi supplies its latest completed FC platform selection. On a new Pi use the installed FC ROS environment, or pass `--platform-env /path/to/environment.sh`. The stock coursework image needs the target AArch64 deadline controller, compatible board driver, updated Start/Stop gateway and Hailo model installed first. Enrollment reports any missing component. Use `--detector-model FILE` when the approved HEF is outside the known paths. A different venue can use `--field-config FILE` for measured geometry and attack directions. The default is the recorded November 20 field with blue attacking west and red east. The laptop can correct goal-post locations in camera settings.
 
-Normal play records clip requests, kick lifecycle changes and gateway/native Stop requests in MCAP. Add `--recording full` to enrollment for complete joint, IMU, guard, native authority and field streams plus the normalized per-frame source trace. The board and controller still consume their sensor data in both modes.
+Normal play records clip requests, kick lifecycle changes and gateway/native Stop requests in MCAP. Add `--recording full` to enrollment for complete joint, IMU, guard, native authority and field streams, the onboard detector timing log and the normalized per-frame source trace. The normal match omits the ROS joint-state broadcaster and its dynamic transforms. Both recording modes keep the IMU broadcaster for the operator client. The native walker and kick controller read joint and IMU hardware interfaces directly.
 
 The default board profile is strict. For a separately qualified new driver, add `--imu-prefix /path/to/control_board_hardware_interface --imu-recovery supported_rehome` to the same enrollment command. All enrolled libraries have recorded path and SHA-256 identities. A healthy warm session never silently changes these selections.
 

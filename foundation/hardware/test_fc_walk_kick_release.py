@@ -14,12 +14,19 @@ import fc_walk_kick_release as release
 import persistent_session
 
 
-def test_staged_profile_is_self_contained_and_detects_a_changed_runner(tmp_path):
+def test_staged_profile_is_self_contained_and_detects_a_changed_runner(tmp_path, monkeypatch):
+    monkeypatch.setenv("PUPPER_FC_RECORDING", "full")
+    monkeypatch.setenv("PUPPER_FC_IMU_RECOVERY", "supported_standby")
     root = tmp_path / "candidate"
     receipt = release.stage(release.ROOT, root)
     result = release.verify(root, expected_manifest=receipt["manifest_sha256"])
     assert result["profile"]["controllers"] == ["gemini_walk", "trick_leg_kick"]
     assert result["profile"]["motor_started"] is False
+    assert result["profile"]["imu_recovery"] == "strict"
+    assert result["profile"]["feedback_broadcasters"] == ["imu_sensor_broadcaster"]
+    assert [p.name for p in (root / "gemini_pupper/lab").iterdir()] == ["operator_kick.py"]
+    assert not (root / "gemini_pupper/robot/server.py").exists()
+    assert not (root / "gemini_pupper/robot/tool_registry.py").exists()
     with pytest.raises(ValueError, match="exists"):
         release.stage(release.ROOT, root)
     # The release may be staged or inspected on a different machine without

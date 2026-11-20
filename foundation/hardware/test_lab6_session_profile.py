@@ -370,7 +370,12 @@ def test_persistent_follower_choice_is_explicit(profile, monkeypatch):
     assert not runtime_config.session_manifest_path().exists()
 
 
-def test_fc_walk_kick_profile_owns_one_walker_and_a_model_bound_guard(profile, monkeypatch):
+@pytest.mark.parametrize("recording, feedback", [
+    ("events", ["imu_sensor_broadcaster"]),
+    ("full", ["joint_state_broadcaster", "imu_sensor_broadcaster"]),
+])
+def test_fc_walk_kick_profile_owns_one_walker_and_a_model_bound_guard(profile, monkeypatch, recording, feedback):
+    monkeypatch.setenv("PUPPER_FC_RECORDING", recording)
     monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
     monkeypatch.setenv("PUPPER_SESSION_SKILLS", "leg_kick")
     graph = profile.generate_launch_description()
@@ -387,6 +392,14 @@ def test_fc_walk_kick_profile_owns_one_walker_and_a_model_bound_guard(profile, m
     assert guards[0].kwargs["cmd"][-3:] == ["--command-contract", "fc_deadline_v1", "--arena-ball-contact"]
     spawners = [e for e in entities if getattr(e, "kwargs", {}).get("executable") == "spawner"]
     assert spawners[-1].kwargs["arguments"][:3] == ["gemini_walk", "trick_leg_kick", "--inactive"]
+    assert set(config) == {"controller_manager", "estop_controller", "floor_physical_joy",
+                           *manifest["motion_controllers"], *feedback}
+    assert set(config["controller_manager"]["ros__parameters"]) == {
+        "update_rate", *manifest["motion_controllers"], *feedback}
+    assert manifest["feedback_broadcasters"] == feedback
+    assert spawners[0].kwargs["arguments"][:len(feedback)+1] == [*feedback, "--controller-manager"]
+    description_node = next(e for e in entities if getattr(e, "kwargs", {}).get("package") == "robot_state_publisher")
+    assert description_node.kwargs["parameters"][0]["robot_description"] == Path(manifest["robot_description"]).read_text()
 
 
 @pytest.mark.parametrize("mode", ["strict", "supported_standby", "supported_rehome"])

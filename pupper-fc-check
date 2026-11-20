@@ -1,2 +1,13 @@
 #!/bin/sh
-exec "$(dirname "$0")/pupper-fc" --check "$@"
+# Developer checks are separate from the operator's normal launch.
+set -eu
+root=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+if [ "${1:-}" = --ros ]; then
+    shift
+    "$root/pupper-fc" --check "$@"
+    exec docker run --rm --network none -v "$root:/repo:ro" -w /repo \
+        -e PUPPER_ISOLATED_ROS_TEST=1 -e ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST \
+        -e PYTHONDONTWRITEBYTECODE=1 ros:jazzy-ros-base \
+        python3 -u final_project/behaviors/tools/ros_fc_match_smoke.py
+fi
+exec "$root/pupper-fc" --check "$@"

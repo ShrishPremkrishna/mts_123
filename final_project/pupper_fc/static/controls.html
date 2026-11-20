@@ -9,9 +9,15 @@
 <div class="score" aria-label="Scoreboard"><span class="blue-ink">BLU</span><b id="score-blue">0</b><span class="dash">–</span><b id="score-red">0</b><span class="red-ink">RED</span></div></section>
 <div id="teams" aria-label="Choose your robots"></div>
 <template id="team"><section class="team"><div class="teamtop"><span class="team-label"></span><span class="connection" role="status">Offline</span></div>
-<div class="teamfoot"><h2></h2><div class="actions"><button class="connect">Connect</button><button class="options" aria-label="Team settings" aria-expanded="false" disabled>⚙</button></div></div>
+<div class="teamfoot"><h2></h2><div class="actions"><button class="connect">Connect</button><button class="options" aria-expanded="false">Set up</button></div></div>
 <div class="team-settings" hidden><label>Control mode <select class="mode"><option value="autonomous">Autonomous</option><option value="teleop">Teleop</option></select></label><p class="guide" hidden></p><button class="disconnect">Disconnect</button></div>
 <p class="feedback" role="status"></p></section></template>
+<section id="robot-setup" class="setup-panel" aria-labelledby="setup-title" hidden>
+<div class="setup-heading"><h2 id="setup-title">Robot setup</h2><button id="setup-close" aria-label="Close robot setup">×</button></div>
+<div class="setup-grid"><div class="setup-step"><h3>Prepare session</h3><p>Select the installed release and reuse a healthy session. Prepare opens no motor devices.</p><button id="setup-prepare">Prepare</button></div>
+<div class="setup-step home-step"><h3>Home on stand</h3><label class="support"><input id="setup-supported" type="checkbox"> Pupper is supported on its stand.</label><label class="home-mode">After homing <select id="setup-home-mode"><option value="stand">Stand for a match</option><option value="home-only">Finish homed · no gamepad</option></select></label>
+<p id="setup-hint">Standing requires a connected Stop gamepad and a fresh cue after homing.</p><button id="setup-home" disabled>Home</button><button id="setup-stand" hidden>Enable standing</button></div></div>
+<p id="setup-status" role="status" aria-live="polite"></p></section>
 <div class="matchbar">
 <div class="camera"><div class="camera-icon" aria-hidden="true">◉</div><div><h3>Field camera</h3><p id="camera-status">Disconnected</p></div>
 <button id="camera-connect">Connect camera</button><button id="camera-settings" title="Camera settings" aria-label="Camera settings" aria-expanded="false">⚙</button></div>
@@ -20,5 +26,6 @@
 <section class="fieldpanel" id="fieldpanel" hidden><div class="preview"><img id="view" alt="Overhead field with detected tags, ball and robots" hidden><span id="preview-wait">Waiting for a camera frame</span></div>
 <div class="cameraform"><h2>Camera settings</h2><label>Camera <select id="camera-source"><option value="phone">Wireless iPhone</option><option value="0">System camera 0</option><option value="1">System camera 1</option><option value="2">System camera 2</option><option value="3">System camera 3</option><option value="sim">Simulated field preview</option></select></label>
 <label class="check"><input type="checkbox" id="appearance"> Preview robot bodies without tags</label><button id="apply-camera">Open camera</button>
-<p id="seen"></p><p>On this field, tags 0, 5 and 1 run west to east along the north sideline. Tags 3, 4 and 2 run along the south. Blue wears 10 and Red wears 11, with the top edge toward the nose.</p><button id="survey" disabled>Mark goalposts</button><p id="survey-help">The field calibrates from its floor tags. Mark the posts if your goals differ from the field profile.</p></div></section>
+<p id="seen"></p><p>On this field, tags 0, 5 and 1 run west to east along the north sideline. Tags 3, 4 and 2 run along the south. Blue wears 10 and Red wears 11, with the top edge toward the nose.</p><button id="survey" disabled>Mark goalposts</button><p id="survey-help">The field calibrates from its floor tags. Mark the posts if your goals differ from the field profile.</p>
+<div class="self-test"><button id="self-test">Run offline check</button><p id="self-test-result" role="status" aria-live="polite"></p></div></div></section>
 </main></body></html>

@@ -50,15 +50,9 @@ def inspect_native(library):
 
 
 def selected_paths(root):
-    fixed = {*FIELD_FILES, LAUNCH, CONFIG, URDF, WALK_MODEL,
-             "pupper_gait_deploy/download_policy.py",
-             "gemini_pupper/lab/prompt.md",
-             *(f"{KICK_DIR}/{name}" for name in ("artifact_manifest.json", "trick.yaml", "policy.json"))}
-    # Stage the installed robot API and its lab imports as a unit. Tools may be
-    # dynamically registered; optional policies and the web client are excluded.
-    for folder in ("gemini_pupper/robot", "gemini_pupper/lab"):
-        fixed.update(p.relative_to(root).as_posix() for p in (root / folder).glob("*.py"))
-    return sorted(fixed)
+    return sorted({*FIELD_FILES, LAUNCH, CONFIG, URDF, WALK_MODEL,
+                   "pupper_gait_deploy/download_policy.py",
+                   *(f"{KICK_DIR}/{name}" for name in ("artifact_manifest.json", "trick.yaml", "policy.json"))})
 
 
 def validate_selection(root, components, manifest, *, recording="full"):
@@ -140,6 +134,7 @@ def check_profile(root):
         env = dict(os.environ, **ENV, PUPPER_GEMINI_DIR=str(root / "gemini_pupper"),
                    PUPPER_GAIT_DEPLOY_DIR=str(root / "pupper_gait_deploy"),
                    PUPPER_SESSION_MANIFEST=str(Path(directory) / "runtime-manifest.json"),
+                   PUPPER_FC_RECORDING="events", PUPPER_FC_IMU_RECOVERY="strict",
                    FOLLOW_USE_COLOR="0", FOLLOW_AVOID_OBSTACLES="0", FOLLOW_ALWAYS_DETECT="0")
         # An absent release module must not be supplied by the builder's checkout.
         env.pop("PYTHONPATH", None)
@@ -161,7 +156,9 @@ def prepare_offline_profile():
     from tricks import load_tricks
     selected = load_tricks()
     manifest = runtime_config.validate_session_catalog(selected)
-    if not manifest or controllers != list(CONTROLLERS) or runtime_config.session_motion_mode() != MODE:
+    if (not manifest or controllers != list(CONTROLLERS) or runtime_config.session_motion_mode() != MODE
+            or manifest.get("feedback_broadcasters") != ["imu_sensor_broadcaster"]
+            or manifest.get("fc_imu_recovery") != "strict"):
         raise ValueError("wrong field release generated")
     # Import and instantiate the real field planner from these staged files.
     sys.path.insert(0, str(ROOT))
@@ -179,6 +176,7 @@ def prepare_offline_profile():
                     "--help"], cwd=ROOT, stdout=subprocess.DEVNULL, check=True, timeout=15)
     return {"controllers": controllers, "motion_mode": MODE, "walker_command_contract": "fc_deadline_v1",
             "guard_arguments": list(GUARD_ARGS), "clip_names": ["kick_left", "kick_right"],
+            "feedback_broadcasters": manifest["feedback_broadcasters"], "imu_recovery": manifest["fc_imu_recovery"],
             "bounds": runtime_config.session_motion_bounds(manifest), "motor_started": False}
 
 

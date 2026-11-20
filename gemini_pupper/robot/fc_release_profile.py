@@ -25,7 +25,10 @@ FIELD_FILES = (
       ("__init__", "model", "controller", "paw_approach", "integration", "tactics", "match_director",
        "obstacles", "kick_handoff", "operator_kick_receipts")),
     "gemini_pupper/robot/fc_walk_kick.py", "gemini_pupper/robot/fc_release_profile.py",
-    "gemini_pupper/robot/controller_coverage.py", "gemini_pupper/robot/session_processes.py",
+    "gemini_pupper/lab/operator_kick.py",
+    *(f"gemini_pupper/robot/{name}.py" for name in (
+        "controller_coverage", "session_processes", "robot_api", "runtime_config", "tricks",
+        "spawn_controllers", "stop_status", "secret_gate")),
     "foundation/hardware/fc_walk_kick_release.py", "foundation/hardware/stage_app.py",
     "foundation/hardware/software_start.py", "foundation/hardware/fc_session.py",
     "foundation/hardware/fc_enrollment.py", "foundation/hardware/fc_advertise.py", "final_project/pupper_fc/arena.json",
@@ -52,7 +55,7 @@ def verify_profile(manifest, root, config):
             or manifest.get("follower", {}).get("mode") != "disabled"):
         raise ValueError("incomplete combined walker/kick selection")
     for path in (*FIELD_FILES, WALK_MODEL, "foundation/hardware/lab6_session.launch.py",
-                 "gemini_pupper/robot/robot_api.py", f"{KICK_DIR}/policy.json", f"{KICK_DIR}/trick.yaml"):
+                 f"{KICK_DIR}/policy.json", f"{KICK_DIR}/trick.yaml"):
         if str((root / path).resolve()) not in manifest["assets"]:
             raise ValueError("missing combined release input: " + path)
     walk = config["gemini_walk"]["ros__parameters"]

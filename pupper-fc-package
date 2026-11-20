@@ -62,8 +62,8 @@ def laptop_wheels():
 def laptop_files():
     paths = [Path("Pupper FC.command"), Path("pupper-fc"), FC / "requirements.txt", LOCK, FC / "arena.json"]
     paths.extend(FC / (name + ".py") for name in (
-        "__init__", "teleop", "lobby", "discovery", "field_transport", "arena_camera",
-        "match_director", "controller", "model"))
+        "__init__", "teleop", "setup_session", "lobby", "discovery", "field_transport", "arena_camera",
+        "match_director", "controller", "model", "self_test"))
     paths.extend(FC / "static" / name for name in ("controls.html", "controls.css", "controls.mjs", "drive.mjs", "arena.webp"))
     paths.extend(VISION / "config" / name for name in ("field.yaml", "sim_field.yaml"))
     paths.append(VISION / "scripts/run_perception.py")
