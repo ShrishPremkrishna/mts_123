@@ -1,0 +1,140 @@
+{
+ "fasxqy4z model_2999 (good transfer)": {
+  "checkpoint": "/home/ubuntu/runs/opt-lab-2/ext-fasxqy4z/model_2999.pt",
+  "iter": 2999,
+  "std_mean": 0.18403260409832,
+  "std_min": 0.1414804458618164,
+  "std_max": 0.24978666007518768,
+  "std_per_joint": {
+   "FR1": 0.15,
+   "FR2": 0.167,
+   "FR3": 0.244,
+   "FL1": 0.149,
+   "FL2": 0.165,
+   "FL3": 0.235,
+   "BR1": 0.157,
+   "BR2": 0.144,
+   "BR3": 0.246,
+   "BL1": 0.161,
+   "BL2": 0.141,
+   "BL3": 0.25
+  },
+  "obs_normalizer_count": 294912000.0,
+  "export_layer0_corr_frames_reversed": 0.6345702722133181
+ },
+ "Part 1 parent 1c5r0n8c model_2999": {
+  "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p1-gallop_c-s42/model_2999.pt",
+  "iter": 2999,
+  "std_mean": 0.4170271158218384,
+  "std_min": 0.2381923347711563,
+  "std_max": 0.8035978078842163,
+  "std_per_joint": {
+   "FR1": 0.24,
+   "FR2": 0.804,
+   "FR3": 0.357,
+   "FL1": 0.238,
+   "FL2": 0.785,
+   "FL3": 0.362,
+   "BR1": 0.259,
+   "BR2": 0.428,
+   "BR3": 0.355,
+   "BL1": 0.255,
+   "BL2": 0.524,
+   "BL3": 0.396
+  },
+  "obs_normalizer_count": 294912000.0,
+  "export_layer0_corr_frames_reversed": 0.9505634543391565
+ },
+ "Part 2 final P wmhcp24q model_4496": {
+  "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p2-s42-r2-cont-1500/model_4496.pt",
+  "iter": 4496,
+  "std_mean": 0.3720463514328003,
+  "std_min": 0.21394741535186768,
+  "std_max": 0.7503436207771301,
+  "std_per_joint": {
+   "FR1": 0.214,
+   "FR2": 0.717,
+   "FR3": 0.331,
+   "FL1": 0.216,
+   "FL2": 0.75,
+   "FL3": 0.325,
+   "BR1": 0.22,
+   "BR2": 0.371,
+   "BR3": 0.323,
+   "BL1": 0.228,
+   "BL2": 0.434,
+   "BL3": 0.336
+  },
+  "obs_normalizer_count": 442368000.0,
+  "export_layer0_corr_frames_reversed": 0.938674760240988
+ },
+ "Bumpy +500 model_4995": {
+  "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg1/model_4995.pt",
+  "iter": 4995,
+  "std_mean": 0.4303026497364044,
+  "std_min": 0.2362803965806961,
+  "std_max": 0.8859761357307434,
+  "std_per_joint": {
+   "FR1": 0.242,
+   "FR2": 0.866,
+   "FR3": 0.351,
+   "FL1": 0.236,
+   "FL2": 0.886,
+   "FL3": 0.347,
+   "BR1": 0.239,
+   "BR2": 0.455,
+   "BR3": 0.349,
+   "BL1": 0.253,
+   "BL2": 0.564,
+   "BL3": 0.377
+  },
+  "obs_normalizer_count": 491520000.0,
+  "export_layer0_corr_frames_reversed": 0.9350054600138865
+ },
+ "Bumpy +2000 23pt1499 model_6492 (jerky)": {
+  "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg4/model_6492.pt",
+  "iter": 6492,
+  "std_mean": 0.43565723299980164,
+  "std_min": 0.2251124233007431,
+  "std_max": 0.9765468835830688,
+  "std_per_joint": {
+   "FR1": 0.225,
+   "FR2": 0.977,
+   "FR3": 0.331,
+   "FL1": 0.226,
+   "FL2": 0.963,
+   "FL3": 0.344,
+   "BR1": 0.236,
+   "BR2": 0.481,
+   "BR3": 0.328,
+   "BL1": 0.24,
+   "BL2": 0.516,
+   "BL3": 0.361
+  },
+  "obs_normalizer_count": 638976000.0,
+  "export_layer0_corr_frames_reversed": 0.9182104374573326
+ },
+ "Flat ctrl +2000 13m4vcia model_6492": {
+  "checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-flatctrl-kpwide-leg4/model_6492.pt",
+  "iter": 6492,
+  "std_mean": 0.33089956641197205,
+  "std_min": 0.18783846497535706,
+  "std_max": 0.7285040616989136,
+  "std_per_joint": {
+   "FR1": 0.191,
+   "FR2": 0.664,
+   "FR3": 0.287,
+   "FL1": 0.188,
+   "FL2": 0.729,
+   "FL3": 0.289,
+   "BR1": 0.197,
+   "BR2": 0.293,
+   "BR3": 0.28,
+   "BL1": 0.202,
+   "BL2": 0.359,
+   "BL3": 0.294
+  },
+  "obs_normalizer_count": 638976000.0,
+  "export_layer0_corr_frames_reversed": 0.9266768123568215
+ }
+}

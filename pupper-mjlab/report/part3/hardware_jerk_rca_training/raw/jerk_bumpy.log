@@ -1,0 +1,962 @@
+[jerk] bumpy stand_nodr
+[part2_eval] bumpy-stand_nodr: training {"checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg4/model_6492.pt", "iter": 6492, "iter_source": "checkpoint['iter']", "train_num_envs": 4096, "train_num_envs_source": "provenance.json", "train_seed": 42, "train_seed_source": "provenance.json", "parent": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg3/model_5993.pt", "parent_source": "provenance.json", "parent_iter": 5993, "parent_iter_source": "parent checkpoint['iter']", "iters_past_parent": 500, "iters_past_parent_source": "iter - parent_iter + 1", "iters_past_parent_matches_iterations_arg": true, "train_reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag", "train_reference_dir_source": "provenance.json", "train_iterations_arg": 500, "train_git_revision": "5d4e906f61aee56f27df6a1ae623de4f33747b2e", "reference_check": "ok"}
+[gpu_slot] launched pid 420366 at 2/4 GPU processes (registered after 15s)
+Setting seed: 1234
+Warp 1.14.0 initialized:
+   CUDA Toolkit 12.9, Driver 12.8
+   Devices:
+     "cpu"      : "x86_64"
+     "cuda:0"   : "NVIDIA A100-PCIE-40GB" (39 GiB, sm_80, mempool enabled)
+   Kernel cache:
+     /home/ubuntu/.cache/warp/1.14.0
+Module mujoco_warp._src.smooth 45fbfc9 load on device 'cuda:0' took 0.83 ms  (cached)
+Module _nxn_broadphase__locals__kernel_df6640ed df6640e load on device 'cuda:0' took 0.31 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_683268d3 683268d load on device 'cuda:0' took 0.44 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_683268d3 73f24ed load on device 'cuda:0' took 0.66 ms  (cached)
+Module _primitive_narrowphase__locals__primitive_narrowphase_a6b6b8da a6b6b8d load on device 'cuda:0' took 0.50 ms  (cached)
+Module mujoco_warp._src.constraint 880bd7f load on device 'cuda:0' took 0.36 ms  (cached)
+Module _friction_dof__locals__kernel_3c14efda 3c14efd load on device 'cuda:0' took 0.34 ms  (cached)
+Module _limit_slide_hinge__locals__kernel_4d6c55ab 4d6c55a load on device 'cuda:0' took 0.77 ms  (cached)
+Module _efc_contact_init__locals__kernel_07a590e0 07a590e load on device 'cuda:0' took 0.49 ms  (cached)
+Module _efc_contact_jac_dense__locals__kernel_5e1af9f9 1d73624 load on device 'cuda:0' took 0.58 ms  (cached)
+Module _efc_contact_update__locals__kernel_8aad7bfd 8aad7bf load on device 'cuda:0' took 0.30 ms  (cached)
+Module mujoco_warp._src.forward f799adf load on device 'cuda:0' took 0.40 ms  (cached)
+Module mujoco_warp._src.passive 8ff6993 load on device 'cuda:0' took 0.42 ms  (cached)
+Module mujoco_warp._src.forward 6666a5d load on device 'cuda:0' took 0.41 ms  (cached)
+Module _qfrc_smooth__locals__kernel_6eb3d958 6eb3d95 load on device 'cuda:0' took 0.30 ms  (cached)
+Module mujoco_warp._src.support d1e71d9 load on device 'cuda:0' took 0.33 ms  (cached)
+Module _tile_cholesky_factorize_solve_block__locals__kernel_419fe7e0 4a5ffaf load on device 'cuda:0' took 32.15 ms  (cached)
+Module mujoco_warp._src.solver b68e9aa load on device 'cuda:0' took 0.66 ms  (cached)
+Module _solve_init_jaref_kernel__locals__kernel_16fae688 16fae68 load on device 'cuda:0' took 0.30 ms  (cached)
+Module mul_m_kernel__locals___mul_m_fd2186c4 fd2186c load on device 'cuda:0' took 0.30 ms  (cached)
+Module _update_constraint_efc__locals__kernel_4af8f110 4af8f11 load on device 'cuda:0' took 0.31 ms  (cached)
+Module _update_constraint_init_qfrc_constraint_dense__locals__kernel_391cb5b4 391cb5b load on device 'cuda:0' took 0.55 ms  (cached)
+Module _update_gradient_zero_grad_dot__locals__kernel_8766e6b8 8766e6b load on device 'cuda:0' took 0.31 ms  (cached)
+Module _update_gradient_grad__locals__kernel_0cbf4927 0cbf492 load on device 'cuda:0' took 0.31 ms  (cached)
+Module _update_gradient_JTDAJ_dense_tiled__locals__kernel_d56e9a4a 61ced58 load on device 'cuda:0' took 0.83 ms  (cached)
+Module _update_gradient_cholesky__locals__kernel_75c50355 f0e6c88 load on device 'cuda:0' took 38.29 ms  (cached)
+Module _linesearch_iterative_kernel__locals__kernel_dce06aaf 48c14bc load on device 'cuda:0' took 0.48 ms  (cached)
+Module _update_constraint_efc__locals__kernel_e30beb1f e30beb1 load on device 'cuda:0' took 0.35 ms  (cached)
+Module _update_constraint_init_qfrc_constraint_dense__locals__kernel_5ba72bac 5ba72ba load on device 'cuda:0' took 0.33 ms  (cached)
+Module _update_gradient_zero_grad_dot__locals__kernel_68ea6fc7 68ea6fc load on device 'cuda:0' took 0.34 ms  (cached)
+Module _update_gradient_grad__locals__kernel_cb93df65 cb93df6 load on device 'cuda:0' took 0.32 ms  (cached)
+Module _update_gradient_cholesky__locals__kernel_7e466227 261b284 load on device 'cuda:0' took 40.25 ms  (cached)
+Module _solve_zero_search_dot__locals__kernel_4499ef96 4499ef9 load on device 'cuda:0' took 0.38 ms  (cached)
+Module _solve_search_update__locals__kernel_d145d072 d145d07 load on device 'cuda:0' took 0.32 ms  (cached)
+Module mujoco_warp._src.sensor 42e0a24 load on device 'cuda:0' took 0.59 ms  (cached)
+Module _contact_sort__locals__contact_sort_321f5f3e 33ea4e1 load on device 'cuda:0' took 0.37 ms  (cached)
+Module _next_time_builder__locals___next_time_95ad6d7a 95ad6d7 load on device 'cuda:0' took 0.35 ms  (cached)
+Module reset_data__locals__reset_xfrc_applied_03030511 0303051 load on device 'cuda:0' took 0.32 ms  (cached)
+Module reset_data__locals__reset_M_631075dd 631075d load on device 'cuda:0' took 0.33 ms  (cached)
+Module reset_data__locals__reset_mocap_6513201c 6513201 load on device 'cuda:0' took 0.31 ms  (cached)
+Module reset_data__locals__reset_contact_5c08f689 5c08f68 load on device 'cuda:0' took 0.30 ms  (cached)
+Module reset_data__locals__reset_sleep_50b990da 50b990d load on device 'cuda:0' took 0.32 ms  (cached)
+Module reset_data__locals__reset_nworld_69a10925 69a1092 load on device 'cuda:0' took 0.31 ms  (cached)
+Module mujoco_warp._src.render_util ff4fe80 load on device 'cuda:0' took 0.45 ms  (cached)
+Module mujoco_warp._src.bvh d9cfd91 load on device 'cuda:0' took 0.42 ms  (cached)
+Module mujoco_warp._src.ray d79c433 load on device 'cuda:0' took 0.59 ms  (cached)
+
++---------------------------------+
+|         Base Environment        |
++------------------------+--------+
+| Property               | Value  |
++------------------------+--------+
+| Number of environments | 256    |
+| Environment device     | cuda:0 |
+| Environment seed       | 1234   |
+| Physics step-size      | 0.004  |
+| Environment step-size  | 0.02   |
++------------------------+--------+
+
+[INFO] <EventManager> contains 2 active terms.
++-------------------------------------+
+| Active Event Terms in Mode: 'reset' |
++--------+----------------------------+
+| Index  | Name                       |
++--------+----------------------------+
+|   0    | reset_base                 |
+|   1    | reset_robot_joints         |
+|   2    | reset_imu_latency          |
++--------+----------------------------+
++------------------------------------+
+| Active Event Terms in Mode: 'step' |
++------------+-----------------------+
+|   Index    | Name                  |
++------------+-----------------------+
+|     0      | test_stand            |
++------------+-----------------------+
+
+[INFO] <CommandManager> contains 1 active terms.
++---------------------------------------+
+|          Active Command Terms         |
++-------+-------+-----------------------+
+| Index | Name  |          Type         |
++-------+-------+-----------------------+
+|   0   | twist | PupperVelocityCommand |
++-------+-------+-----------------------+
+
+[INFO] <ActionManager> contains 1 active terms.
++---------------------------------+
+| Active Action Terms (shape: 12) |
++-------+-----------+-------------+
+| Index | Name      |   Dimension |
++-------+-----------+-------------+
+|   0   | joint_pos |          12 |
++-------+-----------+-------------+
+
+[INFO] <ObservationManager> contains 2 groups.
++------------------------------------------------------------+
+| Active Observation Terms in Group: 'actor' (shape: (960,)) |
++----------+------------+------------------------------------+
+|  Index   | Name       |               Shape                |
++----------+------------+------------------------------------+
+|    0     | policy     |         (960,)  ← 20×(48,)         |
++----------+------------+------------------------------------+
++------------------------------------------------------------+
+| Active Observation Terms in Group: 'critic' (shape: (84,)) |
++----------+------------------------------------+------------+
+|  Index   | Name                               |   Shape    |
++----------+------------------------------------+------------+
+|    0     | base_lin_vel                       |    (3,)    |
+|    1     | base_ang_vel                       |    (3,)    |
+|    2     | projected_gravity                  |    (3,)    |
+|    3     | joint_pos                          |   (12,)    |
+|    4     | joint_vel                          |   (12,)    |
+|    5     | actions                            |   (12,)    |
+|    6     | command                            |    (3,)    |
+|    7     | foot_height                        |    (4,)    |
+|    8     | foot_air_time                      |    (4,)    |
+|    9     | foot_contact                       |    (4,)    |
+|    10    | foot_contact_forces                |   (12,)    |
+|    11    | gait_reference                     |   (12,)    |
++----------+------------------------------------+------------+
+
+[INFO] <TerminationManager> contains 2 active terms.
++------------------------------+
+|   Active Termination Terms   |
++-------+-----------+----------+
+| Index | Name      | Time Out |
++-------+-----------+----------+
+|   0   | time_out  |   True   |
+|   1   | fell_over |  False   |
++-------+-----------+----------+
+
+[INFO] <RewardManager> contains 22 active terms.
++---------------------------------------------+
+|             Active Reward Terms             |
++-------+----------------------------+--------+
+| Index | Name                       | Weight |
++-------+----------------------------+--------+
+|   0   | track_linear_velocity      |    0.0 |
+|   1   | upright                    |    0.0 |
+|   2   | action_rate_l2             |    0.0 |
+|   3   | air_time                   |    0.0 |
+|   4   | foot_slip                  |    0.0 |
+|   5   | track_yaw_velocity         |    0.0 |
+|   6   | orientation_l2             |    0.0 |
+|   7   | lin_vel_z_l2               |    0.0 |
+|   8   | ang_vel_xy_l2              |    0.0 |
+|   9   | joint_torques_l2           |    0.0 |
+|   10  | joint_acc_l2               |    0.0 |
+|   11  | termination                |    0.0 |
+|   12  | stand_still_pose           |    0.0 |
+|   13  | stand_still_joint_velocity |    0.0 |
+|   14  | abduction_angle            |    0.0 |
+|   15  | self_collision_r           |    0.0 |
+|   16  | self_collision_l           |    0.0 |
+|   17  | knee_ground_contact        |    0.0 |
+|   18  | base_height                |    0.0 |
+|   19  | gait_tracking              |    0.0 |
+|   20  | track_angular_velocity     |    0.0 |
+|   21  | roll_asymmetry             |    0.0 |
++-------+----------------------------+--------+
+
+[INFO] <NullCurriculumManager> (inactive)
+[INFO] <MetricsManager> contains 1 active terms.
++-------------------------+
+|   Active Metrics Terms  |
++-------+-----------------+
+| Index | Name            |
++-------+-----------------+
+|   0   | mean_action_acc |
++-------+-----------------+
+
+[INFO] <NullRecorderManager> (inactive)
+--------------------------------------------------------------------------------
+Resolved observation sets: 
+	 actor :  ('actor',)
+	 critic :  ('critic',)
+--------------------------------------------------------------------------------
+Actor Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (distribution): GaussianDistribution()
+  (mlp): MLP(
+    (0): Linear(in_features=960, out_features=256, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=256, out_features=128, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=128, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=128, bias=True)
+    (7): ELU(alpha=1.0)
+    (8): Linear(in_features=128, out_features=12, bias=True)
+  )
+)
+Critic Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (mlp): MLP(
+    (0): Linear(in_features=84, out_features=256, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=256, out_features=128, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=128, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=128, bias=True)
+    (7): ELU(alpha=1.0)
+    (8): Linear(in_features=128, out_features=1, bias=True)
+  )
+)
+[jerk] stand_nodr done in 43s
+[jerk] bumpy stand_dr
+[part2_eval] bumpy-stand_dr: training {"checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg4/model_6492.pt", "iter": 6492, "iter_source": "checkpoint['iter']", "train_num_envs": 4096, "train_num_envs_source": "provenance.json", "train_seed": 42, "train_seed_source": "provenance.json", "parent": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg3/model_5993.pt", "parent_source": "provenance.json", "parent_iter": 5993, "parent_iter_source": "parent checkpoint['iter']", "iters_past_parent": 500, "iters_past_parent_source": "iter - parent_iter + 1", "iters_past_parent_matches_iterations_arg": true, "train_reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag", "train_reference_dir_source": "provenance.json", "train_iterations_arg": 500, "train_git_revision": "5d4e906f61aee56f27df6a1ae623de4f33747b2e", "reference_check": "ok"}
+Setting seed: 1234
+
++---------------------------------+
+|         Base Environment        |
++------------------------+--------+
+| Property               | Value  |
++------------------------+--------+
+| Number of environments | 256    |
+| Environment device     | cuda:0 |
+| Environment seed       | 1234   |
+| Physics step-size      | 0.004  |
+| Environment step-size  | 0.02   |
++------------------------+--------+
+
+[INFO] <EventManager> contains 3 active terms.
++-------------------------------------+
+| Active Event Terms in Mode: 'reset' |
++--------+----------------------------+
+| Index  | Name                       |
++--------+----------------------------+
+|   0    | reset_base                 |
+|   1    | reset_robot_joints         |
+|   2    | reset_imu_latency          |
++--------+----------------------------+
++---------------------------------------+
+| Active Event Terms in Mode: 'startup' |
++-----------+---------------------------+
+|   Index   | Name                      |
++-----------+---------------------------+
+|     0     | foot_friction             |
+|     1     | encoder_bias              |
+|     2     | base_com                  |
+|     3     | pd_gains                  |
+|     4     | inertial                  |
++-----------+---------------------------+
++------------------------------------+
+| Active Event Terms in Mode: 'step' |
++------------+-----------------------+
+|   Index    | Name                  |
++------------+-----------------------+
+|     0      | test_stand            |
++------------+-----------------------+
++-----------------------------+
+| Domain Randomization Fields |
++-------+---------------------+
+| Index | Field Name          |
++-------+---------------------+
+|   0   | geom_friction       |
+|   1   | body_ipos           |
+|   2   | body_subtreemass    |
+|   3   | dof_invweight0      |
+|   4   | body_invweight0     |
+|   5   | tendon_length0      |
+|   6   | tendon_invweight0   |
+|   7   | actuator_acc0       |
+|   8   | actuator_gainprm    |
+|   9   | actuator_biasprm    |
+|   10  | body_mass           |
+|   11  | body_inertia        |
+|   12  | body_iquat          |
++-------+---------------------+
+
+Module repeat_array_kernel_4f67a4c3 711f54c load on device 'cuda:0' took 0.46 ms  (cached)
+Module repeat_array_kernel_4f67a4c3 5306b3e load on device 'cuda:0' took 0.36 ms  (cached)
+Module repeat_array_kernel_4f67a4c3 7489299 load on device 'cuda:0' took 2.03 ms  (cached)
+Module repeat_array_kernel_4f67a4c3 09af6de load on device 'cuda:0' took 0.69 ms  (cached)
+Module repeat_array_kernel_4f67a4c3 48c0e30 load on device 'cuda:0' took 0.71 ms  (cached)
+[INFO] <CommandManager> contains 1 active terms.
++---------------------------------------+
+|          Active Command Terms         |
++-------+-------+-----------------------+
+| Index | Name  |          Type         |
++-------+-------+-----------------------+
+|   0   | twist | PupperVelocityCommand |
++-------+-------+-----------------------+
+
+[INFO] <ActionManager> contains 1 active terms.
++---------------------------------+
+| Active Action Terms (shape: 12) |
++-------+-----------+-------------+
+| Index | Name      |   Dimension |
++-------+-----------+-------------+
+|   0   | joint_pos |          12 |
++-------+-----------+-------------+
+
+[INFO] <ObservationManager> contains 2 groups.
++------------------------------------------------------------+
+| Active Observation Terms in Group: 'actor' (shape: (960,)) |
++----------+------------+------------------------------------+
+|  Index   | Name       |               Shape                |
++----------+------------+------------------------------------+
+|    0     | policy     |         (960,)  ← 20×(48,)         |
++----------+------------+------------------------------------+
++------------------------------------------------------------+
+| Active Observation Terms in Group: 'critic' (shape: (84,)) |
++----------+------------------------------------+------------+
+|  Index   | Name                               |   Shape    |
++----------+------------------------------------+------------+
+|    0     | base_lin_vel                       |    (3,)    |
+|    1     | base_ang_vel                       |    (3,)    |
+|    2     | projected_gravity                  |    (3,)    |
+|    3     | joint_pos                          |   (12,)    |
+|    4     | joint_vel                          |   (12,)    |
+|    5     | actions                            |   (12,)    |
+|    6     | command                            |    (3,)    |
+|    7     | foot_height                        |    (4,)    |
+|    8     | foot_air_time                      |    (4,)    |
+|    9     | foot_contact                       |    (4,)    |
+|    10    | foot_contact_forces                |   (12,)    |
+|    11    | gait_reference                     |   (12,)    |
++----------+------------------------------------+------------+
+
+[INFO] <TerminationManager> contains 2 active terms.
++------------------------------+
+|   Active Termination Terms   |
++-------+-----------+----------+
+| Index | Name      | Time Out |
++-------+-----------+----------+
+|   0   | time_out  |   True   |
+|   1   | fell_over |  False   |
++-------+-----------+----------+
+
+[INFO] <RewardManager> contains 22 active terms.
++---------------------------------------------+
+|             Active Reward Terms             |
++-------+----------------------------+--------+
+| Index | Name                       | Weight |
++-------+----------------------------+--------+
+|   0   | track_linear_velocity      |    0.0 |
+|   1   | upright                    |    0.0 |
+|   2   | action_rate_l2             |    0.0 |
+|   3   | air_time                   |    0.0 |
+|   4   | foot_slip                  |    0.0 |
+|   5   | track_yaw_velocity         |    0.0 |
+|   6   | orientation_l2             |    0.0 |
+|   7   | lin_vel_z_l2               |    0.0 |
+|   8   | ang_vel_xy_l2              |    0.0 |
+|   9   | joint_torques_l2           |    0.0 |
+|   10  | joint_acc_l2               |    0.0 |
+|   11  | termination                |    0.0 |
+|   12  | stand_still_pose           |    0.0 |
+|   13  | stand_still_joint_velocity |    0.0 |
+|   14  | abduction_angle            |    0.0 |
+|   15  | self_collision_r           |    0.0 |
+|   16  | self_collision_l           |    0.0 |
+|   17  | knee_ground_contact        |    0.0 |
+|   18  | base_height                |    0.0 |
+|   19  | gait_tracking              |    0.0 |
+|   20  | track_angular_velocity     |    0.0 |
+|   21  | roll_asymmetry             |    0.0 |
++-------+----------------------------+--------+
+
+[INFO] <NullCurriculumManager> (inactive)
+[INFO] <MetricsManager> contains 1 active terms.
++-------------------------+
+|   Active Metrics Terms  |
++-------+-----------------+
+| Index | Name            |
++-------+-----------------+
+|   0   | mean_action_acc |
++-------+-----------------+
+
+[INFO] <NullRecorderManager> (inactive)
+Module mujoco_warp._src.io 19274fb load on device 'cuda:0' took 1.20 ms  (cached)
+Module _tile_cholesky_factorize_block__locals__kernel_2efc24b8 2b5140f load on device 'cuda:0' took 29.70 ms  (cached)
+Module _tile_cholesky_solve_block__locals__kernel_8ea2ce58 1256b29 load on device 'cuda:0' took 28.95 ms  (cached)
+--------------------------------------------------------------------------------
+Resolved observation sets: 
+	 actor :  ('actor',)
+	 critic :  ('critic',)
+--------------------------------------------------------------------------------
+Actor Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (distribution): GaussianDistribution()
+  (mlp): MLP(
+    (0): Linear(in_features=960, out_features=256, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=256, out_features=128, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=128, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=128, bias=True)
+    (7): ELU(alpha=1.0)
+    (8): Linear(in_features=128, out_features=12, bias=True)
+  )
+)
+Critic Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (mlp): MLP(
+    (0): Linear(in_features=84, out_features=256, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=256, out_features=128, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=128, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=128, bias=True)
+    (7): ELU(alpha=1.0)
+    (8): Linear(in_features=128, out_features=1, bias=True)
+  )
+)
+[jerk] stand_dr done in 16s
+[jerk] bumpy flat_nodr
+[part2_eval] bumpy-flat_nodr: training {"checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg4/model_6492.pt", "iter": 6492, "iter_source": "checkpoint['iter']", "train_num_envs": 4096, "train_num_envs_source": "provenance.json", "train_seed": 42, "train_seed_source": "provenance.json", "parent": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg3/model_5993.pt", "parent_source": "provenance.json", "parent_iter": 5993, "parent_iter_source": "parent checkpoint['iter']", "iters_past_parent": 500, "iters_past_parent_source": "iter - parent_iter + 1", "iters_past_parent_matches_iterations_arg": true, "train_reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag", "train_reference_dir_source": "provenance.json", "train_iterations_arg": 500, "train_git_revision": "5d4e906f61aee56f27df6a1ae623de4f33747b2e", "reference_check": "ok"}
+Setting seed: 1234
+
++---------------------------------+
+|         Base Environment        |
++------------------------+--------+
+| Property               | Value  |
++------------------------+--------+
+| Number of environments | 256    |
+| Environment device     | cuda:0 |
+| Environment seed       | 1234   |
+| Physics step-size      | 0.004  |
+| Environment step-size  | 0.02   |
++------------------------+--------+
+
+[INFO] <EventManager> contains 1 active terms.
++-------------------------------------+
+| Active Event Terms in Mode: 'reset' |
++--------+----------------------------+
+| Index  | Name                       |
++--------+----------------------------+
+|   0    | reset_base                 |
+|   1    | reset_robot_joints         |
+|   2    | reset_imu_latency          |
++--------+----------------------------+
+
+[INFO] <CommandManager> contains 1 active terms.
++---------------------------------------+
+|          Active Command Terms         |
++-------+-------+-----------------------+
+| Index | Name  |          Type         |
++-------+-------+-----------------------+
+|   0   | twist | PupperVelocityCommand |
++-------+-------+-----------------------+
+
+[INFO] <ActionManager> contains 1 active terms.
++---------------------------------+
+| Active Action Terms (shape: 12) |
++-------+-----------+-------------+
+| Index | Name      |   Dimension |
++-------+-----------+-------------+
+|   0   | joint_pos |          12 |
++-------+-----------+-------------+
+
+[INFO] <ObservationManager> contains 2 groups.
++------------------------------------------------------------+
+| Active Observation Terms in Group: 'actor' (shape: (960,)) |
++----------+------------+------------------------------------+
+|  Index   | Name       |               Shape                |
++----------+------------+------------------------------------+
+|    0     | policy     |         (960,)  ← 20×(48,)         |
++----------+------------+------------------------------------+
++------------------------------------------------------------+
+| Active Observation Terms in Group: 'critic' (shape: (84,)) |
++----------+------------------------------------+------------+
+|  Index   | Name                               |   Shape    |
++----------+------------------------------------+------------+
+|    0     | base_lin_vel                       |    (3,)    |
+|    1     | base_ang_vel                       |    (3,)    |
+|    2     | projected_gravity                  |    (3,)    |
+|    3     | joint_pos                          |   (12,)    |
+|    4     | joint_vel                          |   (12,)    |
+|    5     | actions                            |   (12,)    |
+|    6     | command                            |    (3,)    |
+|    7     | foot_height                        |    (4,)    |
+|    8     | foot_air_time                      |    (4,)    |
+|    9     | foot_contact                       |    (4,)    |
+|    10    | foot_contact_forces                |   (12,)    |
+|    11    | gait_reference                     |   (12,)    |
++----------+------------------------------------+------------+
+
+[INFO] <TerminationManager> contains 2 active terms.
++------------------------------+
+|   Active Termination Terms   |
++-------+-----------+----------+
+| Index | Name      | Time Out |
++-------+-----------+----------+
+|   0   | time_out  |   True   |
+|   1   | fell_over |  False   |
++-------+-----------+----------+
+
+[INFO] <RewardManager> contains 22 active terms.
++---------------------------------------------+
+|             Active Reward Terms             |
++-------+----------------------------+--------+
+| Index | Name                       | Weight |
++-------+----------------------------+--------+
+|   0   | track_linear_velocity      |    0.0 |
+|   1   | upright                    |    0.0 |
+|   2   | action_rate_l2             |    0.0 |
+|   3   | air_time                   |    0.0 |
+|   4   | foot_slip                  |    0.0 |
+|   5   | track_yaw_velocity         |    0.0 |
+|   6   | orientation_l2             |    0.0 |
+|   7   | lin_vel_z_l2               |    0.0 |
+|   8   | ang_vel_xy_l2              |    0.0 |
+|   9   | joint_torques_l2           |    0.0 |
+|   10  | joint_acc_l2               |    0.0 |
+|   11  | termination                |    0.0 |
+|   12  | stand_still_pose           |    0.0 |
+|   13  | stand_still_joint_velocity |    0.0 |
+|   14  | abduction_angle            |    0.0 |
+|   15  | self_collision_r           |    0.0 |
+|   16  | self_collision_l           |    0.0 |
+|   17  | knee_ground_contact        |    0.0 |
+|   18  | base_height                |    0.0 |
+|   19  | gait_tracking              |    0.0 |
+|   20  | track_angular_velocity     |    0.0 |
+|   21  | roll_asymmetry             |    0.0 |
++-------+----------------------------+--------+
+
+[INFO] <NullCurriculumManager> (inactive)
+[INFO] <MetricsManager> contains 1 active terms.
++-------------------------+
+|   Active Metrics Terms  |
++-------+-----------------+
+| Index | Name            |
++-------+-----------------+
+|   0   | mean_action_acc |
++-------+-----------------+
+
+[INFO] <NullRecorderManager> (inactive)
+--------------------------------------------------------------------------------
+Resolved observation sets: 
+	 actor :  ('actor',)
+	 critic :  ('critic',)
+--------------------------------------------------------------------------------
+Actor Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (distribution): GaussianDistribution()
+  (mlp): MLP(
+    (0): Linear(in_features=960, out_features=256, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=256, out_features=128, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=128, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=128, bias=True)
+    (7): ELU(alpha=1.0)
+    (8): Linear(in_features=128, out_features=12, bias=True)
+  )
+)
+Critic Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (mlp): MLP(
+    (0): Linear(in_features=84, out_features=256, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=256, out_features=128, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=128, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=128, bias=True)
+    (7): ELU(alpha=1.0)
+    (8): Linear(in_features=128, out_features=1, bias=True)
+  )
+)
+[jerk] flat_nodr done in 16s
+[jerk] bumpy flat_dr
+[part2_eval] bumpy-flat_dr: training {"checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg4/model_6492.pt", "iter": 6492, "iter_source": "checkpoint['iter']", "train_num_envs": 4096, "train_num_envs_source": "provenance.json", "train_seed": 42, "train_seed_source": "provenance.json", "parent": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg3/model_5993.pt", "parent_source": "provenance.json", "parent_iter": 5993, "parent_iter_source": "parent checkpoint['iter']", "iters_past_parent": 500, "iters_past_parent_source": "iter - parent_iter + 1", "iters_past_parent_matches_iterations_arg": true, "train_reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag", "train_reference_dir_source": "provenance.json", "train_iterations_arg": 500, "train_git_revision": "5d4e906f61aee56f27df6a1ae623de4f33747b2e", "reference_check": "ok"}
+Setting seed: 1234
+
++---------------------------------+
+|         Base Environment        |
++------------------------+--------+
+| Property               | Value  |
++------------------------+--------+
+| Number of environments | 256    |
+| Environment device     | cuda:0 |
+| Environment seed       | 1234   |
+| Physics step-size      | 0.004  |
+| Environment step-size  | 0.02   |
++------------------------+--------+
+
+[INFO] <EventManager> contains 2 active terms.
++-------------------------------------+
+| Active Event Terms in Mode: 'reset' |
++--------+----------------------------+
+| Index  | Name                       |
++--------+----------------------------+
+|   0    | reset_base                 |
+|   1    | reset_robot_joints         |
+|   2    | reset_imu_latency          |
++--------+----------------------------+
++---------------------------------------+
+| Active Event Terms in Mode: 'startup' |
++-----------+---------------------------+
+|   Index   | Name                      |
++-----------+---------------------------+
+|     0     | foot_friction             |
+|     1     | encoder_bias              |
+|     2     | base_com                  |
+|     3     | pd_gains                  |
+|     4     | inertial                  |
++-----------+---------------------------+
++-----------------------------+
+| Domain Randomization Fields |
++-------+---------------------+
+| Index | Field Name          |
++-------+---------------------+
+|   0   | geom_friction       |
+|   1   | body_ipos           |
+|   2   | body_subtreemass    |
+|   3   | dof_invweight0      |
+|   4   | body_invweight0     |
+|   5   | tendon_length0      |
+|   6   | tendon_invweight0   |
+|   7   | actuator_acc0       |
+|   8   | actuator_gainprm    |
+|   9   | actuator_biasprm    |
+|   10  | body_mass           |
+|   11  | body_inertia        |
+|   12  | body_iquat          |
++-------+---------------------+
+
+[INFO] <CommandManager> contains 1 active terms.
++---------------------------------------+
+|          Active Command Terms         |
++-------+-------+-----------------------+
+| Index | Name  |          Type         |
++-------+-------+-----------------------+
+|   0   | twist | PupperVelocityCommand |
++-------+-------+-----------------------+
+
+[INFO] <ActionManager> contains 1 active terms.
++---------------------------------+
+| Active Action Terms (shape: 12) |
++-------+-----------+-------------+
+| Index | Name      |   Dimension |
++-------+-----------+-------------+
+|   0   | joint_pos |          12 |
++-------+-----------+-------------+
+
+[INFO] <ObservationManager> contains 2 groups.
++------------------------------------------------------------+
+| Active Observation Terms in Group: 'actor' (shape: (960,)) |
++----------+------------+------------------------------------+
+|  Index   | Name       |               Shape                |
++----------+------------+------------------------------------+
+|    0     | policy     |         (960,)  ← 20×(48,)         |
++----------+------------+------------------------------------+
++------------------------------------------------------------+
+| Active Observation Terms in Group: 'critic' (shape: (84,)) |
++----------+------------------------------------+------------+
+|  Index   | Name                               |   Shape    |
++----------+------------------------------------+------------+
+|    0     | base_lin_vel                       |    (3,)    |
+|    1     | base_ang_vel                       |    (3,)    |
+|    2     | projected_gravity                  |    (3,)    |
+|    3     | joint_pos                          |   (12,)    |
+|    4     | joint_vel                          |   (12,)    |
+|    5     | actions                            |   (12,)    |
+|    6     | command                            |    (3,)    |
+|    7     | foot_height                        |    (4,)    |
+|    8     | foot_air_time                      |    (4,)    |
+|    9     | foot_contact                       |    (4,)    |
+|    10    | foot_contact_forces                |   (12,)    |
+|    11    | gait_reference                     |   (12,)    |
++----------+------------------------------------+------------+
+
+[INFO] <TerminationManager> contains 2 active terms.
++------------------------------+
+|   Active Termination Terms   |
++-------+-----------+----------+
+| Index | Name      | Time Out |
++-------+-----------+----------+
+|   0   | time_out  |   True   |
+|   1   | fell_over |  False   |
++-------+-----------+----------+
+
+[INFO] <RewardManager> contains 22 active terms.
++---------------------------------------------+
+|             Active Reward Terms             |
++-------+----------------------------+--------+
+| Index | Name                       | Weight |
++-------+----------------------------+--------+
+|   0   | track_linear_velocity      |    0.0 |
+|   1   | upright                    |    0.0 |
+|   2   | action_rate_l2             |    0.0 |
+|   3   | air_time                   |    0.0 |
+|   4   | foot_slip                  |    0.0 |
+|   5   | track_yaw_velocity         |    0.0 |
+|   6   | orientation_l2             |    0.0 |
+|   7   | lin_vel_z_l2               |    0.0 |
+|   8   | ang_vel_xy_l2              |    0.0 |
+|   9   | joint_torques_l2           |    0.0 |
+|   10  | joint_acc_l2               |    0.0 |
+|   11  | termination                |    0.0 |
+|   12  | stand_still_pose           |    0.0 |
+|   13  | stand_still_joint_velocity |    0.0 |
+|   14  | abduction_angle            |    0.0 |
+|   15  | self_collision_r           |    0.0 |
+|   16  | self_collision_l           |    0.0 |
+|   17  | knee_ground_contact        |    0.0 |
+|   18  | base_height                |    0.0 |
+|   19  | gait_tracking              |    0.0 |
+|   20  | track_angular_velocity     |    0.0 |
+|   21  | roll_asymmetry             |    0.0 |
++-------+----------------------------+--------+
+
+[INFO] <NullCurriculumManager> (inactive)
+[INFO] <MetricsManager> contains 1 active terms.
++-------------------------+
+|   Active Metrics Terms  |
++-------+-----------------+
+| Index | Name            |
++-------+-----------------+
+|   0   | mean_action_acc |
++-------+-----------------+
+
+[INFO] <NullRecorderManager> (inactive)
+--------------------------------------------------------------------------------
+Resolved observation sets: 
+	 actor :  ('actor',)
+	 critic :  ('critic',)
+--------------------------------------------------------------------------------
+Actor Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (distribution): GaussianDistribution()
+  (mlp): MLP(
+    (0): Linear(in_features=960, out_features=256, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=256, out_features=128, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=128, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=128, bias=True)
+    (7): ELU(alpha=1.0)
+    (8): Linear(in_features=128, out_features=12, bias=True)
+  )
+)
+Critic Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (mlp): MLP(
+    (0): Linear(in_features=84, out_features=256, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=256, out_features=128, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=128, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=128, bias=True)
+    (7): ELU(alpha=1.0)
+    (8): Linear(in_features=128, out_features=1, bias=True)
+  )
+)
+[jerk] flat_dr done in 16s
+[jerk] bumpy bumpy_dr
+[part2_eval] bumpy-bumpy_dr: training {"checkpoint": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg4/model_6492.pt", "iter": 6492, "iter_source": "checkpoint['iter']", "train_num_envs": 4096, "train_num_envs_source": "provenance.json", "train_seed": 42, "train_seed_source": "provenance.json", "parent": "/home/ubuntu/runs/opt-lab-2/rp-p3-final-bumpyft-kpwide-leg3/model_5993.pt", "parent_source": "provenance.json", "parent_iter": 5993, "parent_iter_source": "parent checkpoint['iter']", "iters_past_parent": 500, "iters_past_parent_source": "iter - parent_iter + 1", "iters_past_parent_matches_iterations_arg": true, "train_reference_dir": "/home/ubuntu/wt/w4/pupper-mjlab/configs/opt-lab-2/p2/s42/r2-lag", "train_reference_dir_source": "provenance.json", "train_iterations_arg": 500, "train_git_revision": "5d4e906f61aee56f27df6a1ae623de4f33747b2e", "reference_check": "ok"}
+Setting seed: 1234
+Module ccd_hfield_kernel_builder__locals__ccd_hfield_kernel_06719514 0671951 load on device 'cuda:0' took 1.01 ms  (cached)
+Module ccd_hfield_kernel_builder__locals__ccd_hfield_kernel_d04fc1b6 d04fc1b load on device 'cuda:0' took 0.95 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_3ce6f746 3ce6f74 load on device 'cuda:0' took 1.81 ms  (cached)
+Module ccd_kernel_builder__locals__ccd_kernel_3ce6f746 f71bcb4 load on device 'cuda:0' took 1.02 ms  (cached)
+Module _primitive_narrowphase__locals__primitive_narrowphase_80064274 8006427 load on device 'cuda:0' took 0.90 ms  (cached)
+
++---------------------------------+
+|         Base Environment        |
++------------------------+--------+
+| Property               | Value  |
++------------------------+--------+
+| Number of environments | 256    |
+| Environment device     | cuda:0 |
+| Environment seed       | 1234   |
+| Physics step-size      | 0.004  |
+| Environment step-size  | 0.02   |
++------------------------+--------+
+
+[INFO] <EventManager> contains 2 active terms.
++-------------------------------------+
+| Active Event Terms in Mode: 'reset' |
++--------+----------------------------+
+| Index  | Name                       |
++--------+----------------------------+
+|   0    | reset_base                 |
+|   1    | reset_robot_joints         |
+|   2    | reset_imu_latency          |
++--------+----------------------------+
++---------------------------------------+
+| Active Event Terms in Mode: 'startup' |
++-----------+---------------------------+
+|   Index   | Name                      |
++-----------+---------------------------+
+|     0     | foot_friction             |
+|     1     | encoder_bias              |
+|     2     | base_com                  |
+|     3     | pd_gains                  |
+|     4     | inertial                  |
++-----------+---------------------------+
++-----------------------------+
+| Domain Randomization Fields |
++-------+---------------------+
+| Index | Field Name          |
++-------+---------------------+
+|   0   | geom_friction       |
+|   1   | body_ipos           |
+|   2   | body_subtreemass    |
+|   3   | dof_invweight0      |
+|   4   | body_invweight0     |
+|   5   | tendon_length0      |
+|   6   | tendon_invweight0   |
+|   7   | actuator_acc0       |
+|   8   | actuator_gainprm    |
+|   9   | actuator_biasprm    |
+|   10  | body_mass           |
+|   11  | body_inertia        |
+|   12  | body_iquat          |
++-------+---------------------+
+
+[INFO] <CommandManager> contains 1 active terms.
++---------------------------------------+
+|          Active Command Terms         |
++-------+-------+-----------------------+
+| Index | Name  |          Type         |
++-------+-------+-----------------------+
+|   0   | twist | PupperVelocityCommand |
++-------+-------+-----------------------+
+
+[INFO] <ActionManager> contains 1 active terms.
++---------------------------------+
+| Active Action Terms (shape: 12) |
++-------+-----------+-------------+
+| Index | Name      |   Dimension |
++-------+-----------+-------------+
+|   0   | joint_pos |          12 |
++-------+-----------+-------------+
+
+[INFO] <ObservationManager> contains 2 groups.
++------------------------------------------------------------+
+| Active Observation Terms in Group: 'actor' (shape: (960,)) |
++----------+------------+------------------------------------+
+|  Index   | Name       |               Shape                |
++----------+------------+------------------------------------+
+|    0     | policy     |         (960,)  ← 20×(48,)         |
++----------+------------+------------------------------------+
++------------------------------------------------------------+
+| Active Observation Terms in Group: 'critic' (shape: (84,)) |
++----------+------------------------------------+------------+
+|  Index   | Name                               |   Shape    |
++----------+------------------------------------+------------+
+|    0     | base_lin_vel                       |    (3,)    |
+|    1     | base_ang_vel                       |    (3,)    |
+|    2     | projected_gravity                  |    (3,)    |
+|    3     | joint_pos                          |   (12,)    |
+|    4     | joint_vel                          |   (12,)    |
+|    5     | actions                            |   (12,)    |
+|    6     | command                            |    (3,)    |
+|    7     | foot_height                        |    (4,)    |
+|    8     | foot_air_time                      |    (4,)    |
+|    9     | foot_contact                       |    (4,)    |
+|    10    | foot_contact_forces                |   (12,)    |
+|    11    | gait_reference                     |   (12,)    |
++----------+------------------------------------+------------+
+
+[INFO] <TerminationManager> contains 2 active terms.
++------------------------------+
+|   Active Termination Terms   |
++-------+-----------+----------+
+| Index | Name      | Time Out |
++-------+-----------+----------+
+|   0   | time_out  |   True   |
+|   1   | fell_over |  False   |
++-------+-----------+----------+
+
+[INFO] <RewardManager> contains 22 active terms.
++---------------------------------------------+
+|             Active Reward Terms             |
++-------+----------------------------+--------+
+| Index | Name                       | Weight |
++-------+----------------------------+--------+
+|   0   | track_linear_velocity      |    0.0 |
+|   1   | upright                    |    0.0 |
+|   2   | action_rate_l2             |    0.0 |
+|   3   | air_time                   |    0.0 |
+|   4   | foot_slip                  |    0.0 |
+|   5   | track_yaw_velocity         |    0.0 |
+|   6   | orientation_l2             |    0.0 |
+|   7   | lin_vel_z_l2               |    0.0 |
+|   8   | ang_vel_xy_l2              |    0.0 |
+|   9   | joint_torques_l2           |    0.0 |
+|   10  | joint_acc_l2               |    0.0 |
+|   11  | termination                |    0.0 |
+|   12  | stand_still_pose           |    0.0 |
+|   13  | stand_still_joint_velocity |    0.0 |
+|   14  | abduction_angle            |    0.0 |
+|   15  | self_collision_r           |    0.0 |
+|   16  | self_collision_l           |    0.0 |
+|   17  | knee_ground_contact        |    0.0 |
+|   18  | base_height                |    0.0 |
+|   19  | gait_tracking              |    0.0 |
+|   20  | track_angular_velocity     |    0.0 |
+|   21  | roll_asymmetry             |    0.0 |
++-------+----------------------------+--------+
+
+[INFO] <NullCurriculumManager> (inactive)
+[INFO] <MetricsManager> contains 1 active terms.
++-------------------------+
+|   Active Metrics Terms  |
++-------+-----------------+
+| Index | Name            |
++-------+-----------------+
+|   0   | mean_action_acc |
++-------+-----------------+
+
+[INFO] <NullRecorderManager> (inactive)
+--------------------------------------------------------------------------------
+Resolved observation sets: 
+	 actor :  ('actor',)
+	 critic :  ('critic',)
+--------------------------------------------------------------------------------
+Actor Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (distribution): GaussianDistribution()
+  (mlp): MLP(
+    (0): Linear(in_features=960, out_features=256, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=256, out_features=128, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=128, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=128, bias=True)
+    (7): ELU(alpha=1.0)
+    (8): Linear(in_features=128, out_features=12, bias=True)
+  )
+)
+Critic Model: MLPModel(
+  (obs_normalizer): EmpiricalNormalization()
+  (mlp): MLP(
+    (0): Linear(in_features=84, out_features=256, bias=True)
+    (1): ELU(alpha=1.0)
+    (2): Linear(in_features=256, out_features=128, bias=True)
+    (3): ELU(alpha=1.0)
+    (4): Linear(in_features=128, out_features=128, bias=True)
+    (5): ELU(alpha=1.0)
+    (6): Linear(in_features=128, out_features=128, bias=True)
+    (7): ELU(alpha=1.0)
+    (8): Linear(in_features=128, out_features=1, bias=True)
+  )
+)
+[jerk] bumpy_dr done in 32s
+done
