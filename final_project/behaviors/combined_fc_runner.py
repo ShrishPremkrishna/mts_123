@@ -24,6 +24,7 @@ for directory in (ROOT, ROOT / "gemini_pupper/robot", ROOT / "gemini_pupper/lab"
     sys.path.insert(0, str(directory))
 
 from final_project.behaviors import command_deadline as protocol
+from final_project.behaviors.board_imu import BoardReceipt, MatchImu
 from final_project.behaviors.operator_drive import OperatorDrive
 from follow_me_pupper.robot import onboard_ball
 from final_project.pupper_fc.model import zero
@@ -63,6 +64,7 @@ class GuardedPath:
         self.graph_binding = None
         self.last_walk_generation = 0
         self.return_after_generation = 0
+        self.balance = self.sync_balance = None
 
     def guard_status(self, raw):
         now = self.core.clock()
@@ -164,6 +166,13 @@ class GuardedPath:
 
     def write(self, command):
         moving = any((command.vx, command.vy, command.wz))
+        if moving and self.balance is not None:
+            self.sync_balance()
+            if self.balance.state != "healthy":
+                command = zero(self.core.clock(), self.core.robot_id)
+                moving = False
+            else:
+                command = replace(command, expires_at=min(command.expires_at, self.balance.deadline_ns / 1e9))
         problem = self.walking_problem() if moving else self.check(True)
         hold = None
         if problem and (moving or problem[0] == "authority"):
@@ -187,8 +196,9 @@ class GuardedPath:
             # Encoder already substituted and published a zero if the camera
             # expired in the few instructions since check(). Other faults propagate.
             if (payload is not None and reason == "original command expired before publication"
-                    and command.expires_at == self.frame_deadline < native_deadline):
-                hold = "camera frame expired at velocity publication"
+                    and (command.expires_at == self.frame_deadline < native_deadline
+                         or self.balance is not None and command.expires_at == self.balance.deadline_ns / 1e9)):
+                hold = "sensor evidence expired at velocity publication"
             else:
                 raise RuntimeError(reason or "walk deadline expired at publication")
         if hold:
@@ -229,9 +239,142 @@ def resume_cycle(core, now):
     return executor.epoch, executor.resume_frame_seq[core.robot_id]
 
 
-def operator_action(message, core, path, runtime, gateway, controls, *, set_ball_mode=None):
+def sync_match_balance(balance, core, path, runtime, controls, emit):
+    balance.refresh()
+    if not balance.hold_id:
+        balance.applied_hold = None
+        balance.reported_hold_state = None
+        return
+    if balance.walk_generation is None:
+        balance.walk_generation = path.last_walk_generation or None
+    if (balance.state == "ready_to_resume" and
+            (not path.native or path.native["generation"] != balance.walk_generation)):
+        balance.state, balance.reason = "paused", "Walker activation changed; end the match and verify standing"
+    if (balance.state == "ready_to_resume" and (runtime.stop_reason or runtime.robot.fallen
+            or runtime.robot.stops != balance.stop_generation or runtime.robot.motion_block_reason())):
+        balance.state, balance.reason = "paused", "Stop, fall or native fault prevents resuming this match"
+    if balance.state == "ready_to_resume":
+        if balance.walker_lost:
+            balance.state, balance.reason = "paused", "Walker lost leg ownership; end the match and verify standing"
+        elif (not balance.owner_current() or path.native.get("sampled_mono_ns", 0) <= balance.hold_ns
+              or path.check(False)):
+            balance.state, balance.reason = "paused", "Waiting for current sole walker ownership and guarded path"
+    if balance.hold_id != balance.applied_hold:
+        balance.applied_hold = balance.hold_id
+        core.executor.stop()
+        if controls is not None:
+            controls.invalidate()
+            controls.match_epoch = None
+        robot = runtime.robot
+        if runtime.handoff.active is not None or robot.current is not None or not robot.commands.empty():
+            runtime.stop("IMU pause during a native job: " + balance.reason)
+        else:
+            runtime.velocity_sink(zero(core.clock(), core.robot_id))
+    state = balance.hold_id, balance.state
+    if balance.reported_hold_state != state:
+        balance.reported_hold_state = state
+        emit({"event": "imu", "robot_id": core.robot_id, "imu": balance.snapshot()})
+
+
+async def sample_walker(balance, robot):
+    hold_id, started_ns = balance.hold_id, balance.clock_ns()
+    if not hold_id:
+        return
+    try:
+        owners = await asyncio.wait_for(robot.controller_states(), .15)
+    except (OSError, RuntimeError, TimeoutError):
+        owners = {}
+    balance.observe_owners(hold_id, started_ns, owners, robot.leg_controllers)
+
+
+def check_balance_resume(message, core, path, runtime, gateway, controls, balance):
+    path.sync_balance()
+    balance.check_resume(message)
+    if (controls is None or runtime.stop_reason or runtime.robot.fallen or runtime.robot.motion_block_reason()
+            or runtime.robot.stops != balance.stop_generation or runtime.handoff.active is not None
+            or runtime.robot.current is not None or not runtime.robot.commands.empty()
+            or core.executor.armed or controls.match_epoch is not None):
+        raise ValueError("IMU resume requires an idle, stopped match owner")
+    if not gateway_stop_ready(gateway, runtime.robot.gateway_stop_anchor()):
+        raise ValueError("Waiting for the selected Stop channel")
+    if (not path.native or not balance.walk_generation or path.native["generation"] != balance.walk_generation
+            or message.get("mode", controls.mode) != controls.mode):
+        raise ValueError("Walker activation or operator mode changed during the IMU pause")
+    problem = path.check(False)
+    if problem:
+        raise ValueError(problem[1])
+    epoch = message.get("epoch")
+    if not epoch.strip() or len(epoch) > 128 or epoch in core.executor.used_epochs:
+        raise ValueError("Resume requires a fresh, unused soccer epoch")
+
+
+async def request_native_resume(node, resume_service, generation, incident):
+    from rcl_interfaces.msg import Parameter, ParameterType, ParameterValue
+    from rcl_interfaces.srv import SetParametersAtomically
+    name = WALKER + "/resume_balance"
+    owned = dict(node.get_service_names_and_types_by_node(WALKER.lstrip("/"), "/"))
+    if (node.count_services(name) != 1 or owned.get(name) != ["rcl_interfaces/srv/SetParametersAtomically"]
+            or not resume_service.service_is_ready()):
+        raise ValueError("Expected one balance resume service on the selected walker")
+    request = SetParametersAtomically.Request()
+    for name, value in (("generation", generation), ("incident", incident), ("issued_mono_ns", time.monotonic_ns())):
+        request.parameters.append(Parameter(name=name, value=ParameterValue(
+            type=ParameterType.PARAMETER_INTEGER, integer_value=value)))
+    future = resume_service.call_async(request)
+    try:
+        while not future.done():
+            await asyncio.sleep(.002)
+        response = future.result().result
+        if not response.successful:
+            raise ValueError("Walker refused balance resume: " + response.reason)
+    finally:
+        if not future.done():
+            resume_service.remove_pending_request(future)
+
+
+async def imu_resume_action(message, core, path, runtime, gateway, controls, balance, release_native):
+    check_balance_resume(message, core, path, runtime, gateway, controls, balance)
+    expires = controls.consume_ticket(message, core.clock())
+    revision = controls.authority_revision
+    binding = balance.native_binding
+    if balance.native_release:
+        # No soccer owner while the non-actuating native permission is in flight.
+        # A timeout leaves authority paused, including when the response was lost.
+        await asyncio.wait_for(release_native(balance.generation, balance.incident), max(0., expires - core.clock()))
+    remaining = expires - core.clock()
+    if remaining <= 0 or controls.authority_revision != revision:
+        raise ValueError("IMU resume authorization expired or changed while awaiting native confirmation")
+    await asyncio.wait_for(sample_walker(balance, runtime.robot), remaining)
+    check_balance_resume(message, core, path, runtime, gateway, controls, balance)
+    if core.clock() >= expires or controls.authority_revision != revision or balance.native_binding != binding:
+        raise ValueError("IMU resume authorization expired or changed while awaiting native confirmation")
+    return operator_action(message, core, path, runtime, gateway, controls, balance=balance,
+                           resume_confirmed=(binding, revision, expires))
+
+
+def operator_action(message, core, path, runtime, gateway, controls, *, set_ball_mode=None, balance=None,
+                    resume_confirmed=None):
     action = message.get("command")
     robot = runtime.robot
+    if action in ("imu_pause", "imu_resume") and balance is None:
+        raise ValueError("Board health proof is unavailable")
+    if balance is not None:
+        path.sync_balance()
+        if action == "imu_pause":
+            if controls is None:
+                raise ValueError("IMU pause requires the match operator")
+            controls.consume_ticket(message, core.clock())
+            balance.pause(message.get("epoch"))
+            path.sync_balance()
+            return {"accepted": True, "state": "hard_stop" if runtime.stop_reason else "paused",
+                    "epoch": balance.epoch, "hold_id": balance.hold_id, "imu": balance.snapshot()}
+        if action == "imu_resume":
+            check_balance_resume(message, core, path, runtime, gateway, controls, balance)
+            if (not resume_confirmed or resume_confirmed[:2] != (balance.native_binding, controls.authority_revision)
+                    or core.clock() >= resume_confirmed[2]):
+                raise ValueError("IMU resume requires an explicit current operator and native check")
+        elif action not in ("pause", "onboard_ball_mode") and balance.state != "healthy":
+            raise ValueError(balance.reason)
     if action == "onboard_ball_mode":
         if controls is None or set_ball_mode is None:
             raise ValueError("onboard settings require an operator connection")
@@ -253,16 +396,19 @@ def operator_action(message, core, path, runtime, gateway, controls, *, set_ball
     if controls is not None:
         now = core.clock()
         cycle = resume_cycle(core, now) if action == "resume" and controls.ready else None
-        controls.consume_ticket(message, now, resume_cycle=cycle)
+        if action != "imu_resume":
+            controls.consume_ticket(message, now, resume_cycle=cycle)
         if action == "resume":
             message = {**message, "frame_seq": core.executor.frame_seq}
-        if controls.mode != "autonomous" and action not in ("pause", "arm"):
+        if controls.mode != "autonomous" and action not in ("pause", "arm", "imu_resume"):
             raise ValueError("select autonomous mode before starting field play")
     if action == "resume" and controls is None and "frame_seq" not in message:
         if resume_cycle(core, core.clock()) is None:
             raise ValueError("the robot and reset ball are not ready")
         message = {**message, "frame_seq": core.executor.frame_seq}
     if action == "pause":
+        if balance is not None:
+            balance.end()
         if runtime.handoff.active is not None or robot.current is not None or not robot.commands.empty():
             runtime.stop("operator ended match during a native job")
             return {"accepted": True, "state": "hard_stop", "reason": runtime.stop_reason}
@@ -272,7 +418,7 @@ def operator_action(message, core, path, runtime, gateway, controls, *, set_ball
             controls.match_epoch = None
         runtime.velocity_sink(zero(core.clock(), core.robot_id))
         return {"accepted": True, "state": "standby", "armed": False}
-    if action == "arm":
+    if action in ("arm", "imu_resume"):
         if core.executor.armed or (controls is not None and controls.match_epoch is not None):
             raise ValueError("field play is already armed")
         if controls is not None and message.get("mode", controls.mode) != controls.mode:
@@ -282,15 +428,38 @@ def operator_action(message, core, path, runtime, gateway, controls, *, set_ball
         problem = path.check(False)
         if problem:
             raise ValueError(problem[1])
+        if balance is not None:
+            path.sync_balance()
+            if runtime.stop_reason or robot.fallen or robot.motion_block_reason():
+                raise ValueError("Stop, fall or native fault prevents field authority")
+            if action == "imu_resume":
+                balance.check_resume(message)
+                if balance.native_binding != resume_confirmed[0] or core.clock() >= resume_confirmed[2]:
+                    raise ValueError("IMU resume evidence changed before arm")
+            elif balance.state != "healthy":
+                raise ValueError(balance.reason)
+        hold_id = balance.hold_id if balance is not None else None
+        reply = core.operator({**message, "command": "arm"})
+        if reply["accepted"] and balance is not None:
+            balance.begin(message["epoch"], message.get("pitch"), robot.stops)
+            if action == "imu_resume":
+                if balance.native_release:
+                    balance.released = balance.native_binding
+                reply.update(state="armed", epoch=message["epoch"], hold_id=hold_id, imu=balance.snapshot())
+            elif balance.native_release and balance.released != balance.native_binding:
+                # A new connection cannot inherit permission from an earlier match.
+                balance.pause(message["epoch"])
+                path.sync_balance()
+                return {**reply, "state": "paused", "epoch": balance.epoch,
+                        "hold_id": balance.hold_id, "imu": balance.snapshot()}
         if controls is not None and controls.mode == "teleop":
             # Manual drive owns the walker exclusively. Reuse the executor's epoch replay fence
             # without arming its autonomous control path.
-            reply = core.operator(message)
             if reply["accepted"]:
                 core.executor.stop()
                 controls.invalidate()
                 controls.match_epoch = message["epoch"]
-            return reply
+        return reply
     return core.operator(message)
 
 
@@ -298,12 +467,13 @@ async def run(args):
     from foundation.hardware.fc_walk_kick_release import verify_running_session
     from foundation.hardware.software_start import attach
     # Refuse stale installs or an unowned manager before constructing a robot client.
-    verify_running_session(args.run_dir, ROOT, operator_controls=args.operator_controls)
+    manifest = verify_running_session(args.run_dir, ROOT, operator_controls=args.operator_controls)
     from robot_api import Robot
     from fc_walk_kick import CombinedRuntime
     from final_project.pupper_fc.paw_approach import COMBINED_PAW_FORWARD_M
     import rclpy
     from rclpy.executors import SingleThreadedExecutor
+    from rcl_interfaces.srv import SetParametersAtomically
     from std_msgs.msg import String
 
     clock = time.monotonic
@@ -321,7 +491,18 @@ async def run(args):
     path = GuardedPath(core, node, lambda data: publish.publish(String(data=data)))
     controls = OperatorDrive(core) if args.operator_controls else None
     kick_events = node.create_publisher(String, "/fc/kick_result", 4)
+    resume_service = node.create_client(SetParametersAtomically, WALKER + "/resume_balance")
     emit = EventSink()
+    owner = json.loads((args.run_dir / "owned_session.json").read_text())["processes"]["manager"]
+    board_reader = BoardReceipt(args.run_dir / "fc-board-health.bin", owner["pid"],
+                                manifest.get("fc_imu_recovery", "strict"))
+    def latest_ros_imu():
+        try:
+            return robot.imu[-1]
+        except IndexError:
+            return None
+
+    balance = MatchImu(board_reader, latest_ros_imu)
     ball_receiver = onboard_ball.OnboardBallReceiver()
     set_ball_mode = None
     if controls is not None:
@@ -338,6 +519,9 @@ async def run(args):
     gateway = attach(node, clock=clock, selected_controller="gemini_walk")
 
     def runtime_problem(during_kick):
+        sync_balance()
+        if balance.state != "healthy" and (during_kick or runtime.handoff.active is not None):
+            return balance.reason
         problem = path.check(True) if during_kick else path.walking_problem()
         if problem and problem[0] == "camera" and not during_kick and runtime.handoff.active is None:
             if not core.executor.external_holds[core.robot_id]:
@@ -349,6 +533,11 @@ async def run(args):
                               path_problem=runtime_problem, walker_ready=path.restored_walker_ready,
                               hard_stop=lambda reason: gateway.request_stop(reason, authority=robot.gateway_stop_anchor()))
 
+    def sync_balance():
+        sync_match_balance(balance, core, path, runtime, controls, emit)
+
+    path.balance, path.sync_balance = balance, sync_balance
+
     def sync_camera_hold():
         active_clip = runtime.handoff.active is not None
         problem = path.check(active_clip)
@@ -356,7 +545,7 @@ async def run(args):
         if (held or problem is None) and held != core.executor.external_holds[core.robot_id]:
             core.hold(held, problem[1] if held else "camera clear")
         if controls is not None:
-            controls.observe_path(problem is None and not active_clip,
+            controls.observe_path(problem is None and not active_clip and balance.state in ("healthy", "ready_to_resume"),
                                   path.native.get("generation") if path.native else None)
 
     def on_guard(msg):
@@ -379,6 +568,29 @@ async def run(args):
                              native_authority_qos())
     loop = asyncio.get_running_loop()
     pending = bytearray()
+    resume_task = inventory_task = None
+
+    async def watch_walk_owner():
+        while True:
+            await sample_walker(balance, robot)
+            await asyncio.sleep(.05)
+
+    def operator_reply(message, reply):
+        context = message if isinstance(message, dict) else {}
+        emit({**reply, "event": "operator", "command": context.get("command"),
+              "ticket": context.get("ticket"), "robot_id": core.robot_id,
+              "decision_mono_ns": time.monotonic_ns(), "decision_wall_ns": time.time_ns(),
+              "guard_sample_mono_ns": path.guard.get("sampled_at_monotonic_ns") if path.guard else None,
+              "frame_sequence": path.guard.get("sequence") if path.guard else None})
+
+    async def resume_match(message):
+        try:
+            reply = await imu_resume_action(message, core, path, runtime, gateway, controls, balance,
+                                            lambda g, i: request_native_resume(node, resume_service, g, i))
+        except (OSError, ValueError, TypeError, OverflowError, RuntimeError, TimeoutError) as exc:
+            reply = {"accepted": False, "reason": str(exc)[:180] or "Walker balance resume timed out; match held"}
+        operator_reply(message, reply)
+
     def terminate():
         try:
             runtime.stop("operator Stop or input closed")
@@ -386,6 +598,7 @@ async def run(args):
             quit_event.set()
 
     def read_operator():
+        nonlocal resume_task
         block = os.read(sys.stdin.fileno(), 4096)
         if not block or len(pending) + len(block) > 16384:
             terminate()
@@ -404,27 +617,30 @@ async def run(args):
                     terminate()
                     return
                 if action == "status":
+                    sync_balance()
                     problem = path.check(runtime.handoff.active is not None)
                     emit({"event": "status", "armed": core.executor.armed, "path_problem": problem,
-                          "stop": runtime.stop_reason})
+                          "stop": runtime.stop_reason, "imu": balance.snapshot()})
                     continue
                 if controls is not None:
                     sync_camera_hold()
-                reply = operator_action(message, core, path, runtime, gateway, controls, set_ball_mode=set_ball_mode)
+                if action == "imu_resume":
+                    if resume_task is not None and not resume_task.done():
+                        raise ValueError("A balance resume is already pending")
+                    resume_task = asyncio.create_task(resume_match(message))
+                    continue
+                reply = operator_action(message, core, path, runtime, gateway, controls,
+                                        set_ball_mode=set_ball_mode, balance=balance)
             except (ValueError, TypeError, OverflowError) as exc:
                 reply = {"accepted": False, "reason": str(exc)[:180]}
-            context = message if isinstance(message, dict) else {}
-            emit({**reply, "event": "operator", "command": context.get("command"),
-                  "ticket": context.get("ticket"), "robot_id": core.robot_id,
-                  "decision_mono_ns": time.monotonic_ns(), "decision_wall_ns": time.time_ns(),
-                  "guard_sample_mono_ns": path.guard.get("sampled_at_monotonic_ns") if path.guard else None,
-                  "frame_sequence": path.guard.get("sequence") if path.guard else None})
+            operator_reply(message, reply)
 
     reader = opened = False
     exit_code = 0
     try:
         await asyncio.wait_for(runtime.open(), timeout=10)
         opened = True
+        inventory_task = asyncio.create_task(watch_walk_owner())
         loop.add_reader(sys.stdin.fileno(), read_operator)
         reader = True
         for sig in (signal.SIGINT, signal.SIGTERM):
@@ -436,12 +652,13 @@ async def run(args):
             started = clock()
             for _ in range(10):
                 spin.spin_once(timeout_sec=0)
+            sync_balance()
             sync_camera_hold()
             if runtime.handoff.active is not None and runtime.handoff.clip_started:
                 path.clip_started()
             now = clock()
             prior_job = runtime.handoff.active
-            step = runtime.tick(manual_command=controls.command(now) if controls else None)
+            step = runtime.tick(manual_command=controls.command(now) if controls and balance.state == "healthy" else None)
             edge = kick_event(prior_job, runtime.handoff, step, clock())
             if edge is not None:
                 kick_events.publish(String(data=json.dumps(edge, allow_nan=False)))
@@ -457,7 +674,7 @@ async def run(args):
                 offer = (controls.offer(now, resume_cycle(core, now) if controls.ready else None)
                          if now >= controls.next_issue else None)
                 if offer is not None:
-                    emit(offer)
+                    emit({**offer, "imu": balance.snapshot()})
             if step.decision.phase != last_phase:
                 last_phase = step.decision.phase
                 emit({"event": "phase", "phase": last_phase, "reason": step.decision.reason})
@@ -469,6 +686,12 @@ async def run(args):
     finally:
         if reader:
             loop.remove_reader(sys.stdin.fileno())
+        if resume_task is not None:
+            resume_task.cancel()
+            await asyncio.gather(resume_task, return_exceptions=True)
+        if inventory_task is not None:
+            inventory_task.cancel()
+            await asyncio.gather(inventory_task, return_exceptions=True)
         try:
             try:
                 if opened:
@@ -480,6 +703,7 @@ async def run(args):
             finally:
                 await runtime.close()
         finally:
+            board_reader.close()
             spin.shutdown()
             node.destroy_node()
             if opened:

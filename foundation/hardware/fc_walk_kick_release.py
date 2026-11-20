@@ -37,7 +37,13 @@ def file_digest(path):
 
 
 def check_imu_recovery(driver, mode):
+    if mode in ("strict", "supported_rehome", "field_redundant_imu") and b"FC_BOARD_HEALTH_V1" not in driver:
+        raise ValueError("build the bundled board driver with live match health receipts")
     if mode == "strict":
+        return
+    if mode == "field_redundant_imu":
+        if any(marker not in driver for marker in (b"FC_FIELD_REDUNDANT_IMU_V1", b"FC_BOARD_HEALTH_V1")):
+            raise ValueError("build the bundled board driver with alternate IMU reports and board receipts")
         return
     if mode not in ("supported_damping", "supported_rehome", "supported_standby"):
         raise ValueError("unknown FC balance mode")
@@ -47,13 +53,15 @@ def check_imu_recovery(driver, mode):
         raise ValueError("build the bundled bench damping driver and ownership controller on this Pi")
 
 
-def inspect_native(library):
+def inspect_native(library, recovery="strict"):
     """Static requirements for a Pi candidate. Runtime ownership and receipts are checked separately."""
     path = Path(library).resolve(strict=True)
     data = path.read_bytes()
     # ELF64, little-endian, shared object (ET_DYN), EM_AARCH64.
     if data[:6] != b"\x7fELF\x02\x01" or data[16:20] != b"\x03\x00\xb7\x00":
         raise ValueError("combined release needs a 64-bit AArch64 controller shared object")
+    if recovery == "field_redundant_imu" and b"FC_BALANCE_COMMAND_FENCE_V1" not in data:
+        raise ValueError("build the bundled walking and kick controller with the match balance fence")
     if not all(marker in data for marker in NATIVE_MARKERS):
         raise ValueError("controller missing required native deadline or clip receipt markers")
     return {"path": str(path), "sha256": hashlib.sha256(data).hexdigest(),
@@ -169,7 +177,7 @@ def prepare_offline_profile():
     manifest = runtime_config.validate_session_catalog(selected)
     if (not manifest or controllers != list(CONTROLLERS) or runtime_config.session_motion_mode() != MODE
             or manifest.get("feedback_broadcasters") != ["imu_sensor_broadcaster"]
-            or manifest.get("fc_imu_recovery") != "strict"):
+            or manifest.get("fc_imu_recovery") != os.environ.get("PUPPER_FC_IMU_RECOVERY", "strict")):
         raise ValueError("wrong field release generated")
     # Import and instantiate the real field planner from these staged files.
     sys.path.insert(0, str(ROOT))
@@ -281,7 +289,8 @@ def main():
     group.add_argument("--platform-template", type=Path, help="prior selected-session.json from this Pi")
     group.add_argument("--platform-env", type=Path, help="installed FC ROS overlay's environment.sh")
     enroll.add_argument("--imu-prefix", type=Path, help="select newly installed control-board ROS package prefix")
-    enroll.add_argument("--imu-recovery", choices=("strict", "supported_rehome", "supported_standby", "supported_damping"), default="strict")
+    enroll.add_argument("--controller-prefix", type=Path, help="select the matching walking/clip controller install prefix")
+    enroll.add_argument("--imu-recovery", choices=("strict", "supported_rehome", "supported_standby", "supported_damping", "field_redundant_imu"), default="strict")
     enroll.add_argument("--field-config", type=Path, help="measured venue geometry; defaults to the mounted arena")
     enroll.add_argument("--detector-model", type=Path)
     enroll.add_argument("--recording", choices=("events","full"), default="events", help="full records per-frame diagnostics")

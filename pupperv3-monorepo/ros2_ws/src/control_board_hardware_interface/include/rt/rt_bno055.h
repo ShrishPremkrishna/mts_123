@@ -80,7 +80,19 @@ class BNO055 {
 
   BNO055 &operator=(const BNO055 &) = delete;
 
+  struct Alternative {
+    uint64_t gap_count=0, reset_count=0;
+    Eigen::Quaternionf quat{0,0,0,0};
+    Eigen::Vector3f gyro = Eigen::Vector3f::Zero();
+    bool quaternion_valid = false, gyro_valid = false;
+    int quaternion_report_sequence = -1, gyro_report_sequence = -1;
+    uint8_t quaternion_accuracy = 0, gyro_accuracy = 0;
+    std::chrono::steady_clock::time_point quaternion_receipt_time{}, gyro_receipt_time{};
+    std::chrono::microseconds quaternion_minimum_age_at_receipt{0}, gyro_minimum_age_at_receipt{0};
+  };
+  void enable_redundant_reports(uint32_t interval);
   struct Output {
+    Alternative alternative;
     Eigen::Quaternionf quat{0, 0, 0, 0};
     Eigen::Vector3f acc = Eigen::Vector3f::Zero();
     Eigen::Vector3f gyro = Eigen::Vector3f::Zero();
@@ -181,6 +193,9 @@ class BNO055 {
   uint16_t stepCount;
   uint32_t timeStamp = 0;
   size_t payload_size_ = 0;
+  Alternative alternative_;
+  bool redundant_reports_ = false;
+  pupper_bno::ReportSequence game_sequence_, uncal_sequence_;
   bool quaternion_valid_ = false, gyro_valid_ = false;
   pupper_bno::ReportSequence quaternion_sequence_, gyro_sequence_;
   std::chrono::steady_clock::time_point quaternion_receipt_time_{}, gyro_receipt_time_{};

@@ -10,6 +10,7 @@ import time
 import uuid
 
 from .arena_camera import ArenaCamera, camera_settings
+from .balance_match import BalanceHold, fresh, identity, play_problem, proof
 from .field_transport import describe, open_field, validate_profile
 from .match_director import MatchDirector, goal_geometry
 
@@ -38,6 +39,11 @@ class Peer:
                 raise ValueError("Runner sent an invalid control offer")
             self.offer, self.received = event, time.monotonic()
             self.changed.set()
+        elif event.get("event") == "imu" and self.offer:
+            if event.get("robot_id") != self.robot or not isinstance(event.get("imu"), dict):
+                raise ValueError("Runner returned invalid board health")
+            # Immediate fault edge, independent of the periodic control ticket.
+            self.offer = dict(self.offer, imu=event["imu"])
         elif event.get("event") == "operator":
             key = (event.get("command"), event.get("ticket"))
             future = self.answers.get(key)
@@ -52,15 +58,21 @@ class Peer:
         async with asyncio.timeout(3):
             # A newly issued offer gives the Pi the complete local input lease.
             issued = self.offer.get("ticket")
+            initial_board = {self.robot: proof(self)} if action == "arm" else None
             while True:
                 self.changed.clear()
                 if self.closed:
                     raise ValueError(f"{self.robot} disconnected")
                 offer = self.offer
                 ready = offer.get("resume_ready") if action == "resume" else offer.get("ready")
-                if action == "pause":
+                if action == "imu_resume":
+                    imu = proof(self)
+                    ready = imu.get("state") == "ready_to_resume" and imu.get("hold_id") == fields["hold_id"]
+                if action in ("pause", "imu_pause"):
                     ready = True
                 if ready and offer.get("ticket") != issued and time.monotonic() - self.received < .18:
+                    if initial_board and (reason := play_problem(self, initial_board)):
+                        raise ValueError(f"{self.robot}: {reason}")
                     break
                 await self.changed.wait()
             key = (action, offer["ticket"])
@@ -110,6 +122,9 @@ class Lobby:
         self.phase, self.message = "idle", ""
         self.lock = asyncio.Lock()
         self.watcher = self.transition = self.ending = self.aborted = None
+        self.balance = self.pause_task = self.binding = None
+        self.board_anchors, self.match_infos, self.match_modes, self.pitch = {}, [], {}, None
+        self.epoch, self.referee, self.last_score = None, None, {}
 
     def geometry_key(self):
         geometry = {k: v for k, v in self.setup.items() if k != "patch_height"}
@@ -142,7 +157,11 @@ class Lobby:
                 message = "Play held · camera feed lost"
             elif (camera.get("match") or {}).get("phase") == "holding":
                 message = "Play held · waiting for current field measurements or the attacker handover"
+        balance = self.balance_state() if self.balance else None
+        score = self.referee.state.get("score") if self.referee else self.last_score
         return dict(phase=self.phase, message=message, source=self.source, appearance=self.appearance,
+                    score=score,
+                    balance=balance,
                     resume_ready=self.phase == "playing" and bool(camera and (camera.get("match") or {}).get("reset_ready"))
                     and all(p.offer.get("resume_ready") for p in self.autonomous),
                     goal_lines=self.goals, camera=camera, camera_settings=self.settings_data(),
@@ -221,14 +240,15 @@ class Lobby:
             raise ValueError("Place the ball and each connected robot in view")
         return snap, f
 
-    async def await_camera(self, players, *, commit=False, binding=None):
+    async def await_camera(self, players, *, before_commit=None, binding=None):
         end = time.monotonic() + 2
         while True:
             try:
                 scene = self.camera_ready(players)
                 if binding is not None and binding != (scene[0]["source_session"], scene[1]["calibration_revision"]):
                     raise ValueError("The field calibration changed during kickoff. Start again.")
-                if commit:
+                if before_commit is not None:
+                    before_commit()
                     self.camera.commit_start()
                 return scene
             except ValueError:
@@ -248,6 +268,8 @@ class Lobby:
                 raise ValueError("Connect your team in this window first")
             if not self.camera or not self.camera.snapshot().get("live"):
                 raise ValueError("Connect a live camera with a current field calibration")
+            self.board_anchors = {p.robot:dict(proof(p)) for p in players}
+            self._check_boards(players)
             modes = {p.robot: p.offer["mode"] for p in players}
             auto = [p for p in players if modes[p.robot] == "autonomous"]
             self.players, self.phase, self.owner = players, "starting", token
@@ -290,23 +312,23 @@ class Lobby:
                                 self.publisher = StatePublisher
                             self.publishers.append(self.publisher(info["robot_host"], info["port"],
                                                    source_session=snap["source_session"], live=True))
+                    self.referee = director
                     self.camera.set_match(director, self.publishers)
-                    # Keep each newly opened resource even if another Pi fails to open.
-                    async def open_one(p, info):
-                        self.feeds[p.robot] = await self.field(p.host, p.robot, info, epoch, snap["source_session"],
-                                                               f["calibration_revision"], tracks)
-                        await self.feeds[p.robot].wait_ready()
-                    async with asyncio.TaskGroup() as group:
-                        for p, info in zip(players, infos):
-                            if p in auto:
-                                group.create_task(open_one(p, info))
+                    self.match_infos, self.match_modes, self.pitch = infos, modes, pitch
+                    self.binding, self.epoch = binding, epoch
+                    await self._open_fields(epoch, tracks)
                     await self.await_camera(players, binding=binding)
+                    self._check_boards(players)
                     attempted = True
                     results = await asyncio.gather(*(p.request("arm", epoch=epoch, mode=modes[p.robot], **({"pitch": pitch} if pitch else {})) for p in players), return_exceptions=True)
                     for result in results:
                         if isinstance(result, BaseException):
                             raise result
-                    await self.await_camera(players, commit=True, binding=binding)
+                    if any(r.get("state") == "paused" for r in results):
+                        self._begin_balance_hold("Kickoff paused. A previous board incident needs explicit recovery.")
+                        self.watcher = asyncio.create_task(self._monitor())
+                        return self.state()
+                    await self.await_camera(players, binding=binding, before_commit=lambda: self._check_boards(players, epoch))
                 self.phase, self.message = "playing", "Match in progress"
                 self.watcher = asyncio.create_task(self._monitor())
                 return self.state()
@@ -323,8 +345,15 @@ class Lobby:
             finally:
                 self.transition = self.aborted = None
 
+    def _check_boards(self, players, epoch=None):
+        for peer in players:
+            reason = play_problem(peer, self.board_anchors, epoch)
+            if reason:
+                raise ValueError(f"{peer.robot}: {reason}")
+
     def drive_allowed(self, peer, epoch):
-        if self.phase != "playing" or peer not in self.players or peer.offer.get("mode") != "teleop":
+        if (self.phase != "playing" or peer not in self.players or peer.offer.get("mode") != "teleop"
+                or any(play_problem(p, self.board_anchors, self.epoch) for p in self.players)):
             return False
         snap = self.camera.snapshot()
         match = snap.get("match") or {}
@@ -332,13 +361,178 @@ class Lobby:
         return (snap.get("live") and match.get("phase") == "playing" and match.get("epoch") == epoch
                 and 0 <= time.time() - frame.get("captured_at", 0) <= .30)
 
+    async def _open_fields(self, epoch, tracks):
+        async def open_one(peer, info):
+            self.feeds[peer.robot] = await self.field(peer.host, peer.robot, info, epoch, self.binding[0],
+                                                      self.binding[1], tracks)
+            await self.feeds[peer.robot].wait_ready()
+        async with asyncio.TaskGroup() as group:
+            for p, info in zip(self.players, self.match_infos):
+                if p in self.autonomous:
+                    group.create_task(open_one(p, info))
+
+    def balance_state(self):
+        current = False
+        try:
+            snap, frame = self.camera_ready(self.players)
+            current = self.binding == (snap["source_session"], frame["calibration_revision"])
+            if not current and not self.balance.blocked:
+                self.balance.blocked = "The field camera or calibration changed. End the match and check the field."
+            if current:
+                current = self._inside_field(frame)
+        except ValueError:
+            pass
+        return self.balance.report(self.players, current)
+
+    def _inside_field(self, frame):
+        field, robots = frame.get("field") or {}, frame.get("robots") or {}
+        points = [frame.get("ball"), *(robots.get(TRACKS[p.robot]) for p in self.players)]
+        return all(isinstance(pt, dict) and type(pt.get(k)) in (int, float)
+                   and type(field.get(dim)) in (int, float) and abs(pt[k]) <= field[dim] / 2
+                   for pt in points for k,dim in (("x", "length"), ("y", "width")))
+
+    def _begin_balance_hold(self, reason):
+        self.camera.pause_balance()
+        self.phase, self.message = "balance_hold", "Match paused for balance feedback"
+        self.balance = BalanceHold(self.epoch, self.board_anchors, reason)
+        if self.referee.kick_owner is not None:
+            self.balance.blocked = "A native kick was active at the balance hold. End the match and check team setup."
+        if any(not identity(self.board_anchors.get(p.robot, {})) for p in self.players):
+            self.balance.blocked = "A team cannot verify board continuity. End the match and check team setup."
+        self.pause_task = asyncio.create_task(self._pause_roster(self.balance))
+
+    def observe_controls(self, peer):
+        if peer not in self.players:
+            return
+        if self.phase == "playing":
+            reason = play_problem(peer, self.board_anchors, self.epoch)
+            if reason:
+                self._begin_balance_hold(f"{peer.robot} · {reason}")
+        if self.balance and self.phase in ("balance_hold", "balance_resuming"):
+            row = proof(peer)
+            if row.get("state") == "home_required":
+                self.balance.blocked = f"{peer.robot} requires supported Home. End the match and open team setup."
+            elif peer.robot in self.board_anchors and identity(row) and identity(row) != identity(self.board_anchors[peer.robot]):
+                self.balance.blocked = f"{peer.robot} changed board session or Home generation. End the match and check setup."
+            elif (self.phase == "balance_hold" and not self.balance.preparing and not self.balance.blocked
+                  and row.get("state") in ("paused", "ready_to_resume") and row.get("epoch") == self.epoch
+                  and isinstance(row.get("hold_id"), str) and row["hold_id"]
+                  and row["hold_id"] != self.balance.paused.get(peer.robot)):
+                self._begin_balance_hold(f"{peer.robot} reported another balance incident. Rechecking both board and field readiness.")
+
+    def stop_requested(self, peer):
+        if peer not in self.players or self.phase in ("idle", "stopping"):
+            return
+        if self.balance:
+            self.balance.blocked = f"{peer.robot} requested Stop. End the match and check team setup."
+        self.camera.pause_balance()
+        self.phase, self.message = "stopping", f"{peer.robot} requested Stop"
+        async def stop_and_end():
+            try:
+                await self._stop_roster()
+            finally:
+                await self.end(peer.owner, self.message)
+        asyncio.create_task(stop_and_end())
+
+    async def _stop_roster(self):
+        await asyncio.gather(*(p.send({"command":"stop"}) for p in self.players if not p.closed), return_exceptions=True)
+
+    async def _pause_roster(self, hold):
+        try:
+            async def one(p):
+                if not hold.anchors.get(p.robot):
+                    raise ValueError(f"{p.robot} has no board continuity protocol")
+                reply = await p.request("imu_pause", epoch=hold.epoch)
+                hold.record_pause(p, reply)
+            results = await asyncio.gather(*(one(p) for p in self.players), return_exceptions=True)
+            failed = next((r for r in results if isinstance(r, BaseException)), None)
+            if failed is not None:
+                hold.blocked = (hold.blocked or f"Roster pause unconfirmed. {str(failed)}") + " Stop sent to all teams. End the match."
+                await self._stop_roster()
+        finally:
+            hold.preparing = False
+
     async def _monitor(self):
-        while self.phase == "playing":
-            await asyncio.sleep(.25)
+        while self.phase in ("playing", "balance_hold", "balance_resuming"):
+            await asyncio.sleep(.10)
             problem = next((feed.problem for feed in self.feeds.values() if feed.problem), None)
             if problem:
                 await self.end(self.owner, problem)
                 return
+            for p in self.players:
+                self.observe_controls(p)
+
+    async def _close_fields(self, *, require_closed=False):
+        feeds, self.feeds = self.feeds, {}
+        results = await asyncio.gather(*(v.close() for v in feeds.values()), return_exceptions=True)
+        if require_closed and any(isinstance(result, BaseException) for result in results):
+            raise ValueError("An old field connection did not close")
+
+    async def resume_balance(self, token, incident_id):
+        async with self.lock:
+            self.check_owner(token)
+            hold = self.balance
+            if (self.phase != "balance_hold" or not hold or hold.id != incident_id
+                    or not self.balance_state()["ready"]):
+                raise ValueError("Resume requires the current incident, verified boards and a fresh field view for every team")
+            self.phase, self.message = "balance_resuming", "Reconnecting field play for all teams"
+            self.transition = asyncio.current_task()
+            epoch = uuid.uuid4().hex
+            try:
+                async with asyncio.timeout(15):
+                    director = self.camera.after_balance(epoch)
+                    await self._close_fields(require_closed=True)
+                    self.referee = director
+                    self.camera.set_match(director, self.publishers)
+                    await self._open_fields(epoch, director.tracks)
+                    await self.await_camera(self.players, binding=self.binding)
+                    if hold.blocked or not all(hold.review(p)[1] for p in self.players):
+                        raise ValueError("Board continuity changed while preparing the field")
+                    incidents = {p.robot:proof(p).get("incident") for p in self.players}
+                    async def arm(p):
+                        board, generation = identity(hold.anchors[p.robot])
+                        reply = await p.request("imu_resume", epoch=epoch, previous_epoch=hold.epoch,
+                                                hold_id=hold.paused[p.robot], board_session=board, generation=generation,
+                                                mode=self.match_modes[p.robot], **({"pitch":self.pitch} if self.pitch else {}))
+                        native = reply.get("imu") or {}
+                        if (reply.get("state") != "armed" or reply.get("epoch") != epoch
+                                or reply.get("hold_id") != hold.paused[p.robot] or native.get("state") != "healthy"
+                                or native.get("epoch") != epoch
+                                or identity(native) != (board,generation) or native.get("incident") != incidents[p.robot]):
+                            raise ValueError(f"{p.robot} did not confirm the new match and board generation")
+                    results = await asyncio.gather(*(arm(p) for p in self.players), return_exceptions=True)
+                    for r in results:
+                        if isinstance(r, BaseException):
+                            raise r
+                    # The camera stays pending and keyboard drive stays closed until
+                    # a fresh healthy heartbeat follows *every* new-epoch receipt.
+                    deadline = time.monotonic() + .65
+                    while not all(fresh(p) and proof(p).get("epoch") == epoch and proof(p).get("state") == "healthy"
+                                  for p in self.players):
+                        if hold.blocked or time.monotonic() >= deadline:
+                            raise ValueError("Waiting for current post-resume board feedback")
+                        await asyncio.sleep(.015)
+                    def validate_roster():
+                        for p in self.players:
+                            row = proof(p)
+                            if (hold.blocked or not fresh(p) or row.get("state") != "healthy"
+                                    or row.get("epoch") != epoch or identity(row) != identity(hold.anchors[p.robot])
+                                    or row.get("incident") != incidents[p.robot]):
+                                raise ValueError("Board continuity changed before roster release")
+                    await self.await_camera(self.players, binding=self.binding, before_commit=validate_roster)
+                    self.epoch, self.board_anchors = epoch, {p.robot:dict(proof(p)) for p in self.players}
+                    self.phase, self.message, self.balance = "playing", "Match in progress", None
+            except BaseException as exc:
+                self.camera.pause_balance()
+                hold.blocked = "Resume did not complete for all teams. Stop sent to all teams. End the match."
+                self.phase, self.message = "balance_hold", hold.blocked
+                await asyncio.shield(self._stop_roster())
+                if isinstance(exc,(KeyboardInterrupt,SystemExit)) or (isinstance(exc,asyncio.CancelledError) and self.aborted is not asyncio.current_task()):
+                    raise
+                raise ValueError(hold.blocked) from None
+            finally:
+                self.transition = self.aborted = None
+            return self.state()
 
     async def _neutral(self, players):
         async def pause(p):
@@ -358,7 +552,11 @@ class Lobby:
         if self.watcher and self.watcher is not asyncio.current_task():
             self.watcher.cancel()
         self.watcher = None
-        await asyncio.gather(*(v.close() for v in self.feeds.values()), return_exceptions=True)
+        if self.pause_task and not self.pause_task.done():
+            self.pause_task.cancel()
+            await asyncio.gather(self.pause_task, return_exceptions=True)
+        self.balance = self.pause_task = self.referee = None
+        await self._close_fields()
         for publisher in self.publishers:
             publisher.close()
         self.feeds.clear()
@@ -368,6 +566,10 @@ class Lobby:
     async def _finish(self, players):
         self.phase = "stopping"
         if self.camera:
+            score = ((self.camera.snapshot().get("match") or {}).get("score")
+                     or (self.referee.state.get("score") if self.referee else None))
+            if score:
+                self.last_score = dict(score)
             self.camera.set_match(None)
         try:
             return await self._neutral(players)
@@ -405,10 +607,13 @@ class Lobby:
                 for a in answers:
                     if isinstance(a, BaseException):
                         raise a
+                if self.balance:
+                    raise ValueError("Balance recovery takes priority over a goal reset")
                 self.camera.resume()
             except (OSError, TimeoutError, ValueError, asyncio.CancelledError) as exc:
                 self.transition = None
-                await asyncio.shield(self._finish(self.players))
+                if not self.balance:
+                    await asyncio.shield(self._finish(self.players))
                 if isinstance(exc, asyncio.CancelledError) and self.aborted is not asyncio.current_task():
                     raise
                 raise ValueError(str(exc) or "Goal reset timed out. Start a new match.") from None

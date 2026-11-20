@@ -4,8 +4,13 @@ set -eo pipefail
 root=$(cd "$(dirname "$0")" && pwd -P)
 cd "$root"
 usage() {
-  echo 'Usage: ./pupper-fc-install {blue|red} [installed-platform-environment.sh]' >&2
+  echo 'Usage: ./pupper-fc-install {blue|red} [installed-platform-environment.sh] [--field-imu-hold]' >&2
 }
+recovery=strict
+if [[ ${!#} == --field-imu-hold ]]; then
+  recovery=field_redundant_imu
+  set -- "${@:1:$#-1}"
+fi
 if [[ $# -lt 1 || $# -gt 2 ]]; then usage; exit 2; fi
 case "$1" in blue) robot=pupper-1 ;; red) robot=pupper-2 ;; *) usage; exit 2 ;; esac
 if [[ ! -f release-source.json || ! -d native/src/control_board_hardware_interface ]]; then
@@ -18,7 +23,7 @@ if [[ $(id -u) == 0 ]]; then
 fi
 # A completed FC run can contain a separately installed Stop gateway ahead of
 # the original platform prefix. Preserve the environment that actually ran.
-python3 -B - "$robot" "${2:-}" <<'PYTHON'
+python3 -B - "$robot" "${2:-}" "$recovery" <<'PYTHON'
 import json
 import os
 from pathlib import Path
@@ -33,7 +38,7 @@ from fc_session import PLATFORM_KEYS
 home = Path.home()
 config = home / ".config/pupper-fc"
 check_idle(config)
-robot, explicit = sys.argv[1:]
+robot, explicit, recovery = sys.argv[1:]
 env = os.environ.copy()
 selected = []
 profile_path = config / "session.json"
@@ -81,11 +86,15 @@ if profile.get("detector_model") and Path(profile["detector_model"]).is_file():
     selected += ["--detector-model", profile["detector_model"]]
 
 native = root / "native"
-subprocess.run(["colcon", "build", "--base-paths", "src", "--packages-select", "control_board_hardware_interface",
+packages = ["control_board_hardware_interface"]
+if recovery == "field_redundant_imu":
+    packages.append("neural_controller")
+    selected += ["--controller-prefix", str(native / "install/neural_controller")]
+subprocess.run(["colcon", "build", "--base-paths", "src", "--packages-select", *packages,
                 "--executor", "sequential", "--cmake-args", "-DBUILD_TESTING=OFF", "-DCMAKE_BUILD_TYPE=Release"],
                cwd=native, env=env, check=True)
 subprocess.run([python, "foundation/hardware/fc_walk_kick_release.py", "enroll", "--robot-id", robot,
-                *selected, "--imu-prefix", str(native / "install/control_board_hardware_interface")],
+                *selected, "--imu-recovery", recovery, "--imu-prefix", str(native / "install/control_board_hardware_interface")],
                env=env, check=True)
 PYTHON
 sudo /usr/bin/python3 "$root/foundation/hardware/fc_appliance.py" enable

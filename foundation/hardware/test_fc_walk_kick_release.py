@@ -54,7 +54,7 @@ def test_selected_bundle_persistent_prepare_is_file_only(tmp_path, recording):
     data[16:20] = b"\x03\x00\xb7\x00"
     native.write_bytes(data + b"\0".join(release.NATIVE_MARKERS))
     imu = tmp_path / "imu.so"
-    imu.write_text("fake imu")
+    imu.write_text("fixture FC_BOARD_HEALTH_V1")
     run = tmp_path / "prepared"
     command = [sys.executable, "-B", str(root / "foundation/hardware/persistent_session.py"),
                "prepare", "--run-dir", str(run), "--app-manifest", str(root / release.MANIFEST),
@@ -69,6 +69,7 @@ def test_selected_bundle_persistent_prepare_is_file_only(tmp_path, recording):
     output = subprocess.run(command, env=env, text=True, capture_output=True, timeout=10, check=True)
     assert json.loads(output.stdout)["motor_launch"] is False
     plan = json.loads((run / "selected-session.json").read_text())
+    assert plan["environment"]["PUPPER_FC_BOARD_HEALTH_PATH"] == str(run / "fc-board-health.bin")
     assert plan["controllers"] == list(release.CONTROLLERS)
     topics = json.loads(Path(plan["components"]["telemetry_topics"]["path"]).read_text())
     if recording == "events":
@@ -114,7 +115,7 @@ def test_guard_requires_matching_arguments_and_one_session_owner(tmp_path):
 
 def test_bench_requires_matching_driver_and_ownership_plugin():
     from fc_walk_kick_release import check_imu_recovery
-    base = b"FC_IMU_RECOVERY_CONTRACT_V1_SUPPORTED_REHOME"
+    base = b"FC_IMU_RECOVERY_CONTRACT_V1_SUPPORTED_REHOME FC_BOARD_HEALTH_V1"
     check_imu_recovery(base, "supported_rehome")
     for incomplete in (base, base + b" FC_SUPPORTED_DAMPING_V1", base + b" SupportedDampingLease"):
         with pytest.raises(ValueError, match="bench damping"):

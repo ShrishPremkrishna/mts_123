@@ -65,6 +65,7 @@ class MatchDirector:
         if type(pending_start) is not bool:
             raise ValueError("pending_start must be boolean")
         self.pending_start, self.pending_capture = pending_start, None
+        self.balance_paused = False
         self.goal_lines = goal_lines
         self.kick_owner = None
         self.retired_kicks = set()
@@ -78,9 +79,11 @@ class MatchDirector:
         self.state = self._state(-1, "pending" if pending_start else "holding", None)
 
     def _state(self, seq, phase, attacker):
+        fenced = self.balance_paused or phase in ("pending", "holding")
         return {"epoch": self.epoch, "seq": seq, "phase": phase, "attacker": attacker,
                 "roster": sorted(self.tracks.values()), "tracks": dict(self.tracks), "rally": self.rally, "role_cycle": self.role_cycle,
-                "score": dict(self.score), "goal_sign": self.goal_sign, "reset_ready": self.reset_ready}
+                "score": dict(self.score), "goal_sign": 0 if fenced else self.goal_sign,
+                "reset_ready": False if fenced else self.reset_ready}
 
     def _missing(self):
         self.previous = None
@@ -174,6 +177,9 @@ class MatchDirector:
         if (type(seq) is not int or seq <= self.last_seq or not number(capture) or capture <= self.last_capture):
             return self._state(seq, "holding", None)
         self.last_capture, self.last_seq = capture, seq
+        if self.balance_paused:
+            self.state = self._state(seq, "holding", None)
+            return self.state
         phase, attacker = "holding", None
         f, goals = frame.get("field", {}), self.goal_lines or frame.get("goals", {})
         geometry = isinstance(f, dict) and goal_geometry(goals, f.get("length"), f.get("width"), f.get("ball_radius"))
@@ -204,7 +210,7 @@ class MatchDirector:
                     phase = "playing"
             elif not all(poses.values()):
                 self.challenger = self.switch_at = None
-        if self.goal_sign:
+        if self.goal_sign and not self.pending_start:
             phase = "goal"
         self.state = self._state(seq, phase, attacker)
         if geometry:
@@ -212,7 +218,24 @@ class MatchDirector:
                                         for name in ("west", "east")}
         return self.state
 
+    def pause_balance(self):
+        self.balance_paused = True
+        self._missing()
+        self.state = self._state(self.last_seq, "holding", None)
+
+    def after_balance(self, epoch):
+        """A fresh authority starts behind the kickoff fence with the same scoreboard."""
+        if not self.balance_paused or self.calibration_changed or self.kick_owner is not None:
+            raise ValueError("End the match and check the field or native kick before starting again")
+        director = MatchDirector(epoch, self.tracks, self.signs, goal_lines=self.goal_lines, pending_start=True)
+        director.score = dict(self.score)
+        director.goal_sign, director.rally, director.role_cycle = self.goal_sign, self.rally, self.role_cycle
+        director.state = director._state(-1, "pending", None)
+        return director
+
     def commit_start(self, *, now=None):
+        if self.balance_paused:
+            raise ValueError("The match is paused for balance feedback")
         if not self.pending_start:
             return self.state
         now = time.time() if now is None else now

@@ -97,14 +97,13 @@ def prepare(args):
         if gateway := os.environ.get('PUPPER_FC_GATEWAY'):
             components['gateway'] = pinned(Path(gateway), os.environ['PUPPER_FC_GATEWAY_SHA256'])
         recovery = os.environ.get("PUPPER_FC_IMU_RECOVERY", "strict")
-        if recovery != "strict":
-            check_imu_recovery(args.imu_library.read_bytes(), recovery)
+        check_imu_recovery(args.imu_library.read_bytes(), recovery)
         if model := os.environ.get('PUPPER_FC_DETECTOR_MODEL'):
             # Refuse a mismatched HEF at preparation, before any motor activity.
             sys.path.insert(0, str(root))
             from final_project.behaviors.body_command_guard import ARENA_DETECTOR_IDENTITY
             components['detector_model'] = pinned(Path(model), ARENA_DETECTOR_IDENTITY['model_sha256'])
-        if inspect_native(args.native_library)['sha256'] != components['native']['sha256']:
+        if inspect_native(args.native_library, recovery)['sha256'] != components['native']['sha256']:
             raise ValueError('Native controller changed during preparation')
     elif not {'/joint_states', '/llm_cmd_vel'} <= set(topics):
         raise ValueError('Telemetry JSON must include joint_states and llm_cmd_vel')
@@ -116,6 +115,7 @@ def prepare(args):
     env.setdefault('PUPPER_SESSION_MOTION_MODE', 'walking')
     if env['PUPPER_SESSION_MOTION_MODE'] == 'fc_walk_kick':
         env.update(PUPPER_GAIT_DEPLOY_DIR=str(root / 'pupper_gait_deploy'),
+                   PUPPER_FC_BOARD_HEALTH_PATH=str(run / 'fc-board-health.bin'),
                    FOLLOW_USE_COLOR='0', FOLLOW_AVOID_OBSTACLES='0', FOLLOW_ALWAYS_DETECT='0')
     env.update(PUPPER_GEMINI_DIR=str(root / 'gemini_pupper'),
                PUPPER_STAGED_GEMINI_DIR=str(root / 'gemini_pupper'),
@@ -291,7 +291,7 @@ def load(run, verify=True):
             raise ValueError('Prepared runtime manifest has no pinned assets')
         for path, digest in runtime['assets'].items():
             pinned(Path(path), digest)
-    for name in (*ENV_KEYS, 'PUPPER_IMU_STARTUP_TRACE', 'PUPPER_FC_PREPARED_MANIFEST_SHA256'):
+    for name in (*ENV_KEYS, 'PUPPER_FC_BOARD_HEALTH_PATH', 'PUPPER_IMU_STARTUP_TRACE', 'PUPPER_FC_PREPARED_MANIFEST_SHA256'):
         os.environ.pop(name, None)
     os.environ.update(plan['environment'])
     life = module(Path(plan['components']['lifecycle']['path']), 'selected_lifecycle')

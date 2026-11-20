@@ -32,6 +32,7 @@ class Camera:
         self.session = "bench-camera"
         self.director, self.publishers = None, ()
         self.seq, self.captured = 0, 0.
+        self.latest = {}
         self.match, self.ball_x = None, 0.
 
     def frame(self, players):
@@ -46,14 +47,15 @@ class Camera:
         for p in players:
             pose = p.sim.robot
             frame["robots"][TRACKS[p.robot]] = dict(measured, x=pose.x, y=pose.y, yaw=pose.yaw, wz=0.)
+        self.latest = frame
         if self.director:
             self.match = frame["fc_match"] = self.director.update(frame, now=self.captured)
             for pub in self.publishers:
                 pub.send(frame)
 
     def snapshot(self):
-        return dict(live=True, source_session=self.session, match=self.match,
-                    frame=dict(seq=self.seq, captured_at=self.captured, calibration_valid=True, calibration_revision=1, field=self.field),
+        return dict(live=True, source_session=self.session, match=self.director.state if self.director else None,
+                    frame=self.latest,
                     visible=dict(ball=True, robots=dict(striker=True, keeper=True)))
 
     def set_match(self, director, pubs=()):
@@ -62,17 +64,27 @@ class Camera:
     def commit_start(self):
         self.director.commit_start()
 
+    def pause_balance(self):
+        if self.director:
+            self.director.pause_balance()
+            self.match = self.director.state
+
+    def after_balance(self, epoch):
+        return self.director.after_balance(epoch)
+
     def resume(self):
         self.director.resume()
 
 
 class Player:
     """The production BridgeCore, operator actions and handoff behind a local peer adapter."""
-    def __init__(self, stack, robot, fields, camera, domain, attacker):
+    def __init__(self, stack, robot, fields, camera, domain, attacker, root):
         import rclpy
         from rclpy.context import Context
         from rclpy.executors import SingleThreadedExecutor
         from std_msgs.msg import String
+        from rcl_interfaces.srv import SetParametersAtomically
+        from final_project.behaviors import board_imu
         from final_project.behaviors import combined_fc_runner as combined, fc_executor_bridge as bridge
         from final_project.behaviors.operator_drive import OperatorDrive
         from final_project.pupper_fc.kick_handoff import KickHandoff
@@ -93,11 +105,16 @@ class Player:
         self.sim.move_ball(0., 0.)
         self.controls = OperatorDrive(self.core)
         self.controls.observe_path(True, 1)
-        self.path = SimpleNamespace(check=lambda _: None)
+        self.path = SimpleNamespace(check=lambda _: None, last_walk_generation=1, native={"generation":1})
         self.gateway = SimpleNamespace(stop_capable=True, state={"instance_id":"bench"},
                                        stop_publisher=SimpleNamespace(get_subscription_count=lambda: 1))
-        self.runtime = SimpleNamespace(handoff=self.handoff, velocity_sink=lambda cmd: None,
-            robot=SimpleNamespace(gateway_stop_anchor=lambda: self.gateway.state, current=None,
+        self.native_owners = {"gemini_walk":"active", "trick_leg_kick":"inactive"}
+        async def read_owners():
+            return dict(self.native_owners)
+        self.runtime = SimpleNamespace(handoff=self.handoff, velocity_sink=lambda cmd: None, stop_reason=None,
+            robot=SimpleNamespace(gateway_stop_anchor=lambda: self.gateway.state, current=None, fallen=None,
+                                  motion_block_reason=lambda: None, stops=0, controller_states=read_owners,
+                                  leg_controllers=tuple(self.native_owners),
                                   commands=SimpleNamespace(empty=lambda:True)))
         self.context = Context()
         self.context.init(args=[], domain_id=domain)
@@ -106,10 +123,35 @@ class Player:
         stack.callback(self.node.destroy_node)
         self.spin = SingleThreadedExecutor(context=self.context)
         self.spin.add_node(self.node)
+        walk_node = rclpy.create_node("gemini_walk", context=self.context, enable_rosout=False)
+        stack.callback(walk_node.destroy_node)
+        self.spin.add_node(walk_node)
         stack.callback(self.spin.shutdown)
+        self.board_file = root / (robot + "-board-health.bin")
+        reader = board_imu.BoardReceipt(self.board_file, os.getpid(), "field_redundant_imu")
+        stack.callback(reader.close)
+        self.balance = board_imu.MatchImu(reader, lambda: (self.ros_imu_at, 0., 0.))
+        self.board_mode, self.incident, self.board_seq = 1, 0, 0
+        self.started_ns = time.monotonic_ns()
+        self.received, self.on_offer = time.monotonic(), lambda peer: None
+        self.native_releases = []
+        self.path.sync_balance = lambda: combined.sync_match_balance(
+            self.balance, self.core, self.path, self.runtime, self.controls, self.on_imu)
+        def native_resume(request, response):
+            params = {p.name:p.value.integer_value for p in request.parameters}
+            now = time.monotonic_ns()
+            response.result.successful = (len(params) == 3 and self.board_mode == 3
+                and params.get("generation") == 1 and params.get("incident") == self.incident
+                and 0 <= now - params.get("issued_mono_ns", 0) < 1_000_000_000)
+            if response.result.successful:
+                self.native_releases.append(self.incident)
+            return response
+        walk_node.create_service(SetParametersAtomically, "/gemini_walk/resume_balance", native_resume)
+        self.native_client = self.node.create_client(SetParametersAtomically, "/gemini_walk/resume_balance")
         self.node.create_subscription(String, bridge.EVENT_TOPIC, self.ingest, 32)
         self.result = self.node.create_publisher(String, "/fc/kick_result", 4)
         self.actions, self.receipts, self.kinds = [], [], set()
+        self.admitted_roles, self.last_motion_epoch = set(), None
         self.missed_goal_frames = 0
         self.events = self.pending_frames = self.pending_armed_frames = self.revokes = 0
         self.frame_rejections = deque(maxlen=5)
@@ -117,6 +159,29 @@ class Player:
         self.walked_between_m = 0.
         self.nonzero_between = False
         self.phase = None
+
+    def on_imu(self, event):
+        self.offer["imu"] = event["imu"]
+        self.on_offer(self)
+
+    def sample_board(self):
+        from final_project.behaviors import board_imu
+        now = time.monotonic_ns()
+        self.board_seq += 2
+        self.ros_imu_at = now / 1e9
+        self.path.native["sampled_mono_ns"] = now
+        self.balance.observe_owners(self.balance.hold_id, now, self.native_owners, self.runtime.robot.leg_controllers)
+        row = (self.board_seq, board_imu.MAGIC, os.getpid(), self.started_ns, 1, 0, self.incident,
+               self.board_mode, now, now, now, 0, 0, self.board_seq%256, self.board_seq%256,
+               8 if self.board_mode == 2 else 5, 7 if self.board_mode == 2 else 2,
+               now, now, 0, 0, 3, 3, 0)
+        self.board_file.write_bytes(board_imu.RECORD.pack(*row))
+
+    async def send(self, message):
+        if message.get("command") == "stop":
+            self.core.executor.stop()
+            self.controls.invalidate()
+            self.controls.match_epoch = None
 
     async def request(self, action, **fields):
         from final_project.behaviors import combined_fc_runner as combined
@@ -128,14 +193,18 @@ class Player:
             raise ValueError("injected missing zero command")
         if self.robot == RED and action == "arm":
             await asyncio.sleep(.10)
-        while True:
-            now = time.monotonic()
-            offer = self.controls.offer(now, combined.resume_cycle(self.core, now))
-            if offer and (action != "resume" or offer["resume_ready"]):
-                break
+        prior = self.offer.get("ticket")
+        while (not self.offer.get("ticket") or self.offer["ticket"] == prior
+               or action == "resume" and not self.offer["resume_ready"]):
             await asyncio.sleep(.01)
-        request = dict(command=action, robot_id=self.robot, ticket=offer["ticket"], **fields)
-        result = combined.operator_action(request, self.core, self.path, self.runtime, self.gateway, self.controls)
+        request = dict(command=action, robot_id=self.robot, ticket=self.offer["ticket"], **fields)
+        if action == "imu_resume":
+            result = await combined.imu_resume_action(request, self.core, self.path, self.runtime,
+                self.gateway, self.controls, self.balance,
+                lambda g, i: combined.request_native_resume(self.node, self.native_client, g, i))
+        else:
+            result = combined.operator_action(request, self.core, self.path, self.runtime,
+                                             self.gateway, self.controls, balance=self.balance)
         assert result["accepted"], result
         self.actions.append((action, fields.get("epoch"), result.get("state")))
         return result
@@ -154,13 +223,15 @@ class Player:
             self.frame_rejections.append((time.monotonic(), event["seq"],
                                           event.get("source_reason", result["reason"])))
         director = self.camera.director
-        if director and director.pending_start:
+        if director and director.pending_start and event.get("epoch") == director.epoch:
             assert event["event"] != "intent", event
             if event.get("captured_at") is not None:
                 self.pending_frames += 1
                 self.pending_armed_frames += int(self.core.executor.armed)
         if event["event"] == "intent":
             self.kinds.add(event["kind"])
+            if result["accepted"]:
+                self.admitted_roles.add((event["epoch"], event["kind"]))
             if self.last_return and event["intent_id"] == "r1-p0-k2" and self.new_capture is None:
                 assert event["issued_at"] > self.last_return
                 self.new_capture = event["issued_at"]
@@ -172,12 +243,17 @@ class Player:
         from final_project.behaviors.combined_fc_runner import kick_event
         for _ in range(5):
             self.spin.spin_once(timeout_sec=0)
+        self.sample_board()
+        self.path.sync_balance()
         now = time.monotonic()
         prior = self.handoff.active
         step = self.core.executor.kick_step(self.handoff, now)
         self.phase, self.reason = step.decision.phase, step.decision.reason
         from final_project.behaviors.combined_fc_runner import resume_cycle
-        self.offer["resume_ready"] = resume_cycle(self.core, now) is not None
+        offer = self.controls.offer(now, resume_cycle(self.core, now))
+        if offer:
+            self.offer, self.received = {**offer, "imu":self.balance.snapshot()}, now
+            self.on_offer(self)
         command = step.decision.command
         moving = any((command.vx, command.vy, command.wz))
         director = self.camera.director
@@ -185,6 +261,8 @@ class Player:
             assert not moving and step.request is None, (self.robot, self.phase)
         if moving and self.first_motion is None:
             self.first_motion = now
+        if moving:
+            self.last_motion_epoch = self.core.executor.epoch
         if self.last_return and len(self.receipts) == 1 and moving:
             self.nonzero_between = True
         assert step.cancel is None, (self.robot, self.phase, self.reason, step.cancel,
@@ -247,7 +325,8 @@ async def rehearse(roster, base_domain, root):
     with ExitStack() as stack:
         log = stack.enter_context(run_log.open("w"))
         for i, robot in enumerate(roster):
-            players[robot] = Player(stack, robot, load_fields(config), camera, base_domain+i, i == 0)
+            players[robot] = Player(stack, robot, load_fields(config), camera, base_domain+i, i == 0, root)
+            players[robot].on_offer = lobby.observe_controls
         lead = players[roster[0]]
         last_frame = last_tick = time.monotonic()
         camera.frame(players.values())
@@ -270,6 +349,7 @@ async def rehearse(roster, base_domain, root):
                         ticker.result()
                     await asyncio.sleep(.008)
         try:
+            await until(lambda: all(p.offer.get("imu", {}).get("state") == "healthy" for p in players.values()))
             result = {"roster":roster, "measured_width_m":camera.field["width"]}
             if len(roster) == 2:
                 players[RED].reject_after = lambda: players[BLUE].pending_armed_frames >= 3
@@ -338,6 +418,26 @@ async def rehearse(roster, base_domain, root):
                 await until(lambda: camera.match["phase"] == "playing" and camera.match["rally"] == 2)
                 result.update(score=camera.match["score"], early_resume_held_match=True, missed_red_goal_frames=players[RED].missed_goal_frames,
                               rally_after_replacement_and_resume=2)
+                red = players[RED]
+                original_epoch = lobby.epoch
+                red.board_mode, red.incident = 2, red.incident + 1
+                await until(lambda: lobby.phase == "balance_hold" and not lobby.balance.preparing)
+                assert not lobby.balance.blocked, lobby.balance.blocked
+                assert all(not p.core.executor.armed and p.balance.hold_id for p in players.values())
+                assert not lobby.balance_state()["ready"] and camera.director.balance_paused
+                red.board_mode = 3
+                await until(lambda: lobby.balance_state()["ready"])
+                assert all(not p.core.executor.armed for p in players.values())
+                await lobby.resume_balance(OWNER, lobby.balance.id)
+                await until(lambda: camera.match["phase"] == "playing" and all(
+                    any((lobby.epoch, role) in p.admitted_roles for role in ("attack","defend")) for p in players.values())
+                    and any(p.last_motion_epoch == lobby.epoch for p in players.values()))
+                assert lobby.epoch != original_epoch and all(p.core.executor.epoch == lobby.epoch for p in players.values())
+                assert red.native_releases == [1] and not lead.native_releases
+                assert camera.match["score"] == {BLUE:1, RED:0} and camera.match["rally"] == 2
+                result.update(imu_roster_pause=True, imu_explicit_new_epoch=True, imu_score_and_rally_preserved=True,
+                              imu_received_fresh_tactics_and_motion=True,
+                              imu_native_service_acks={p.robot:len(p.native_releases) for p in players.values()})
             revokes = [p.revokes for p in players.values()]
             # Closing an individual field's input exercises the production source's orderly revoke
             # and the lobby monitor's automatic End. The connected runners can be reused.
@@ -351,13 +451,18 @@ async def rehearse(roster, base_domain, root):
                           wall_s=round(time.monotonic()-started,3))
             print(json.dumps(result), flush=True)
         finally:
-            ticker.cancel()
+            if ticker.done():
+                for player in players.values():
+                    player.closed = True
+            try:
+                await lobby.end(OWNER)
+            finally:
+                ticker.cancel()
             try:
                 await ticker
             except asyncio.CancelledError:
                 pass
             finally:
-                await lobby.end(OWNER)
                 for proc in sources:
                     if proc.returncode is None:
                         proc.terminate()

@@ -24,6 +24,7 @@ void await_sample() {
 }
 }
 // These three definitions intentionally replace rt_bno055.cpp in this test target.
+void BNO055::enable_redundant_reports(uint32_t) {}
 BNO055::BNO055(int,uint32_t) { ++instances; }
 BNO055::~BNO055() { if(in_sample.load()!=0)++destroyed_during_sample; --instances; }
 BNO055::Output BNO055::sample() {

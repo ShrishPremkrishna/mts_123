@@ -38,6 +38,7 @@ void init_spi() { ++init_count; command = {}; data = {}; }
 spi_command_t *get_spi_command() { return &command; }
 spi_data_t *get_spi_data() { return &data; }
 void spi_driver_run() { sent.push_back(command); }
+void BNO055::enable_redundant_reports(uint32_t) {}
 BNO055::BNO055(int, uint32_t) { throw std::runtime_error("unexpected IMU initialization"); }
 BNO055::~BNO055() {}
 BNO055::Output BNO055::sample() { throw std::runtime_error("unexpected IMU sampling"); }

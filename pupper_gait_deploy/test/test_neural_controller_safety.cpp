@@ -81,6 +81,23 @@ class MemoryController : public neural_controller::NeuralController {
       state_interfaces_.emplace_back(*imu_handles.back());
     }
   }
+  std::array<double,3> board{1, 0, 987654};
+  void add_board_balance() {
+    const char *names[] = {"fc_balance_mode", "fc_balance_incident", "fc_balance_generation"};
+    for (int i=0; i<3; ++i) {
+      imu_handles.push_back(std::make_shared<hardware_interface::StateInterface>("imu_sensor", names[i], &board[i]));
+      state_interfaces_.emplace_back(*imu_handles.back());
+    }
+  }
+  bool request_balance(std::int64_t generation, std::int64_t incident, std::int64_t issued) {
+    auto request = std::make_shared<BalanceRelease::Request>();
+    auto reply = std::make_shared<BalanceRelease::Response>();
+    request->parameters = {rclcpp::Parameter("generation", generation).to_parameter_msg(),
+                           rclcpp::Parameter("incident", incident).to_parameter_msg(),
+                           rclcpp::Parameter("issued_mono_ns", issued).to_parameter_msg()};
+    release_balance(request, reply);
+    return reply->result.successful;
+  }
   auto selected_clip() const { return clip_player_.clip(); }
   auto clip_holding() const { return clip_player_.holding(); }
   auto activate_in_memory() {
@@ -819,6 +836,124 @@ TEST_F(ProductionRuntime, DeadlineModeRequiresGaitAndNoAlternateAuthority) {
   EXPECT_EQ(initialize(target,make_target_policy(),false,
     {rclcpp::Parameter("cmd_vel_contract",std::string("fc_deadline_v1")),
      rclcpp::Parameter("game_buttons",false)}),controller_interface::return_type::ERROR);
+}
+
+struct SelectedFieldImu {
+  SelectedFieldImu() { setenv("PUPPER_FC_IMU_RECOVERY", "field_redundant_imu", 1); }
+  ~SelectedFieldImu() { unsetenv("PUPPER_FC_IMU_RECOVERY"); }
+};
+
+TEST_F(ProductionRuntime, FieldBalanceFencesHeldWalkUntilMatchedReleaseAndNewCommand) {
+  SelectedFieldImu selection;
+  MemoryController c(false);
+  c.add_board_balance();
+  activate_deadline(c);
+  c.send_deadline(c.envelope(1));
+  c.advance(1ns);
+  c.send_deadline(c.envelope(2, .2));
+  ASSERT_EQ(c.tick_actor(2.1), controller_interface::return_type::OK);
+  expect_command(c, .2f, 0.f, 0.f);
+  c.board = {2, 17, 987654};
+  // The first held inference cycle must stop using a still-valid old request.
+  ASSERT_EQ(c.tick(2.101), controller_interface::return_type::OK);
+  expect_zero_command(c);
+  ASSERT_FALSE(c.request_balance(987654, 17, c.command_deadline_now_ns()));
+  for (int second=1; second<=3; ++second) {
+    c.advance(1s);
+    c.send_deadline(c.envelope(2 + second, .2));
+    ASSERT_EQ(c.tick_actor(2.1 + second), controller_interface::return_type::OK);
+    expect_zero_command(c);
+    EXPECT_GT(c.values[0][3], 0);  // balance policy remains powered
+  }
+  c.board[0] = 3;
+  ASSERT_EQ(c.tick_actor(5.11), controller_interface::return_type::OK);
+  expect_zero_command(c);
+  const auto now = c.command_deadline_now_ns();
+  EXPECT_FALSE(c.request_balance(987653, 17, now));
+  EXPECT_FALSE(c.request_balance(987654, 16, now));
+  EXPECT_FALSE(c.request_balance(987654, 17, now - 1000000000));
+  ASSERT_TRUE(c.request_balance(987654, 17, now));
+  ASSERT_EQ(c.tick_actor(5.12), controller_interface::return_type::OK);
+  expect_zero_command(c);
+  c.advance(1ns);
+  c.send_deadline(c.envelope(6, .2));
+  ASSERT_EQ(c.tick_actor(5.13), controller_interface::return_type::OK);
+  expect_command(c, .2f, 0.f, 0.f);
+  c.board[1] = 18;  // a whole second incident between two controller updates
+  ASSERT_EQ(c.tick(5.14), controller_interface::return_type::OK);
+  expect_zero_command(c);
+  c.board[0] = 4;
+  ASSERT_EQ(c.tick(5.15), controller_interface::return_type::OK);
+  for (const auto &joint : c.values) EXPECT_DOUBLE_EQ(joint[3], 0.);
+}
+
+TEST_F(ProductionRuntime, FieldBalanceCannotPowerUpWalkerDuringHold) {
+  SelectedFieldImu selection;
+  MemoryController walker(false);
+  ASSERT_EQ(initialize(walker, make_gait_policy(), false,
+      {rclcpp::Parameter("cmd_vel_contract", std::string("fc_deadline_v1")),
+       rclcpp::Parameter("game_buttons", false)}), controller_interface::return_type::OK);
+  walker.add_board_balance();
+  walker.add_flat_feedback();
+  for (int mode : {2, 3, 4}) {
+    walker.board = {double(mode), 9., 6789123.};
+    EXPECT_EQ(walker.activate_in_memory(), controller_interface::CallbackReturn::ERROR);
+  }
+}
+
+TEST_F(ProductionRuntime, FieldBalanceRealRosServiceReleasesOnlyRestoredWalker) {
+  SelectedFieldImu selection;
+  MemoryController c(false);
+  c.add_board_balance();
+  activate_deadline(c);
+  auto client_node = std::make_shared<rclcpp::Node>("fc_balance_operator");
+  using Service = rcl_interfaces::srv::SetParametersAtomically;
+  auto client = client_node->create_client<Service>(
+      std::string(c.get_node()->get_fully_qualified_name()) + "/resume_balance");
+  rclcpp::executors::SingleThreadedExecutor ros;
+  ros.add_node(c.get_node()->get_node_base_interface());
+  ros.add_node(client_node);
+  ASSERT_TRUE(client->wait_for_service(2s));
+  auto request = std::make_shared<Service::Request>();
+  request->parameters = {rclcpp::Parameter("generation", 1234321).to_parameter_msg(),
+                         rclcpp::Parameter("incident", 37).to_parameter_msg(),
+                         rclcpp::Parameter("issued_mono_ns", c.command_deadline_now_ns()).to_parameter_msg()};
+  for (int mode : {2, 3}) {
+    c.board = {double(mode), 37., 1234321.};
+    ASSERT_EQ(c.tick_actor(2.1), controller_interface::return_type::OK);
+    auto reply = client->async_send_request(request);
+    ASSERT_EQ(ros.spin_until_future_complete(reply, 2s), rclcpp::FutureReturnCode::SUCCESS);
+    EXPECT_EQ(reply.get()->result.successful, mode == 3);
+  }
+  // The grant is shared by the controller plugins. A later healthy kick may
+  // activate in restored mode; replaying that grant after another Home fails.
+  MemoryController kick(false);
+  ASSERT_EQ(initialize(kick, make_trick_policy(), false),controller_interface::return_type::OK);
+  kick.board = c.board;
+  kick.add_board_balance();
+  kick.add_full_tracking_feedback();
+  ASSERT_EQ(kick.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  ASSERT_EQ(kick.deactivate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  ++kick.board[2];
+  EXPECT_EQ(kick.activate_in_memory(),controller_interface::CallbackReturn::ERROR);
+}
+
+TEST_F(ProductionRuntime, FieldBalanceRejectsNewKickAndInterruptsExecutingClip) {
+  SelectedFieldImu selection;
+  MemoryController kick(false);
+  ASSERT_EQ(initialize(kick, make_trick_policy(), false),controller_interface::return_type::OK);
+  kick.add_board_balance();
+  kick.add_full_tracking_feedback();
+  kick.board = {3, 33, 987655};
+  EXPECT_EQ(kick.activate_in_memory(),controller_interface::CallbackReturn::ERROR);
+  kick.board = {1, 0, 987655};
+  ASSERT_EQ(kick.activate_in_memory(),controller_interface::CallbackReturn::SUCCESS);
+  kick.board = {2, 33, 987655};
+  ASSERT_EQ(kick.tick(.25),controller_interface::return_type::OK);
+  for (const auto &joint : kick.values) EXPECT_DOUBLE_EQ(joint[3], 0.);
+  kick.board[0] = 3;
+  ASSERT_EQ(kick.tick(.26),controller_interface::return_type::OK);
+  for (const auto &joint : kick.values) EXPECT_DOUBLE_EQ(joint[3], 0.);
 }
 
 TEST_F(ProductionRuntime, DeadlineRequiresFreshSourceZeroAndOriginalExpiryDuringHeldInference) {

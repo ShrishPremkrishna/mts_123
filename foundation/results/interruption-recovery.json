@@ -3,8 +3,8 @@
   "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej’s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/.codex/worktrees/fc-teleop/cs123",
   "branch": "codex/pupper-fc-match",
-  "mode": "fc_appliance_offline_verified",
-  "updated_utc": "2026-11-20T19:23:28+00:00",
+  "mode": "fc_match_imu_offline_candidate",
+  "updated_utc": "2026-11-20T20:00:18+00:00",
   "current_report": "final_project/pupper_fc/RELEASE.md",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -69,7 +69,8 @@
     "final_match_rehearsal": "foundation/results/fc-match-ros-20261120.json",
     "offline_release": "foundation/results/fc-offline-release-20261120.json",
     "matchday_dashboard_release": "foundation/results/fc-matchday-release-20261120.json",
-    "fc_appliance": "foundation/results/fc-appliance-release-20261120.json"
+    "fc_appliance": "foundation/results/fc-appliance-release-20261120.json",
+    "match_imu": "foundation/results/fc-match-imu-release-20261120.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -117,7 +118,7 @@
       "arena": "Shrish",
       "project_lead": "Shrish. Offline release integration in codex/pupper-fc-match."
     },
-    "goal_status": "Matchday dashboard and 56-file Pi runtime released and checked offline. Real Pi motion timing, braking and kick remain open.",
+    "goal_status": "Opt-in match IMU recovery on codex/pupper-fc-match. Primary-report loss and roster-held Resume exercised offline. Physical candidate commissioning remains open.",
     "pending_archives": [],
     "processes": {
       "local_practice": {
@@ -206,6 +207,10 @@
     "offline_release_commit": "1e4247d644cf08dbd2ba1e07c188f8b62c566e5c"
   },
   "next": [
+    {
+      "id": "supported_match_imu",
+      "action": "In a sling, verify both IMU report pairs, native Stop and a two-second ROS delivery pause on one prepared Pi. Resume through the lobby and verify a fresh key action. Hardware bus interruption, braking distance and target firmware still need physical qualification."
+    },
     {
       "id": "verify_physical_release",
       "action": "On the prepared Pi, install the extracted archive for its Blue/Red team and verify headless startup, battery monitor, SSH and discovery after reboot. Connect in the laptop lobby. Support it for Home and give a fresh standing cue with the independent Stop gamepad. Verify physical Stop on the stand."

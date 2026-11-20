@@ -32,11 +32,23 @@ const char *RESET_ANSI = "\033[0m";
 bool ControlBoardHardwareInterface::check_motor_feedback(const BNO055::Output &sample, const char *phase) {
   // Sample first, then read the clock. Validate and diagnose the same snapshot.
   const auto now = std::chrono::steady_clock::now();
-  if (const char *error = pupper_imu::feedback_error(sample, now)) {
+  const char *error = pupper_imu::feedback_error(sample, now);
+  if (redundant_field_) {
+    BNO055::Output primary;
+    error = redundant_.select(sample, now, false, primary);
+  }
+  if (error) {
     disable_for_imu_fault(sample, now, phase, error);
     return false;
   }
   return true;
+}
+
+void ControlBoardHardwareInterface::terminal_health(const BNO055::Output &sample) {
+  if (board_health_.terminal.exchange(true)) return;
+  ++board_health_.faults;
+  fc_balance_mode_=4;
+  board_health_.publish(4,sample,sample,spi_data_?spi_data_->spi_driver_status&3:0,false);
 }
 
 void ControlBoardHardwareInterface::disable_for_imu_fault(const BNO055::Output &sample,
@@ -44,6 +56,7 @@ void ControlBoardHardwareInterface::disable_for_imu_fault(const BNO055::Output &
   deactivate_motors();  // Send neutral before formatting or writing a diagnostic.
   latch_field_fault();
   invalidate_balance();
+  terminal_health(sample);
   report_imu_fault(sample, now, phase, error);
 }
 
@@ -109,7 +122,12 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
   if (profile != info_.hardware_parameters.end()) {
     supported_standby_ = profile->second == "supported_standby";
     supported_damping_ = profile->second == "supported_damping";
-    field_rehome_ = profile->second == "supported_rehome" || supported_damping_;
+    redundant_field_ = profile->second == "field_redundant_imu";
+    imu_manager_.redundant_reports = redundant_field_;
+    field_rehome_ = profile->second == "supported_rehome" || supported_damping_ || redundant_field_;
+    if (redundant_field_) RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
+        "FC_FIELD_REDUNDANT_IMU_V1 candidate: independent SH-2 report receipts, same sensor/bus");
+    if (redundant_field_ && info_.joints.size()!=12) return hardware_interface::CallbackReturn::ERROR;
     if (supported_damping_) {
       if (info_.joints.size() != 12) return hardware_interface::CallbackReturn::ERROR;
       RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
@@ -121,6 +139,17 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
     }
   }
 
+  board_health_.profile = redundant_field_?3u:(supported_damping_||supported_standby_?4u:(field_rehome_?2u:1u));
+  if (const auto *path=std::getenv("PUPPER_FC_BOARD_HEALTH_PATH")) {
+    if (!board_health_.open(path)) {
+      RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "FC_BOARD_HEALTH_V1 could not initialize selected receipt");
+      return hardware_interface::CallbackReturn::ERROR;
+    }
+    board_health_.publish(0,BNO055::Output{},BNO055::Output{},0,false);
+  } else if (redundant_field_) {
+    RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "Field redundant IMU requires selected health receipt path");
+    return hardware_interface::CallbackReturn::ERROR;
+  }
   if (field_rehome_ || supported_standby_) {
     RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
                 "FC_IMU_RECOVERY_CONTRACT_V1_SUPPORTED_REHOME profile=%s", profile->second.c_str());
@@ -167,7 +196,7 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
     hw_actuator_is_homed_.push_back(false);
   }
 
-  if (supported_damping_) {
+  if (supported_damping_ || redundant_field_) {
     std::array<bool, 12> assigned{};
     for (size_t i = 0; i < info_.joints.size(); ++i) {
       const int channel = hw_actuator_can_channels_[i], id = hw_actuator_can_ids_[i];
@@ -178,6 +207,7 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
       for (double limit : {hw_actuator_velocity_maxs_[i], hw_actuator_effort_maxs_[i],
                            hw_actuator_kd_maxs_[i], hw_actuator_homing_kds_[i]})
         if (!std::isfinite(limit) || limit <= 0) return hardware_interface::CallbackReturn::ERROR;
+      if (!supported_damping_) continue;
       // The published board ELF packs MIT CAN velocity ±65, Kd [0,5] and
       // feed-forward ±112.5 with 12 bits. Reserve a full zero-code torque step
       // and velocity step for quantization, even at the wire velocity limit.
@@ -188,6 +218,8 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
       bench_kds_.push_back(static_cast<float>(gain));
     }
   }
+
+  if (redundant_field_) prior_field_positions_.resize(info_.joints.size());
 
   if (info_.hardware_parameters.count("use_imu") &&
       (info_.hardware_parameters.at("use_imu") == "false" ||
@@ -283,6 +315,11 @@ ControlBoardHardwareInterface::export_state_interfaces() {
   state_interfaces.emplace_back(hardware_interface::StateInterface(
       "imu_sensor", "time_since_measurement_seconds", &imu_time_since_measurement_seconds_));
 
+  if (redundant_field_) {
+    state_interfaces.emplace_back("imu_sensor","fc_balance_mode",&fc_balance_mode_);
+    state_interfaces.emplace_back("imu_sensor","fc_balance_incident",&fc_balance_incident_);
+    state_interfaces.emplace_back("imu_sensor","fc_balance_generation",&fc_balance_generation_);
+  }
   return state_interfaces;
 }
 
@@ -354,6 +391,8 @@ bool ControlBoardHardwareInterface::complete_joint_claim(const std::vector<std::
 
 hardware_interface::return_type ControlBoardHardwareInterface::prepare_command_mode_switch(
     const std::vector<std::string> &start, const std::vector<std::string> &stop) {
+  if (redundant_field_ && (field_backup_active_ || board_health_.terminal) && touches_joints(start))
+    return hardware_interface::return_type::ERROR;
   if ((supported_standby_ || field_rehome_) && touches_joints(start)) {
     if (supported_standby_) return hardware_interface::return_type::ERROR;
     if (supported_damping_ && (touches_joints(stop) || !complete_joint_claim(start) ||
@@ -375,15 +414,19 @@ hardware_interface::return_type ControlBoardHardwareInterface::perform_command_m
     deactivate_motors();
     clear_joint_commands();
     fresh_claim_prepared_ = false;
-    const auto next = supported_damping_ && damping_deadline_ != std::chrono::steady_clock::time_point{}
-                      ? FieldState::fault : FieldState::awaiting_claim;
+    const bool stopping_in_loss = (supported_damping_ && damping_deadline_ != std::chrono::steady_clock::time_point{}) ||
+                                  (redundant_field_ && field_backup_active_);
+    const auto next = stopping_in_loss ? FieldState::fault : FieldState::awaiting_claim;
     field_state_.compare_exchange_strong(state_at_stop, next);
     if (next == FieldState::fault) {
       invalidate_balance();
-      report_imu_fault(imu_manager_.get_imu_data(), std::chrono::steady_clock::now(),
-                       "read", "operator Stop during supported bench IMU loss");
+      const auto sample=imu_manager_.get_imu_data();
+      terminal_health(sample);
+      report_imu_fault(sample, std::chrono::steady_clock::now(), "stop", "operator Stop during IMU loss");
     }
   }
+  if (redundant_field_ && (field_backup_active_ || board_health_.terminal) && touches_joints(start))
+    return hardware_interface::return_type::ERROR;
   if ((supported_standby_ || field_rehome_) && touches_joints(start)) {
     if (supported_standby_) return hardware_interface::return_type::ERROR;
     if (supported_damping_ && (touches_joints(stop) || !complete_joint_claim(start) ||
@@ -424,6 +467,11 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
     deactivate_motors();
     return hardware_interface::CallbackReturn::SUCCESS;
   }
+  redundant_ = {};
+  field_backup_active_=false;
+  board_health_.terminal=false;
+  fc_balance_mode_=5;
+  board_health_.publish(5,BNO055::Output{},BNO055::Output{},0,false);
   // An activation requests a new supported home. Old offsets and a prepared
   // packet can survive on_error on the same ROS component even in strict mode.
   std::fill(hw_actuator_is_homed_.begin(), hw_actuator_is_homed_.end(), false);
@@ -441,6 +489,7 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
     const auto deadline = std::chrono::steady_clock::now() + pupper_imu::startup_timeout;
     RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
                 "Keep body supported and stationary: checking fresh IMU reports before motor enable");
+    const auto startup_resets=imu_manager_.get_imu_data().alternative.reset_count;
     while (true) {
       if (field_rehome_ && field_state_ != FieldState::homing) return hardware_interface::CallbackReturn::ERROR;
       const auto sample = imu_manager_.get_imu_data();
@@ -448,7 +497,18 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
       pupper_imu::StartupObservation observation;
       const bool ready = stationary.observe(sample, observed_at, trace ? &observation : nullptr);
       if (trace) trace->record(sample, observed_at, observation, ready);
-      if (ready) { finish_trace(true); break; }
+      bool sources_ready=true;
+      if (redundant_field_) {
+        BNO055::Output observed;
+        const char *source_error=redundant_.select(sample,observed_at,false,observed);
+        sources_ready=!source_error && redundant_.qualified;
+        if (source_error && sample.alternative.reset_count!=startup_resets) {
+          disable_for_imu_fault(sample,observed_at,"startup",source_error);
+          finish_trace(false);
+          return hardware_interface::CallbackReturn::ERROR;
+        }
+      }
+      if (ready && sources_ready) { finish_trace(true); break; }
       if (std::chrono::steady_clock::now() >= deadline) {
         const char *error = pupper_imu::feedback_error(sample, observed_at);
         disable_for_imu_fault(sample, observed_at, "startup",
@@ -481,9 +541,6 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
   if (field_rehome_) {
     deactivate_motors();
     clear_joint_commands();
-    auto expected = FieldState::homing;
-    if (!field_state_.compare_exchange_strong(expected, FieldState::awaiting_claim))
-      return hardware_interface::CallbackReturn::ERROR;
   }
   if (supported_standby_) {
     deactivate_motors();
@@ -492,6 +549,20 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_activate(
                 "Supported standby: homed, motors disabled, all joint controller claims blocked");
   }
 
+  // A completed mechanical Home is the only new source generation. Set all
+  // fields before allowing read() to publish the new session's first snapshot.
+  const auto home_us = pupper_imu::BoardHealth::ns(std::chrono::steady_clock::now()) / 1000;
+  const auto home_id = std::max(board_health_.homes.load() + 1, home_us);
+  board_health_.homes = home_id;
+  board_health_.incidents = 0;
+  fc_balance_incident_ = 0;
+  fc_balance_generation_ = static_cast<double>(home_id);
+  fc_balance_mode_ = 1;
+  if (field_rehome_) {
+    auto expected = FieldState::homing;
+    if (!field_state_.compare_exchange_strong(expected, FieldState::awaiting_claim))
+      return hardware_interface::CallbackReturn::ERROR;
+  }
   RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Successfully activated!");
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -529,6 +600,7 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_error(
     [[maybe_unused]] const rclcpp_lifecycle::State &previous_state) {
   deactivate_motors();
   latch_field_fault();
+  terminal_health(BNO055::Output{});
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -536,6 +608,7 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_deactivate(
     const rclcpp_lifecycle::State & /*previous_state*/) {
   deactivate_motors();
   latch_field_fault();
+  terminal_health(BNO055::Output{});
   RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"), "Successfully deactivated!");
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -634,7 +707,8 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
   // Validate BEFORE transmitting previously prepared actuator commands. Each
   // sensor component has its own monotonic receipt; one cannot freshen another.
   if (field_rehome_ && field_state_ == FieldState::homing) return hardware_interface::return_type::OK;
-  const BNO055::Output imu_output = imu_manager_.get_imu_data();
+  const BNO055::Output raw = imu_manager_.get_imu_data();
+  BNO055::Output imu_output = raw;
   if (field_rehome_ && (field_state_ == FieldState::fault || field_state_ == FieldState::configured)) {
     deactivate_motors();
     clear_joint_commands();
@@ -675,7 +749,29 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
         contains_nan(hw_state_efforts_)) return hardware_interface::return_type::ERROR;
     if (standby_feedback_lost_) return hardware_interface::return_type::OK;
   } else {
-    if (imu_manager_.enabled && !check_motor_feedback(imu_output, "read")) {
+    double field_dt=0;
+    if (redundant_field_) {
+      const auto now=std::chrono::steady_clock::now();
+      const bool running=field_state_==FieldState::running;
+      const auto previous=redundant_.mode;
+      const char *error=redundant_.select(raw,now,running,imu_output);
+      if (!error && running && !bench_joint_feedback_ok(now)) error="invalid or interrupted joint feedback";
+      if (error) {
+        disable_for_imu_fault(raw, now, "read", error);
+        return hardware_interface::return_type::ERROR;
+      }
+      if (previous!=2 && redundant_.mode==2) {
+        fc_balance_incident_=static_cast<double>(++board_health_.incidents);
+        clear_joint_commands();
+        *spi_command_={};
+        for (auto &flag : spi_command_->flags) flag=1;
+      }
+      field_backup_active_=redundant_.mode==2;
+      fc_balance_mode_=redundant_.mode;
+      field_dt=std::chrono::duration<double>(now-last_joint_exchange_).count();
+      prior_field_positions_=hw_state_positions_;
+      last_joint_exchange_=now;
+    } else if (imu_manager_.enabled && !check_motor_feedback(imu_output, "read")) {
       return hardware_interface::return_type::ERROR;
     }
     if (supported_standby_ || (field_rehome_ && field_state_ == FieldState::awaiting_claim)) {
@@ -689,6 +785,16 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
       }
     }
     copy_actuator_states();
+    if (redundant_field_ && (field_state_==FieldState::running || field_state_==FieldState::zero_first)) {
+      bool continuous=bench_joint_feedback_ok(std::chrono::steady_clock::now());
+      for (size_t i=0;i<hw_state_positions_.size();++i)
+        if (std::abs(hw_state_positions_[i]-prior_field_positions_[i])> .02+hw_actuator_velocity_maxs_[i]*field_dt)
+          continuous=false;
+      if (!continuous) {
+        disable_for_imu_fault(raw,std::chrono::steady_clock::now(),"read","invalid or discontinuous joint exchange");
+        return hardware_interface::return_type::ERROR;
+      }
+    }
   }
 
   // Print joint position
@@ -756,6 +862,7 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
   if (hw_states_contains_nan()) {
     deactivate_motors();
     latch_field_fault();
+    terminal_health(raw);
     RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
                  "HW state array contained NaN. Deactivating motors");
     std::stringstream ss;
@@ -769,6 +876,8 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
     return hardware_interface::return_type::ERROR;
   }
 
+  board_health_.publish(board_health_.homes ? (redundant_field_ ? redundant_.mode : 1) : 0,
+                        raw, imu_output, spi_data_->spi_driver_status&3, redundant_field_ && redundant_.mode==2);
   return hardware_interface::return_type::OK;
 }
 

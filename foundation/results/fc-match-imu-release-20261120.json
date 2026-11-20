@@ -1,0 +1,360 @@
+{
+  "profile": "field_redundant_imu",
+  "date": "2026-11-20",
+  "hardware": "Pi packed. No robot was powered, contacted, flashed or tested for this release.",
+  "prior_release": "foundation/results/fc-appliance-release-20261120.json",
+  "historical_evidence": "Earlier physical native timeout cause unknown. The later west-goal offense trial refused arming and issued no nonzero request or kick.",
+  "mode": "Opt-in field installer builds and pins the board and native controller. Default installation remains strict for native outages.",
+  "real_recording_replayed": {
+    "date": "2026-11-20",
+    "scope": "Offline only. Stationary supported diagnostic capture, injected missing reports, ROS ResourceManager and memory SPI. No physical operations.",
+    "build": {
+      "platform": "Linux aarch64 Ubuntu 24.04.5 ROS Jazzy Release",
+      "image": "cs123-ros-jazzy-slew-check",
+      "image_sha256": "0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
+      "library_sha256": "5f4a7d99b116b260a1e884087097b66257b5646a5c819e0bd32ac7809ca3ca80",
+      "markers": [
+        "FC_BOARD_HEALTH_V1",
+        "FC_FIELD_REDUNDANT_IMU_V1"
+      ],
+      "network": "none",
+      "release_status": "Verification binary only. The Debian target needs a rebuilt, enrolled and mapped binary."
+    },
+    "source": {
+      "archive": "artifacts/hardware/2026-11-02/imu-sensor-session/sensor-session-evidence.tar.gz",
+      "sha256": "af16ba0992b0563e46387630935ef5fd10119cd86d4ed42640c7d6de666798dd",
+      "member": "sensor-session/remote/comparison-02/packets.jsonl",
+      "extracted_tsv_sha256": "78c95a61006e501486c4bf542e26ef2bbe635f82fb5c1159ad191750af868591",
+      "channel_3_packets": 12712,
+      "report_counts": {
+        "0x02": 9058,
+        "0x05": 9046,
+        "0x07": 6038,
+        "0x08": 6031,
+        "0x13": 60
+      }
+    },
+    "replay": {
+      "method": "Native BNO decoder, per-source sequence tracking and production selector at 260 Hz. Captured monotonic receipt times and batch-relative ages were retained. Selected report IDs removed from raw batches from 5 seconds after first auxiliary gyro. Durations below start at the last usable primary component including known batch age.",
+      "healthy_span_s": 60.2862,
+      "baseline_ticks": 15675,
+      "backup_qualified_ticks": 15528,
+      "first_qualification_ms": 561.538,
+      "cases": [
+        {
+          "loss": "0x02",
+          "duration_s": 1,
+          "hold_ms": 103.707,
+          "restored_ms": 1138.32
+        },
+        {
+          "loss": "0x05",
+          "duration_s": 2,
+          "hold_ms": 103.707,
+          "restored_ms": 2703.71
+        },
+        {
+          "loss": "0x05",
+          "duration_s": 2.5,
+          "hold_ms": 103.707,
+          "restored_ms": 2703.71
+        },
+        {
+          "loss": "0x05 and 0x02",
+          "duration_s": 4,
+          "hold_ms": 103.707,
+          "terminal_ms": 3003.71
+        },
+        {
+          "loss": "all sensor reports",
+          "duration_s": 4,
+          "hold_ms": null,
+          "terminal_ms": 103.707
+        }
+      ]
+    },
+    "historical_i2c_next_read_stall": {
+      "duration_ms": 120,
+      "completed_pair_return_ms": 0,
+      "threaded_pair_visible_us": 26,
+      "cached_pair_expired_after_stall": true
+    },
+    "qualifications": {
+      "auxiliary_max_age_ms": 40,
+      "overlap_max_receipt_skew_ms": 20,
+      "initial_advancing_overlap_ms": 500,
+      "restoration_advancing_overlap_ms": 120,
+      "total_deadline_ms": 3000,
+      "common_outage_watchdog_ms": 100,
+      "loss_of_either_spi_or_joint_interval_over_ms": 50,
+      "faults_checked": [
+        "common IMU loss",
+        "elapsed deadline",
+        "old batch",
+        "backup sequence or receipt gap",
+        "different returning primary",
+        "BNO reset",
+        "joint discontinuity",
+        "SPI fault",
+        "Stop during hold"
+      ]
+    },
+    "limitations": [
+      "All four streams share one sensor, power source, bus, host and fusion implementation. Blind body balance and true acquisition times cannot be recovered from these receipts.",
+      "The reference firmware returns cached CAN coordinates with no per-drive freshness, boot counters or measured current. It cannot qualify retaining coordinates through a drive restart or power loss.",
+      "The software timer depends on a scheduling, functioning Pi and SPI. Supported tests and course approval are still needed on target before field use.",
+      "Under a concurrent build, parallel real-time fixtures experienced >50 ms scheduling disruption and correctly disabled. Tests do not establish scheduling availability on the robot."
+    ],
+    "binary_receipts": {
+      "primary": {
+        "bytes": 192,
+        "sha256": "ba4118cf9eb0a1c0d36dfec2eca12d1d42f878c27828a1a6cbb0692886f26394",
+        "mode": 1
+      },
+      "hold": {
+        "bytes": 192,
+        "sha256": "bdb8eea34252ce6a6af1d74c60cbf6057e04edc4aa47d77a8da1332ada966073",
+        "mode": 2
+      },
+      "restored": {
+        "bytes": 192,
+        "sha256": "bec5aca78267557e1cb02935523b5d0aae1c570413765a9293c40e272a4b7ead",
+        "mode": 3
+      }
+    },
+    "reproduction": "Run verify-native.sh from this checkout with the recorded archive available. The replay validates the archive SHA-256 before decoding.",
+    "native_suite": {
+      "passed": 86,
+      "total": 86,
+      "floor_cases": [
+        "imu_health_floor_rehome",
+        "imu_health_floor_stop",
+        "imu_health_floor_long",
+        "imu_health_floor_twice",
+        "imu_health_floor_jump",
+        "imu_health_floor_quat2",
+        "imu_health_floor_reset",
+        "imu_health_floor_gap",
+        "imu_health_floor_gyro1",
+        "imu_health_floor_disagree",
+        "imu_health_floor_total",
+        "imu_health_floor_spi",
+        "imu_health_floor_queued"
+      ],
+      "events": [
+        "40: floor=floor_rehome held_ms=106 terminal_ms=112 incident=1 withdrawn=60",
+        "40: floor=floor_rehome new_home=1 same_board=1 incident_reset=1",
+        "39: floor=floor_stop held_ms=105 terminal_ms=111 incident=1 withdrawn=60",
+        "30: floor=floor_twice cycle=1 held_ms=103 restored_ms=1136 same_home=1 same_board=1 authority_still_paused=1",
+        "32: floor=floor_long held_ms=102 terminal_ms=3004 incident=1 withdrawn=60",
+        "30: floor=floor_twice cycle=2 held_ms=103 restored_ms=1127 same_home=1 same_board=1 authority_still_paused=1",
+        "38: floor=floor_jump held_ms=100 terminal_ms=106 incident=1 withdrawn=60",
+        "29: floor=floor_quat2 cycle=1 held_ms=101 restored_ms=2137 same_home=1 same_board=1 authority_still_paused=1",
+        "36: floor=floor_reset held_ms=100 terminal_ms=114 incident=1 withdrawn=60",
+        "37: floor=floor_gap held_ms=105 terminal_ms=118 incident=1 withdrawn=60",
+        "28: floor=floor_gyro1 cycle=1 held_ms=103 restored_ms=1132 same_home=1 same_board=1 authority_still_paused=1",
+        "34: floor=floor_disagree held_ms=104 terminal_ms=1010 incident=1 withdrawn=60",
+        "31: floor=floor_total held_ms=-1 terminal_ms=106 incident=0 withdrawn=60",
+        "35: floor=floor_spi held_ms=100 terminal_ms=107 incident=1 withdrawn=60",
+        "85: threaded_publication_age_us=9",
+        "83: packet available after 0 ms from receipt",
+        "33: floor=floor_queued held_ms=100 terminal_ms=113 incident=1 withdrawn=60"
+      ]
+    }
+  },
+  "mechanics": {
+    "experiment": "foundation/scripts/check_fc_balance_hold.py",
+    "duration_s": 2,
+    "terrain": "level, free base, nominal friction, healthy drives, perfect current feedback for zero-gait branch",
+    "trials": [
+      {
+        "walking_ticks": 0,
+        "strategy": "fresh_zero_gait",
+        "peak_tilt_deg": 0.52,
+        "minimum_base_height_m": 0.16,
+        "peak_displacement_m": 0.0
+      },
+      {
+        "walking_ticks": 0,
+        "strategy": "frozen_joint_targets",
+        "peak_tilt_deg": 0.52,
+        "minimum_base_height_m": 0.16,
+        "peak_displacement_m": 0.0
+      },
+      {
+        "walking_ticks": 280,
+        "strategy": "fresh_zero_gait",
+        "peak_tilt_deg": 1.47,
+        "minimum_base_height_m": 0.157,
+        "peak_displacement_m": 0.02
+      },
+      {
+        "walking_ticks": 280,
+        "strategy": "frozen_joint_targets",
+        "peak_tilt_deg": 48.17,
+        "minimum_base_height_m": 0.112,
+        "peak_displacement_m": 0.167
+      },
+      {
+        "walking_ticks": 340,
+        "strategy": "fresh_zero_gait",
+        "peak_tilt_deg": 2.18,
+        "minimum_base_height_m": 0.156,
+        "peak_displacement_m": 0.015
+      },
+      {
+        "walking_ticks": 340,
+        "strategy": "frozen_joint_targets",
+        "peak_tilt_deg": 46.71,
+        "minimum_base_height_m": 0.118,
+        "peak_displacement_m": 0.164
+      },
+      {
+        "walking_ticks": 400,
+        "strategy": "fresh_zero_gait",
+        "peak_tilt_deg": 3.55,
+        "minimum_base_height_m": 0.153,
+        "peak_displacement_m": 0.025
+      },
+      {
+        "walking_ticks": 400,
+        "strategy": "frozen_joint_targets",
+        "peak_tilt_deg": 3.33,
+        "minimum_base_height_m": 0.156,
+        "peak_displacement_m": 0.045
+      },
+      {
+        "walking_ticks": 460,
+        "strategy": "fresh_zero_gait",
+        "peak_tilt_deg": 1.98,
+        "minimum_base_height_m": 0.155,
+        "peak_displacement_m": 0.027
+      },
+      {
+        "walking_ticks": 460,
+        "strategy": "frozen_joint_targets",
+        "peak_tilt_deg": 50.89,
+        "minimum_base_height_m": 0.114,
+        "peak_displacement_m": 0.175
+      },
+      {
+        "walking_ticks": 520,
+        "strategy": "fresh_zero_gait",
+        "peak_tilt_deg": 2.34,
+        "minimum_base_height_m": 0.156,
+        "peak_displacement_m": 0.018
+      },
+      {
+        "walking_ticks": 520,
+        "strategy": "frozen_joint_targets",
+        "peak_tilt_deg": 45.37,
+        "minimum_base_height_m": 0.116,
+        "peak_displacement_m": 0.153
+      }
+    ]
+  },
+  "software": {
+    "native_walker": "41 C++ production controller tests on memory-backed joint interfaces including real ROS service and stale grants. All six native functional test targets passed.",
+    "ros": [
+      {
+        "roster": [
+          "pupper-1"
+        ],
+        "measured_width_m": 1.442886155351121,
+        "end_to_standby_s": 0.204,
+        "start_to_first_nonzero_s": 0.459,
+        "warm_restart_to_first_nonzero_s": 0.635,
+        "kick_completions": [
+          "r1-p0-k1",
+          "r1-p0-k2"
+        ],
+        "observed_ball_relocation_m": 0.24,
+        "integrated_second_approach_m": 0.24,
+        "new_capture_after_first_completion_s": 0.025,
+        "eof_standby": true,
+        "ros_events": {
+          "pupper-1": 580
+        },
+        "pending_frames": {
+          "pupper-1": 4
+        },
+        "wall_s": 12.79
+      },
+      {
+        "roster": [
+          "pupper-2"
+        ],
+        "measured_width_m": 1.442886155351121,
+        "end_to_standby_s": 0.229,
+        "start_to_first_nonzero_s": 0.541,
+        "warm_restart_to_first_nonzero_s": 0.528,
+        "kick_completions": [
+          "r1-p0-k1",
+          "r1-p0-k2"
+        ],
+        "observed_ball_relocation_m": 0.24,
+        "integrated_second_approach_m": 0.24,
+        "new_capture_after_first_completion_s": 0.014,
+        "eof_standby": true,
+        "ros_events": {
+          "pupper-2": 576
+        },
+        "pending_frames": {
+          "pupper-2": 12
+        },
+        "wall_s": 12.576
+      },
+      {
+        "roster": [
+          "pupper-1",
+          "pupper-2"
+        ],
+        "measured_width_m": 1.582886155351121,
+        "rejected_start_standby": true,
+        "end_to_standby_s": 0.254,
+        "start_to_first_nonzero_s": 0.592,
+        "warm_restart_to_first_nonzero_s": 0.608,
+        "score": {
+          "pupper-1": 1,
+          "pupper-2": 0
+        },
+        "early_resume_held_match": true,
+        "missed_red_goal_frames": 1,
+        "rally_after_replacement_and_resume": 2,
+        "imu_roster_pause": true,
+        "imu_explicit_new_epoch": true,
+        "imu_score_and_rally_preserved": true,
+        "imu_received_fresh_tactics_and_motion": true,
+        "imu_native_service_acks": {
+          "pupper-1": 0,
+          "pupper-2": 1
+        },
+        "eof_standby": true,
+        "ros_events": {
+          "pupper-1": 345,
+          "pupper-2": 256
+        },
+        "pending_frames": {
+          "pupper-1": 21,
+          "pupper-2": 16
+        },
+        "wall_s": 10.266
+      }
+    ],
+    "browser": "Real Chrome and HTTP/WebSocket with scripted Pi state, mixed drivers, fresh epoch, score preservation and supported Home state.",
+    "commissioning": "ROS Jazzy typed controller services and a scripted controller inventory. 2.031s deliberate delivery gap and two interrupted/late-reply restoration cases. Native board input continued by design.",
+    "other_checks": "The unfiltered neural_controller ament lint suite additionally reports flake8, CMake lint, uncrustify and xmllint failures. These checks scan bundled RTNeural dependencies, formatting and package metadata."
+  },
+  "independent_review": {
+    "models": [
+      "claude-fable-5-2",
+      "claude-opus-5-5"
+    ],
+    "outcome": "Limited live feedback to qualified alternate channels. Found and fixed walker reactivation during an unacknowledged incident. Added a production-controller regression."
+  },
+  "limits": [
+    "Same-chip reports share the chip, I2C path and supply. Their known batch age plus host receipt is a lower bound on sample age.",
+    "A halted host cannot enforce a software timer. A checksum alone does not establish fresh motor replies or preserve drive origin after reset.",
+    "Physical balance, floor braking distance, independent Stop, target firmware identity and installed report cadence remain unverified."
+  ]
+}

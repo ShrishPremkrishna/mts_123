@@ -77,8 +77,9 @@ def platform(args, runs):
             result = subprocess.check_output(["bash", "-c", 'source "$1" >/dev/null && exec python3 -c "$2"',
                                              "pupper-fc", str(script.resolve(strict=True)), read_env], timeout=20)
             python, env = json.loads(result)
-    if args.imu_prefix:
-        prefix = str(args.imu_prefix.resolve(strict=True))
+    replacements = {"imu": args.imu_prefix, "native": getattr(args, "controller_prefix", None)}
+    for overlay in filter(None, replacements.values()):
+        prefix = str(overlay.resolve(strict=True))
         for key, path in (("AMENT_PREFIX_PATH",prefix),("CMAKE_PREFIX_PATH",prefix),
                           ("LD_LIBRARY_PATH",str(Path(prefix)/"lib"))):
             env[key] = os.pathsep.join([path, *filter(None, env.get(key,"").split(os.pathsep))])
@@ -86,12 +87,12 @@ def platform(args, runs):
     for name, (pkg, relative) in NATIVE_LIBS.items():
         path = selected_package(env, pkg, relative)
         digest = file_digest(path)
-        if prior and name in prior["components"] and not (name == "imu" and args.imu_prefix):
+        if prior and name in prior["components"] and not replacements.get(name):
             old = prior["components"][name]
             if path != Path(old["path"]).resolve(strict=True) or digest != old["sha256"]:
                 raise ValueError("the current ROS overlay differs from selected native component " + name)
         parts[name] = {"path":str(path), "sha256":digest}
-    inspect_native(parts["native"]["path"])
+    inspect_native(parts["native"]["path"], args.imu_recovery)
     driver = Path(parts["imu"]["path"]).read_bytes()
     gateway = Path(parts["gateway"]["path"]).read_bytes()
     if (driver[:6] != b"\x7fELF\x02\x01" or driver[18:20] != b"\xb7\x00" or

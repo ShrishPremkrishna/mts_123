@@ -120,6 +120,8 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
             data = await request.json()
             if not isinstance(data, dict):
                 raise ValueError("Invalid settings")
+            if action == "match/balance-resume":
+                return await lobby.resume_balance(token, data.get("id"))
             if action == "self-test":
                 if lobby.phase != "idle":
                     raise ValueError("End the match before running the offline check")
@@ -236,6 +238,10 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
                         await ws.send_json(event)
                         return
                     peer.observe(event)
+                    if event.get("event") in ("imu", "controls"):
+                        lobby.observe_controls(peer)
+                    if event.get("event") == "stop_result":
+                        lobby.stop_requested(peer)
                     if event.get("event") == "kick" and lobby.camera and peer in lobby.players:
                         lobby.camera.observe_kick(event)
                     if event.get("event") == "controls":
@@ -251,8 +257,13 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
                     if len(raw) > 2048:
                         raise ValueError("Operator input exceeds the size limit")
                     message = operator_message(json.loads(raw), robot_id)
+                    if message["command"] == "stop":
+                        lobby.stop_requested(peer)
                     if message["command"] == "arm" or (lobby.phase != "idle" and message["command"] == "mode"):
                         await ws.send_json({"event":"error","reason":"Use match controls for this action"})
+                        continue
+                    if message["command"] == "drive" and lobby.phase in ("balance_hold", "balance_resuming"):
+                        # Held teams already have zero motion. Reserve their tickets for roster recovery.
                         continue
                     if message["command"] == "drive" and not lobby.drive_allowed(peer, message["epoch"]):
                         # Stale browser or overhead state can only brake. The Pi checks the epoch again.

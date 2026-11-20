@@ -436,3 +436,76 @@ def test_described_bench_cannot_start_any_field_authority(setup, capsys, mode):
         with pytest.raises(ValueError, match="permanent body support"):
             setup.call(action)
     assert not setup.calls
+
+
+def test_imu_delivery_requires_enrolled_candidate_current_manager_and_support(setup, monkeypatch):
+    with pytest.raises(SystemExit):
+        setup.call("test-imu-delivery")
+    with pytest.raises(ValueError, match="enrolled field"):
+        setup.call("test-imu-delivery", "--supported")
+    profile = cli.read(setup.profile)
+    profile["imu_recovery"] = "field_redundant_imu"
+    cli.write_new(setup.profile, profile)
+    with pytest.raises(ValueError, match="prepare first"):
+        setup.call("test-imu-delivery", "--supported")
+    setup.call("prepare")
+    with pytest.raises(FileNotFoundError):
+        setup.call("test-imu-delivery", "--supported")
+    setup.call("home", "--supported")
+    probes = []
+    monkeypatch.setattr(cli, "run_home_probe", lambda cmd, **kw: probes.append((cmd, kw)))
+    setup.call("test-imu-delivery", "--supported")
+    assert len(probes) == 1
+    cmd, kw = probes[0]
+    assert cmd[:3] == [sys.executable, "-B", "-s"] and cmd[-2] == "--supported-imu-delivery"
+    assert kw["env"]["PUPPER_FC_IMU_RECOVERY"] == "field_redundant_imu"
+    assert kw["env"]["ROS_LOCALHOST_ONLY"] == "1" and kw["env"]["ROS_DOMAIN_ID"] == "168"
+    (setup.proc / "123/environ").write_bytes(b"")
+    with pytest.raises(ValueError, match="manager identity"):
+        setup.call("test-imu-delivery", "--supported")
+    assert len(probes) == 1
+
+
+@pytest.mark.parametrize("case", ["ok", "timeout", "interrupt", "drop_refused", "lost_restore",
+                                  "ignored_stop", "ignored_restore", "no_samples", "kick", "wrong_plugin", "motor_claim"])
+def test_imu_delivery_restores_only_the_sensor_without_resuming(case):
+    rows = [SimpleNamespace(name="imu_sensor_broadcaster", type="imu_sensor_broadcaster/IMUSensorBroadcaster",
+                            state="active", claimed_interfaces=[]),
+            SimpleNamespace(name="gemini_walk", state="active"),
+            SimpleNamespace(name="trick_leg_kick", state="inactive")]
+    if case == "kick": rows[2].state = "active"
+    if case == "wrong_plugin": rows[0].type = "custom/Controller"
+    if case == "motor_claim": rows[0].claimed_interfaces = ["hip/position"]
+    switches, samples = [], []
+    def switch(active):
+        switches.append(active)
+        if not active:
+            if case != "ignored_stop": rows[0].state = "inactive"
+            if case == "timeout": raise TimeoutError("deactivate reply lost after applying")
+            if case == "drop_refused": raise ValueError("declined")
+        else:
+            if case != "ignored_restore": rows[0].state = "active"
+            if case == "lost_restore": raise TimeoutError("no restore reply")
+    def sample():
+        samples.append(rows[0].state)
+        if case == "no_samples" and len(samples) == 2:
+            raise ValueError("no IMU messages")
+    def quiet():
+        assert rows[0].state == "inactive"
+        if case == "interrupt": raise KeyboardInterrupt
+    def run():
+        return cli.exercise_imu_delivery(lambda:rows, switch, sample, quiet, lambda:False)
+    if case == "ok":
+        assert run() == {"ros_imu_delivery_gap_s":2,"broadcaster_restored":True,"resume_requested":False}
+    else:
+        expected = KeyboardInterrupt if case == "interrupt" else TimeoutError if case == "timeout" else ValueError
+        with pytest.raises(expected) as error:
+            run()
+        if case in ("lost_restore", "ignored_restore", "no_samples"):
+            assert "restoration unconfirmed" in str(error.value)
+    if case in ("kick", "wrong_plugin", "motor_claim"):
+        assert not switches and not samples
+    else:
+        assert switches == [False, True]
+        assert rows[0].state == ("inactive" if case == "ignored_restore" else "active")
+    assert rows[1].state == "active" and rows[2].state == ("active" if case=="kick" else "inactive")

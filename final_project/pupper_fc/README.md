@@ -8,6 +8,8 @@ Click Blue or Red to discover an enrolled robot on Wi-Fi. Connect the overhead c
 
 Use the gear beside a connected team to select **Teleop**. Blue uses W/S to move forward and back, A/D to sidestep and Q/E to turn. Red uses the arrow keys to move and comma/period to turn. Escape sends Stop to connected teams. After a goal, return the ball to the field and press **Resume play**.
 
+If a team loses balance feedback, the match pauses for every connected team, including teams under keyboard control. The score stays on screen. **Resume after balance hold** becomes available when every Pi reports that its original board and Home are valid and the original camera sees the teams and ball. Press it once to rejoin play. Another balance incident requires a fresh confirmation. If setup is required or a participant disconnects, end the match and follow the affected team’s setup guidance. When a goal was already scored, its ordinary ball reset still applies after the balance hold.
+
 Run `./pupper-fc-check` for the short hardware-free regression. The release audit explains the old ten-minute cycle, sensor recovery, archived evidence, hardware acceptance and rollback. [Release audit](RELEASE.md) · [Field replay](../../foundation/results/lobby-camera-rehearsal-20261120.json)
 
 ## Offline soccer decision rehearsal

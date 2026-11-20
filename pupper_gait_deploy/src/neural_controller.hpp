@@ -18,6 +18,7 @@
 #include "geometry_msgs/msg/pose.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "rclcpp/subscription.hpp"
+#include "rcl_interfaces/srv/set_parameters_atomically.hpp"
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 #include "realtime_tools/realtime_buffer.h"
@@ -210,6 +211,20 @@ class NeuralController : public controller_interface::ControllerInterface {
   std::atomic<std::uint64_t> cmd_vel_generation_{0};
   bool cmd_vel_was_live_ = false;
   bool command_deadline_mode_ = false;
+  using BalanceRelease = rcl_interfaces::srv::SetParametersAtomically;
+  hardware_interface::LoanedStateInterface *balance_mode_state_ = nullptr;
+  hardware_interface::LoanedStateInterface *balance_home_state_ = nullptr;
+  hardware_interface::LoanedStateInterface *balance_incident_state_ = nullptr;
+  bool field_balance_ = false;
+  bool balance_blocked_ = false;
+  std::atomic<std::int64_t> balance_mode_{0}, balance_home_{0}, balance_incident_{0};
+  std::atomic<std::int64_t> balance_observed_ns_{0};
+  std::int64_t balance_command_floor_ns_ = 0;
+  rclcpp::Service<BalanceRelease>::SharedPtr balance_release_service_;
+  int sample_balance();
+  void release_balance(const std::shared_ptr<BalanceRelease::Request> request,
+                       std::shared_ptr<BalanceRelease::Response> response);
+
   std::string command_clock_id_;
   CommandDeadlineState command_deadline_state_;
   std::mutex command_deadline_mutex_;  // Callback/lifecycle only; never update().

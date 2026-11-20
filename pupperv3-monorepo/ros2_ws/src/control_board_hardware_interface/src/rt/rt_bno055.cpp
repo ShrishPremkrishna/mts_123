@@ -146,6 +146,12 @@ void BNO055::setFeatureCommand(uint8_t reportID, uint32_t microsBetweenReports,
   // Transmit packet on channel 2, 17 bytes
   sendPacket<17>(CHANNEL_CONTROL);
 }
+void BNO055::enable_redundant_reports(uint32_t interval) {
+  redundant_reports_ = true;
+  setFeatureCommand(0x07, interval);
+  setFeatureCommand(0x08, interval);
+}
+
 void BNO055::enableRotationVector(uint16_t timeBetweenReports) {
   setFeatureCommand(SENSOR_REPORTID_ROTATION_VECTOR, timeBetweenReports);
 }
@@ -166,6 +172,12 @@ bool BNO055::dataAvailable(void) {
   if (receivePacket() == true) {
     // Check to see if this packet is a sensor reporting its data to us
     // printf("here\n");
+    if (redundant_reports_ && shtpHeader[2]==CHANNEL_EXECUTABLE && payload_size_==1 && shtpData[0]==1) {
+      ++alternative_.reset_count;
+      alternative_.quaternion_valid=alternative_.gyro_valid=quaternion_valid_=gyro_valid_=false;
+      game_sequence_={};uncal_sequence_={};quaternion_sequence_={};gyro_sequence_={};
+      return true;
+    }
     if (shtpHeader[2] == CHANNEL_REPORTS) {
       //   printf("got channel report. shtpData[0]=%d\n", static_cast<int>(shtpData[0]));
       if (shtpData[0] == SHTP_REPORT_BASE_TIMESTAMP) {
@@ -282,7 +294,7 @@ float BNO055::qToFloat(int16_t fixedPointValue, uint8_t qPoint) {
 // shtpData[12:13]: Accuracy estimate
 void BNO055::parseInputReport(void) {
   std::vector<pupper_bno::Report> reports;
-  if (!pupper_bno::parse_reports(std::vector<uint8_t>(shtpData, shtpData+payload_size_), reports)) return;
+  if (!pupper_bno::parse_reports(std::vector<uint8_t>(shtpData, shtpData+payload_size_), reports, redundant_reports_)) return;
   // Preserve the old unverified base timestamp value for compatibility only.
   timeStamp = uint32_t(shtpData[1]) | uint32_t(shtpData[2]) << 8
               | uint32_t(shtpData[3]) << 16 | uint32_t(shtpData[4]) << 24;
@@ -308,7 +320,33 @@ void BNO055::parseInputReport(void) {
       quaternion_receipt_time_ = received;
       quaternion_valid_ = std::any_of(report.values.begin(), report.values.end(), [](int16_t v) { return v != 0; });
     }
-    // Do not silently replace the selected RotationVector stream with GameRV.
+    if (redundant_reports_ && report.id == 0x07 && uncal_sequence_.accept(report.sequence)) {
+      auto &a = alternative_;
+      if (a.gyro_report_sequence>=0 && (uint8_t(report.sequence-a.gyro_report_sequence)>4 ||
+          received-a.gyro_receipt_time>std::chrono::milliseconds(40))) ++a.gap_count;
+      a.gyro_report_sequence = report.sequence;
+      a.gyro_valid = report.timing_valid;
+      a.gyro_accuracy = report.accuracy;
+      if (a.gyro_valid) {
+        for (int k=0;k<3;++k) a.gyro[k] = (int(report.values[k]) - int(report.gyro_bias[k])) / 512.0f;
+        a.gyro_receipt_time = received;
+        a.gyro_minimum_age_at_receipt = minimum_age;
+      }
+    } else if (redundant_reports_ && report.id == 0x08 && game_sequence_.accept(report.sequence)) {
+      auto &a = alternative_;
+      if (a.quaternion_report_sequence>=0 && (uint8_t(report.sequence-a.quaternion_report_sequence)>4 ||
+          received-a.quaternion_receipt_time>std::chrono::milliseconds(40))) ++a.gap_count;
+      a.quaternion_report_sequence = report.sequence;
+      a.quaternion_valid = report.timing_valid;
+      a.quaternion_accuracy = report.accuracy;
+      if (a.quaternion_valid) {
+        a.quat = Eigen::Quaternionf(report.values[3]/16384.0f, report.values[0]/16384.0f,
+                                   report.values[1]/16384.0f, report.values[2]/16384.0f);
+        a.quaternion_receipt_time = received;
+        a.quaternion_minimum_age_at_receipt = minimum_age;
+      }
+    }
+    // Keep RotationVector and GameRV in separate streams.
     // Other complete known reports are parsed for boundaries, not adopted.
   }
 }
@@ -349,11 +387,15 @@ void BNO055::parseCommandReport(void) {
 BNO055::Output BNO055::sample() {
   // A completed report must reach the controller before another I2C read can
   // block. Keep draining unusable/duplicate packets within the original budget.
+  const auto start_reset=alternative_.reset_count;
   const auto start_quat = quaternion_receipt_time_;
   const auto start_gyro = gyro_receipt_time_;
+  const auto start_game = alternative_.quaternion_receipt_time, start_uncal = alternative_.gyro_receipt_time;
   const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(25);
   for (unsigned packets=0; packets<32 && std::chrono::steady_clock::now()<deadline && dataAvailable(); ++packets) {
     latest_packet_timestamp = std::chrono::high_resolution_clock::now();
+    if (redundant_reports_ && (alternative_.reset_count!=start_reset || quaternion_receipt_time_ != start_quat || gyro_receipt_time_ != start_gyro ||
+        alternative_.quaternion_receipt_time != start_game || alternative_.gyro_receipt_time != start_uncal)) return current_output();
     if (quaternion_receipt_time_ != start_quat || gyro_receipt_time_ != start_gyro) {
       auto result = current_output();
       if (!pupper_imu::feedback_error(result, std::chrono::steady_clock::now())) {
@@ -366,6 +408,7 @@ BNO055::Output BNO055::sample() {
 
 BNO055::Output BNO055::current_output() {
   Output result;
+  result.alternative = alternative_;
   result.quat.x() = getQuatI();
   result.quat.y() = getQuatJ();
   result.quat.z() = getQuatK();

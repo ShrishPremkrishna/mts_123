@@ -4,6 +4,8 @@
 #include <cstdarg>
 #include <cstring>
 #include <functional>
+#include <fstream>
+#include "control_board_hardware_interface/redundant_imu.hpp"
 #include <stdexcept>
 #include <iostream>
 #include <string>
@@ -15,6 +17,14 @@
 static std::vector<RawRead> input;
 static size_t cursor=0;
 static unsigned opens=0,closes=0,writes=0;
+using Clock = std::chrono::steady_clock;
+// Only this intercepted-device test links the Linux steady_clock::now wrapper.
+// All age comparisons and the real BNO decoder see the exact archived receipt.
+static Clock::time_point replay_time{};
+extern "C" Clock::time_point __real__ZNSt6chrono3_V212steady_clock3nowEv();
+extern "C" Clock::time_point __wrap__ZNSt6chrono3_V212steady_clock3nowEv() {
+  return replay_time==Clock::time_point{} ? __real__ZNSt6chrono3_V212steady_clock3nowEv() : replay_time;
+}
 static bool fail_open=false;
 static bool delay_next_empty_read = false;
 static std::function<void()> during_next_probe;
@@ -52,7 +62,7 @@ extern "C" ssize_t bno_fake_read(int fd,void *dst,size_t count) {
 extern "C" ssize_t bno_fake_write(int fd,const void *src,size_t count) {
   require(fd==73,"unexpected write fd");const auto *b=static_cast<const uint8_t*>(src);
   require((count==5 && b[2]==1 && b[4]==1) || (count==6 && b[2]==2 && b[4]==0xf9)
-      || (count==21 && b[2]==2 && b[4]==0xfd && (b[5]==2 || b[5]==5)),"unexpected sensor command");
+      || (count==21 && b[2]==2 && b[4]==0xfd && (b[5]==2 || b[5]==5 || b[5]==7 || b[5]==8)),"unexpected sensor command");
   ++writes;
   if (writes == 4 && after_sensor_setup) after_sensor_setup();
   return count;
@@ -68,10 +78,17 @@ extern "C" int __wrap_ioctl(int fd,unsigned long request,...) {
 }
 void load(std::vector<RawRead> rows) { require(cursor==input.size(),"fixture was not fully consumed");input=std::move(rows);cursor=0; }
 std::vector<RawRead> packet(std::vector<uint8_t> payload,uint8_t channel=3) {
-  require(payload.size()<=28,"test packet too large");
-  const uint8_t size=uint8_t(payload.size()+4);
-  std::vector<uint8_t> wire={size,0x80,channel,1};wire.insert(wire.end(),payload.begin(),payload.end());
-  return {{4,4,{size,0,channel,0}},{size,size,wire}};
+  const unsigned size=unsigned(payload.size())+4;
+  std::vector<RawRead> reads{{4,4,{uint8_t(size),uint8_t(size>>8),channel,0}}};
+  unsigned seq=1;
+  for (size_t i=0;i<payload.size();i+=28) {
+    const unsigned remain=size-i;
+    const auto end=std::min(i+28,payload.size());
+    std::vector<uint8_t> wire{uint8_t(remain),uint8_t(0x80|(remain>>8)),channel,uint8_t(seq++)};
+    wire.insert(wire.end(),payload.begin()+i,payload.begin()+end);
+    reads.push_back({unsigned(wire.size()),int(wire.size()),wire});
+  }
+  return reads;
 }
 void queued_age_checks(BNO055 &imu) {
   using namespace std::chrono;
@@ -100,8 +117,13 @@ void queued_age_checks(BNO055 &imu) {
   const auto fresh=imu.sample();require(fresh.quaternion_valid&&fresh.quaternion_minimum_age_at_receipt==microseconds(0),"quaternion did not recover from unknown time");
   require(!pupper_imu::feedback_error(fresh,steady_clock::now()),"fresh streams rejected after recovery");
 }
+#include "replay_redundant_reports.hpp"
+
 int main(int argc,char **argv) {
  try {
+  if (argc==4 && std::string(argv[1])=="archive") {
+    replay_archive(argv[2],argv[3]);return 0;
+  }
   require(argc==2,"scenario required");const std::string mode=argv[1];
   if (mode == "manager_blocked_read") {
     using namespace std::chrono;
@@ -132,7 +154,27 @@ int main(int argc,char **argv) {
   } else {
    {
     BNO055 imu(1,10000);
-    if(mode=="initial") {
+    if(mode=="redundant_wire") {
+      imu.enable_redundant_reports(10000);
+      std::vector<uint8_t> bytes={0xfb,15,0,0,0,7,19,2,0,0,4,0,0,0,0,0,2,0,0,0,0,
+                                  8,42,3,0,0,0,0,0,0,0,0,0x40};
+      load(packet(bytes));const auto a=imu.sample();
+      require(a.alternative.gyro.x()==1.f && a.alternative.quat.w()==1.f &&
+              a.alternative.quaternion_report_sequence==42 && a.alternative.gyro_report_sequence==19 &&
+              a.alternative.gyro_minimum_age_at_receipt==std::chrono::microseconds(1500) &&
+              !a.quaternion_valid && !a.gyro_valid,"independent wire reports or gyro bias incorrect");
+      load(packet(bytes));const auto duplicate=imu.sample();
+      bytes[6]=18;bytes[22]=41;
+      load(packet(bytes));const auto earlier=imu.sample();
+      require(duplicate.alternative.gyro_receipt_time==a.alternative.gyro_receipt_time &&
+              earlier.alternative.quaternion_receipt_time==a.alternative.quaternion_receipt_time,"replay advanced clock");
+      bytes[6]=26;bytes[22]=49;
+      load(packet(bytes));const auto gap=imu.sample();
+      require(gap.alternative.gap_count==2,"missed auxiliary sequence discontinuity");
+      load(packet({1},1));const auto reset=imu.sample();
+      require(reset.alternative.reset_count==1 && !reset.alternative.quaternion_valid &&
+              !reset.alternative.gyro_valid && !reset.quaternion_valid && !reset.gyro_valid,"chip reset hidden");
+    } else if(mode=="initial") {
       auto x=imu.sample();require(!x.quaternion_valid&&!x.gyro_valid&&!x.acceleration_valid,"unobserved component valid");
       require(x.acc.isZero()&&x.gyro.isZero()&&x.quat.coeffs().isZero(),"uninitialized output");
       require(x.quaternion_report_sequence == -1 && x.gyro_report_sequence == -1, "unseen sequence invented");
@@ -218,7 +260,7 @@ int main(int argc,char **argv) {
     if(mode=="valid")queued_age_checks(imu);
     require(cursor==input.size(),"unconsumed fake reads");
    }
-   require(opens==1&&closes==1&&writes==4,"unexpected constructor/device command lifecycle");
+   require(opens==1&&closes==1&&writes==(mode=="redundant_wire"?6u:4u),"unexpected constructor/device command lifecycle");
   }
   std::cout<<"PASS "<<mode<<'\n';return 0;
  }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}

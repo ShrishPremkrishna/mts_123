@@ -31,12 +31,18 @@ def selected_robot_description(urdf, directory, motion_mode):
     recovery = os.environ.get("PUPPER_FC_IMU_RECOVERY", "strict")
     if recovery == "strict":
         return urdf, recovery
-    if motion_mode != "fc_walk_kick" or recovery not in {"supported_rehome", "supported_standby", "supported_damping"}:
+    if motion_mode != "fc_walk_kick" or recovery not in {"supported_rehome", "supported_standby", "supported_damping", "field_redundant_imu"}:
         raise ValueError("unknown or non-FC PUPPER_FC_IMU_RECOVERY selection")
     source = urdf.read_text()
     plugin = "<plugin>control_board_hardware_interface/ControlBoardHardwareInterface</plugin>"
     if source.count(plugin) != 1 or 'name="fc_imu_recovery"' in source:
         raise ValueError("unexpected control board description for FC IMU recovery")
+    if recovery == "field_redundant_imu":
+        marker = '<sensor name="imu_sensor">'
+        if source.count(marker) != 1:
+            raise ValueError("expected one board IMU sensor")
+        fields = ("fc_balance_mode", "fc_balance_incident", "fc_balance_generation")
+        source = source.replace(marker, marker + "".join(f'\n      <state_interface name="{field}"/>' for field in fields))
     derived = directory / f"fc-{recovery}.urdf"
     temporary = derived.with_suffix(".urdf.tmp")
     temporary.write_text(source.replace(plugin, plugin + f'\n      <param name="fc_imu_recovery">{recovery}</param>'))

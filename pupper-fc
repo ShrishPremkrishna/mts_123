@@ -22,6 +22,8 @@ PACKAGE = ROOT / "final_project/pupper_fc"
 TESTS = [
     "final_project/pupper_fc/tests/test_teleop_console.py",
     "final_project/pupper_fc/tests/test_match_lobby.py",
+    "final_project/pupper_fc/tests/test_balance_lobby.py",
+    "final_project/behaviors/test_board_imu.py",
     "final_project/behaviors/test_live_match_play.py",
     "final_project/behaviors/test_fc_feedback_rates.py",
     "final_project/behaviors/test_combined_fc_runner.py",

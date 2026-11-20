@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <utility>
@@ -14,6 +15,17 @@
 #include "rcl_interfaces/msg/parameter_descriptor.hpp"
 
 namespace neural_controller {
+namespace {
+// Both controller plugins run in the same controller_manager. A clip activated
+// after Resume must see the same grant as the walker. Only the walker issues it.
+// The grant timestamp is published last. Home tokens are monotonic microseconds.
+std::atomic<std::int64_t> released_home{0}, released_incident{0}, released_ns{0};
+std::int64_t balance_integer(double n) {
+  return std::isfinite(n) && n >= 0 && n < 9007199254740992. && n == std::floor(n)
+      ? static_cast<std::int64_t>(n) : -1;
+}
+}
+
 NeuralController::NeuralController()
     : controller_interface::ControllerInterface(),
       rt_cmd_vel_ptr_(nullptr),
@@ -509,6 +521,42 @@ controller_interface::CallbackReturn NeuralController::on_activate(
         state_interface.get_interface_name(), std::ref(state_interface));
   }
 
+  const char *balance_profile = std::getenv("PUPPER_FC_IMU_RECOVERY");
+  field_balance_ = balance_profile && std::string(balance_profile) == "field_redundant_imu";
+  balance_blocked_ = false;
+  balance_command_floor_ns_ = 0;
+  const auto sensor = state_interfaces_map_.find("imu_sensor");
+  const bool board_has_fence = sensor != state_interfaces_map_.end() &&
+      (sensor->second.count("fc_balance_mode") || sensor->second.count("fc_balance_generation") ||
+       sensor->second.count("fc_balance_incident"));
+  if (board_has_fence != field_balance_) {
+    RCLCPP_ERROR(get_node()->get_logger(), "Field balance profile and hardware declarations differ");
+    return controller_interface::CallbackReturn::ERROR;
+  }
+  if (field_balance_) {
+    if (sensor == state_interfaces_map_.end() ||
+        !sensor->second.count("fc_balance_generation") || !sensor->second.count("fc_balance_mode") ||
+        !sensor->second.count("fc_balance_incident") || (!command_deadline_mode_ && !use_trick_)) {
+      RCLCPP_ERROR(get_node()->get_logger(), "FC_BALANCE_COMMAND_FENCE_V1 requires FC board and walking/clip interfaces");
+      return controller_interface::CallbackReturn::ERROR;
+    }
+    balance_mode_state_ = &sensor->second.at("fc_balance_mode").get();
+    balance_home_state_ = &sensor->second.at("fc_balance_generation").get();
+    balance_incident_state_ = &sensor->second.at("fc_balance_incident").get();
+    const int disposition = sample_balance();
+    if (disposition != 1) {
+      RCLCPP_ERROR(get_node()->get_logger(), "Board balance hold prevents controller activation");
+      return controller_interface::CallbackReturn::ERROR;
+    }
+    if (command_deadline_mode_) {
+      balance_release_service_ = get_node()->create_service<BalanceRelease>(
+          "~/resume_balance", [this](const std::shared_ptr<BalanceRelease::Request> request,
+                                    std::shared_ptr<BalanceRelease::Response> response) {
+            release_balance(request, response);
+          });
+    }
+  }
+
   // Store the initial joint positions
   for (int i = 0; i < kActionSize; i++) {
     init_joint_pos_.at(i) =
@@ -714,6 +762,8 @@ controller_interface::CallbackReturn NeuralController::on_error(
 
 controller_interface::CallbackReturn NeuralController::on_deactivate(
     const rclcpp_lifecycle::State & /*previous_state*/) {
+  balance_observed_ns_.store(0);
+  balance_release_service_.reset();
   revoke_cmd_vel();
   rt_cmd_pose_ptr_ =
       realtime_tools::RealtimeBuffer<std::shared_ptr<geometry_msgs::msg::Pose>>(nullptr);
@@ -869,6 +919,55 @@ void NeuralController::publish_reference_status() {
   }
 }
 
+// Returns 1 for authorized play, 2 for closed-loop zero requested velocity,
+// and 4 when no native balance solution exists.
+int NeuralController::sample_balance() {
+  const auto mode = balance_integer(balance_mode_state_->get_value());
+  const auto home = balance_integer(balance_home_state_->get_value());
+  const auto incident = balance_integer(balance_incident_state_->get_value());
+  balance_home_.store(home);
+  balance_incident_.store(incident);
+  balance_mode_.store(mode);
+  balance_observed_ns_.store(command_deadline_now_ns());
+  if (home <= 0) return 4;
+  if (mode == 1 && incident == 0) return 1;
+  if ((mode != 2 && mode != 3) || incident <= 0) return 4;
+  const auto grant = released_ns.load();
+  if (mode == 3 && grant > 0 && released_home.load() == home &&
+      released_incident.load() == incident && grant == released_ns.load()) {
+    balance_command_floor_ns_ = grant;
+    return 1;
+  }
+  return 2;
+}
+
+void NeuralController::release_balance(const std::shared_ptr<BalanceRelease::Request> request,
+                                      std::shared_ptr<BalanceRelease::Response> response) {
+  auto &result = response->result;
+  result.successful = false;
+  result.reason = "Require current Home, restored incident and fresh operator request";
+  const auto &params = request->parameters;
+  if (params.size() != 3) return;
+  std::int64_t home = 0, incident = 0, issued = 0;
+  for (const auto &param : params) {
+    if (param.value.type != rcl_interfaces::msg::ParameterType::PARAMETER_INTEGER) return;
+    if (param.name == "generation") home = param.value.integer_value;
+    else if (param.name == "incident") incident = param.value.integer_value;
+    else if (param.name == "issued_mono_ns") issued = param.value.integer_value;
+    else return;
+  }
+  const auto now = command_deadline_now_ns(), observed = balance_observed_ns_.load();
+  if (home <= 0 || incident <= 0 || issued <= 0 || issued > now || now - issued >= 1000000000 ||
+      observed <= 0 || observed > now || now - observed >= 100000000 || estop_active_.load() ||
+      balance_mode_.load() != 3 || balance_home_.load() != home || balance_incident_.load() != incident) return;
+  released_ns.store(0);
+  released_home.store(home);
+  released_incident.store(incident);
+  released_ns.store(now);
+  result.successful = true;
+  result.reason = "Restored incident released";
+}
+
 controller_interface::return_type NeuralController::update(const rclcpp::Time &time,
                                                            const rclcpp::Duration &period) {
   auto apply_emergency_damping = [&]() {
@@ -881,6 +980,12 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
   // A stop must take effect at the command-update rate, including initialization
   // and cycles that hold the actor's last inference. It bypasses position slew:
   // zero stiffness/effort plus damping must never wait for a position trajectory.
+  if (field_balance_) {
+    const int disposition = sample_balance();
+    if (disposition == 4 || (use_trick_ && disposition != 1)) estop_active_.store(true);
+    if (disposition != 1 && !balance_blocked_) repeat_action_counter_ = params_.repeat_action - 1;
+    balance_blocked_ = disposition != 1;
+  }
   if (estop_active_) {
     apply_emergency_damping();
     return controller_interface::return_type::OK;
@@ -935,7 +1040,8 @@ controller_interface::return_type NeuralController::update(const rclcpp::Time &t
   const CmdVelSample *cmd_vel_sample = cmd_vel_slot ? cmd_vel_slot->get() : nullptr;
   bool cmd_vel_live_now = false;
   if (cmd_vel_expiry_supported_) {
-    cmd_vel_live_now = cmd_vel_live(cmd_vel_sample);
+    cmd_vel_live_now = !balance_blocked_ && cmd_vel_live(cmd_vel_sample) &&
+        (!field_balance_ || cmd_vel_sample->issued_mono_ns > balance_command_floor_ns_);
     if (cmd_vel_was_live_ && !cmd_vel_live_now) {
       repeat_action_counter_ = params_.repeat_action - 1;
     }

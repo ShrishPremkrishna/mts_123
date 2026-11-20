@@ -23,6 +23,7 @@ class LabRunner:
     def __init__(self, robot, reject=False):
         self.robot, self.reject = robot, reject
         self.commands, self.ticket = [], 0
+        self.board = dict(state="healthy", board_session=robot+"-boot", generation=1, incident=0)
         self.closed = self.armed = False
         self.mode = "autonomous"
         self.stdout = asyncio.StreamReader()
@@ -35,7 +36,7 @@ class LabRunner:
     async def heartbeat(self):
         while not self.closed:
             self.ticket += 1
-            self.emit(dict(event="controls",mode=self.mode,ticket=self.ticket,ready=True,resume_ready=True))
+            self.emit(dict(event="controls",mode=self.mode,ticket=self.ticket,ready=True,resume_ready=True,imu=self.board))
             await asyncio.sleep(.02)
 
     def write(self, data):
@@ -45,8 +46,10 @@ class LabRunner:
         if ok:
             if msg["command"] == "arm":
                 self.armed = True
+                self.board["epoch"] = msg["epoch"]
             elif msg["command"] in ("pause","stop"):
                 self.armed = False
+                self.board["epoch"] = None
             elif msg["command"] == "mode":
                 self.mode = msg["mode"]
         self.emit(dict(event="operator",command=msg["command"],ticket=msg.get("ticket"),
@@ -233,7 +236,8 @@ def test_stop_preempts_arm_and_cancelled_http_end_still_releases_everything(tmp_
         entered, pause_started, finish_pause = asyncio.Event(), asyncio.Event(), asyncio.Event()
         class Peer:
             owner, robot, host, closed = OWNER, "pupper-1", "blue-pi", False
-            offer = {"mode":"autonomous","ready":True}
+            received = time.monotonic()
+            offer = {"mode":"autonomous","ready":True, "imu":dict(state="healthy", board_session="boot", generation=1, incident=0)}
             async def request(self, cmd, **fields):
                 if cmd == "arm":
                     entered.set()

@@ -1,5 +1,7 @@
 # Pupper FC
 
+The November 20 opt-in match candidate uses fresh alternate BNO08x reports to keep closed-loop standby during a primary-report loss. The lobby retains the match and offers an explicit Resume after requalification. Complete chip or bus loss needs a supported Home. The physical Pi remains packed. [Match IMU recovery](pupper_fc/RELEASE.md#match-imu-recovery-candidate--november-20)
+
 ## Pupper FC appliance release · November 20, 2026
 
 Open **Pupper FC.command** and connect the field camera and a team. A cold team connection prepares the session and prompts for supported Home. Use the physical Stop gamepad and fresh standing cue to activate the walker. A warm connection skips Home. Start match admits Blue alone, Red alone or both. End match keeps healthy walkers standing.

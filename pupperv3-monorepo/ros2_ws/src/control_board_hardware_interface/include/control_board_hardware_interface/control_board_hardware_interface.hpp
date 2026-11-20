@@ -17,6 +17,8 @@
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "imu_manager.hpp"
 #include "imu_health.hpp"
+#include "board_health.hpp"
+#include "redundant_imu.hpp"
 #include "rclcpp/clock.hpp"
 #include "rclcpp/duration.hpp"
 #include "rclcpp/macros.hpp"
@@ -91,12 +93,18 @@ class ControlBoardHardwareInterface : public hardware_interface::SystemInterface
   bool standby_homed_ = false;
   bool standby_feedback_lost_ = false;
   pupper_imu::StartupWindow standby_recovery_;
-  bool field_rehome_ = false;
+  bool field_rehome_ = false, redundant_field_ = false;
+  pupper_imu::RedundantImu redundant_;
+  pupper_imu::BoardHealth board_health_;
+  double fc_balance_mode_=0, fc_balance_incident_=0, fc_balance_generation_=0;
+  void terminal_health(const BNO055::Output &sample);
   bool supported_damping_ = false;
   std::chrono::steady_clock::time_point last_joint_exchange_{}, last_valid_q_{}, last_valid_g_{};
   std::chrono::steady_clock::time_point damping_deadline_{}, recovery_since_{}, recovery_q_{}, recovery_g_{};
   unsigned recovery_pairs_ = 0;
   std::vector<float> bench_kds_;
+  std::vector<double> prior_field_positions_;
+  std::atomic<bool> field_backup_active_{false};
   bool bench_joint_feedback_ok(std::chrono::steady_clock::time_point now) const;
   hardware_interface::return_type read_bench(const BNO055::Output &sample);
   void report_imu_fault(const BNO055::Output &sample, std::chrono::steady_clock::time_point now,

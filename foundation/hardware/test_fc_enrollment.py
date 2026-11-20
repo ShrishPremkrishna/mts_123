@@ -28,7 +28,7 @@ def test_pinned_platform_profile_advertisement_fallback_and_release_rollback(tmp
         marker.touch()
         binary = prefix / relative
         binary.parent.mkdir(parents=True, exist_ok=True)
-        binary.write_bytes(header + b" ".join(release.NATIVE_MARKERS) + b" FC_IMU_PUBLISH_PER_REPORT_V1" +
+        binary.write_bytes(header + b" ".join(release.NATIVE_MARKERS) + b" FC_IMU_PUBLISH_PER_REPORT_V1 FC_BOARD_HEALTH_V1" +
                            b" pupper_stop_v1 /estop_controller/start_motion /estop_controller/request_stop")
         parts[name] = {"path":str(binary),"sha256":release.file_digest(binary)}
     run = home / "pupper-fc-runs/previous"

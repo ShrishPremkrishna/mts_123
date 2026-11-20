@@ -37,6 +37,8 @@ python3 foundation/hardware/fc_walk_kick_release.py rollback
 
 On a new Pi, install the matching Pupper ROS/Hailo underlay and the approved detector HEF first. The archive includes source for the FC neural controller and gateway. If those two components also need building, add `neural_controller joy_utils` to the colcon selection and source the resulting `native/install/setup.bash` on top of the underlay. Pass the combined environment script to enrollment with `--platform-env FILE`.
 
+For the supervised match IMU candidate, run `./pupper-fc-install blue --field-imu-hold` in the permanent Pi extraction. Substitute `red` for the other team. If supplying a platform environment, put its path before the flag. This selection builds both the board driver and walking/kick controller. The default install selects strict motor shutdown for a native balance fault. Use the same release on both robots. The daily sequence is still Connect, supported Home, Start match. When the lobby pauses for balance, leave the field camera running, inspect both robots, and click **Resume after balance hold** once it becomes available. A physical Stop, interrupted kick, lost drive continuity or terminal sensor fault requires supported recovery. [Operator procedure](foundation/hardware/FC_OPERATOR.md)
+
 To rehearse application staging only, choose a new target-local directory and use the same interpreter with PyYAML and the field runtime installed:
 
 ```sh

@@ -129,6 +129,27 @@ These sources are not yet deployed; see the [assembly procedure](../../foundatio
 
 ## Continuous gameplay bridge
 
+The combined FC runner reads the board driver's session-local `fc-board-health.bin`
+through a read-only descriptor. The native manager PID, driver instance, completed
+Home generation and fault/incident counters bind its balance evidence. Gyro and
+orientation each have a 100 ms upper limit measured from the board's original
+receipt plus known batch age. A fresh ROS IMU message can confirm delivery only
+while both primary board receipts are current.
+
+Local evidence loss stops field and keyboard authority and invalidates pending
+tickets. A native kick in progress uses the existing hard Stop. The Pi reports
+its state immediately and in the control heartbeat. Both teams must acknowledge
+`imu_pause` for the old epoch. After at least three advancing primary pairs over
+20 ms on the original board and Home generation, the operator can explicitly
+send `imu_resume` with the hold ID and a new epoch. A recovered backup incident
+also requires a positive acknowledgement from the selected walker's
+`/gemini_walk/resume_balance` service. During the hold, the runner asks the
+controller manager which leg controllers are active. A post-pause walker
+authority sample and a recent inventory must confirm the original activation
+still owns the legs exclusively. If the walker loses ownership, this match
+cannot resume. A fresh inventory is checked after the native reply and before
+admitting the new epoch. A board fault or changed Home fences the old match.
+
 `fc_executor_bridge.py` runs one gameplay executor and ROS publisher per robot.
 It publishes only its selected robot to `/kick_cmd_vel`; the existing mux,
 camera guard and native controller remain downstream. A 20 ms steady-clock tick

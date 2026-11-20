@@ -6,6 +6,8 @@
 #include "lifecycle_msgs/msg/state.hpp"
 #include <atomic>
 #include <cstring>
+#include <fstream>
+#include <filesystem>
 #include <cstdio>
 #include <rcutils/logging.h>
 #include <iostream>
@@ -32,6 +34,8 @@ std::atomic<int> mode{0};  // 0fresh,1stalegyro,2stalequat,3bias,4badnorm,5missi
 // Written before the atomic mode transition, then constant for this outage.
 using ReportPeriod = std::chrono::duration<int64_t, std::centi>;
 bool clocked_reports = false;
+std::atomic<int> aux_fault{0};
+std::string receipt_path;
 auto report_tick(std::chrono::steady_clock::time_point time) {
   return std::chrono::time_point_cast<ReportPeriod>(time);
 }
@@ -54,6 +58,19 @@ BNO055::Output output(std::chrono::steady_clock::time_point now) {
   o.quaternion_receipt_time=o.gyro_receipt_time=now;
   if (clocked_reports) o.quaternion_receipt_time = o.gyro_receipt_time = report_tick(now);
   o.packet_timestamp=o.measurement_timestamp=std::chrono::high_resolution_clock::now();
+  auto &a=o.alternative;
+  a.quat=Eigen::Quaternionf(Eigen::AngleAxisf(.5f,Eigen::Vector3f::UnitZ()));
+  a.gyro=o.gyro;
+  a.quaternion_accuracy=a.gyro_accuracy=3;
+  a.quaternion_valid=a.gyro_valid=true;
+  a.quaternion_receipt_time=a.gyro_receipt_time=report_tick(now);
+  if(aux_fault==1) a.quaternion_receipt_time=a.gyro_receipt_time=last_report;
+  if(aux_fault==2) a.gyro.z()=2;
+  if(aux_fault==4) a.reset_count=1;
+  if(aux_fault==5) a.gap_count=1;
+  if(aux_fault==3) a.quaternion_minimum_age_at_receipt=std::chrono::seconds(2);
+  a.quaternion_report_sequence=report_tick(a.quaternion_receipt_time).time_since_epoch().count()&255;
+  a.gyro_report_sequence=report_tick(a.gyro_receipt_time).time_since_epoch().count()&255;
   switch(mode.load()) {
     case 1:o.gyro_receipt_time-=std::chrono::seconds(1);break;
     case 2:o.quaternion_receipt_time-=std::chrono::seconds(1);break;
@@ -416,6 +433,138 @@ void damping_case(hardware_interface::HardwareInfo &info, const std::string &sce
            <<" powered_loss_packets="<<powered<<" host_kd="<<kd<<" handles_withdrawn="<<all.size()<<std::endl;
 }
 
+std::array<uint64_t,24> receipt() {
+  std::array<uint64_t,24> words{};
+  std::ifstream f(receipt_path,std::ios::binary);f.read(reinterpret_cast<char *>(words.data()),sizeof(words));
+  require(f && words[0]>0 && !(words[0]&1) && words[1]==0x314d494346505550ULL,"invalid native receipt");
+  return words;
+}
+
+void field_redundant_case(hardware_interface::HardwareInfo &info,const std::string &scenario) {
+  using namespace std::chrono;
+  using Return=hardware_interface::return_type;
+  using State=lifecycle_msgs::msg::State;
+  char directory[]="/tmp/fc-imu-XXXXXX";
+  require(mkdtemp(directory)!=nullptr,"fixture directory");
+  receipt_path=std::string(directory)+"/fc-board-health.bin";
+  setenv("PUPPER_FC_BOARD_HEALTH_PATH",receipt_path.c_str(),1);
+  int argc=0;rclcpp::init(argc,nullptr);
+  auto clock=std::make_shared<rclcpp::Clock>(RCL_SYSTEM_TIME);
+  hardware_interface::ResourceManager manager(clock,rclcpp::get_logger("field_imu_fixture"));
+  info.hardware_parameters["fc_imu_recovery"]="field_redundant_imu";
+  info.rw_rate=500;recovery_joints(info);
+  manager.import_component(std::make_unique<control_board_hardware_interface::ControlBoardHardwareInterface>(),info);
+  rclcpp_lifecycle::State active(State::PRIMARY_STATE_ACTIVE,"active");
+  require(manager.set_component_state(info.name,active)==Return::OK,"field candidate supported Home");
+  auto all=manager.available_command_interfaces();
+  const auto dt=rclcpp::Duration::from_seconds(.005);
+  auto read=[&] {return manager.read(clock->now(),dt).result;};
+  auto mode_handle=manager.claim_state_interface("imu_sensor/fc_balance_mode");
+  auto incident=manager.claim_state_interface("imu_sensor/fc_balance_incident");
+  auto home=manager.claim_state_interface("imu_sensor/fc_balance_generation");
+  require(read()==Return::OK && manager.prepare_command_mode_switch(all,{}) &&
+          manager.perform_command_mode_switch(all,{}) && read()==Return::OK,"field start");
+  const auto archive_receipt=[&](const char *phase){
+    const char *dir=std::getenv("FC_TEST_RECEIPT_DIRECTORY");
+    if (dir && scenario=="floor_gyro1")
+      std::filesystem::copy_file(receipt_path,std::string(dir)+"/"+phase+".bin",
+                                 std::filesystem::copy_options::overwrite_existing);
+  };
+  const auto initial=receipt();
+  archive_receipt("primary");
+  require(initial[4]>0 && home.get_value()==static_cast<double>(initial[4]) &&
+          initial[7]==1 && initial[15]==5 && initial[16]==2 && initial[21]==3 && initial[22]==3,"invalid primary provenance");
+  const bool returning=scenario=="floor_gyro1" || scenario=="floor_quat2" || scenario=="floor_twice" || scenario=="floor_disagree";
+  const int duration_ms=scenario=="floor_quat2"?2000:1000;
+  for (int cycle=1;cycle<=(scenario=="floor_twice"?2:1);++cycle) {
+    // The manager must keep receiving timely sensor and joint exchanges through an actual running activation.
+    const auto prime=steady_clock::now();
+    while (steady_clock::now()-prime<milliseconds(650)) {
+      require(read()==Return::OK,"primary warm-up");std::this_thread::sleep_for(milliseconds(5));
+    }
+    const auto lost=start_dropout(scenario=="floor_gyro1" || scenario=="floor_twice"?freeze_gyro:
+                                   scenario=="floor_quat2"?freeze_quat:freeze_both);
+    if(scenario=="floor_total")aux_fault=1;
+    int64_t held_at=-1;
+    bool restored=false;
+    while (true) {
+      const auto elapsed=duration_cast<milliseconds>(steady_clock::now()-lost).count();
+      if(returning && elapsed>=duration_ms){mode=0;if(scenario=="floor_disagree")aux_fault=2;}
+      if((scenario=="floor_queued" || scenario=="floor_rehome") && held_at>=0) aux_fault=3;
+      if(scenario=="floor_spi" && held_at>=0) spi_replies=1;
+      if(scenario=="floor_stop" && held_at>=0) {
+        sent.clear();
+        require(manager.prepare_command_mode_switch({},all) && manager.perform_command_mode_switch({},all),
+                "physical Stop release refused");
+        neutral_only();
+        require(receipt()[7]==4 && !manager.prepare_command_mode_switch(all,{}),"Stop did not invalidate old authority");
+      }
+      if(scenario=="floor_jump" && held_at>=0) data.q_abad[0]+=1.f;
+      if(scenario=="floor_reset" && held_at>=0) aux_fault=4;
+      if(scenario=="floor_gap" && held_at>=0) aux_fault=5;
+      manager.write(clock->now(),dt);
+      const auto result=read();
+      const auto health=receipt();
+      require(health[3]==initial[3] && health[4]==initial[4],"instance or Home changed through outage");
+      if(result==Return::ERROR){
+        require((!returning || scenario=="floor_disagree") && health[7]==4 && health[5]>initial[5] &&
+                manager.available_command_interfaces().empty(),"terminal outcome or handle withdrawal wrong");
+        spi_command_t zero{};require(std::memcmp(&sent.back(),&zero,sizeof zero)==0,"terminal left enabled");
+        if(scenario=="floor_total")require(held_at<0 && elapsed<200,"total outage accepted backup");
+        if(scenario=="floor_long")require(held_at>=0 && elapsed>=2990,"long hold duration");
+        std::cout<<"floor="<<scenario<<" held_ms="<<held_at<<" terminal_ms="<<elapsed<<" incident="<<health[6]<<" withdrawn=60"<<std::endl;
+        break;
+      }
+      if(health[7]==2){
+        if(held_at<0){
+          held_at=elapsed;
+          archive_receipt("hold");
+          require(!manager.prepare_command_mode_switch(all,all),"lease handoff during loss");
+          spi_command_t blank{};for(auto &flag:blank.flags)flag=1;
+          require(std::memcmp(&sent.back(),&blank,sizeof blank)==0,"preincident target crossed hold boundary");
+        }
+        require(health[15]==8 && health[16]==7 && health[6]==static_cast<unsigned>(cycle) &&
+                incident.get_value()==cycle && mode_handle.get_value()==2 &&
+                health[8]-health[9]+health[11]<=40000000 && health[8]-health[10]+health[12]<=40000000,
+                "backup authenticity or freshness");
+      }else if(held_at>=0 && health[7]==3){
+        require(returning && mode==0 && elapsed>=duration_ms+100 && incident.get_value()==cycle &&
+                mode_handle.get_value()==3 && health[6]==static_cast<unsigned>(cycle) && health[15]==5 && health[16]==2,
+                "restoration reused old data or lost incident");
+        require(manager.available_command_interfaces().size()==60,"lost board authority despite credible backup");
+        std::cout<<"floor="<<scenario<<" cycle="<<cycle<<" held_ms="<<held_at<<" restored_ms="<<elapsed
+                 <<" same_home=1 same_board=1 authority_still_paused=1"<<std::endl;
+        archive_receipt("restored");
+        restored=true;break;
+      }
+      require(elapsed<3600,"field hold did not resolve");
+      std::this_thread::sleep_for(milliseconds(5));
+    }
+    if(!restored)break;
+  }
+  if (scenario=="floor_gyro1") {
+    const auto end=steady_clock::now()+milliseconds(160);
+    while (steady_clock::now()<end) {
+      require(read()==Return::OK && receipt()[7]==3 && mode_handle.get_value()==3 && incident.get_value()==1,
+              "restored state reopened ordinary primary authority on same Home");
+      std::this_thread::sleep_for(milliseconds(5));
+    }
+  }
+  if (scenario=="floor_rehome") {
+    const auto fault=receipt();
+    aux_fault=0;mode=0;
+    std::this_thread::sleep_for(milliseconds(30));
+    require(manager.available_command_interfaces().empty(),"report reopened terminal hardware");
+    require(manager.set_component_state(info.name,active)==Return::OK && read()==Return::OK,"fresh deliberate Home failed");
+    const auto new_home=receipt();
+    require(new_home[3]==initial[3] && new_home[4]>initial[4] && new_home[5]==fault[5] &&
+            new_home[6]==0 && new_home[7]==1 && new_home[4]==home.get_value() && incident.get_value()==0,
+            "new Home failed to fence old incident and generation");
+    std::cout<<"floor=floor_rehome new_home=1 same_board=1 incident_reset=1"<<std::endl;
+  }
+  std::filesystem::remove_all(directory);
+}
+
 void unit_health() {
   using namespace std::chrono;
   auto now=steady_clock::time_point{}+seconds(100);
@@ -471,13 +620,15 @@ void init_spi(){command={};data={};}
 spi_command_t *get_spi_command(){return &command;}
 spi_data_t *get_spi_data(){return &data;}
 void spi_driver_run(){sent.push_back(command);data.spi_driver_status = spi_replies;if(lose_during_enable && command.flags[0])mode=1;}
+void BNO055::enable_redundant_reports(uint32_t) {}
 BNO055::BNO055(int,uint32_t){}
 BNO055::~BNO055(){}
 BNO055::Output BNO055::sample(){return output(std::chrono::steady_clock::now());}
 extern "C" int __wrap_open(const char *p,int,...){require(std::strcmp(p,"/tmp/control_board_hardware.lock")==0,"unexpected open");return lock_fd;}
 extern "C" int __wrap_open64(const char *p,int f,...){return __wrap_open(p,f);}
 extern "C" int __wrap_flock(int fd,int){require(fd==lock_fd,"unexpected flock");return 0;}
-extern "C" int __wrap_close(int fd){require(fd==lock_fd,"unexpected close");return 0;}
+extern "C" int __real_close(int);
+extern "C" int __wrap_close(int fd){if(fd!=lock_fd && !receipt_path.empty())return __real_close(fd);require(fd==lock_fd,"unexpected close");return 0;}
 extern "C" int __wrap_unlink(const char *p){require(std::strcmp(p,"/tmp/control_board_hardware.lock")==0,"unexpected unlink");return 0;}
 int main(int argc,char **argv){try{
   require(argc==2,"scenario required");std::string scenario=argv[1];
@@ -487,6 +638,9 @@ int main(int argc,char **argv){try{
   auto driver=std::make_unique<control_board_hardware_interface::ControlBoardHardwareInterface>();
   hardware_interface::HardwareInfo info{};info.is_async=false;info.name="imu_guard_fake";info.type="system";
   hardware_interface::ComponentInfo sensor;sensor.name="imu_sensor";sensor.parameters={{"roll","0"},{"pitch","0"},{"yaw","0"}};info.sensors.push_back(sensor);
+  if(scenario.rfind("floor_",0)==0) {
+    clocked_reports=true;field_redundant_case(info,scenario);return 0;
+  }
   if (scenario.rfind("damping_", 0)==0) {
     clocked_reports=true;
     damping_case(info, scenario);

@@ -106,6 +106,7 @@ struct Report {
   int64_t reference_delta_ticks = 0;
   bool timing_valid = false;
   std::array<int16_t, 4> values{};
+  std::array<int16_t, 3> gyro_bias{};
   uint16_t rotation_accuracy = 0;
   uint8_t stability = 0;
 };
@@ -113,7 +114,7 @@ struct Report {
 // Parse an entire known batch atomically. Unknown/truncated records cannot
 // shift the cursor or partially update cached sensor state. Report timestamps
 // remain protocol deltas; without captured HINT they are not absolute times.
-inline bool parse_reports(const std::vector<uint8_t> &data, std::vector<Report> &out) {
+inline bool parse_reports(const std::vector<uint8_t> &data, std::vector<Report> &out, bool allow_uncalibrated=false) {
   out.clear();
   std::vector<Report> pending;
   size_t cursor = 0;
@@ -125,6 +126,7 @@ inline bool parse_reports(const std::vector<uint8_t> &data, std::vector<Report> 
     switch (id) {
       case 0xfb: case 0xfa: size = 5; break;
       case 0x02: size = 10; break;
+      case 0x07: if (!allow_uncalibrated) return false; size = 16; break;
       case 0x05: size = 14; break;
       case 0x08: size = 12; break;
       case 0x13: size = 6; break;
@@ -149,7 +151,8 @@ inline bool parse_reports(const std::vector<uint8_t> &data, std::vector<Report> 
       report.timing_valid = timing_valid;
       if (id == 0x13) report.stability = r[4];
       else {
-        for (unsigned k=0; k<(id == 0x02 ? 3u : 4u); ++k) report.values[k] = i16(r+4+k*2);
+        for (unsigned k=0; k<((id == 0x02 || id == 0x07) ? 3u : 4u); ++k) report.values[k] = i16(r+4+k*2);
+        if (id == 0x07) for (unsigned k=0;k<3;++k) report.gyro_bias[k] = i16(r+10+2*k);
         if (id == 0x05) report.rotation_accuracy = u16(r+12);
       }
       pending.push_back(report);

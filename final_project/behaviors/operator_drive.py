@@ -24,8 +24,10 @@ class OperatorDrive:
         self.ready = False
         self.needs_neutral = True
         self.generation = None
+        self.authority_revision = 0
 
     def invalidate(self):
+        self.authority_revision += 1
         self.tickets.clear()
         self.pending = None
         self.needs_neutral = True
@@ -55,6 +57,7 @@ class OperatorDrive:
         deadline, bound_cycle = self.tickets[seq]
         # Even if the two latest replies cross, an older one cannot override the newer.
         self.tickets = {key: end for key, end in self.tickets.items() if key > seq}
+        self.authority_revision += 1
         if message.get("command") == "resume" and (resume_cycle is None or bound_cycle != resume_cycle):
             raise ValueError("this ticket was not issued ready for the current goal reset")
         return deadline

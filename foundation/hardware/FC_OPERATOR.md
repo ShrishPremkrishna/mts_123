@@ -76,6 +76,22 @@ ssh -t mts python3 /home/pi/pupper-fc/bin/fc_session.py home --supported --recov
 
 The command checks the mapped board library, new fault in this run, 60 unavailable motor handles, inactive leg owners and Stop state, then requests the board's supported full homing transition. After activation it verifies all command handles remain unclaimed and restores only the selected read-only state broadcasters if needed. Standing still uses a fresh operator cue. A timeout leaves a consumed recovery marker so a retry cannot repeat a motor transition with an unknown result. This route has resource-manager/fake-device and software evidence. The Pi controller manager and physical homing remain unqualified until a supervised check.
 
+## Match pause after loss of balance feedback
+
+Select the candidate with `./pupper-fc-install blue --field-imu-hold` or `red` during installation. It uses the ordinary FC walker. A newly observed report fault revokes the active match for the roster. An eligible robot continues closed-loop balance at zero requested velocity while the other player pauses. An interrupted native kick takes Stop. Watch the robot and keep the overhead camera connected. When the lobby confirms both players and the camera are ready, click **Resume after balance hold**. This preserves the score and Home. A goal already awaiting ball replacement still needs the ordinary goal-reset operation.
+
+On the stock BNO08x, Game Rotation Vector and bias-corrected uncalibrated gyro can bridge the loss of the primary reports only while both alternates remain fresh and agree with recent primary measurements. The initial agreement requirement is 500 ms. The 3 s ceiling starts at the older primary measurement and includes detection and requalification. A stopped chip or bus supplies neither alternate. On a terminal board fault, support Pupper, end the match, shut down the selected native session and run Connect and supported Home again. The connected Stop gamepad still supplies the independent stop during standing.
+
+For the first hardware check, put one Pupper in a load-bearing sling with feet touching and a spotter at Stop. Verify Home and stand, start a one-player match and observe the report cadence before asking for motion. Exercise a delivery-only dropout first, then a primary-only fault with an instrumented report feed. Confirm zero requested motion, remaining torso support, unchanged board and Home IDs, fresh post-resume intent, and immediate physical Stop. Use a separate supported trial for common-sensor loss. Floor walking, contact, braking distance and balance in a kick require physical qualification.
+
+On a prepared Blue Pi with target alias `mts`, start a one-robot keyboard match in the sling and release the keys. From the laptop run:
+
+```sh
+ssh -t mts python3 /home/pi/pupper-fc/bin/fc_session.py test-imu-delivery --supported
+```
+
+The probe suspends the read-only ROS IMU broadcaster for two seconds and verifies restored delivery. Native balance sensing continues. Check that the lobby pauses, then use **Resume after balance hold** and one fresh key press. Verify Stop while the sling carries the body. Testing true report loss on a powered robot is a separate instrumented trial.
+
 ## Supported bench damping
 
 For a supervised bench experiment, rebuild the bundled board package against the Pi's installed ROS environment and use the ordinary enrollment command with `--imu-prefix "$PWD/native/install/control_board_hardware_interface" --imu-recovery supported_damping`. Enrollment and Prepare are motor-inactive. Keep the torso supported and the legs clear for the entire trial. `home --supported --home-only` homes and leaves the bench controller inactive. A connected Stop gamepad and a fresh supported cue through `home --supported` enable light joint damping. The legs can swing. The dashboard and Pi report `match_capable=false` for this profile.

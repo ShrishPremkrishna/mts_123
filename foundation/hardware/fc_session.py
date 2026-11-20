@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Three Pi-side actions for a selected Pupper FC release. Only home starts hardware."""
+"""Operate the selected Pi-side Pupper FC session. Only home starts hardware."""
 import argparse
 from contextlib import ExitStack
 import fcntl
@@ -62,7 +62,7 @@ def check_profile(profile, requested_robot, template):
         raise ValueError("select a previously prepared FC platform template")
     if profile.get("recording","events") not in ("events","full"):
         raise ValueError("unknown FC recording selection")
-    if profile.get("imu_recovery", "strict") not in ("strict", "supported_rehome", "supported_standby", "supported_damping"):
+    if profile.get("imu_recovery", "strict") not in ("strict", "supported_rehome", "supported_standby", "supported_damping", "field_redundant_imu"):
         raise ValueError("unknown selected FC IMU recovery profile")
     if profile.get("side", "right") not in ("left", "right"):
         raise ValueError("kick side must be left or right")
@@ -184,7 +184,7 @@ def acquire_run(action, args, profile_path, profile, template, env, boot, python
                            timeout=160 if args.recover_imu else 80)
             if args.supported and not args.home_only:
                 (run / "awaiting-standing.json").unlink(missing_ok=True)
-    elif action in ("match", "field"):
+    elif action in ("match", "field", "test-imu-delivery"):
         check_manager(run, plan, boot)
     return run, plan
 
@@ -220,7 +220,7 @@ def camera_host(profile):
 def describe_profile(profile, field):
     mode = profile.get("imu_recovery", "strict")
     return {"robot_id": profile["robot_id"], "producer_id": profile.get("producer_id", "fc-field"),
-            "imu_recovery": mode, "match_pitch_version": 1, "match_capable": mode in ("strict", "supported_rehome"),
+            "imu_recovery": mode, "match_pitch_version": 1, "match_capable": mode in ("strict", "supported_rehome", "field_redundant_imu"),
             "source_host": camera_host(profile), "robot_host": ssh_address(2),
             "port": profile.get("camera", {}).get("port", 5005), "field_config": field}
 
@@ -385,7 +385,7 @@ def read_event(line):
 
 def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("action", choices=("prepare", "home", "match", "field", "describe"))
+    p.add_argument("action", choices=("prepare", "home", "match", "field", "describe", "test-imu-delivery"))
     p.add_argument("--profile", type=Path, default=DEFAULT_PROFILE)
     p.add_argument("--robot-id", choices=("pupper-1", "pupper-2"))
     p.add_argument("--supported", action="store_true")
@@ -413,12 +413,16 @@ def main(argv=None):
         p.error("home-only requires home --supported --home-only")
     if args.recover_imu and (args.action != "home" or not args.supported):
         p.error("IMU recovery requires home --supported --recover-imu")
-    if (args.supported and args.action != "home") or (args.runner_only and args.action != "match"):
-        p.error("--supported is for home and --runner-only is for match")
+    if args.action == "test-imu-delivery" and not args.supported:
+        p.error("support the robot on its stand and use test-imu-delivery --supported")
+    if (args.supported and args.action not in ("home", "test-imu-delivery")) or (args.runner_only and args.action != "match"):
+        p.error("--supported is for home or the IMU delivery test and --runner-only is for match")
     profile_path = args.profile.expanduser().resolve(strict=True)
     profile = read(profile_path)
     template = read(profile["platform_template"])
     check_profile(profile, args.robot_id, template)
+    if args.action == "test-imu-delivery" and profile.get("imu_recovery") != "field_redundant_imu":
+        raise ValueError("the IMU delivery test requires the enrolled field_redundant_imu candidate")
     if args.action in ("match", "field") and not args.connect and profile.get("imu_recovery") in ("supported_damping", "supported_standby"):
         raise ValueError("this enrolled bench profile requires permanent body support and cannot enter a match")
     if args.action == "describe":
@@ -438,6 +442,12 @@ def main(argv=None):
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         run, plan = acquire_run("prepare" if args.connect else args.action, args, profile_path, profile,
                                 template, env, boot, python, helper)
+        if args.action == "test-imu-delivery":
+            if (run / "awaiting-standing.json").exists():
+                raise ValueError("complete supported Home and standing before the delivery test")
+            run_home_probe([python, "-B", "-s", str(Path(__file__).resolve()), "--supported-imu-delivery", str(run)],
+                           env={**env, **plan["environment"]}, timeout=None)
+            return 0
         if args.connect:
             bench = profile.get("imu_recovery") in ("supported_standby", "supported_damping")
             if bench or not (run / "owned_session.json").exists() or (run / "awaiting-standing.json").exists():
@@ -475,6 +485,128 @@ def service(node, rclpy, service_type, endpoint, *, request=None, timeout=2):
         return reply.result()
     finally:
         node.destroy_client(client)
+
+
+def exercise_imu_delivery(inventory, switch, wait_for_sample, quiet, interrupted):
+    """Change only the known ROS state broadcaster. A timed-out switch may have taken effect."""
+    broadcaster = "imu_sensor_broadcaster"
+    def state():
+        rows = inventory()
+        matches = [row for row in rows if row.name == broadcaster]
+        if (len(matches) != 1 or matches[0].type != "imu_sensor_broadcaster/IMUSensorBroadcaster"
+                or matches[0].claimed_interfaces):
+            raise ValueError("expected one read-only IMU broadcaster with no claimed motor interfaces")
+        return matches[0].state, {row.name:row.state for row in rows}
+
+    def require_idle_kick():
+        current, states = state()
+        if current != "active" or states.get("gemini_walk") != "active" or states.get("trick_leg_kick") != "inactive":
+            raise ValueError("requires an active walker and broadcaster with the leg kick inactive")
+
+    require_idle_kick()
+    wait_for_sample()
+    require_idle_kick()
+    if interrupted():
+        raise KeyboardInterrupt
+    try:
+        switch(False)
+        if state()[0] != "inactive":
+            raise ValueError("IMU broadcaster did not confirm inactive")
+        quiet()
+    finally:
+        # Submit even after a lost deactivation reply. This activation is idempotent.
+        try:
+            switch(True)
+            if state()[0] != "active":
+                raise ValueError("controller still inactive")
+            wait_for_sample()
+        except Exception as exc:
+            raise ValueError(f"IMU delivery restoration unconfirmed. Keep the robot supported. {exc}") from exc
+    if interrupted():
+        raise KeyboardInterrupt
+    return {"ros_imu_delivery_gap_s":2, "broadcaster_restored":True, "resume_requested":False}
+
+
+def imu_delivery_node(node, rclpy, interrupted):
+    from controller_manager_msgs.srv import ListControllers, SwitchController
+    from rclpy.qos import qos_profile_sensor_data
+    from sensor_msgs.msg import Imu
+
+    latest = 0
+    def received(msg):
+        nonlocal latest
+        latest = msg.header.stamp.sec * 1_000_000_000 + msg.header.stamp.nanosec
+
+    node.create_subscription(Imu, "/imu_sensor_broadcaster/imu", received, qos_profile_sensor_data)
+    lists = node.create_client(ListControllers, "/controller_manager/list_controllers")
+    switches = node.create_client(SwitchController, "/controller_manager/switch_controller")
+    if not all(client.wait_for_service(timeout_sec=2) for client in (lists, switches)):
+        raise ValueError("controller manager services unavailable")
+
+    def request(client, req):
+        future = client.call_async(req)
+        rclpy.spin_until_future_complete(node, future, timeout_sec=4)
+        if not future.done() or future.result() is None:
+            raise ValueError("no response from " + client.srv_name)
+        return future.result()
+
+    def switch(active):
+        req = SwitchController.Request()
+        if active:
+            req.activate_controllers = ["imu_sensor_broadcaster"]
+            req.strictness = req.BEST_EFFORT
+        else:
+            req.deactivate_controllers = ["imu_sensor_broadcaster"]
+            req.strictness = req.STRICT
+        req.timeout.sec = 2
+        if not request(switches, req).ok:
+            raise ValueError("manager declined broadcaster " + ("activation" if active else "deactivation"))
+
+    def wait_for_sample():
+        start = node.get_clock().now().nanoseconds
+        deadline = time.monotonic() + 2
+        while latest <= start:
+            if time.monotonic() >= deadline:
+                raise ValueError("no newly stamped IMU sample")
+            rclpy.spin_once(node, timeout_sec=.03)
+
+    def quiet():
+        start = node.get_clock().now().nanoseconds
+        deadline = time.monotonic() + 2
+        while time.monotonic() < deadline:
+            if interrupted():
+                raise KeyboardInterrupt
+            rclpy.spin_once(node, timeout_sec=.03)
+            if latest > start:
+                raise ValueError("IMU samples continued while the broadcaster was inactive")
+
+    return exercise_imu_delivery(lambda:request(lists, ListControllers.Request()).controller, switch,
+                                 wait_for_sample, quiet, interrupted)
+
+
+def supported_imu_delivery(run):
+    from fc_walk_kick_release import verify_running_session
+    plan = read(run / "selected-session.json")
+    check_manager(run, plan, (PROC / "sys/kernel/random/boot_id").read_text().strip())
+    manifest = verify_running_session(run, ROOT, operator_controls=True)
+    if (plan["environment"].get("PUPPER_FC_IMU_RECOVERY") != "field_redundant_imu"
+            or manifest.get("fc_imu_recovery") != "field_redundant_imu"):
+        raise ValueError("the live native session must select field_redundant_imu")
+    import rclpy
+    from rclpy.signals import SignalHandlerOptions
+    cancelled = False
+    def defer(signum, frame):
+        nonlocal cancelled
+        cancelled = True
+    with ExitStack() as cleanup:
+        for sig in (signal.SIGINT, signal.SIGHUP, signal.SIGTERM):
+            cleanup.callback(signal.signal, sig, signal.signal(sig, defer))
+        rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+        cleanup.callback(rclpy.shutdown)
+        node = rclpy.create_node("fc_supported_imu_delivery_test", enable_rosout=False, start_parameter_services=False)
+        cleanup.callback(node.destroy_node)
+        result = imu_delivery_node(node, rclpy, lambda:cancelled)
+        print(json.dumps(dict(result, run=str(run))), flush=True)
 
 
 def supervised_stand(node, rclpy, *, dashboard=False):
@@ -659,6 +791,8 @@ def read_hardware(stand=False, recover=None, *, dashboard=False):
 
 if __name__ == "__main__":
     try:
+        if len(sys.argv) == 3 and sys.argv[1] == "--supported-imu-delivery":
+            sys.exit(supported_imu_delivery(Path(sys.argv[2]).resolve(strict=True)))
         if sys.argv[1:2] in (["--dashboard-stand"], ["--supported-stand"], ["--recover-supported"]):
             signal.signal(signal.SIGHUP, signal.default_int_handler)
         if len(sys.argv) == 3 and sys.argv[1] in ("--recover-supported","--recover-supported-only"):

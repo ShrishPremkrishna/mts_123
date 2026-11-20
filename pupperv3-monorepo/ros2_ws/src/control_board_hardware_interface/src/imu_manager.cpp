@@ -27,6 +27,7 @@ std::optional<std::pair<BNO055::Output, uint32_t>> IMUManager::sample_imu_multip
     BNO055::Output output = imu_->sample();
     // Keep console I/O off the polling thread. The driver records a single
     // timestamped diagnostic for the sample that actually disables actuation.
+    if (redundant_reports) return std::make_pair(output, 0u);
     if (output.quaternion_valid && output.gyro_valid && output.quat.coeffs().allFinite() &&
         output.gyro.allFinite() && !output.quat.isApprox(Eigen::Quaternionf(0, 0, 0, 0), 1e-6)) {
       auto end = std::chrono::high_resolution_clock::now();
@@ -47,7 +48,9 @@ bool IMUManager::poll_imu() {
     std::lock_guard<std::mutex> lock(imu_mutex_);
     const auto &output = maybe_output->first;
     const bool advanced = output.quaternion_receipt_time != imu_data.quaternion_receipt_time ||
-                          output.gyro_receipt_time != imu_data.gyro_receipt_time;
+                          output.gyro_receipt_time != imu_data.gyro_receipt_time ||
+                          (redundant_reports && (output.alternative.quaternion_receipt_time != imu_data.alternative.quaternion_receipt_time ||
+                           output.alternative.gyro_receipt_time != imu_data.alternative.gyro_receipt_time));
     imu_data = output;
     imu_sampling_time_us = maybe_output->second;
     return advanced;
@@ -78,6 +81,7 @@ void IMUManager::imu_read_thread_fn() {
 void IMUManager::begin(uint32_t micros_between_reports) {
   imu_ = std::make_unique<BNO055>(IMU_I2C_DEVICE_NUMBER, micros_between_reports);
 
+  if (redundant_reports) imu_->enable_redundant_reports(micros_between_reports);
   stop_imu_read_thread_ = false;
   imu_read_thread_ = std::make_unique<std::thread>(&IMUManager::imu_read_thread_fn, this);
 }

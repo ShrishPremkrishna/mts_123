@@ -39,6 +39,7 @@ class IMUManager {
 
   // Begin threads and start reading IMU data
   void begin(uint32_t micros_between_reports);
+  bool redundant_reports = false;
 
   // Stop reading threads
   void stop();

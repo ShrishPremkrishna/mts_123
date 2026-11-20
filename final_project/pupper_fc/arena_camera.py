@@ -158,12 +158,23 @@ class ArenaCamera:
             if publishers and (not director or not self.state["live"]):
                 raise ValueError("Live play requires a live camera")
             self.director, self.publishers = director, tuple(publishers)
+            self.state["match"] = None  # The next measured frame carries the new referee directive.
 
     def resume(self):
         with self.lock:
             if not self.director:
                 raise ValueError("No active match")
             return self.director.resume()
+
+    def pause_balance(self):
+        with self.lock:
+            if self.director:
+                self.director.pause_balance()
+                self.state["match"] = dict(self.director.state)
+
+    def after_balance(self, epoch):
+        with self.lock:
+            return self.director.after_balance(epoch)
 
     def commit_start(self):
         with self.lock:

@@ -97,6 +97,7 @@ if(BUILD_TESTING)
     -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=close -Wl,--wrap=flock -Wl,--wrap=unlink)
   foreach(scenario health init_missing read_gyro read_quat read_norm activate_bias homing_stale activate_fresh
       supported_standby supported_rehome damping_gyro damping_quat damping_both damping_stop damping_spi damping_joint
+      floor_gyro1 floor_quat2 floor_twice floor_total floor_long floor_queued floor_disagree floor_spi floor_reset floor_gap floor_jump floor_stop floor_rehome
       damping_flap damping_gap damping_batch
       resource_manager resource_manager_strict strict_rehome)
     add_test(NAME imu_health_${scenario} COMMAND test_imu_health_guard ${scenario})
@@ -118,10 +119,11 @@ if(BUILD_TESTING)
   target_include_directories(test_bno_cache PRIVATE include)
   ament_target_dependencies(test_bno_cache rclcpp tf2)
   target_link_options(test_bno_cache PRIVATE
+    -Wl,--wrap=_ZNSt6chrono3_V212steady_clock3nowEv
     -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=ioctl -Wl,--wrap=read -Wl,--wrap=write -Wl,--wrap=close)
   foreach(scenario initial gyro_only valid delayed_tail duplicate gyro_refresh control game_not_selected
       bad_quaternion truncated short_read open_failure overlap_deadline following_read_blocked stale_before_fresh
-      manager_blocked_read)
+      manager_blocked_read redundant_wire)
     add_test(NAME bno_cache_${scenario} COMMAND test_bno_cache ${scenario})
     set_tests_properties(bno_cache_${scenario} PROPERTIES TIMEOUT 5)
   endforeach()

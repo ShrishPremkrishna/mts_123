@@ -4,6 +4,7 @@ const $ = id => document.getElementById(id);
 const owner = crypto.randomUUID();
 const teams = {}, down = new Set();
 let state = {phase:'idle'}, pending = false, survey = null, frameKey = '', lastError = '';
+let lastDriveEpoch = null;
 let setupTeam = null, frozen = null, pickingFar = false, cameraFormLoaded = false;
 const anchorIds = {length:'anchor-length', width:'anchor-width', goal_width:'anchor-mouth',
   tag_size:'anchor-size', rotation:'anchor-rotation', inset_x:'anchor-x', inset_y:'anchor-y', tag_id:'anchor-id'};
@@ -42,16 +43,23 @@ function clearKeys(slot) {
 }
 function render() {
   const live = Object.values(teams).filter(t => t.online), cam = state.camera, match = cam?.match;
-  $('score-blue').textContent = match?.score?.['pupper-1'] ?? 0;
-  $('score-red').textContent = match?.score?.['pupper-2'] ?? 0;
+  if(state.phase !== 'playing' || lastDriveEpoch !== match?.epoch) down.clear();
+  lastDriveEpoch=match?.epoch;
+  $('score-blue').textContent = (match?.score || state.score)?.['pupper-1'] ?? 0;
+  $('score-red').textContent = (match?.score || state.score)?.['pupper-2'] ?? 0;
   $('camera-status').textContent = cam ? ((state.source === 'sim' ? 'Simulated · ' : '') + cam.status) : 'Disconnected';
   $('camera-connect').textContent = cam?.frame ? 'View field' : 'Connect camera';
-  $('start-match').hidden = ['playing','stopping'].includes(state.phase);
-  const visible = cam?.visible || {}, canStart = cam?.live && cam?.frame?.calibration_valid && visible.ball &&
+  $('start-match').hidden = ['playing','balance_hold','balance_resuming','stopping'].includes(state.phase);
+  const unverified = live.find(t => t.imu?.state !== 'healthy' || !t.imu?.board_session ||
+    !Number.isInteger(t.imu?.generation) || t.imu.generation < 1 || !Number.isInteger(t.imu.incident) || t.imu.incident < 0);
+  const visible = cam?.visible || {}, canStart = !unverified && cam?.live && cam?.frame?.calibration_valid && visible.ball &&
         live.length && live.every(t => visible.robots?.[t.slot === 'blue' ? 'striker' : 'keeper']);
   $('start-match').disabled = pending || state.phase !== 'idle' || !canStart ||
     Object.values(teams).some(t => t.setup.busy);
-  $('end-match').hidden = !['starting','playing'].includes(state.phase);
+  $('end-match').hidden = !['starting','playing','balance_hold','balance_resuming'].includes(state.phase);
+  const balance=state.balance;
+  $('resume-balance').hidden = !balance || balance.blocked || !['balance_hold','balance_resuming'].includes(state.phase);
+  $('resume-balance').disabled = pending || !balance?.ready || state.phase !== 'balance_hold';
   $('resume-match').hidden = state.phase !== 'playing' || !match?.reset_ready;
   $('resume-match').disabled = pending || !state.resume_ready;
   loadCameraForm();
@@ -94,7 +102,14 @@ function render() {
     }
   }
   renderSetup();
-  if (!lastError) $('error').textContent = state.phase === 'playing' && match?.phase === 'goal' ?
+  if (balance) {
+    const lines=[balance.ready ? 'Match paused. Balance feedback restored.' : balance.reason, ...Object.entries(balance.teams).map(([id, detail])=>(id==='pupper-1'?'Blue':'Red')+' · '+detail)];
+    if(!balance.blocked && !balance.camera_ready)lines.push('Place the ball and all teams inside the original calibrated field in view of the camera.');
+    $('error').textContent=lines.join(' · ');
+  } else if (state.phase === 'idle' && !lastError && unverified) {
+    const name = unverified.slot === 'blue' ? 'Blue' : 'Red';
+    $('error').textContent = name + ' · ' + (unverified.imu?.reason || 'Current board IMU feedback required. Check the Pi release and team setup.');
+  } else if (!lastError) $('error').textContent = state.phase === 'playing' && match?.phase === 'goal' ?
     (match.reset_ready ? (state.resume_ready ? 'Ball in place. Ready to resume.' : 'Ball in place. Waiting for robots to reach home.') : 'Goal! Return the ball to the field.') : (state.message ||
     (state.source === 'sim' && cam ? 'Field preview is running. Select a live camera to start a match.' :
       canStart ? 'Field ready for kickoff.' : live.length && cam?.live ? 'Place the ball and connected teams in camera view.' : 'Connect a team and the field camera to play.'));
@@ -313,6 +328,8 @@ function addTeam(slot, config) {
           return;
         }
         if (t.stopping) return;
+        t.imu = event.imu;
+        if (t.imu?.state !== 'healthy') down.clear();
         if (t.mode !== event.mode || !event.ready) clearKeys(slot);
         t.online = true; t.connecting=false; t.ready=event.ready; t.mode=event.mode;
         if (pane.dataset.online !== 'true') {
@@ -396,6 +413,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)down.clear(
 window.addEventListener('pagehide',()=>{down.clear();for(const t of Object.values(teams)){cancelSetup(t);t.socket?.close();}});
 $('start-match').onclick=()=>action('match/start');
 $('end-match').onclick=()=>{down.clear();return action('match/end');};
+$('resume-balance').onclick=()=>{down.clear();return action('match/balance-resume',{id:state.balance?.id});};
 $('resume-match').onclick=()=>action('match/resume');
 function panel(open) {
   $('fieldpanel').hidden=!open; $('camera-settings').setAttribute('aria-expanded',String(open)); render();

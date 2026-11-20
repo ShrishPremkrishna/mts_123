@@ -15,7 +15,7 @@ TELEMETRY = "foundation/hardware/fc-walk-kick-topics.json"
 EVENT_TELEMETRY = "foundation/hardware/fc-match-events.json"
 # Local imports required by the field runner and the guarded native path.
 FIELD_FILES = (
-    RUNNER, GUARD, TELEMETRY, EVENT_TELEMETRY, "final_project/behaviors/command_deadline.py",
+    RUNNER, GUARD, TELEMETRY, EVENT_TELEMETRY, "final_project/behaviors/board_imu.py", "final_project/behaviors/command_deadline.py",
     "final_project/behaviors/operator_drive.py", "final_project/behaviors/command_path_evidence.py", "final_project/behaviors/fc_executor_bridge.py",
     "final_project/behaviors/overhead_ingress.py", "final_project/behaviors/live_field_attack.py",
     "final_project/overhead_perception/fieldcam/__init__.py", "final_project/overhead_perception/fieldcam/net.py",
