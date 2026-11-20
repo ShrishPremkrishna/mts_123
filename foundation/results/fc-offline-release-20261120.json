@@ -1,0 +1,210 @@
+{
+  "date_utc": "2026-11-20T11:01:12+00:00",
+  "release_commit": "7236bc6c3899ec8265c46a318defd61ed1d126e9",
+  "branch": "codex/pupper-fc-match",
+  "packages": {
+    "pupper-fc-laptop.zip": {
+      "bytes": 36509230,
+      "sha256": "f935402de3f2ae01b71ea57d0d102511fd03dc06535feb1417f6ef7f89667f65"
+    },
+    "pupper-fc-pi.tar.gz": {
+      "bytes": 8517760,
+      "sha256": "b68fc4e69c52ec9ed905a51c69c6a2d6754571dd141ed65633a79bfd1b3bea9b"
+    }
+  },
+  "identity_checks": {
+    "git_blob_comparison": {
+      "laptop_files": 40,
+      "pi_files": 760,
+      "locked_mac_wheels": 19,
+      "staged_pi_app_files": 79
+    },
+    "physics_selected_files_digest": "8419b3c7c4e7076a90fbfac6a56b5e0d2c56a1688bceba1269b63a987928186c",
+    "rebuild": "Fresh independent clone checked out at the release commit with an offline wheelhouse. Both archives and SHA256SUMS compared byte for byte."
+  },
+  "laptop": {
+    "host": "arm64 macOS 26.5.1 with CPython 3.12",
+    "measurement": "Clean ZIP extractions with no venv, package index or external wheel cache. Time from launch to local HTTP ready, plus a fresh process in the same environment and reopening a running lobby.",
+    "http_ready_s": [
+      {
+        "cold": 6.83,
+        "warm": 0.279,
+        "already_open": 0.054,
+        "concurrent_native_compilation": true
+      },
+      {
+        "cold": 3.787,
+        "warm": 0.264,
+        "already_open": 0.055,
+        "directly_launchable": true
+      }
+    ],
+    "verified": "Served the Blue/Red lobby, arena asset and JPEG from the extracted release. Synthetic camera rendered six floor tags, both bodies and the ball. The ready installation passed pip check.",
+    "ready_app": "outputs/pupper-fc-release/Pupper FC/Pupper FC.command"
+  },
+  "pi_extracted": {
+    "scope": "Separate ARM64 Ubuntu ROS Jazzy container with no checkout mount, network or devices. Target Pi is Debian. Hailo and target deployment require the physical platform.",
+    "stage_manifest_sha256_at_tmp_release": "46064913d8868ce6380e56ab6e1e97c736734caa4c4c54b1e1b96907a9a1c357",
+    "stage_verify": true,
+    "compiled": [
+      "neural_controller",
+      "joy_utils",
+      "control_board_hardware_interface"
+    ],
+    "build_wall_s": 37.6,
+    "prepare_benchmark": {
+      "source_commit": "7236bc6c3899ec8265c46a318defd61ed1d126e9",
+      "cold_prepare_process_s": 0.2186,
+      "warm_prepare_process_s": 0.0217,
+      "home_launch_description_s": 0.1256,
+      "actions_constructed": 11,
+      "hardware_processes_started": 0
+    },
+    "prepare_method": "Real Prepare subprocess twice against this staged release and its compiled overlay using a temporary platform template and the approved archived HEF. Built the Home ROS launch description without executing it. No torque, camera process, gamepad or homing."
+  },
+  "regressions": {
+    "quick": 55,
+    "native_sensor": 63,
+    "profile_enrollment_controller": 94,
+    "profile_additional_subtests": 10,
+    "guard_ingress_perception_capture": 269,
+    "extended_result": "A loopback regression had assumed the most recently sent camera sequence was already admitted. After replaying the exact admitted source frame and waiting for revocation, 30 isolated repeats and the complete 269-test invocation passed. Suites overlap."
+  },
+  "native_policy": {
+    "fixture": "Source-verified native controller library and actual policies on memory-backed interfaces; production guard on loopback DDS. Generated synthetic clear camera frames. Lifecycle invoked by the fixture. Walk observation sampled after fade; this checks policy input and kick entry, not full clip completion or physical motion.",
+    "walk-before": "0.16 1",
+    "clip-playing": "kick_right playing frame 50 queued 0 execution bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb request none",
+    "walk-after": "0.16 3",
+    "passed": true,
+    "library_sha256": "624dc560c03a1f2f2b0bab44580900d699fdabcce8a1557ac6acd49550180a75"
+  },
+  "physics": {
+    "runtime": "MuJoCo 3.10.0, 520 Hz, 16 ms modeled actuator delay. Delayed truth-derived camera tracking and modeled ROS switches.",
+    "selected": {
+      "cycles_completed": 4,
+      "full_ball_goal_crossings": 3,
+      "cases": 4,
+      "qualification": "Two deterministic starts per foot, ideal delayed pose and static ball. Endpoint errors are relative to the supplied return target in model coordinates. Camera errors, physical repeatability and actual ball performance remain unmeasured."
+    },
+    "cases": [
+      {
+        "side": "left",
+        "scenario": "nominal",
+        "passed": true,
+        "goal_crossed_s": 13.9044,
+        "peak_forward_ball_m_s": 0.883
+      },
+      {
+        "side": "right",
+        "scenario": "nominal",
+        "passed": true,
+        "goal_crossed_s": 16.9502,
+        "peak_forward_ball_m_s": 0.29
+      },
+      {
+        "side": "left",
+        "scenario": "offset_start",
+        "passed": true,
+        "goal_crossed_s": null,
+        "peak_forward_ball_m_s": 0.402
+      },
+      {
+        "side": "right",
+        "scenario": "offset_start",
+        "passed": true,
+        "goal_crossed_s": 13.752,
+        "peak_forward_ball_m_s": 0.695
+      },
+      {
+        "side": "right",
+        "scenario": "original_right",
+        "passed": false,
+        "goal_crossed_s": null,
+        "peak_forward_ball_m_s": 0.0
+      },
+      {
+        "side": "left",
+        "scenario": "unassisted_offset",
+        "passed": true,
+        "goal_crossed_s": null,
+        "peak_forward_ball_m_s": 0.402
+      },
+      {
+        "side": "left",
+        "scenario": "longer_left",
+        "passed": true,
+        "goal_crossed_s": 17.5513,
+        "peak_forward_ball_m_s": 0.577
+      },
+      {
+        "side": "right",
+        "scenario": "longer_right",
+        "passed": false,
+        "goal_crossed_s": null,
+        "peak_forward_ball_m_s": 0.085
+      }
+    ],
+    "staged_identity": "All 79 source files in the simulation stage matched the final Pi archive."
+  },
+  "recorded_replay": {
+    "archived_verified_files": {
+      "fc-field-74798bf0": 48,
+      "fc-final-74798bf0-0051": 45
+    },
+    "front_guard": {
+      "source_inputs": 6792,
+      "camera_frames": 2616,
+      "attack_seconds": 52.373019383,
+      "status_reports": 574,
+      "hold_reports": 292,
+      "ready_time_s": 31.699028259,
+      "median_ready_headroom_ms": 168.43149999999997,
+      "nonzero_output": 0
+    },
+    "appearance": {
+      "paired_limbs": {
+        "positives_matched": 6,
+        "positives": 6,
+        "total_extra_proposals": 0,
+        "median_matched_center_error_body_lengths": 0.126
+      },
+      "brightness_baseline": {
+        "positives_matched": 6,
+        "positives": 6,
+        "total_extra_proposals": 42,
+        "median_matched_center_error_body_lengths": 0.191
+      }
+    },
+    "appearance_worker_ms": {
+      "computer": "development Mac",
+      "width_px": 896,
+      "frames": 80,
+      "opencv": "5.1.0",
+      "median_ms": 5.66,
+      "p95_ms": 6.77,
+      "scope": "appearance detector only, warm, cropped camera panels"
+    },
+    "camera_synthetic_positive": true
+  },
+  "receipts": [
+    "foundation/results/fc-native-reliability-20261120.json",
+    "foundation/results/fc-match-ros-20261120.json",
+    "foundation/results/markerless-appearance-20261120.json",
+    "foundation/results/lobby-camera-rehearsal-20261120.json",
+    "foundation/results/field-offense-final-20261120.json"
+  ],
+  "raw_local_receipts": {
+    "outputs/pupper-fc-release/verification/appearance.json": "2958566a883d1f2cd4d1b36834196f578f81639aea116e777faea5816b58f16b",
+    "outputs/pupper-fc-release/verification/camera.json": "a3a8d1339250cd813d91a0e4471ce33b62eb85b3e57b5465e14fe511107926a2",
+    "outputs/pupper-fc-release/verification/guard.json": "86a2b8b4c70b395909fbb9e55701bf65599583956dc7056748830dbc3f475367",
+    "outputs/pupper-fc-release/verification/prepare-final.json": "1dead7ef8cdf14ac3ecd9b5b37d5e7511d20a365e30acbe379022157bad307fe",
+    "outputs/pupper-fc-release/verification/release-physics.json": "f20b9173e978d0a796d9db281025ed1c70c675ac756a4d4c382fa2db5bc76695",
+    "outputs/pupper-fc-release/verification/release-wire-receipt.json": "f1ba2b3957c66d267bd0f0d38d0b355293aff02fac5354e058ff7f648ab7f9c4"
+  },
+  "model_assistance": "Exact claude-opus-5-5 returned implementation input. Two bounded attempts at a new exact claude-fable-5-2 audit returned no review. Independent workers verified source identities, software behavior and measurements.",
+  "physical_open": [
+    "Build and enroll the exact board driver against the target underlay with the prior native session shut down.",
+    "Measure cold time to first useful physical motion, warm starts, braking and Stop with a connected gamepad.",
+    "Check field geometry, team tags, signed headings and camera freshness. Verify one drive and kick on each robot before paired play."
+  ]
+}

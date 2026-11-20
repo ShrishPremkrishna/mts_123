@@ -2,6 +2,32 @@
 
 This candidate shortens the path from a powered robot to repeated soccer attempts. Keep the Pi, board driver, calibrated joint coordinates and walker alive between attempts. The laptop owns the overhead camera, field geometry, game roles and operator controls. The Pi owns its 12 actuator commands, balance feedback, onboard Hailo detector and physical Stop.
 
+## Verified release · November 20
+
+The downloadable source release is `7236bc6c3899ec8265c46a318defd61ed1d126e9` on `codex/pupper-fc-match`. A fresh clone at that commit rebuilt both archives byte for byte. SHA-256 verification covered the delivered files. [Laptop ZIP](../../outputs/pupper-fc-release/pupper-fc-laptop.zip) · [Pi tarball](../../outputs/pupper-fc-release/pupper-fc-pi.tar.gz) · [SHA256SUMS](../../outputs/pupper-fc-release/SHA256SUMS) · [Portable installation](PACKAGING.md)
+
+Two clean extractions on the Apple Silicon development Mac reached HTTP-ready in **3.79 s** and **6.83 s**, the latter during native compilation. A warm process restart took **0.26–0.28 s**. Reopening an already running lobby took **0.05–0.06 s**. Both cold launches used the ZIP’s 19 bundled wheels with no package index or external cache. Each extracted app served its lobby and a JPEG from the synthetic camera showing all six floor tags, two robots and the ball.
+
+In an isolated ARM64 Ubuntu/Jazzy container, the independently extracted Pi source staged and verified all **79 application files**. All three native packages compiled in **37.6 s**. Motor-inactive Prepare from the final staged release took **0.219 s cold** and **0.022 s warm** with a temporary profile and the approved archived HEF. Constructing the Home launch description from the pinned profile took **0.126 s**. None of these operations started a hardware process. The target Debian Pi needs its own board build.
+
+In MuJoCo, both nominal kicks scored. Both offset cases made contact with the intended paw and restored walking, and the left offset shot missed. Three of the four selected trials scored. A separate native ROS wire test delivered 0.16 m/s to the walker model, observed the kick controller apply frame 50, and delivered 0.16 m/s to the restored walker under a new activation. The staged inputs matched the downloadable release. [Verification receipt and scope](../../foundation/results/fc-offline-release-20261120.json)
+
+### Reproduce the offline checks
+
+From the release checkout, run the quick suite and the network-isolated ROS rehearsal. The ROS image must already be available locally.
+
+```sh
+./pupper-fc-check
+docker run --rm --network none -v "$PWD:/repo:ro" -w /repo \
+  -e PUPPER_ISOLATED_ROS_TEST=1 -e ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST \
+  -e PYTHONDONTWRITEBYTECODE=1 ros:jazzy-ros-base \
+  python3 -u final_project/behaviors/tools/ros_fc_match_smoke.py
+./pupper-fc-package
+(cd outputs/pupper-fc-release && shasum -a 256 -c SHA256SUMS)
+```
+
+For the motor-inactive Linux timing, supply the staged release directory, compiled ROS install directory and approved detector HEF to [benchmark_fc_prepare.py](../../foundation/scripts/benchmark_fc_prepare.py) using `--release`, `--install` and `--detector-model`.
+
 ## Where the ten minutes went
 
 Two archived Pi runs on November 20 show how much time was spent after homing. Times in the table use the same robot log clock for native milestones. The last column measures launch to the first body-command request, including session setup. A request can be zero.

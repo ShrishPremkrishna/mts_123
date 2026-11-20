@@ -3,8 +3,8 @@
   "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej’s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/.codex/worktrees/fc-teleop/cs123",
   "branch": "codex/pupper-fc-match",
-  "mode": "fc_match_release_verifying",
-  "updated_utc": "2026-11-20T10:56:15+00:00",
+  "mode": "fc_offline_release_verified",
+  "updated_utc": "2026-11-20T11:01:12+00:00",
   "current_report": "final_project/pupper_fc/RELEASE.md",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -66,7 +66,8 @@
     "markerless_body_detection": "foundation/results/markerless-appearance-20261120.json",
     "lobby_camera_rehearsal": "foundation/results/lobby-camera-rehearsal-20261120.json",
     "final_native_reliability": "foundation/results/fc-native-reliability-20261120.json",
-    "final_match_rehearsal": "foundation/results/fc-match-ros-20261120.json"
+    "final_match_rehearsal": "foundation/results/fc-match-ros-20261120.json",
+    "offline_release": "foundation/results/fc-offline-release-20261120.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -114,10 +115,8 @@
       "arena": "Shrish",
       "project_lead": "Shrish. Offline release integration in codex/pupper-fc-match."
     },
-    "goal_status": "Offline release verification in progress on codex/pupper-fc-match. The Pi is packed.",
-    "pending_archives": [
-      "Package from the committed source and verify independent clean extractions."
-    ],
+    "goal_status": "Offline release complete on codex/pupper-fc-match. Exact tested bytes and SHA-256 values are recorded in foundation/results/fc-offline-release-20261120.json. Physical qualification remains open.",
+    "pending_archives": [],
     "processes": {
       "local_practice": {
         "pid": 27855,
@@ -130,7 +129,7 @@
       "unowned_port_8765": "Historical November 17 observation: PID 95237 was reelrelay serve, left untouched. Not rechecked November 19.",
       "completed": "Field camera closed. Both Pi sessions closed and recordings were copied and SHA-256 verified. No live offense source or controller."
     },
-    "software_verification": "Final native tests, kickoff regressions and recorded-vision replay verified. See release report and receipts for execution layers."
+    "software_verification": "Clean clone reproduced both archive bytes. Shipped Mac app launched offline. Independently extracted Pi staged, verified, compiled in ARM64 Ubuntu/Jazzy and ran motor-inactive Prepare. The match and native receipts bind the simulated-device and real software checks to their source hashes."
   },
   "hardware_session": {
     "status": "CLOSED after the last supervised test. The front-camera guard refused offense. Gateway Stop acknowledged at epoch 2, both leg controllers inactive before driver shutdown, all owned processes exited, recordings closed.",
@@ -200,16 +199,13 @@
     "guard_shutdown_followup": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/archive-verification.json",
     "viewer_and_recovery": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/archive-verification.json",
     "delivery_preparation": "artifacts/pupper-fc/2026-11-17/deliverable-prep/archive-verification.json",
-    "final_offense_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-20/final-offense-74798bf0/archive-verification.json"
+    "final_offense_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-20/final-offense-74798bf0/archive-verification.json",
+    "offline_release_commit": "7236bc6c3899ec8265c46a318defd61ed1d126e9"
   },
   "next": [
     {
-      "id": "freeze_and_ship",
-      "action": "Review and commit the coherent release with all intended untracked files. Rebuild both archives using ./pupper-fc-package, verify hashes, launch the extracted Mac app, and stage and verify the extracted Pi source offline. Preserve others’ main-worktree edits. Update the release audit/checkpoint with the tested commit, exact artifacts and measured timings."
-    },
-    {
       "id": "verify_physical_release",
-      "action": "Enroll the selected Pi build with motors inactive. Prepare, support the robot for home, confirm Stop on the stand, then time two warm match starts. No candidate native binary has run on the physical robot overnight."
+      "action": "With the old native session shut down, build the shipped board package once on the target, enroll its prefix in strict mode, Prepare and perform a supported Home. Confirm walker activation and physical Stop on the stand. Standing by Enter requires the connected Stop gamepad."
     },
     {
       "id": "field_setup",
@@ -253,6 +249,8 @@
     "combined_native": "python3 final_project/behaviors/tools/walk_kick_wire/run.py",
     "combined_release": "python3 foundation/hardware/fc_walk_kick_release.py stage --expected-commit <full-source-SHA> --destination <unused-absolute-directory>",
     "lobby": "./pupper-fc",
-    "match_offline": "./pupper-fc-check"
+    "match_offline": "./pupper-fc-check",
+    "offline_release": "./pupper-fc-check and the exact network-disabled Docker invocation in foundation/results/fc-match-ros-20261120.json",
+    "package": "From release commit 7236bc6: ./pupper-fc-package"
   }
 }
