@@ -46,6 +46,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fieldcam import clickcal, colorpick  # noqa: E402
+from fieldcam.appearance import AppearanceTracker, detect_puppers  # noqa: E402
 from fieldcam.capture import FrameGrabber, is_camera_name, is_live, phone_on_cable  # noqa: E402
 from fieldcam.camera_model import default_intrinsics  # noqa: E402
 from fieldcam.config import SIM_CONFIG, load_config, resolve  # noqa: E402
@@ -301,9 +302,18 @@ def main():
                     help="calibrate at start from the floor tags in view, nothing measured (same as key t)")
     ap.add_argument("--dashboard", action="store_true",
                     help="show the top-down field view and readouts beside the camera feed (same as key d)")
+    ap.add_argument("--appearance-preview", action="store_true",
+                    help="overlay anonymous body centers from camera pixels for comparison")
+    ap.add_argument("--appearance-length-px", type=float,
+                    help="expected Pupper length in the processed image; defaults to 7.5 percent of width")
     ap.add_argument("--dashboard-width", type=int, default=1400, help="width of that combined window in pixels")
     ap.add_argument("--display-width", type=int, default=1280, help="debug window width in pixels")
+    ap.add_argument("--processing-width", type=int, help="downsample each captured frame to at most this width before calibration and detection")
     args = ap.parse_args()
+    if args.processing_width is not None and args.processing_width < 1:
+        ap.error("--processing-width must be positive")
+    if args.appearance_length_px is not None and not 0 < args.appearance_length_px < math.inf:
+        ap.error("--appearance-length-px must be positive and finite")
 
     cfg = load_config(args.config or (SIM_CONFIG if args.source == "sim" else None))
     cam_cfg = cfg["camera"]
@@ -329,7 +339,11 @@ def main():
         cable = phone_on_cable()
         print("phone link: " + {True: "USB cable", False: "WIRELESS (no phone on USB): a cable is steadier", None: "unknown"}[cable])
 
-    perc = Perception(cfg, src.width, src.height)
+    width = min(args.processing_width or src.width, src.width)
+    height = max(1, round(src.height * width / src.width))
+    if width < src.width:
+        print(f"processing at {width}x{height}; capture timestamps are preserved")
+    perc = Perception(cfg, width, height)
     if not perc.has_calibrated_intrinsics and not sim:
         print("WARNING: no intrinsics file; using a pinhole guess from hfov_deg. "
               "Run scripts/calibrate_intrinsics.py for real accuracy.")
@@ -340,7 +354,7 @@ def main():
                       "source_session": pub.source_session, "live": live}))
     latency = cam_cfg["latency_s"] if live else 0.0
     points = cfg["manual_points"]
-    scale = min(1.0, args.display_width / src.width)
+    scale = min(1.0, args.display_width / width)
     if args.reuse_clicks:
         saved = clickcal.load_clicks(resolve(CLICKS_FILE), points, perc.size)
         if saved is not None and perc.calibrate_from_points(saved, [p["xy"] for p in points]):
@@ -352,6 +366,7 @@ def main():
     count, t_status = 0, 0.0
     reconnects = getattr(src, "reconnects", 0)
     probe, mouse_ready = Probe(scale), False
+    appearance = AppearanceTracker() if args.appearance_preview else None
     dash_on, dash_zoom = args.dashboard, "field"
 
     def show(picture, stale_s=0.0):
@@ -372,6 +387,8 @@ def main():
         if new_reconnects != reconnects:
             reconnects = new_reconnects
             perc.invalidate_calibration("camera reconnected; verify setup and recalibrate")
+            if appearance is not None:
+                appearance = AppearanceTracker()
         if frame is None:
             if not live:
                 break
@@ -384,7 +401,7 @@ def main():
                 box("CAMERA FEED LOST", ["No frames are arriving. Nothing is being published while it is down.",
                                          "Trying to reconnect by itself. " + CAMERA_HELP])
             if lost and not args.no_gui:
-                dead = (vis * 0.35).astype(np.uint8) if vis is not None else np.zeros((src.height, src.width, 3), np.uint8)
+                dead = (vis * 0.35).astype(np.uint8) if vis is not None else np.zeros((height, width, 3), np.uint8)
                 draw_banner(dead, "CAMERA FEED LOST", [
                     f"no frames for {lost:.0f} s: reconnecting by itself",
                     "wireless phone: lock it, keep it still and near the Mac    q = quit"], (0, 0, 255))
@@ -396,6 +413,8 @@ def main():
             feed_lost = False
             box("CAMERA FEED BACK", ["Frames are arriving again. Motion remains withheld after the interruption;",
                                      "verify the camera and field, then explicitly recalibrate."])
+        if width < src.width:
+            frame = cv2.resize(frame, (width, height), interpolation=cv2.INTER_AREA)
         if perc.cam is None and auto != "measured":
             if count % 10 == 0:  # --corners / --survey: never fall back to the measured layout in the config
                 (corners_calibrate if auto == "corners" else survey_calibrate)(perc, frame, quiet=True)
@@ -414,8 +433,13 @@ def main():
         pub.send(state)
         if sim:
             src.step(state)
+        bodies = []
+        if appearance is not None and (not args.no_gui or args.print or args.snapshot):
+            length_px = args.appearance_length_px or frame.shape[1] * .075
+            bodies = appearance.update(detect_puppers(frame, length_px), t_capture, length_px)
         if args.print:
-            print(json.dumps(state))
+            diagnostic = state if appearance is None else {**state, "appearance_preview": [vars(b) for b in bodies]}
+            print(json.dumps(diagnostic))
 
         # ---- say clearly where calibration stands ----
         if perc.cam is not announced_cam:      # a new calibration just happened (auto or by key)
@@ -449,6 +473,12 @@ def main():
         t_fps = now
         if not args.no_gui or (args.snapshot and args.frames and count >= args.frames):
             vis = perc.draw(frame, state, banner=False)
+            for body in bodies:
+                x, y = map(round, body.center_px)
+                color = (255, 210, 30)
+                cv2.drawMarker(vis, (x, y), color, cv2.MARKER_CROSS, 16, 2)
+                label = "body overlap" if body.ambiguous else f"body {body.score:.2f}"
+                cv2.putText(vis, label, (x + 9, y - 5), cv2.FONT_HERSHEY_SIMPLEX, .48, color, 1)
             probe.draw(vis, perc.cam)
             if perc.cam is None:
                 need, have = needed(perc, auto)
@@ -491,7 +521,7 @@ def main():
             if key == ord("p") and perc.cam is not None:
                 path = resolve("out/pixel_map.npy")
                 path.parent.mkdir(parents=True, exist_ok=True)
-                np.save(path, floor_map(perc.cam, src.width, src.height))
+                np.save(path, floor_map(perc.cam, width, height))
                 print(f"saved {path.name}: array [row, column] -> (x, y) in metres on the floor, "
                       "NaN where a pixel does not show floor. Valid until the camera moves.")
             if key == ord("c") and not perc.calibrate(frame):
