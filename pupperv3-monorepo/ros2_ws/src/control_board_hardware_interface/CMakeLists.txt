@@ -108,6 +108,24 @@ if(BUILD_TESTING)
     set_tests_properties(imu_health_${scenario} PROPERTIES TIMEOUT 25)
   endforeach()
 
+  # In the repository and extracted Pi bundle, generate the same field geometry as Prepare.
+  find_path(FC_HARDWARE_DIR lab6_session.launch.py
+    PATHS "${CMAKE_CURRENT_SOURCE_DIR}/../../../../foundation/hardware"
+          "${CMAKE_CURRENT_SOURCE_DIR}/../../../foundation/hardware" NO_DEFAULT_PATH)
+  if(FC_HARDWARE_DIR)
+    add_test(NAME imu_health_enrolled_field_standing COMMAND python3 -c [=[
+import os, pathlib, runpy, subprocess, sys, tempfile
+hardware, executable = pathlib.Path(sys.argv[1]), sys.argv[2]
+os.environ["PUPPER_FC_IMU_RECOVERY"] = "field_redundant_imu"
+with tempfile.TemporaryDirectory() as directory:
+    select = runpy.run_path(str(hardware / "lab6_session.launch.py"))["selected_robot_description"]
+    field, _ = select(hardware / "floor_stock/baseline-expanded.urdf", pathlib.Path(directory), "fc_walk_kick")
+    subprocess.run([executable, "floor_enrolled_standing"], check=True,
+                   env={**os.environ, "FC_TEST_FIELD_URDF": str(field)})
+]=] "${FC_HARDWARE_DIR}" $<TARGET_FILE:test_imu_health_guard>)
+    set_tests_properties(imu_health_enrolled_field_standing PROPERTIES TIMEOUT 30)
+  endif()
+
   add_executable(test_bno_protocol test/test_bno_protocol.cpp)
   target_compile_features(test_bno_protocol PRIVATE cxx_std_17)
   target_include_directories(test_bno_protocol PRIVATE include)

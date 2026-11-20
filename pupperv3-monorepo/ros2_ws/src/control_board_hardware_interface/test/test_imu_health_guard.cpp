@@ -457,6 +457,89 @@ std::array<uint64_t,24> receipt() {
   return words;
 }
 
+void configure_mechanical_stops(const hardware_interface::HardwareInfo &info) {
+  float *positions[] = {data.q_abad, data.q_hip, data.q_knee};
+  for (const auto &joint : info.joints) {
+    const auto &p = joint.parameters;
+    const int axis = std::stoi(p.at("can_id")) - 1, channel = std::stoi(p.at("can_channel")) - 1;
+    require(axis >= 0 && axis < 3 && channel >= 0 && channel < 4, "invalid mechanical fixture CAN mapping");
+    const bool positive = std::stod(p.at("homing_velocity")) > 0;
+    mechanical_stops[axis][channel] = {std::stof(p.at("homed_position")), positive};
+    positions[axis][channel] = std::stof(p.at(positive ? "position_min" : "position_max"));
+  }
+}
+
+void enrolled_standing(hardware_interface::ResourceManager &manager,
+                       const hardware_interface::HardwareInfo &info, rclcpp::Clock &clock) {
+  using namespace std::chrono;
+  using Return = hardware_interface::return_type;
+  const auto dt = rclcpp::Duration::from_seconds(.002);
+  require(manager.read(clock.now(), dt).result == Return::OK, "first neutral read after Home failed");
+  const auto home = receipt()[4];
+  require(home > 0, "real field geometry never finished Home");
+  const auto all = manager.available_command_interfaces();
+  require(all.size() == 60, "enrolled field requires twelve complete five-interface leg claims");
+  auto cycle = [&] {
+    require(manager.read(clock.now(), dt).result == Return::OK && receipt()[4] == home,
+            "unexpected board fault or new Home");
+    std::this_thread::sleep_for(milliseconds(2));
+  };
+  const auto until = steady_clock::now() + milliseconds(650);
+  while (steady_clock::now() < until) cycle();
+  for (const auto &joint : info.joints) {
+    const auto &p = joint.parameters;
+    const auto position = manager.claim_state_interface(joint.name + "/position").get_value();
+    require(position >= std::stod(p.at("position_min")) && position <= std::stod(p.at("position_max")),
+            "successful Home left a measured position outside the field claim interval");
+  }
+  const auto stand = [&] {
+    require(manager.prepare_command_mode_switch(all,{}) && manager.perform_command_mode_switch(all,{}),
+            "fresh in-range standing claim refused");
+    sent.clear();
+    cycle();
+    spi_command_t first{};
+    for (auto &flag : first.flags) flag = 1;
+    require(sent.size() == 1 && std::memcmp(&sent.back(), &first, sizeof first) == 0,
+            "initial claim did not start with a blank enabled exchange");
+  };
+  const auto stop = [&] {
+    require(manager.prepare_command_mode_switch({},all) && manager.perform_command_mode_switch({},all),
+            "failed to release the leg controllers");
+    sent.clear();
+    cycle();
+    neutral_only();
+  };
+  stand();
+  stop();
+
+  // A supported limb can settle back toward a mechanical stop while disabled.
+  // Move gradually, so only the position interval can block a prepared claim.
+  const auto knee = std::find_if(info.joints.begin(), info.joints.end(),
+      [](const auto &joint) { return joint.name == "leg_front_r_3"; });
+  require(knee != info.joints.end(), "enrolled front-right knee is missing");
+  const auto channel = std::stoi(knee->parameters.at("can_channel")) - 1;
+  const float settled = data.q_knee[channel];
+  const float outside = std::stof(knee->parameters.at("position_max")) + .04f;
+  require(manager.prepare_command_mode_switch(all,{}), "healthy neutral prepare refused");
+  const auto move_to = [&](float target) {
+    while (std::abs(target - data.q_knee[channel]) > .0001f) {
+      data.q_knee[channel] += std::clamp(target - data.q_knee[channel], -.008f, .008f);
+      cycle();
+    }
+  };
+  move_to(outside);
+  require(!manager.perform_command_mode_switch(all,{}) && !manager.prepare_command_mode_switch(all,{}),
+          "out-of-range neutral knee admitted pending or new leg activation");
+  neutral_only();
+  move_to(settled);
+  require(!manager.perform_command_mode_switch(all,{}), "old prepared claim survived a refused position");
+  neutral_only();
+  stand();
+  stop();
+  std::cout << "enrolled field Home, two first enabled exchanges, two Stops, "
+               "passive out-of-range refusal, original Home preserved\n";
+}
+
 void field_redundant_case(hardware_interface::HardwareInfo &info,const std::string &scenario) {
   using namespace std::chrono;
   using Return=hardware_interface::return_type;
@@ -469,9 +552,30 @@ void field_redundant_case(hardware_interface::HardwareInfo &info,const std::stri
   auto clock=std::make_shared<rclcpp::Clock>(RCL_SYSTEM_TIME);
   hardware_interface::ResourceManager manager(clock,rclcpp::get_logger("field_imu_fixture"));
   info.hardware_parameters["fc_imu_recovery"]="field_redundant_imu";
-  info.rw_rate=500;recovery_joints(info);
+  const bool enrolled = scenario == "floor_enrolled_standing";
+  if (enrolled) {
+    const char *path = std::getenv("FC_TEST_FIELD_URDF");
+    require(path, "supply the field description generated by the FC launcher");
+    std::ifstream urdf(path);
+    const std::string xml{std::istreambuf_iterator<char>(urdf), std::istreambuf_iterator<char>()};
+    const auto systems = hardware_interface::parse_control_resources_from_urdf(xml);
+    require(systems.size()==1 && systems.front().joints.size()==12, "expected the enrolled robot's twelve axes");
+    info = systems.front();
+    require(info.hardware_parameters.at("fc_imu_recovery") == "field_redundant_imu", "wrong board profile");
+    follow_return = true;
+  } else {
+    recovery_joints(info);
+  }
+  info.rw_rate=500;
   manager.import_component(std::make_unique<control_board_hardware_interface::ControlBoardHardwareInterface>(),info);
   rclcpp_lifecycle::State active(State::PRIMARY_STATE_ACTIVE,"active");
+  if (enrolled) {
+    configure_mechanical_stops(info);
+    require(manager.set_component_state(info.name, active) == Return::OK, "enrolled supported Home failed");
+    enrolled_standing(manager, info, *clock);
+    std::filesystem::remove_all(directory);
+    return;
+  }
   if (scenario=="floor_home_reset" || scenario=="floor_home_bias") {
     std::thread reset;
     if (scenario=="floor_home_reset")
@@ -821,17 +925,7 @@ int main(int argc,char **argv){try{
       }
     }
     require(driver->on_init(info) == hardware_interface::CallbackReturn::SUCCESS, "mechanical test initialization");
-    if (follow_return) {
-      float *positions[] = {data.q_abad, data.q_hip, data.q_knee};
-      for (const auto &joint : info.joints) {
-        const auto &p = joint.parameters;
-        const int axis = std::stoi(p.at("can_id")) - 1, channel = std::stoi(p.at("can_channel")) - 1;
-        require(axis >= 0 && axis < 3 && channel >= 0 && channel < 4, "invalid mechanical fixture CAN mapping");
-        const bool positive = std::stod(p.at("homing_velocity")) > 0;
-        mechanical_stops[axis][channel] = {std::stof(p.at("homed_position")), positive};
-        positions[axis][channel] = std::stof(p.at(positive ? "position_min" : "position_max"));
-      }
-    }
+    if (follow_return) configure_mechanical_stops(info);
     if (scenario == "mechanical_missing") spi_replies = 1;
     if (scenario == "mechanical_nonfinite") data.q_abad[0] = std::numeric_limits<float>::infinity();
     lose_reply_during_homing = scenario == "mechanical_lost";
