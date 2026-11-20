@@ -1,0 +1,39 @@
+{
+  "recorded_utc": "2026-11-20T08:21:43.601090+00:00",
+  "scope": "Mac-only stationary field setup from the overhead iPhone; local loopback. No robot commands or physical motion test.",
+  "image_px": [
+    1920,
+    1080
+  ],
+  "transport": "wireless Continuity Camera",
+  "calibration": "four corner tags; approximate 69 degree pinhole optics; 0.17 m black tag-size assumption",
+  "corner_ids": {
+    "west_south": 3,
+    "east_south": 2,
+    "east_north": 1,
+    "west_north": 0
+  },
+  "camera_height_estimate_m": 3.27,
+  "field_length_m": 2.896991748478149,
+  "field_width_m": 1.5199617688364766,
+  "configured_goal_opening_m": 0.6096,
+  "configured_ball_radius_m": 0.11,
+  "unmeasured": "Physical tag size, field dimensions, goal opening, and ball radius are unconfirmed. Goal mouth planes seen beyond projected end lines. Confirm field scale by tape.",
+  "joint_observation": {
+    "simultaneously_measured": [
+      "all six floor tags",
+      "striker tag",
+      "pink ball"
+    ],
+    "consecutive_processed_frames": 262,
+    "elapsed_s": 35.77,
+    "median_reprojection_error_px": 1.17,
+    "median_processed_frame_interval_s": 0.134
+  },
+  "physical_checks": [
+    "The green outline lay on the pink ball in the phone image.",
+    "Loss of optical sharpness made every tag disappear while the phone kept delivering frames. A retained calibration flag alone cannot confirm live visibility."
+  ],
+  "local_session_dir": "out/phone-field-dtrknxnz",
+  "source_snapshot": "d3544f6dba44b610d22536209ecc0c8857187703"
+}

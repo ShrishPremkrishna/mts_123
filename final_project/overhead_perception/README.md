@@ -5,11 +5,12 @@ each Pupper is and which way it faces, where the ball is and how fast it is
 moving, the goals, and the geometry of a shot. [Project brief](../README.md) ·
 [perception notes](../handoffs/PERCEPTION.md).
 
-## Status — November 18, 2026
+## Status — November 20, 2026
 
-Works in simulation end to end and has been brought up on a live iPhone feed
-at a desk. It has **not** run over the arena, on a robot, or with a mounted
-camera. Details and measured numbers are under [What is verified](#what-is-verified).
+The mounted iPhone calibrated from four corners and showed all six floor tags,
+the striker tag and the actual pink ball together. Loss of focus later stopped
+fresh detections. The camera-estimated dimensions and goal placement still
+need checking against tape. [Mounted field observation](../../foundation/results/field-camera-live-20261120.json)
 
 ## How it works
 
@@ -395,10 +396,7 @@ Live iPhone at a desk, November 16 (no physical reference measurements taken):
 - The ball detector's fitted outline matched the real ball in one saved frame.
 - Click calibration registered clicks in the real window.
 
-Not done: the approach logic on real perception or a real robot, corner-tag calibration and the dashboard on a live feed, the pink range and `b` picker on a real pink ball, any measurement against physical references, lens calibration,
-latency measurement, a mounted overhead view, robot tags on robots, two robots,
-a recorded replay fixture, identity-swap or false-detection counts, clock
-alignment with a robot, and anything on the Pi.
+Open field checks include focus stability, tape-referenced geometry, true capture latency, lens calibration, moving-ball tracking, physical approaches and two-robot play. The stationary ball was detected with the existing colour range. The live colour picker and rolling-ball accuracy still need evaluation.
 
 ## Layout
 

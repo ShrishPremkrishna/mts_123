@@ -83,7 +83,7 @@ The [build/test handoff](ROBOT_BUILD_AND_TEST_HANDOFF.md) covers Pi release sele
 
 Current processes, authorization, pending recording archives and next actions belong only in the [checkpoint](../foundation/results/interruption-recovery.json). The [delivery plan](PLAN.md) holds the course deadlines and accepted progression and acceptance targets. The [demo and recording script](DEMO.md) contains the 2:50 video cut, five-minute presentation, footage priorities and live fallback procedure. These are production drafts; filming and submission remain open.
 
-[Overhead perception](overhead_perception/README.md) estimates robot poses and ball motion in field coordinates. Goals come from configured geometry. The November 16 desk test read tags on a live iPhone feed and fitted the ball outline in one frame. The November 19 loopback exercised camera-bump revocation with rendered images. The real mount still needs whole-field tag coverage, measured geometry, lens and latency checks, and a pink-ball color range verified against the intended ball.
+The mounted iPhone calibrated from the corner tags and simultaneously measured the striker tag and the intended pink ball. The real-time preview also exposed a focus failure that hid all six floor tags. Tape-referenced scale, goal placement, motion accuracy and capture latency remain open. [Mounted field observation](../foundation/results/field-camera-live-20261120.json)
 
 Reusable robot components live in [Gemini Pupper](../gemini_pupper/README.md), [native deployment](../pupper_gait_deploy/README.md), [training](../pupper-mjlab/README.md) and the [Lab 5 follower](../follow_me_pupper/README.md). The [repository map](../README.md) lists setup and resources.
 

@@ -4,8 +4,8 @@
   "worktree": "/Users/shrish/.codex/worktrees/fc-demo-staging/cs123",
   "branch": "main",
   "mode": "overhead_field_setup",
-  "updated_utc": "2026-11-20T08:02:58+00:00",
-  "current_report": "foundation/results/pi-combined-walk-kick-20261119.json",
+  "updated_utc": "2026-11-20T08:21:43.601090+00:00",
+  "current_report": "foundation/results/field-camera-live-20261120.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -57,7 +57,9 @@
     "combined_policy_physics": "foundation/results/combined-walk-kick-physics-20261119.json",
     "combined_native_wire": "foundation/results/combined-walk-kick-native-20261119.json",
     "combined_pi_qualification": "foundation/results/pi-combined-walk-kick-20261119.json",
-    "untagged_curve_rehearsal": "foundation/results/untagged-curve-rehearsal-20261119.json"
+    "untagged_curve_rehearsal": "foundation/results/untagged-curve-rehearsal-20261119.json",
+    "guarded_body_arc": "foundation/results/guarded-body-arc-20261120.json",
+    "mounted_phone": "foundation/results/field-camera-live-20261120.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -218,7 +220,8 @@
     "owner_steering_2026_11_19": "Goals available; intended ball and second Pupper outstanding; field setup planned soon. Minimum demo: 1\u20132 minutes, two opponents, useful goal-directed shots, automatic role switching and smooth responsive execution. Latest reply requests camera-free endpoint repeatability first, with same marked starts; precision and accuracy recorded separately.",
     "owner_steering_2026_11_19_kick": "Prioritize the improved walk\u2013kick\u2013walk transition on the test block and use the trained leg policy as the demo shot. Discuss closed-loop approach, contact timing and field heading before resuming tests.",
     "owner_steering_2026_11_19_software": "Focus on one robot: continuous distance/heading feedback, low-latency steering at multiple speeds, natural deceleration into the leg kick, simulation and receipt-driven recovery. Tej handles physical kick testing. Mounted field camera and two-robot play follow later.",
-    "owner_steering_2026_11_20": "Phone and tripod available, pink size-5 ball received. Owner is placing the perimeter AprilTags. Qualify overhead framing, field scale and ball detection now. Later, measure a curved approach and move toward quicker play, with trained physical kicks owned by Tej."
+    "owner_steering_2026_11_20": "Phone and tripod available, pink size-5 ball received. Owner is placing the perimeter AprilTags. Qualify overhead framing, field scale and ball detection now. Later, measure a curved approach and move toward quicker play, with trained physical kicks owned by Tej.",
+    "field_setup": "All six floor tags, intended pink ball, and striker tag observed together on the real overhead phone. This setup uses locally remapped corner IDs 3,2,1,0. Verify focus and dimensions against tape. User deferred setup workflow improvements."
   },
   "verified_commands": {
     "status": "python3 foundation/scripts/session_status.py --verify-inputs",
