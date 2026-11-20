@@ -117,7 +117,10 @@ class Player:
         self.native_owners = {"gemini_walk":"active", "trick_leg_kick":"inactive"}
         async def read_owners():
             return dict(self.native_owners)
+        def unexpected_stop(reason):
+            raise AssertionError(f"{robot} simulated runtime stopped: {reason}")
         self.runtime = SimpleNamespace(handoff=self.handoff, velocity_sink=lambda cmd: None, stop_reason=None,
+            stop=unexpected_stop,
             robot=SimpleNamespace(gateway_stop_anchor=lambda: self.gateway.state, current=None, fallen=None,
                                   motion_block_reason=lambda: None, stops=0, controller_states=read_owners,
                                   leg_controllers=tuple(self.native_owners),
@@ -385,11 +388,13 @@ async def rehearse(roster, base_domain, root, rolling=False):
             players[robot].on_offer = lobby.observe_controls
         lead = players[roster[0]]
         last_frame = last_tick = time.monotonic()
+        max_tick_gap = 0.
         camera.frame(players.values())
         async def clock():
-            nonlocal last_frame, last_tick
+            nonlocal last_frame, last_tick, max_tick_gap
             while True:
                 now = time.monotonic()
+                max_tick_gap = max(max_tick_gap, now - last_tick)
                 if now - last_frame >= .032:
                     last_frame = now
                     camera.frame(players.values())
@@ -472,8 +477,11 @@ async def rehearse(roster, base_domain, root, rolling=False):
                 try:
                     await until(lambda: lobby.state()["resume_ready"], 17)
                 except TimeoutError as exc:
-                    raise AssertionError([(p.robot,p.phase,p.reason,p.sim.robot,p.core.executor.frame_seq,
-                                           p.core.executor.frame) for p in players.values()]) from exc
+                    state = lobby.state()
+                    raise AssertionError(dict(phase=state["phase"], message=state["message"], balance=state["balance"],
+                        max_simulation_tick_gap_s=round(max_tick_gap, 4),
+                        players={p.robot:dict(phase=p.phase, reason=p.reason, pose=p.sim.robot,
+                            frame_seq=p.core.executor.frame_seq, imu=p.balance.snapshot()) for p in players.values()})) from exc
                 await lobby.resume(OWNER)
                 await until(lambda: camera.match["phase"] == "playing" and camera.match["rally"] == 2)
                 result.update(score=camera.match["score"], early_resume_held_match=True, missed_red_goal_frames=players[RED].missed_goal_frames,
