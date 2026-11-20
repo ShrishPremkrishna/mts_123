@@ -121,6 +121,10 @@ def prepare_session_profile(config_path, urdf):
     feedback_broadcasters = FULL_FEEDBACK
     if motion_mode == "fc_walk_kick":
         fc_release_profile.select(combined, names, follower.mode)
+        if os.environ.get("PUPPER_FC_OPERATOR_CONTROL") == "1":
+            if os.environ.get("PUPPER_FC_IMU_RECOVERY", "strict") not in ("strict", "supported_rehome", "field_redundant_imu"):
+                raise ValueError("FC laptop standing requires a field-capable board profile")
+            combined["estop_controller"]["ros__parameters"]["fc_operator_control"] = True
         motion_controllers = list(fc_release_profile.CONTROLLERS)
         if os.environ.get("PUPPER_FC_RECORDING") == "events":
             # Native controllers read joint handles directly. The field uses overhead poses.

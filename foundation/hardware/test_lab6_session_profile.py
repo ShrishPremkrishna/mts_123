@@ -462,3 +462,14 @@ def test_fc_home_consumes_the_pinned_profile_without_regeneration(profile, monke
     path.write_text(path.read_text() + "\n")
     with pytest.raises(ValueError, match="manifest pinned"):
         profile.generate_launch_description()
+
+def test_operator_gateway_enabled_only_in_explicit_field_profile(profile, monkeypatch):
+    monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
+    monkeypatch.setenv("PUPPER_SESSION_SKILLS", "leg_kick")
+    monkeypatch.setenv("PUPPER_FC_OPERATOR_CONTROL", "1")
+    profile.generate_launch_description()
+    config = yaml.safe_load(Path(runtime_config.validate_session_catalog(load_tricks())["configuration"]).read_text())
+    assert config["estop_controller"]["ros__parameters"]["fc_operator_control"] is True
+    monkeypatch.setenv("PUPPER_FC_IMU_RECOVERY", "supported_damping")
+    with pytest.raises(ValueError, match="field-capable"):
+        profile.generate_launch_description()

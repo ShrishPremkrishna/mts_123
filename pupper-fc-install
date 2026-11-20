@@ -86,7 +86,8 @@ if profile.get("detector_model") and Path(profile["detector_model"]).is_file():
     selected += ["--detector-model", profile["detector_model"]]
 
 native = root / "native"
-packages = ["control_board_hardware_interface"]
+packages = ["control_board_hardware_interface", "joy_utils"]
+selected += ["--gateway-prefix", str(native / "install/joy_utils")]
 if recovery == "field_redundant_imu":
     packages.append("neural_controller")
     selected += ["--controller-prefix", str(native / "install/neural_controller")]

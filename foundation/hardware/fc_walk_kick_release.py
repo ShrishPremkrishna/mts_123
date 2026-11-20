@@ -289,6 +289,7 @@ def main():
     group.add_argument("--platform-template", type=Path, help="prior selected-session.json from this Pi")
     group.add_argument("--platform-env", type=Path, help="installed FC ROS overlay's environment.sh")
     enroll.add_argument("--imu-prefix", type=Path, help="select newly installed control-board ROS package prefix")
+    enroll.add_argument("--gateway-prefix", type=Path, help="select the rebuilt FC operator Start/Stop gateway and Python services")
     enroll.add_argument("--controller-prefix", type=Path, help="select the matching walking/clip controller install prefix")
     enroll.add_argument("--imu-recovery", choices=("strict", "supported_rehome", "supported_standby", "supported_damping", "field_redundant_imu"), default="strict")
     enroll.add_argument("--field-config", type=Path, help="measured venue geometry; defaults to the mounted arena")

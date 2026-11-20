@@ -77,12 +77,22 @@ def platform(args, runs):
             result = subprocess.check_output(["bash", "-c", 'source "$1" >/dev/null && exec python3 -c "$2"',
                                              "pupper-fc", str(script.resolve(strict=True)), read_env], timeout=20)
             python, env = json.loads(result)
-    replacements = {"imu": args.imu_prefix, "native": getattr(args, "controller_prefix", None)}
+    gateway_prefix = getattr(args, "gateway_prefix", None)
+    replacements = {"imu": args.imu_prefix, "native": getattr(args, "controller_prefix", None),
+                    "gateway": gateway_prefix}
     for overlay in filter(None, replacements.values()):
         prefix = str(overlay.resolve(strict=True))
         for key, path in (("AMENT_PREFIX_PATH",prefix),("CMAKE_PREFIX_PATH",prefix),
                           ("LD_LIBRARY_PATH",str(Path(prefix)/"lib"))):
             env[key] = os.pathsep.join([path, *filter(None, env.get(key,"").split(os.pathsep))])
+    if gateway_prefix:
+        gateway_prefix = gateway_prefix.resolve(strict=True)
+        # Debian Jazzy and Ubuntu Jazzy use different colcon Python install layouts.
+        python_dirs = sorted(path for base in ("lib", "local/lib") for leaf in ("site-packages", "dist-packages")
+                             for path in gateway_prefix.glob(f"{base}/python*/{leaf}") if (path / "joy_utils").is_dir())
+        if not python_dirs:
+            raise ValueError("the selected gateway prefix lacks generated joy_utils Python services")
+        env["PYTHONPATH"] = os.pathsep.join([*map(str, python_dirs), *filter(None, env.get("PYTHONPATH","").split(os.pathsep))])
     parts = {}
     for name, (pkg, relative) in NATIVE_LIBS.items():
         path = selected_package(env, pkg, relative)
@@ -99,6 +109,13 @@ def platform(args, runs):
             gateway[:6] != b"\x7fELF\x02\x01" or gateway[18:20] != b"\xb7\x00" or
             any(marker not in gateway for marker in (b"pupper_stop_v1",b"/estop_controller/start_motion",b"/estop_controller/request_stop"))):
         raise ValueError("install the Pi AArch64 driver and FC software Start/Stop gateway first")
+    if gateway_prefix:
+        expected = gateway_prefix / NATIVE_LIBS["gateway"][1]
+        if (Path(parts["gateway"]["path"]) != expected.resolve(strict=True)
+                or not expected.resolve().is_relative_to(gateway_prefix)
+                or any(marker not in gateway for marker in
+                       (b"/estop_controller/fc_operator_heartbeat", b"/estop_controller/fc_start_motion"))):
+            raise ValueError("select a target gateway with FC operator heartbeat and Start services from the same prefix")
     if b"FC_IMU_PUBLISH_PER_REPORT_V1" not in driver:
         raise ValueError("build the bundled control_board_hardware_interface and select its install prefix "
                          "with --imu-prefix; this driver lacks per-report IMU publication")
@@ -107,8 +124,24 @@ def platform(args, runs):
         selected_package(env, "control_board_hardware_interface", "share/control_board_hardware_interface/supported_damping_lease.xml")
     deps = ("import cv2,numpy,rclpy,hailo_platform; from joy_utils.srv import StartMotion; "
             "from controller_manager_msgs.srv import ListControllers, ListHardwareComponents, SetHardwareComponentState")
-    subprocess.run([python,"-B","-s","-c",deps],env={**os.environ,**env},check=True,timeout=20)
-    return {"prepared":True, "components":parts, "controllers":["gemini_walk","trick_leg_kick"],
+    if gateway_prefix:
+        deps += """
+from pathlib import Path
+import sys
+from joy_utils.srv import FcStartMotion
+from joy_utils.srv import _fc_start_motion
+from rosidl_generator_py import import_type_support
+from rclpy.type_support import check_for_type_support
+check_for_type_support(FcStartMotion)
+prefix = Path(sys.argv[1])
+for module in (_fc_start_motion, import_type_support("joy_utils")):
+    if not Path(module.__file__).resolve().is_relative_to(prefix):
+        raise RuntimeError("FC operator service types resolve outside the selected gateway prefix")
+"""
+    subprocess.run([python,"-B","-s","-c",deps,*([str(gateway_prefix)] if gateway_prefix else [])],
+                   env={**os.environ,**env},check=True,timeout=20)
+    operator_control = bool(gateway_prefix) and args.imu_recovery in ("strict","supported_rehome","field_redundant_imu")
+    return {"prepared":True, "fc_operator_control":operator_control, "components":parts, "controllers":["gemini_walk","trick_leg_kick"],
             "interpreter":{"executable":str(Path(python).absolute())}, "run_dir":str(runs/"fc-enrolled"),
             "environment":{**env,"PUPPER_SESSION_MOTION_MODE":"fc_walk_kick"}}
 

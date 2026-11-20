@@ -30,7 +30,7 @@ FIELD_FILES = (
         "controller_coverage", "session_processes", "robot_api", "runtime_config", "tricks",
         "spawn_controllers", "stop_status", "secret_gate")),
     "foundation/hardware/fc_walk_kick_release.py", "foundation/hardware/stage_app.py",
-    "foundation/hardware/software_start.py", "foundation/hardware/fc_session.py",
+    "foundation/hardware/software_start.py", "foundation/hardware/fc_session.py", "foundation/hardware/fc_operator.py",
     "foundation/hardware/fc_enrollment.py", "foundation/hardware/fc_advertise.py", "final_project/pupper_fc/arena.json",
     "foundation/hardware/persistent_session.py", "foundation/hardware/floor_stock/shutdown_coordinator.py",
 )
