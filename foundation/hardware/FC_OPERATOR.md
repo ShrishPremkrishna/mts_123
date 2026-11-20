@@ -1,13 +1,15 @@
 # Pupper FC operator commands
 
-On an enrolled Pi, **Connect** selects the release, prepares a cold session and opens its Home panel. Support the robot and select **Home**. A connected physical Stop gamepad and a fresh standing cue are required for soccer. A warm connection skips Home when the session is healthy. End match keeps the robot standing. The next Start match creates a fresh kickoff on the existing connection.
+Click **Connect** on the laptop to prepare Blue or Red. Support the robot with all feet clear for **Home**. Check support again and select **Enable standing**. Keep the team's browser tab visible. A current FC installation accepts this cue without a gamepad. Once the cameras and teams are ready, click **Start match**. A normal **End match** keeps a healthy walker standing for another kickoff.
+
+The Pi issues fresh challenges to the visible browser. If replies stop, its native gateway revokes standing and requests damping and controller deactivation. The lease lasts 750 ms from issue on the Pi. Scheduling and controller cleanup add time. **Stop all** and **Escape** explicitly request Stop. Reconnecting alone cannot activate a walker. Support the robot, reconnect, and give a new standing cue. A healthy board can reuse its existing Home. Keep the physical power control within reach during supported qualification.
 
 The Pi starts with its original Pupper eyes and touch Wi-Fi controls. The laptop runs the game. Course motion services stay idle at boot.
 
 The Pi archive supplies `./pupper-fc-install blue` (or `red`) for initial appliance installation on a prepared FC platform, and `sudo python3 foundation/hardware/fc_appliance.py normal` to restore its previous boot target on the next boot.
 
 
-Open **Pupper FC.command** on the laptop. For each cold, enrolled robot, open its team setup and click **Prepare**. Support that robot on its stand, confirm support and click **Home**. When the Pi reports that homing is complete, **Enable standing** sends a fresh standing cue through the same terminal used by Home. Gamepad Options also works. The dashboard connects the match runner after the Pi confirms an active walker. A prepared, standing robot can use **Connect** directly.
+Open **Pupper FC.command** on the laptop. Select **Home only** to finish setup with the walking controller inactive. With the controller-free gateway selected, the dashboard opens a separate operator connection for **Enable standing** and keeps it open through match setup and play. Changing away from the tab releases standing authority.
 
 The terminal equivalents below use `mts` as the robot’s SSH host.
 
@@ -16,17 +18,17 @@ ssh mts python3 /home/pi/pupper-fc/bin/fc_session.py prepare
 ssh -t mts python3 /home/pi/pupper-fc/bin/fc_session.py home --supported
 ```
 
-**Prepare** pins the installed FC release and existing native platform and reuses the current run on this boot. It opens no motor, ROS or camera processes. **Home** starts one supported hardware session and the recorder. With event recording, the first request to stand for a match or open play starts the onboard camera and detector after Home succeeds. Full recording starts them before Home to capture the whole session. The terminal standing cue is Enter after homing, or Options on the gamepad. The gateway requires a connected gamepad for software Start. Keep Pupper supported through that cue. A repeated home checks the original manager and live hardware state. The standing cue is skipped while the walker is already active.
+**Prepare** pins the installed FC release and existing native platform and reuses the current run on this boot. It opens no motor, ROS or camera processes. **Home** starts one supported hardware session and the recorder. With event recording, the first request to stand for a match or open play starts the onboard camera and detector after Home succeeds. Full recording starts them before Home to capture the whole session. The terminal standing cue is Enter after homing, or Options on the gamepad. The terminal Enter path requires a connected Stop gamepad. The FC dashboard has its own Pi-enforced operator connection. Keep Pupper supported through that cue. A repeated home checks the original manager and live hardware state. The standing cue is skipped while the walker is already active.
 
 For controller-free homing, choose **Finish homed · no gamepad** before clicking Home, or run `home --supported --home-only`. It initializes the supported hardware once and queries the board state. The command requests no walker activation. Later `home --supported` reuses that home and accepts Enter to stand while the connected gamepad provides the independent Stop path. Preparing and homing do not wait for joystick messages.
 
 If the board refuses its IMU check before motor enable, the setup screen shows the native reason while the Pi closes the processes from that attempt. Once setup confirms their exit, select **Prepare** for a fresh run, keep Pupper supported and still, and explicitly select **Home** again. If setup reports unconfirmed cleanup, inspect the retained run and complete the existing owned shutdown procedure first.
 
-Closing setup revokes its pending software standing cue. If mechanical homing has started, keep the robot on its stand while the Pi finishes its readiness checks. The physical gamepad Stop remains available during setup.
+Closing setup revokes its pending software standing cue. If mechanical homing has started, keep the robot on its stand while the Pi finishes its readiness checks. A connected physical gamepad can also request Stop.
 
 **Start match** is the third action. In the lobby, connect each team and the live overhead camera once. Check that the ball and each team's body tag are visible. Choose autonomous or keyboard play per team and click **Start match**. After a normal **End match** the walker stays standing and the connections stay open. Click **Start match** again. After a goal, replace the ball, let the autonomous players reach home, then click **Resume play**.
 
-**Escape** requests hard Stop on the connected teams. During a native kick or another active job, End match also takes the hard Stop path. On disconnect, the affected runner gets EOF and stops. The lobby ends the match for the other participants. Support the robot before using `home --supported` to stand again after a hard Stop. A healthy driver reuses the existing calibration. A hardware-interface fault requires separate recovery.
+**Escape** requests hard Stop on the connected teams. During a native kick or another active job, End match also takes the hard Stop path. On disconnect, the affected runner gets EOF and stops. The lobby ends the match for the other participants. Support the robot before giving a fresh **Enable standing** cue after a hard Stop. A healthy driver reuses the existing calibration. A hardware-interface fault requires separate recovery.
 
 For a diagnostic terminal trial with a separately supplied field stream, `ssh -t mts python3 /home/pi/pupper-fc/bin/fc_session.py match` prints an arm command for that attempt. Use this standalone runner on its own. Its default duration is 60 seconds. The `--one-shot` option selects the original single-kick trial.
 
