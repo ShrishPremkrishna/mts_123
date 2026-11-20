@@ -464,6 +464,18 @@ class SessionTests(unittest.TestCase):
         self.assertFalse((self.run / 'native-readiness.json').exists())
         self.assertNotEqual(self.life.load(self.run)['status'], 'stopped')
 
+    def test_fc_mechanical_refusal_releases_only_owned_setup_without_retry(self):
+        self.deferred_fc_fixture()
+        (self.run / 'native-readiness.json').unlink()
+        self.life.native_log = ('[ros2_control_node-2] [ERROR] [ControlBoardHardwareInterface]: '
+                                'Mechanical Home stopped: return failed first_pending_joint=knee; neutral sent')
+        with (patch.object(self.life, 'state', return_value='exited'),
+              self.assertRaisesRegex(ValueError, 'knee.*Owned setup processes exited.*Inspect the leg')):
+            session.start_native(self.run, self.plan, self.life, defer_perception=True)
+        self.assertTrue(self.life.closed)
+        self.assertFalse((self.run / 'native-readiness.json').exists())
+        self.assertEqual([r[0] for r in self.life.spawned], ['recorder', 'launch'])
+
     def test_pre_motor_motor_board_refusal(self):
         log = ('[ros2_control_node-2] [ERROR] [1.2] [ControlBoardHardwareInterface]: '
                'Home refused before motor enable: missing motor board reply (mask=1)')

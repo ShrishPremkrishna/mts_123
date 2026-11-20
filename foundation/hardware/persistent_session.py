@@ -494,14 +494,18 @@ def start_native(run, plan, life, *, defer_perception=False):
             # Only this first-activation board diagnostic is emitted before the
             # motor-enable loop. A generic process exit cannot prove that phase.
             reason = pre_motor_fault(log)
-            if reason and plan['environment'].get('PUPPER_SESSION_MOTION_MODE') == 'fc_walk_kick':
+            mechanical = re.search(r'^\[ros2_control_node-\d+\][^\n]*?\[ControlBoardHardwareInterface\]: '
+                                   r'Mechanical Home stopped: ([^\r\n]+)', log, re.MULTILINE)
+            if mechanical:
+                stopped = 'Mechanical Home stopped. ' + mechanical.group(1) + '. Keep Pupper supported.'
+            elif reason:
                 stopped = 'Home stopped before motor enable (' + reason + ').'
-                print(json.dumps(dict(event='home_startup_fault', reason=reason,
+            if (reason or mechanical) and plan['environment'].get('PUPPER_SESSION_MOTION_MODE') == 'fc_walk_kick':
+                print(json.dumps(dict(event='home_startup_fault', reason=reason or mechanical.group(1),
                                       message=stopped + ' Releasing owned setup processes.')),
                       file=sys.stderr, flush=True)
                 try:
-                    # The disabled board flushes its failure CSV after the fault
-                    # message. Let the manager complete that write and exit.
+                    # Allow the driver's failure trace to finish writing before cleanup.
                     manager = receipt['processes'].get('manager')
                     grace = time.monotonic() + 2
                     while manager and time.monotonic() < grace and life.state(manager, receipt['session_id']) == 'running':
@@ -509,12 +513,11 @@ def start_native(run, plan, life, *, defer_perception=False):
                     life.cleanup(run)
                 except (OSError, ValueError, subprocess.SubprocessError) as exc:
                     raise ValueError(stopped + ' Process cleanup unconfirmed. Inspect the owned session: ' + str(exc)) from exc
-                raise ValueError(stopped + ' Owned setup processes exited. Select Prepare, then request supported Home again.')
-            mechanical = re.search(r'^\[ros2_control_node-\d+\][^\n]*?\[ControlBoardHardwareInterface\]: '
-                                   r'Mechanical Home stopped: ([^\r\n]{1,240})', log, re.MULTILINE)
+                instruction = (' Inspect the leg and its clearance before selecting Prepare and requesting Home again.'
+                               if mechanical else ' Select Prepare, then request supported Home again.')
+                raise ValueError(stopped + ' Owned setup processes exited.' + instruction)
             if mechanical:
-                raise ValueError('Mechanical Home stopped. ' + mechanical.group(1)
-                                 + '. Keep Pupper supported. Inspect and shut down this session before retrying.')
+                raise ValueError(stopped + ' Inspect and shut down this session before retrying.')
             if life.state(target, receipt['session_id']) != 'running':
                 raise ValueError('Launch exited before homing completed; receipt retained')
             if 'IMU startup check failed:' in log or 'process has died' in log:
