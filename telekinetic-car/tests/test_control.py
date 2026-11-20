@@ -87,6 +87,13 @@ class ControlTests(unittest.TestCase):
         self.assertIsNotNone(output.focus)
         self.assert_stopped(self.advance(1), "release_to_enable")
 
+    def test_small_turn_overrides_stock_heading_hold_while_walking(self):
+        self.advance(24, enabled=False)
+        angle = math.radians(6)
+        output = self.advance(2, accel=(math.sin(angle), 0.0, math.cos(angle)))
+        self.assertEqual(output.forward, FORWARD_SPEED)
+        self.assertGreater(output.yaw, 0.10)
+
     def test_clipped_sample_or_sequence_gap_revokes_motion(self):
         self.advance(24, enabled=False)
         self.assertEqual(self.advance(1).forward, FORWARD_SPEED)
@@ -112,6 +119,17 @@ class ControlTests(unittest.TestCase):
         moved = (replace(s, accel_g=(0.5, 0.0, 0.86)) for s in self.focus)
         with self.assertRaisesRegex(ValueError, "head moved"):
             calibrate(self.rest, moved)
+
+    def test_wrong_sampling_rate_never_qualifies_for_motion(self):
+        slow_rest = (replace(sample, t=1.25 * sample.t) for sample in self.rest)
+        with self.assertRaisesRegex(ValueError, "power scores"):
+            calibrate(slow_rest, self.focus)
+
+    def test_equal_timestamps_from_usb_batches_preserve_valid_windows(self):
+        def batched_time(samples):
+            return [replace(sample, t=round(sample.t / 0.016) * 0.016) for sample in samples]
+
+        self.assertEqual(calibrate(batched_time(self.rest), batched_time(self.focus)), self.calibration)
 
     def test_calibration_does_not_shift_for_missing_initial_samples(self):
         samples = list(itertools.dropwhile(lambda sample: sample.t < 0.29, self.samples))

@@ -1,7 +1,10 @@
-import sys
-from types import ModuleType, SimpleNamespace
+import os
+from queue import Queue
+import select
+from threading import Event, Thread
+import time
+from types import SimpleNamespace
 
-import numpy as np
 import pytest
 
 from pupper_bci import source
@@ -9,141 +12,141 @@ from pupper_bci.source import CytonSource, Sample, read_recording
 
 
 @pytest.fixture
-def fake_brainflow(monkeypatch):
-    boards = []
+def fake_cyton():
+    pty = pytest.importorskip("pty")
+    pytest.importorskip("serial")
+    master, slave = pty.openpty()
+    halt = Event()
+    firmware = SimpleNamespace(
+        port=os.ttyname(slave),
+        commands=Queue(),
+        welcome=b"OpenBCI V3 8-16 channel\r\nOn Board ADS1299 Device ID: 0x3E\r\n"
+                b"LIS3DH Device ID: 0x33\r\nFirmware: v3.1.2\r\n$$$",
+    )
 
-    class FakeBoardError(Exception):
-        pass
+    def simulate():
+        while not halt.is_set():
+            if select.select([master], [], [], 0.02)[0]:
+                for command in os.read(master, 256):
+                    command = bytes([command])
+                    firmware.commands.put(command)
+                    if command == b"v" and firmware.welcome:
+                        os.write(master, firmware.welcome)
 
-    class FakeBoard:
-        rate = 250
-        fail_start = False
-        fail_read = False
+    simulation = Thread(target=simulate, daemon=True)
+    simulation.start()
 
-        def __init__(self, board_id, params):
-            self.board_id = board_id
-            self.port = params.serial_port
-            self.actions = []
-            self.data = np.empty((24, 0))
-            boards.append(self)
+    def disconnect():
+        nonlocal master
+        halt.set()
+        simulation.join(1.0)
+        if master is not None:
+            os.close(master)
+            master = None
 
-        @staticmethod
-        def get_eeg_channels(board_id):
-            return list(range(1, 9))
-
-        @staticmethod
-        def get_other_channels(board_id):
-            return list(range(12, 19))
-
-        @staticmethod
-        def get_package_num_channel(board_id):
-            return 0
-
-        @staticmethod
-        def get_timestamp_channel(board_id):
-            return 22
-
-        def get_board_sampling_rate(self):
-            return self.rate
-
-        def prepare_session(self):
-            self.actions.append("prepare")
-
-        def start_stream(self, capacity):
-            self.actions.append("start")
-            assert capacity >= 250
-            if self.fail_start:
-                raise RuntimeError("start failed")
-
-        def get_board_data(self):
-            if self.fail_read:
-                raise FakeBoardError("stream is gone")
-            data, self.data = self.data, np.empty((24, 0))
-            return data
-
-        def release_session(self):
-            self.actions.append("release")
-
-    brainflow = ModuleType("brainflow")
-    board_shim = ModuleType("brainflow.board_shim")
-    board_shim.BoardShim = FakeBoard
-    board_shim.BoardIds = SimpleNamespace(CYTON_BOARD=SimpleNamespace(value=0))
-    board_shim.BrainFlowError = FakeBoardError
-    board_shim.BrainFlowInputParams = SimpleNamespace
-    monkeypatch.setitem(sys.modules, "brainflow", brainflow)
-    monkeypatch.setitem(sys.modules, "brainflow.board_shim", board_shim)
-    return FakeBoard, boards
+    firmware.send = lambda data: os.write(master, data)
+    firmware.disconnect = disconnect
+    try:
+        yield firmware
+    finally:
+        disconnect()
+        os.close(slave)
 
 
-def test_live_read_preserves_capture_time_sequence_and_raw_acceleration(fake_brainflow, monkeypatch):
-    _, boards = fake_brainflow
-    clock = SimpleNamespace(time=1000.0, monotonic=10.0)
-    monkeypatch.setattr(source, "time", SimpleNamespace(
-        time=lambda: clock.time,
-        monotonic=lambda: clock.monotonic,
-    ))
-    live = CytonSource("/dev/cu.test", (3, 7))
+def _frame(sequence, *, fp1=0, fp2=0, accel=(0, 0, 0), footer=0xC0):
+    eeg = (123456, -654321, fp1, 0, 0, 0, fp2, 0)
+    return (
+        bytes([0xA0, sequence])
+        + b"".join(value.to_bytes(3, "big", signed=True) for value in eeg)
+        + b"".join(value.to_bytes(2, "big", signed=True) for value in accel)
+        + bytes([footer])
+    )
+
+
+def test_live_serial_preserves_signed_values_packet_age_and_resync(fake_cyton):
+    from serial import Serial, SerialException
+
+    firmware = fake_cyton
+    live = CytonSource(firmware.port, (3, 7))
     with pytest.raises(RuntimeError, match="before reading"):
         live.read()
     with live as stream:
-        board = boards[0]
-        assert board.board_id == 0
-        assert board.port == "/dev/cu.test"
-        assert board.actions == ["prepare", "start"]
+        assert firmware.commands.get(timeout=1.0) == b"v"
+        assert firmware.commands.get(timeout=1.0) == b"b"
         assert stream.read() == []
+        with pytest.raises(RuntimeError, match="already open"):
+            live.__enter__()
+        with pytest.raises(SerialException, match="exclusive"):
+            Serial(firmware.port, exclusive=True)
 
-        packets = np.zeros((24, 5))
-        packets[0] = [254, 255, 0, 1, 2]
-        packets[3] = [-4.25, 4.5, 5.0, 5.25, 1.5]
-        packets[7] = [6.125, -3.0, 0.0, 5.5, -3.25]
-        packets[9:12] = 2.0  # Processed accelerometer rows may contain held values.
-        packets[12] = [0xC0, 0xC0, 0xC0, 0xC1, 0xC4]
-        packets[13:19, 0] = [0xF8, 0x30, 0, 0, 0x1E, 0xA0]  # -2000, 0, 7840 counts.
-        packets[13:19, 2:] = np.array([[0, 0, 0, 0x10, 0x1F, 0x40]]).T
-        packets[22] = [1000.004, 1000.008, 1000.012, 1000.016, 1000.020]
-        board.data = packets
-        clock.monotonic = 13.0
-        clock.time = 1003.0
+        first = _frame(254, fp1=-8192, fp2=3500, accel=(-2000, 0, 7840))
+        firmware.send(first[:11])
+        time.sleep(0.015)
+        assert stream.read() == []
+        firmware.send(
+            first[11:]
+            + _frame(255)
+            + _frame(0, fp1=0xA012, footer=0x00)
+            + b"noise"
+            + _frame(1, accel=(0, 16, 8000))
+            + _frame(2, accel=(0, 16, 8000), footer=0xC1)
+            + _frame(3, accel=(0, 16, 8000), footer=0xC4)
+        )
+        deadline = time.monotonic() + 1.0
+        while time.monotonic() < deadline:
+            with stream._lock:
+                if len(stream._samples) == 5:
+                    break
+            time.sleep(0.005)
+        settled_at = time.monotonic()
+        time.sleep(0.035)
         samples = stream.read()
 
-        assert [sample.sequence for sample in samples] == [254, 255, 0, 1, 2]
-        assert [sample.t for sample in samples] == pytest.approx(
-            [10.004, 10.008, 10.012, 10.016, 10.020],
-        )
-        assert samples[0].eeg_uv == (-4.25, 6.125)
-        assert samples[1].eeg_uv == (4.5, -3.0)
+        assert [sample.sequence for sample in samples] == [254, 255, 1, 2, 3]
+        assert all(sample.t <= settled_at for sample in samples)
+        assert [sample.t for sample in samples] == sorted(sample.t for sample in samples)
+        uv_per_count = 4_500_000 / 24 / (2**23 - 1)
+        assert samples[0].eeg_uv == pytest.approx((-8192 * uv_per_count, 3500 * uv_per_count))
         assert samples[0].accel_g == pytest.approx((-0.25, 0, 0.98))
-        assert samples[1].accel_g is None  # Empty AUX on a standard packet.
+        assert samples[1].accel_g is None
         assert samples[2].accel_g == pytest.approx((0, 0.002, 1.0))
-        assert samples[3].accel_g is None  # Non-accelerometer packet mode.
-        assert samples[4].accel_g is None  # Timestamped AUX is not the default full triple.
+        assert samples[3].accel_g is None
+        assert samples[4].accel_g is None
         assert stream.read() == []
-    assert board.actions == ["prepare", "start", "release"]
+    assert firmware.commands.get(timeout=1.0) == b"s"
     with pytest.raises(RuntimeError, match="before reading"):
         live.read()
 
 
-@pytest.mark.parametrize("rate,fail_start,match,actions", [
-    (125, False, "250 Hz", ["prepare", "release"]),
-    (250, True, "start failed", ["prepare", "start", "release"]),
+@pytest.mark.parametrize("welcome,match", [
+    (b"", "no Cyton startup response"),
+    (b"unrecognized board$$$", "unexpected Cyton startup response"),
+    (b"OpenBCI V3\r\nOn Daisy ADS1299 Device ID: 0x3E\r\nLIS3DH\r\n$$$", "Daisy is attached"),
 ])
-def test_open_failures_release_prepared_session(fake_brainflow, rate, fail_start, match, actions):
-    fake_board, boards = fake_brainflow
-    fake_board.rate = rate
-    fake_board.fail_start = fail_start
+def test_invalid_startup_closes_port(fake_cyton, monkeypatch, welcome, match):
+    from serial import Serial
+
+    fake_cyton.welcome = welcome
+    monkeypatch.setattr(source, "_RESET_TIMEOUT", 0.1)
     with pytest.raises(RuntimeError, match=match):
-        with CytonSource("/dev/cu.test"):
-            pytest.fail("session should not open")
-    assert boards[0].actions == actions
+        with CytonSource(fake_cyton.port):
+            pytest.fail("stream should not start")
+    assert fake_cyton.commands.get(timeout=1.0) == b"v"
+    assert fake_cyton.commands.empty()
+    with Serial(fake_cyton.port, exclusive=True) as port:
+        assert port.is_open
 
 
-def test_driver_read_error_is_reported_and_cleans_up(fake_brainflow):
-    fake_board, boards = fake_brainflow
-    fake_board.fail_read = True
-    with pytest.raises(RuntimeError, match="could not read Cyton.*stream is gone"):
-        with CytonSource("/dev/cu.test") as device:
-            device.read()
-    assert boards[0].actions == ["prepare", "start", "release"]
+def test_serial_disconnect_surfaces_reader_failure(fake_cyton):
+    with pytest.raises(RuntimeError, match="could not read Cyton"):
+        with CytonSource(fake_cyton.port) as stream:
+            assert fake_cyton.commands.get(timeout=1.0) == b"v"
+            assert fake_cyton.commands.get(timeout=1.0) == b"b"
+            fake_cyton.disconnect()
+            deadline = time.monotonic() + 1.0
+            while time.monotonic() < deadline:
+                stream.read()
+                time.sleep(0.005)
 
 
 @pytest.mark.parametrize("channels", [(1,), (0, 2), (2, 9), (1, 1), (1.5, 2)])

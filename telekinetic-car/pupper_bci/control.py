@@ -15,6 +15,7 @@ INPUT_MAX_AGE = 0.15
 FOCUS_MAX_AGE = WINDOW_SIZE / SAMPLE_RATE + INPUT_MAX_AGE
 TILT_DEADBAND = 5.0
 TILT_FULL_SCALE = 25.0
+MIN_TURN_RATE = 0.12  # Above the stock walker's 0.1 rad/s heading-hold threshold.
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ class Motion:
 class _EEGWindows:
     def __init__(self) -> None:
         self.last: Sample | None = None
+        self.started = 0.0
         self.epoch: list[tuple[float, float]] = []
 
     def add(self, sample: Sample) -> float | None:
@@ -44,14 +46,21 @@ class _EEGWindows:
             raise ValueError("invalid or clipped EEG sample")
         if previous and (
             sample.sequence != (previous.sequence + 1) % 256
-            or not 0 < sample.t - previous.t <= INPUT_MAX_AGE
+            or not 0 <= sample.t - previous.t <= INPUT_MAX_AGE
         ):
             raise ValueError("discontinuous Cyton samples")
+        if not self.epoch:
+            self.started = sample.t
         self.epoch.append(sample.eeg_uv)
         if len(self.epoch) < WINDOW_SIZE:
             return None
         block = np.asarray(self.epoch)
         self.epoch.clear()
+        # Measure over the whole epoch so USB buffering can vary packet times
+        # without making a different sample rate look like 250 Hz.
+        expected_duration = (WINDOW_SIZE - 1) / SAMPLE_RATE
+        if abs(sample.t - self.started - expected_duration) > INPUT_MAX_AGE:
+            raise ValueError("Cyton sample timing is inconsistent with 250 Hz")
         return focus_power(block)
 
 
@@ -142,6 +151,8 @@ class Controller:
 
         thresholds = self.calibration.focus
         self._focused = focus >= (thresholds.exit if self._focused else thresholds.enter)
-        turn = min(1.0, max(0.0, (abs(tilt) - TILT_DEADBAND) / (TILT_FULL_SCALE - TILT_DEADBAND)))
-        yaw = math.copysign(turn * MAX_YAW_RATE, tilt) if turn else 0.0
+        yaw = 0.0
+        if abs(tilt) > TILT_DEADBAND:
+            turn = min(1.0, (abs(tilt) - TILT_DEADBAND) / (TILT_FULL_SCALE - TILT_DEADBAND))
+            yaw = math.copysign(MIN_TURN_RATE + turn * (MAX_YAW_RATE - MIN_TURN_RATE), tilt)
         return Motion(FORWARD_SPEED if self._focused else 0.0, yaw, "enabled", focus, tilt)

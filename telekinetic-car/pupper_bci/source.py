@@ -1,16 +1,26 @@
 """Read stock Cyton packets or replay a recording of those packets."""
 
+from collections import deque
+from contextlib import suppress
 import csv
 from dataclasses import dataclass
 import math
+import os
 from pathlib import Path
+from threading import Event, Lock, Thread
 import time
 
 
 RECORDING_COLUMNS = ("t", "sequence", "eeg1_uv", "eeg2_uv", "ax_g", "ay_g", "az_g")
 SAMPLE_RATE = 250
-_CYTON_ACCEL_FOOTER = 0xC0
-_CYTON_ACCEL_G_PER_COUNT = 0.002 / 16
+_PACKET_START = 0xA0
+_PACKET_BYTES = 33
+_ACCEL_FOOTER = 0xC0
+_EEG_UV_PER_COUNT = 4.5e6 / (24 * (2 ** 23 - 1))
+_ACCEL_G_PER_COUNT = 0.002 / 16
+_READ_TIMEOUT = 0.05
+_WRITE_TIMEOUT = 0.25
+_RESET_TIMEOUT = 4.0
 
 
 @dataclass(frozen=True)
@@ -21,21 +31,8 @@ class Sample:
     accel_g: tuple[float, float, float] | None
 
 
-def _cyton_acceleration(footer, data):
-    # Cyton sends six zero AUX bytes when there is no new accelerometer sample.
-    # BrainFlow's processed accel rows can repeat old values when raw X is zero.
-    if footer != _CYTON_ACCEL_FOOTER or not any(data):
-        return None
-    raw = bytes(map(int, data))
-    x, y, z = (
-        int.from_bytes(raw[offset:offset + 2], "big", signed=True) * _CYTON_ACCEL_G_PER_COUNT
-        for offset in (0, 2, 4)
-    )
-    return x, y, z
-
-
 class CytonSource:
-    """Read an eight-channel Cyton over its serial dongle in default accel mode."""
+    """Read default 8-channel, 250 Hz Cyton packets from a USB dongle."""
 
     def __init__(self, port: str, channels: tuple[int, int] = (1, 2)):
         if not port:
@@ -45,76 +42,154 @@ class CytonSource:
         if channels[0] == channels[1]:
             raise ValueError("select two different Cyton EEG channels")
         self._port = port
-        self._channels = tuple(channels)
-        self._board = None
+        self._eeg_offsets = [2 + 3 * (channel - 1) for channel in channels]
+        self._serial = None
+        self._lock = Lock()
+        self._samples = deque(maxlen=SAMPLE_RATE * 5)
+        self._reader_error = None
 
     def __enter__(self):
-        if self._board is not None:
+        if self._serial is not None:
             raise RuntimeError("Cyton stream is already open")
-        from brainflow.board_shim import BoardIds, BoardShim, BrainFlowError, BrainFlowInputParams
+        from serial import Serial
 
-        params = BrainFlowInputParams()
-        params.serial_port = self._port
-        board_id = BoardIds.CYTON_BOARD.value
-        board = BoardShim(board_id, params)
-        eeg_rows = board.get_eeg_channels(board_id)
-        other_rows = board.get_other_channels(board_id)
-        if len(eeg_rows) != 8 or len(other_rows) != 7:
-            raise RuntimeError("expected the eight-channel BrainFlow Cyton with raw AUX data")
-        self._eeg_rows = [eeg_rows[channel - 1] for channel in self._channels]
-        self._sequence_row = board.get_package_num_channel(board_id)
-        self._timestamp_row = board.get_timestamp_channel(board_id)
-        self._footer_row, *self._aux_rows = other_rows
-
-        self._board_error = BrainFlowError
+        port = Serial(
+            self._port, baudrate=115200, timeout=_READ_TIMEOUT,
+            write_timeout=_WRITE_TIMEOUT, exclusive=True if os.name == "posix" else None,
+        )
         try:
-            board.prepare_session()
-        except BrainFlowError as error:
-            raise RuntimeError(f"could not open Cyton on {self._port}: {error}") from error
-        try:
-            if board.get_board_sampling_rate() != SAMPLE_RATE:
-                raise RuntimeError(f"expected a {SAMPLE_RATE} Hz Cyton stream")
-            # BrainFlow timestamps serial packets as they arrive in host Unix time.
-            # A fixed anchor preserves the age of packets waiting in the ring buffer.
-            before = time.monotonic()
-            wall_time = time.time()
-            self._clock_offset = (before + time.monotonic()) / 2 - wall_time
-            board.start_stream(SAMPLE_RATE * 5)
-        except BrainFlowError as error:
-            board.release_session()
-            raise RuntimeError(f"could not start Cyton on {self._port}: {error}") from error
+            self._reset(port)
+            with self._lock:
+                self._samples.clear()
+                self._reader_error = None
+            self._stop = Event()
+            self._thread = Thread(
+                target=self._receive, args=(port, self._stop), name="Cyton serial reader", daemon=True,
+            )
+            self._thread.start()
+            try:
+                port.write(b"b")
+            except BaseException:
+                self._stop.set()
+                with suppress(OSError):
+                    port.write(b"s")
+                self._thread.join(_WRITE_TIMEOUT)
+                raise
         except BaseException:
-            board.release_session()
+            with suppress(OSError):
+                port.close()
             raise
-        self._board = board
+        self._serial = port
         return self
 
+    def _reset(self, port):
+        # Soft reset restores the stock acquisition mode and gain of 24.
+        port.reset_input_buffer()
+        port.write(b"v")
+        deadline = time.monotonic() + _RESET_TIMEOUT
+        banner = bytearray()
+        while time.monotonic() < deadline and len(banner) < 4096:
+            banner.extend(port.read(min(port.in_waiting or 1, 512)))
+            if b"$$$" in banner:
+                break
+        else:
+            raise RuntimeError(f"no Cyton startup response on {self._port}")
+        welcome, _, _ = banner.partition(b"$$$")
+        if b"On Daisy ADS1299" in welcome:
+            raise RuntimeError("Cyton Daisy is attached; use the stock 8-channel Cyton")
+        if not all(marker in welcome for marker in (b"OpenBCI V3", b"ADS1299", b"LIS3DH")):
+            raise RuntimeError(f"unexpected Cyton startup response on {self._port}")
+        port.reset_input_buffer()
+
     def __exit__(self, exc_type, exc_value, traceback):
-        board, self._board = self._board, None
-        if board is not None:
-            # BrainFlow's Cyton release stops the stream and closes the serial port.
+        port, self._serial = self._serial, None
+        self._stop.set()
+        try:
+            port.write(b"s")
+        except OSError:
+            if exc_type is None:
+                raise
+        finally:
             try:
-                board.release_session()
-            except self._board_error as error:
-                if exc_type is None:
-                    raise RuntimeError(f"could not close Cyton on {self._port}: {error}") from error
+                self._thread.join(_WRITE_TIMEOUT)
+            finally:
+                port.close()
+
+    def _receive(self, port, stop: Event):
+        pending = bytearray()
+        aligned = True
+        completed_at = None
+        try:
+            while not stop.is_set():
+                chunk = port.read(min(port.in_waiting or 1, 4096))
+                received_at = time.monotonic()
+                pending.extend(chunk)
+                samples = []
+                while len(pending) >= _PACKET_BYTES:
+                    start = pending.find(_PACKET_START)
+                    if start < 0:
+                        pending.clear()
+                        aligned = False
+                        break
+                    if start:
+                        del pending[:start]
+                        aligned = False
+                    if len(pending) < _PACKET_BYTES:
+                        break
+                    if not _ACCEL_FOOTER <= pending[_PACKET_BYTES - 1] <= 0xC6:
+                        del pending[0]
+                        aligned = False
+                        completed_at = None
+                        continue
+                    if not aligned:
+                        # A data byte can equal the header. Confirm the next frame
+                        # boundary after losing alignment and keep the first frame's time.
+                        if len(pending) == _PACKET_BYTES:
+                            if completed_at is None:
+                                completed_at = received_at
+                            break
+                        if pending[_PACKET_BYTES] != _PACKET_START:
+                            del pending[0]
+                            completed_at = None
+                            continue
+                        aligned = True
+                    t = received_at if completed_at is None else completed_at
+                    samples.append(self._decode(pending[:_PACKET_BYTES], t))
+                    del pending[:_PACKET_BYTES]
+                    completed_at = None
+                with self._lock:
+                    if not stop.is_set():
+                        self._samples.extend(samples)
+        except Exception as error:
+            with self._lock:
+                if not stop.is_set():
+                    self._reader_error = error
+
+    def _decode(self, frame: bytearray, t: float) -> Sample:
+        eeg1, eeg2 = (
+            int.from_bytes(frame[offset:offset + 3], "big", signed=True) * _EEG_UV_PER_COUNT
+            for offset in self._eeg_offsets
+        )
+        accel = None
+        # Standard packets omit a new accel reading by sending six zero AUX bytes.
+        if frame[32] == _ACCEL_FOOTER and any(frame[26:32]):
+            ax, ay, az = (
+                int.from_bytes(frame[offset:offset + 2], "big", signed=True) * _ACCEL_G_PER_COUNT
+                for offset in (26, 28, 30)
+            )
+            accel = (ax, ay, az)
+        return Sample(t, frame[1], (eeg1, eeg2), accel)
 
     def read(self) -> list[Sample]:
-        if self._board is None:
+        if self._serial is None:
             raise RuntimeError("open the Cyton stream before reading")
-        try:
-            packets = self._board.get_board_data().T
-        except self._board_error as error:
-            raise RuntimeError(f"could not read Cyton on {self._port}: {error}") from error
-        samples = []
-        for packet in packets:
-            eeg1, eeg2 = (float(packet[row]) for row in self._eeg_rows)
-            samples.append(Sample(
-                t=float(packet[self._timestamp_row]) + self._clock_offset,
-                sequence=int(packet[self._sequence_row]),
-                eeg_uv=(eeg1, eeg2),
-                accel_g=_cyton_acceleration(packet[self._footer_row], packet[self._aux_rows]),
-            ))
+        with self._lock:
+            if self._reader_error is not None:
+                raise RuntimeError(
+                    f"could not read Cyton on {self._port}: {self._reader_error}"
+                ) from self._reader_error
+            samples = list(self._samples)
+            self._samples.clear()
         return samples
 
 
