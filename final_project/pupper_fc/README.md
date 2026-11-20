@@ -1,5 +1,7 @@
 # Offline soccer decision rehearsal
 
+The [Pupper FC laptop lobby](LAPTOP.md) provides Blue/Red team controls, overhead camera setup, and keyboard teleop. Open it from the checkout with `./pupper-fc`.
+
 The interactive field defaults to one simulated Pupper steering toward a left-foot shot. It receives metric field position and yaw, steers on fresh observations, slows into the paw contact window and requests one kick. A simulated backend reports clip playback and walker restoration. The ball receives no kick impulse. The viewer can show roles, hold reasons, speed, yaw rate and decision input age throughout.
 
 ## Walking and kicking in one release
