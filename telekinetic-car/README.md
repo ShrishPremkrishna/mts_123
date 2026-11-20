@@ -1,6 +1,8 @@
 # telekinetic-car
 Mind-controlled RC car.
 
+For the Pupper adaptation, see [Pupper BCI](PUPPER.md).
+
 Built with OpenBCI Cyton hardware + Ultracortex Mark IV EEG headset.
 
 Signal processing (segmentation, filtering, artifact removal, Fourier Transform, Power Spectral Density construction) written in Python in MCSigProcessing.py.
