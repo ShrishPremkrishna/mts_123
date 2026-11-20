@@ -5,9 +5,8 @@ Options release and remembered-controller activation as one transaction. It does
 not initialize hardware, home motors, clear a fault, retry, or make ground startup
 safe. Start only after the existing native initialization and physical readiness
 procedure. Options and the real Stop button keep their existing behavior.
-The course gamepad must be connected and publishing valid feedback. Start uses
-the existing 250 ms Joy freshness bound at admission and before dispatch; this
-is not joystickless support or a new continuous stopping watchdog.
+The course gamepad must be connected and publishing valid feedback. This service
+uses the existing 250 ms Joy freshness bound at admission and before dispatch.
 
 A caller echoes `instance_id`, `epoch`, `sequence` and `selected_controller` from
 one `/estop_controller/stop_status` message. The gateway accepts that challenge
@@ -77,3 +76,39 @@ Offline test (no hardware): after configuring/building this package with
 '^(start_motion_|stop_arbiter_)'`. The DDS tests use a fake manager and the real
 gateway, including duplicate STRICT failure, stale challenges, inventory delay,
 Stop races and unknown active controllers.
+
+
+## FC browser standing and Stop
+
+On the FC walk/kick profile, the read-only startup setting
+`fc_operator_control:=true` enables `/estop_controller/fc_start_motion`
+(`joy_utils/srv/FcStartMotion`) and `/estop_controller/fc_operator_heartbeat`
+(`std_msgs/msg/String`, best-effort, volatile, depth 1). The default is false.
+The gateway checks for the configured `gemini_walk` and `trick_leg_kick`
+controller list and one mapped face button before exposing these interfaces.
+
+A visible, connected browser echoes a challenge from the existing gateway status.
+Its Pi relay publishes the echoed `instance_id epoch sequence owner`, where
+`owner` is a session-specific 32-character lowercase hexadecimal ID. Status
+reports this ID in `fc_operator_owner` after a valid first heartbeat. While that
+owner is current, other owners cannot supply heartbeats or stand. Each renewal
+must cite an advancing sequence issued in the current epoch within 500 ms.
+The 750 ms lease runs from issuance on the gateway's steady clock.
+
+One deliberate browser Stand echoes a recent challenge from before the click
+and identifies the same owner in its service request. Admission requires the
+latched, idle gateway, released physical Stop, and selected `gemini_walk`.
+The gateway marks `fc_operator_armed` as soon as it admits the request and
+requires fresh inventory for dispatch. While armed, the gateway honors a
+physical Stop and consumes physical selection edges. Browser heartbeat loss
+enters the ordinary Stop path on the 50 ms timer, publishes native damping,
+cancels queued activation and follows an in-flight activation with corrective
+deactivation. A software or physical Stop advances the epoch. Standing again
+requires a new challenge and operator action after cleanup. A first heartbeat
+alone never requests a switch. No part of this transaction calls Home.
+
+The `fc_operator_watchdog` CTest runs the native executable and both real DDS
+interfaces against an in-memory controller manager. It checks disconnection,
+delayed/replayed messages, competing owners, cancellation before and after
+dispatch, and physical Stop. For an installed robot, verify both controllers'
+states and the hardware command claims on the supported robot.

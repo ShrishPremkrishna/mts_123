@@ -1,0 +1,10 @@
+# Explicit standing cue from the browser that owns the live FC heartbeat.
+# Echo one gateway challenge observed before this operator action.
+string instance_id
+uint64 epoch
+uint64 sequence
+string selected_controller
+string owner
+---
+bool success
+string message
