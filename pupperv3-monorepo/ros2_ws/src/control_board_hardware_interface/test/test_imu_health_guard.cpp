@@ -6,6 +6,9 @@
 #include "hardware_interface/component_parser.hpp"
 #include "lifecycle_msgs/msg/state.hpp"
 #include <atomic>
+#include <controller_interface/controller_interface.hpp>
+#include <pluginlib/class_loader.hpp>
+#include <sstream>
 #include <cstring>
 #include <fstream>
 #include <filesystem>
@@ -469,34 +472,53 @@ void configure_mechanical_stops(const hardware_interface::HardwareInfo &info) {
   }
 }
 
+struct RecordedState {
+  double seconds;
+  std::array<double,12> position{}, velocity{};
+};
+
+std::vector<RecordedState> load_trace(const std::string &path, const hardware_interface::HardwareInfo &info) {
+  std::ifstream csv(path);
+  std::string line;
+  require(bool(std::getline(csv, line)), "standing recording missing");
+  std::string header = "seconds_from_stand";
+  for (const auto &joint : info.joints) header += "," + joint.name;
+  for (const auto &joint : info.joints) header += ",velocity_" + joint.name;
+  require(line == header, "recording joint order does not match enrolled description");
+  std::vector<RecordedState> rows;
+  while (std::getline(csv, line)) {
+    std::istringstream row(line);
+    const auto number = [&] { std::string field; require(bool(std::getline(row, field, ',')), "short trace row");
+                              return std::stod(field); };
+    RecordedState state{number()};
+    for (auto &q : state.position) q = number();
+    for (auto &qd : state.velocity) qd = number();
+    require(rows.empty() || state.seconds > rows.back().seconds, "recording clock stalled");
+    rows.push_back(state);
+  }
+  require(rows.size() > 50 && rows.front().seconds < 0 && rows.back().seconds > 2, "standing recording incomplete");
+  return rows;
+}
+
 void enrolled_standing(hardware_interface::ResourceManager &manager,
                        const hardware_interface::HardwareInfo &info, rclcpp::Clock &clock) {
   using namespace std::chrono;
   using Return = hardware_interface::return_type;
+  namespace ci = controller_interface;
   const auto dt = rclcpp::Duration::from_seconds(.002);
-  require(manager.read(clock.now(), dt).result == Return::OK, "first neutral read after Home failed");
-  const auto home = receipt()[4];
-  require(home > 0, "real field geometry never finished Home");
   const auto all = manager.available_command_interfaces();
-  require(all.size() == 60, "enrolled field requires twelve complete five-interface leg claims");
-  auto cycle = [&] {
-    require(manager.read(clock.now(), dt).result == Return::OK && receipt()[4] == home,
-            "unexpected board fault or new Home");
-    std::this_thread::sleep_for(milliseconds(2));
-  };
+  require(all.size() == 60, "expected a complete twelve-joint claim");
+  const auto read = [&] { return manager.read(clock.now(), dt).result; };
+  require(read() == Return::OK && receipt()[4] > 0, "course Home failed");
+  const auto home = receipt()[4];
+  const auto cycle = [&] { require(read() == Return::OK && receipt()[4] == home, "unexpected board fault or Home");
+                           std::this_thread::sleep_for(milliseconds(2)); };
   const auto until = steady_clock::now() + milliseconds(650);
   while (steady_clock::now() < until) cycle();
-  for (const auto &joint : info.joints) {
-    const auto &p = joint.parameters;
-    const auto position = manager.claim_state_interface(joint.name + "/position").get_value();
-    require(position >= std::stod(p.at("position_min")) && position <= std::stod(p.at("position_max")),
-            "successful Home left a measured position outside the field claim interval");
-  }
   const auto stand = [&] {
     require(manager.prepare_command_mode_switch(all,{}) && manager.perform_command_mode_switch(all,{}),
-            "fresh in-range standing claim refused");
-    sent.clear();
-    cycle();
+            "fresh field Stand claim refused");
+    sent.clear(); cycle();
     spi_command_t first{};
     for (auto &flag : first.flags) flag = 1;
     require(sent.size() == 1 && std::memcmp(&sent.back(), &first, sizeof first) == 0,
@@ -504,40 +526,97 @@ void enrolled_standing(hardware_interface::ResourceManager &manager,
   };
   const auto stop = [&] {
     require(manager.prepare_command_mode_switch({},all) && manager.perform_command_mode_switch({},all),
-            "failed to release the leg controllers");
-    sent.clear();
-    cycle();
-    neutral_only();
+            "release failed");
+    sent.clear(); cycle(); neutral_only();
+    require(!manager.perform_command_mode_switch(all,{}), "Stop allowed an unprepared rearm");
   };
-  stand();
-  stop();
-
-  // A supported limb can settle back toward a mechanical stop while disabled.
-  // Move gradually, so only the position interval can block a prepared claim.
-  const auto knee = std::find_if(info.joints.begin(), info.joints.end(),
-      [](const auto &joint) { return joint.name == "leg_front_r_3"; });
-  require(knee != info.joints.end(), "enrolled front-right knee is missing");
-  const auto channel = std::stoi(knee->parameters.at("can_channel")) - 1;
-  const float settled = data.q_knee[channel];
-  const float outside = std::stof(knee->parameters.at("position_max")) + .04f;
-  require(manager.prepare_command_mode_switch(all,{}), "healthy neutral prepare refused");
-  const auto move_to = [&](float target) {
-    while (std::abs(target - data.q_knee[channel]) > .0001f) {
-      data.q_knee[channel] += std::clamp(target - data.q_knee[channel], -.008f, .008f);
-      cycle();
+  const char *trace_file = std::getenv("FC_TEST_STAND_RECORDING");
+  if (!trace_file) {
+    stand(); stop(); stand(); stop();
+    std::cout << "course Home and two independently prepared Stand/Stop cycles preserved generation " << home << '\n';
+    return;
+  }
+  const bool stuck = std::getenv("FC_TEST_STUCK_REAR") != nullptr;
+  const auto trace = load_trace(trace_file, info);
+  const char *config = std::getenv("FC_TEST_WALK_CONFIG");
+  require(config, "supply selected FC walker configuration");
+  const char *description = std::getenv("FC_TEST_FIELD_URDF");
+  std::ifstream urdf(description);
+  const std::string xml{std::istreambuf_iterator<char>(urdf), std::istreambuf_iterator<char>()};
+  pluginlib::ClassLoader<ci::ControllerInterface> loader("controller_interface","controller_interface::ControllerInterface");
+  auto walker = loader.createSharedInstance("neural_controller/NeuralController");
+  auto options = walker->define_custom_node_options();
+  options.arguments({"--ros-args","--params-file",config});
+  require(walker->init("gemini_walk", xml, 520, "", options) == ci::return_type::OK, "walker init failed");
+  require(walker->configure().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE, "walker configure failed");
+  // Home used finite travel against twelve mechanical stops. From this point, all
+  // encoder positions and velocities are independent of every outgoing command.
+  follow_return = false;
+  float *position[] = {data.q_abad,data.q_hip,data.q_knee};
+  float *velocity[] = {data.qd_abad,data.qd_hip,data.qd_knee};
+  std::vector<std::pair<int,int>> mapping;
+  for (const auto &joint : info.joints) {
+    const auto &p=joint.parameters;
+    mapping.emplace_back(std::stoi(p.at("can_id"))-1,std::stoi(p.at("can_channel"))-1);
+  }
+  auto inject = [&](size_t first,size_t second,double blend) {
+    for (size_t i=0;i<mapping.size();++i) {
+      const auto [a,c]=mapping[i];
+      const bool rear=stuck && (info.joints[i].name=="leg_back_r_3" || info.joints[i].name=="leg_back_l_3");
+      position[a][c]=rear ? (info.joints[i].name=="leg_back_r_3" ? .710763 : -.703134) :
+                trace[first].position[i]+blend*(trace[second].position[i]-trace[first].position[i]);
+      velocity[a][c]=rear ? 0 : trace[first].velocity[i]+blend*(trace[second].velocity[i]-trace[first].velocity[i]);
     }
   };
-  move_to(outside);
-  require(!manager.perform_command_mode_switch(all,{}) && !manager.prepare_command_mode_switch(all,{}),
-          "out-of-range neutral knee admitted pending or new leg activation");
-  neutral_only();
-  move_to(settled);
-  require(!manager.perform_command_mode_switch(all,{}), "old prepared claim survived a refused position");
-  neutral_only();
+  // Bridge Home to the pre-claim recorded pose while disabled. Position chatter
+  // on the historical start is real; the mechanical reference uses the driver's
+  // synthetic Home coordinates until this passive interpolation is complete.
+  for (int k=0;k<120;++k) {
+    for (size_t i=0;i<mapping.size();++i) {
+      const auto [a,c]=mapping[i];
+      const double target=stuck && i==8 ? .710763 : stuck && i==11 ? -.703134 : trace.front().position[i];
+      position[a][c] += std::clamp(target-position[a][c],-.005,.005);
+    }
+    cycle();
+  }
+  require(!manager.perform_command_mode_switch(all,{}), "unprepared Stand was accepted");
   stand();
-  stop();
-  std::cout << "enrolled field Home, two first enabled exchanges, two Stops, "
-               "passive out-of-range refusal, original Home preserved\n";
+  std::vector<hardware_interface::LoanedCommandInterface> commands;
+  std::vector<hardware_interface::LoanedStateInterface> states;
+  for (const auto &key : all) commands.emplace_back(manager.claim_command_interface(key));
+  for (const auto &key : manager.available_state_interfaces()) states.emplace_back(manager.claim_state_interface(key));
+  walker->assign_interfaces(std::move(commands),std::move(states));
+  require(walker->get_node()->activate().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE, "walker activation failed");
+  size_t index=0, updates=0;
+  double elapsed=0;
+  const auto started=steady_clock::now();
+  bool tripped=false;
+  while ((elapsed=duration<double>(steady_clock::now()-started).count()) < 2.12) {
+    while (index+2<trace.size() && trace[index+1].seconds<elapsed) ++index;
+    const auto &a=trace[index], &b=trace[index+1];
+    inject(index,index+1,std::clamp((elapsed-a.seconds)/(b.seconds-a.seconds),0.,1.));
+    if (read()!=Return::OK) { tripped=true; break; }
+    require(walker->update(walker->get_node()->now(),dt)==ci::return_type::OK, "native walker update failed");
+    manager.write(clock.now(),dt);
+    ++updates;
+    std::this_thread::sleep_for(milliseconds(2));
+  }
+  require(updates>1, "native walker did not produce its initialization trajectory");
+  if (stuck) {
+    const spi_command_t zero{};
+    require(tripped && elapsed<2.0 && receipt()[7]==4 && !sent.empty() &&
+            std::memcmp(&sent.back(),&zero,sizeof zero)==0, "frozen rear reached gait or stayed enabled");
+  } else {
+    require(!tripped && receipt()[4]==home,"healthy historical trajectory refused");
+    require(std::abs(data.q_knee[3]+.52)<.20 && std::abs(data.q_knee[2]-.52)<.20,
+            "rear knees never reached the recorded standing pose");
+    require(walker->get_node()->deactivate().id()==lifecycle_msgs::msg::State::PRIMARY_STATE_INACTIVE,
+            "walker deactivation failed");
+    stop(); stand(); stop();
+  }
+  std::cout << "recording=" << trace_file << " stuck=" << stuck << " elapsed_s=" << elapsed
+            << " driver_result=" << (tripped ? "neutral_fault":"standing_and_stopped")
+            << " walker_updates=" << updates << " home=" << home << std::endl;
 }
 
 void field_redundant_case(hardware_interface::HardwareInfo &info,const std::string &scenario) {

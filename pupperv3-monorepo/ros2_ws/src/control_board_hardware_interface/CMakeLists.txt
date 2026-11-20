@@ -92,7 +92,7 @@ if(BUILD_TESTING)
     src/control_board_hardware_interface.cpp src/imu_manager.cpp)
   target_compile_features(test_imu_health_guard PRIVATE cxx_std_17)
   target_include_directories(test_imu_health_guard PRIVATE include)
-  ament_target_dependencies(test_imu_health_guard hardware_interface pluginlib rclcpp rclcpp_lifecycle tf2)
+  ament_target_dependencies(test_imu_health_guard controller_interface hardware_interface pluginlib rclcpp rclcpp_lifecycle tf2)
   target_link_options(test_imu_health_guard PRIVATE
     -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=close -Wl,--wrap=flock -Wl,--wrap=unlink)
   foreach(scenario mechanical_missing mechanical_lost mechanical_nonfinite mechanical_no_stop
