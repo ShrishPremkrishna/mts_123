@@ -24,6 +24,30 @@ def accept(tracker, now=10., **changes):
     return tracker.accept(json.dumps(state(**changes)),now)
 
 
+GATEWAY_START = dict(selected_controller='gemini_walk', start_freshness_ms=500,
+                     software_stop_topic='/estop_controller/request_stop')
+
+
+@pytest.mark.parametrize('capabilities', [{}, GATEWAY_START])
+def test_explicit_native_gateway_schemas_keep_latch_age_and_instance_checks(capabilities):
+    tracker = StopStatus()
+    assert accept(tracker, latched=True, **capabilities) and tracker.reason(10.)
+    assert accept(tracker, 10.1, sequence=2, epoch=2, **capabilities)
+    assert tracker.reason(10.1) is None and tracker.reason(10.7)
+    assert not accept(tracker, 10.8, sequence=3, instance_id='2'*32, **capabilities)
+    assert tracker.reason(10.8)
+
+
+@pytest.mark.parametrize('patch', [
+    {'selected_controller': '/wrong/namespace'}, {'start_freshness_ms': True},
+    {'start_freshness_ms': 501}, {'software_stop_topic': '/other'}, {'future_field': True},
+])
+def test_gateway_capabilities_must_match_the_native_contract(patch):
+    tracker = StopStatus()
+    assert not accept(tracker, **(GATEWAY_START | patch)) and tracker.reason(10.)
+    assert not accept(tracker, selected_controller='gemini_walk') and tracker.reason(10.)
+
+
 def run_case(case):
     async def run():
         rig=harness.Rig()

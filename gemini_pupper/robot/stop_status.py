@@ -15,6 +15,7 @@ _FLAGS = ('latched', 'fault', 'stop_required', 'in_flight',
           'unknown_remote_submission', 'shutting_down')
 _BLOCKING = tuple(name for name in _FLAGS if name != 'in_flight')
 _KEYS = frozenset(('protocol', 'instance_id', 'sequence', 'epoch', *_FLAGS))
+_START_KEYS = _KEYS | {'selected_controller', 'start_freshness_ms', 'software_stop_topic'}
 
 
 def _unique_object(pairs):
@@ -41,8 +42,14 @@ class StopStatus:
     def accept(self, payload: str, now: float) -> bool:
         try:
             state = json.loads(payload, object_pairs_hook=_unique_object)
-            if not isinstance(state, dict) or set(state) != _KEYS:
+            if not isinstance(state, dict) or state.keys() not in (_KEYS, _START_KEYS):
                 raise ValueError('unexpected stop status fields')
+            if state.keys() == _START_KEYS:
+                selected = state['selected_controller']
+                if (not isinstance(selected, str) or not re.fullmatch('[A-Za-z_][A-Za-z0-9_]*', selected)
+                        or type(state['start_freshness_ms']) is not int or state['start_freshness_ms'] != 500
+                        or state['software_stop_topic'] != '/estop_controller/request_stop'):
+                    raise ValueError('unsupported gateway Start or Stop contract')
             if state['protocol'] != PROTOCOL:
                 raise ValueError('unsupported stop status protocol')
             if not isinstance(state['instance_id'], str) or not re.fullmatch('[0-9a-f]{32}', state['instance_id']):
