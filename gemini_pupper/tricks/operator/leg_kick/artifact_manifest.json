@@ -1,0 +1,16 @@
+{
+  "policy_run": null,
+  "walk_run": null,
+  "policy_source": {
+    "type": "local",
+    "path": "~/Downloads/classes/cs123/leg_kick_runs/run2/leg_kick_policy.json",
+    "sha256": "9c841f2680d0747cb4fd484bd99218e2f661ac5e4257076f0a8027a76e22fc81"
+  },
+  "walk_source": null,
+  "files": {
+    "policy.json": "9c841f2680d0747cb4fd484bd99218e2f661ac5e4257076f0a8027a76e22fc81",
+    "trick.yaml": "de482d6d0e8373c34c1e9a7bbc31225fc4e755373147fb719e66b81ee0db5ffa"
+  },
+  "hardware_validated": false,
+  "ta_approval_recorded": false
+}

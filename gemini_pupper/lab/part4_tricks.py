@@ -70,7 +70,7 @@ async def play_trick(robot: Robot, name: str, *, count: int = 1) -> Result:
     # 4. Decide then: which state is Pupper in once the job is done? (Read the card above.)
     # 5. return with_note(note, await robot.queue(f"trick {name}", job, trick.total_time, then=...))
     trick = robot.tricks.get(name)
-    if trick is None:
+    if trick is None or trick.operator_only:
         return Result(False, f"unknown trick '{name}'; available: {list(robot.available_tricks())}")
     refused = validate_trick_quantity(count, "routine_playback", trick=trick)
     if refused is not None:
@@ -150,6 +150,8 @@ async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
     """
     if robot.fallen:
         return Result(False, FELL_MESSAGE)
+    if trick.operator_only:
+        return Result(False, "This policy requires its dedicated operator command.")
     if not robot.trick_available(trick):
         return Result(False, "This trick is locked; unlock it first.")
     if trick.interactive and robot.state_now is trick:  # 1. already in it

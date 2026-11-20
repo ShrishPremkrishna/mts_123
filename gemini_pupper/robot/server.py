@@ -22,6 +22,7 @@ import subprocess
 from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 from time import monotonic
+from typing import Literal
 
 import psutil
 import uvicorn
@@ -256,6 +257,20 @@ async def tool_call(name: str, args: dict = Body(default={})):
     log.info("tool %s(%s) -> %s: %s", name, "[redacted]" if name == "unlock" else args,
              "ok" if res.ok else "FAILED", res.message)
     return {**res.as_dict(), **({"command_epoch": T().command_epoch, "command_epoch_required": True} if name == "stop" else {})}
+
+
+class OperatorKick(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    side: Literal["left", "right"]
+
+
+@app.post("/operator/kick_in_place")
+async def operator_kick_in_place(req: OperatorKick):
+    from operator_kick import kick_in_place
+
+    robot = T()
+    return (await gemini_tools.dispatch(robot, lambda: kick_in_place(robot, req.side),
+                                        name="kick_in_place")).as_dict()
 
 
 # ------------------------------------------------------------------ commands

@@ -662,7 +662,7 @@ class Robot:
         return (await self.controller_states()).get(controller) == "active"
 
     # ---------------------------------------------------------------- the legs
-    async def switch_to(self, controller: str | None, start_clip: str = "") -> Result:
+    async def switch_to(self, controller: str | None, start_clip: str = "", *, expected_active: str | None = None) -> Result:
         """Hand the legs to one controller, or to none (relax the motors). Every other
         leg controller is deactivated in the same switch, so exactly one policy (or
         nothing) drives the legs.
@@ -684,6 +684,16 @@ class Robot:
         states = await self.controller_states()
         if not states:
             return Result(False, "controller_manager is not running; is the robot stack launched?")
+        if expected_active is not None:
+            # An operator handoff must neither recover a fall nor take control
+            # from a new owner encountered while reading the native inventory.
+            if (self.fallen or self.stopped_during_call() or generation != self.stops
+                    or fall_generation != self._fall_generation):
+                return Result(False, "controller handoff interrupted by a fall or stop")
+            if reason := self.motion_block_reason():
+                return Result(False, reason)
+            if {c for c in self.leg_controllers if states.get(c) == "active"} != {expected_active}:
+                return Result(False, f"controller handoff requires {expected_active} as the sole active leg controller")
         recovered = ""
         if self.fallen and activate:
             ok, why = await self._wait_upright()
@@ -1202,7 +1212,7 @@ class Robot:
         return not trick.secret or self.secret_gate.unlocked
 
     def available_tricks(self) -> dict[str, Trick]:
-        return {name: t for name, t in self.tricks.items() if self.trick_available(t)}
+        return {name: t for name, t in self.tricks.items() if not t.operator_only and self.trick_available(t)}
 
     def public_diagnostic(self, text: str | None) -> str | None:
         """Hide exact configured locked-skill identities in public diagnostics.

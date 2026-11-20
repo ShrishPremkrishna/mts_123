@@ -42,4 +42,12 @@ Prepare, status and app-only steps do not home the robot. `start-native` may hom
 
 Stop interrupts queued and in-flight work and requests zero velocity. Terminal job and controller state come from the robot, and the operator confirms observed motion. R3 latches a stop. Motor release and full driver shutdown are separate supervised steps.
 
+### Operator soccer kick candidate
+
+The optional `leg_kick` session skill contains Tej's left and right front-foot clips from `07ed0fd`. The original manifest lists a local export with no linked training run, hardware validation or recorded TA approval. The reported earlier ball contacts used a different sequence. The normal catalog skips the candidate. An offline persistent-profile rehearsal explicitly selects `PUPPER_SESSION_SKILLS=leg_kick` in both the launcher and server. Its controller uses the existing 0.5-second initialization and 1.0-second fade. The faster settings in the donor descriptor remain experimental. [Original manifest](tricks/operator/leg_kick/artifact_manifest.json)
+
+The operator interface is `POST /operator/kick_in_place` with a JSON body such as `{"side":"left"}` and the current `X-Pupper-Command-Epoch` from `GET /health`. The caller positions the robot and ball, and the walker must already own the legs. HTTP acceptance returns a job ID. The terminal job confirms a frame at least 2.6 seconds into the requested clip and checks that the walker is again the sole active leg controller. A failed or interrupted job reports the available playback and handoff evidence. Ball contact and shot direction require independent observation. The model tool catalog and ordinary trick commands exclude this policy.
+
+Run `.venv-api/bin/python -m pytest -q gemini_pupper/tests/test_operator_kick.py` from the repository root for the fake-controller rehearsal.
+
 For technical background, see the [foundation reference](docs/foundation.md). The [archived package instructions](https://github.com/ShrishPremkrishna/mts_123/blob/6a6edb0bab0c4d36e14a32c7757f98c3966c10cb/gemini_pupper/README.md) and [original course agent notes](https://github.com/ShrishPremkrishna/mts_123/blob/6a6edb0bab0c4d36e14a32c7757f98c3966c10cb/gemini_pupper/AGENTS.md) preserve the stand-alone setup, exercise map, and motion design thresholds.
