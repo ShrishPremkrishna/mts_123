@@ -4,7 +4,7 @@ The November 20 opt-in match candidate uses fresh alternate BNO08x reports to ke
 
 ## Pupper FC appliance release · November 20, 2026
 
-Open **Pupper FC.command** and connect the field camera and a team. A cold team connection prepares the session and prompts for supported Home. Click **Enable standing** after Home. The Pi still requires a connected gamepad for independent Stop. A warm connection skips Home. Start match admits Blue alone, Red alone or both. End match keeps healthy walkers standing.
+Open **Pupper FC.command** and connect the field camera and a team. A cold team connection prepares the session and prompts for supported Home. Click **Enable standing** after Home. On an enrolled laptop-control gateway the owning browser supplies standing authority. The Pi requests Stop when fresh browser replies cease. A healthy board reuses its Home after Stop. Start match admits Blue alone, Red alone or both. End match keeps healthy walkers standing.
 
 A failed Home exposed a startup check that merged primary stillness with backup agreement. Six motor-free trials on Blue qualified both in 3.105–3.113 s. The revised driver separates backup agreement from supported Home, and the dashboard can recover from a confirmed pre-enable refusal. [Incident and measured startup path](../foundation/results/fc-home-startup-investigation-20261120.md)
 
