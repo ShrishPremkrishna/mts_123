@@ -256,6 +256,20 @@ class FrameGrabber:
     def status(self) -> str:
         return "lost" if self.lost_for else "ok"
 
+    def file_time_s(self, previous: float | None, constant_fps: float | None = None) -> float:
+        """Presentation time of the file frame just read, independent of decode speed."""
+        if not self.is_file or self._n < 1:
+            raise ValueError("Read a video-file frame before requesting its presentation time")
+        if constant_fps is not None:
+            if not (0 < constant_fps < float("inf")):
+                raise ValueError("Replay frame rate must be finite and positive")
+            return (self._n - 1) / constant_fps
+        stamp = self.cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
+        if not (0 <= stamp < float("inf")) or (previous is not None and stamp <= previous):
+            raise ValueError(f"No increasing presentation timestamp at video frame {self._n}. "
+                             "For footage recorded at a known constant rate, supply --replay-fps.")
+        return stamp
+
     def read(self, last_n: int = -1, timeout: float = 1.0):
         """Returns (frame, t_received, frame_number); blocks until a frame newer than last_n.
         (None, 0.0, last_n) on timeout, which is what a lost feed looks like."""

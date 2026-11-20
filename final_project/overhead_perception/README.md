@@ -93,6 +93,15 @@ on a cable, and saves a frame from each:
 `--corners` is for a marked-out field with a tag on each corner; use `--survey`
 to try things at a desk with whatever tags are in view.
 
+To measure a recorded run, pass its video path as `--source`. Each replay state
+reports `replay_clock: video_presentation`. Its timestamps and measured
+velocities use seconds on the video's timeline. Playback speed and processing
+load do not change the intervals. A decoder that supplies missing, duplicate
+or backward timing stops the replay. For a known constant-rate recording,
+`--replay-fps 30` selects frame-index timing explicitly and the output records
+that assumption. Use the original clip for ordinary real-time motion analysis;
+an edited or slow-motion export can have different timing from the actual run.
+
 That opens one window: the camera feed with overlays on the left, the top-down
 field view on the right, and the readouts underneath (described below). The
 script says where calibration stands, in the terminal and as a banner in

@@ -288,6 +288,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", default=None)
     ap.add_argument("--source", default=None, help="camera index, video path, or 'sim'")
+    ap.add_argument("--replay-fps", type=float, help="assume this constant frame rate for a recorded file in place of its presentation timestamps")
     ap.add_argument("--no-gui", action="store_true")
     ap.add_argument("--frames", type=int, default=0, help="stop after N frames (0 = run forever)")
     ap.add_argument("--snapshot", default=None, help="write the last annotated frame to this image file")
@@ -311,6 +312,10 @@ def main():
         source = int(source)
     sim = source == "sim"
     live = not sim and is_live(source)
+    replay = not sim and not live
+    if args.replay_fps is not None and (not replay or not 0 < args.replay_fps < math.inf):
+        ap.error("--replay-fps requires a video file and a finite positive frame rate")
+    previous_file_time = None
 
     if sim:
         cfg["camera"]["intrinsics"] = "config/_none_.yaml"  # the simulated lens is an ideal pinhole
@@ -398,7 +403,14 @@ def main():
             perc.calibrate(frame)
         # Live: capture happened `latency` before we received the frame, and "now" is the wall clock.
         t_capture = t_rx - latency
+        if replay:
+            t_capture = src.file_time_s(previous_file_time, args.replay_fps)
+            previous_file_time = t_capture
         state = perc.process(frame, t_capture, time.time() if live else t_capture)
+        if replay:
+            state["replay_clock"] = ("video_presentation" if args.replay_fps is None else "assumed_constant_fps")
+            if args.replay_fps is not None:
+                state["replay_fps"] = args.replay_fps
         pub.send(state)
         if sim:
             src.step(state)

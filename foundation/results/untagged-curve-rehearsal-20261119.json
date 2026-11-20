@@ -1,0 +1,75 @@
+{
+  "scope": "Untracked, time-scheduled body commands direct to the selected RTNeural walking policy in MuJoCo. One deterministic trial per speed, same start. ROS, camera, authority path, physical friction and transport untested. Ball parked away. Pose used only for scoring on time-only trials. Last case supplies ideal model yaw to a 50 Hz feedback loop against the planned path tangent; no x/y feedback.",
+  "release_source": "3bd1bc9f54db7f96f5706355cec5d57b9ac1bf71",
+  "selected_files_sha256": "c53441f25f740557db0d1ada86efa8eae071a93a43264c2475b68b311e2345cb",
+  "plan": {
+    "radius_m": 1.5,
+    "left_then_right_deg": 35,
+    "straight_m": 0.25,
+    "ramp_each_end_s": 0.5,
+    "intended_xy_m": [
+      1.9707,
+      0.5425
+    ],
+    "intended_final_heading_deg": 0
+  },
+  "cases": [
+    {
+      "v_requested_m_s": 0.2,
+      "mode": "time-only",
+      "within_fc_deadline_wire_limits": true,
+      "within_combined_planner_speed_limit": true,
+      "terminal_xy_m": [
+        1.9389,
+        0.2765
+      ],
+      "terminal_heading_deg": -14.5485,
+      "terminal_planar_error_m": 0.2679,
+      "after_zero_net_displacement_m": 0.0056,
+      "max_sampled_tilt_deg": 3.4432
+    },
+    {
+      "v_requested_m_s": 0.3,
+      "mode": "time-only",
+      "within_fc_deadline_wire_limits": true,
+      "within_combined_planner_speed_limit": false,
+      "terminal_xy_m": [
+        1.7137,
+        0.3874
+      ],
+      "terminal_heading_deg": -8.0571,
+      "terminal_planar_error_m": 0.3002,
+      "after_zero_net_displacement_m": 0.0122,
+      "max_sampled_tilt_deg": 7.9265
+    },
+    {
+      "v_requested_m_s": 0.5,
+      "mode": "time-only",
+      "within_fc_deadline_wire_limits": false,
+      "within_combined_planner_speed_limit": false,
+      "terminal_xy_m": [
+        2.0694,
+        0.2974
+      ],
+      "terminal_heading_deg": -19.6727,
+      "terminal_planar_error_m": 0.2643,
+      "after_zero_net_displacement_m": 0.0061,
+      "max_sampled_tilt_deg": 10.7385
+    },
+    {
+      "v_requested_m_s": 0.2,
+      "mode": "ideal IMU yaw tracking, 50 Hz",
+      "within_fc_deadline_wire_limits": true,
+      "within_combined_planner_speed_limit": true,
+      "terminal_xy_m": [
+        1.9471,
+        0.5207
+      ],
+      "terminal_heading_deg": -4.108,
+      "terminal_planar_error_m": 0.0322,
+      "after_zero_net_displacement_m": 0.0086,
+      "max_sampled_tilt_deg": 3.4609
+    }
+  ],
+  "use": "Motion rehearsal only. The ideal-yaw controller is experimental. Measure real curves against overhead video before adding speed or physical contact."
+}

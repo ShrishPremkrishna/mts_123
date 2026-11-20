@@ -305,11 +305,14 @@ for the guarded candidate, which also requires a real onboard camera producer.
 
 ## Mounted overhead camera, motors inactive
 
-1. Print pages **2–9** of the [tag packet](overhead_perception/tags/pupper_fc_tags.pdf)
-   on US Letter at **Actual Size / 100%**. Page 1 is a placement guide with
-   readable duplicate IDs. Keep it outside the camera view. Check the printed
-   black squares with a ruler. Floor IDs 0–5 are 17 cm per side and robot IDs
-   10/11 are 8 cm. Preserve the white border and the robot card's FRONT marking.
+1. Print the [tag packet](overhead_perception/tags/pupper_fc_tags.pdf) on US
+   Letter at **Actual Size / 100%**. The tag fronts are the odd-numbered
+   pages. Corner IDs 0–3 are pages **1, 3, 5, 7**, midfield IDs 4–5 are pages
+   **9, 11**, and robot IDs 10–11 are pages **13, 15**. Each even-numbered
+   page is the preceding tag's placement guide. Keep the separate layout
+   sheet outside the camera view. Check the black squares with a ruler:
+   17 cm per side for floor tags and 8 cm for robot tags. Preserve the white
+   border and the robot card's FRONT marking.
 2. Centre tags 0, 1, 2, 3 on west-south, east-south, east-north, west-north
    corners respectively. The east goal lies between 1 and 2. For inward
    placement enter the measured x/y inset in `tags.corner_inset` (metres).
@@ -319,7 +322,8 @@ for the guarded candidate, which also requires a real onboard camera producer.
    Replace the 0.82 m placeholder in `field.goal_width` with the measured
    common opening. Tape the field length and width too.
 3. Mount the camera with all four corner tags visible, including their white
-   borders. Place the loose tag 10 level on a support at the measured
+   borders. These four tags are sufficient for field calibration and metric
+   ball tracking. For robot-pose calibration, place the loose tag 10 level on a support at the measured
    standing tag height. Set `robots.striker.tag_height` and orient FRONT
    along the known heading. For the mounted robot also measure its
    `tag_offset` from the body centre (forward, left). Use tag 11 and the
@@ -359,9 +363,21 @@ dashboard pose for each position and a short moving pass. Count frames with
 `calibration_valid=true` and `robots.striker.measured_this_frame=true`;
 `visible` alone includes predictions. Retain the camera log, field YAML,
 lens/resolution and tag height. Check height, scale and orientation against
-the marks before putting the tag on a robot. The pink ball can be added when
-available. Measure its radius and tune its colour with the dashboard's `b`
-picker under the arena lights.
+the marks before putting the tag on a robot.
+
+For the pink ball, measure its circumference and set `ball.radius` to
+circumference divided by 2π in metres. With the corners visible, capture
+the empty field, the ball stationary on known marks, and a roll across two
+marks. Use `ball.measured_this_frame` to count measured detections, including
+false positives on the empty field. Compare measured positions against the
+tape marks. To tune the colour, point the dashboard cursor at the pink
+material and press `b`. The picker prints the range to save in the run's
+field YAML.
+
+For manual movement measurements without a robot tag, retain a separate raw
+video with the four corners visible. Use original video timestamps for speed.
+The dashboard cursor projects to the floor. When measuring elevated body
+points, project each pixel at the measured height of that point.
 
 For later Pi ingress, set `net.host` to the intended Pi address and run
 `python3 final_project/behaviors/overhead_ingress.py --duration 15` from the Pi

@@ -3,8 +3,8 @@
   "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej\u2019s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/.codex/worktrees/fc-demo-staging/cs123",
   "branch": "main",
-  "mode": "combined_walk_kick_standby",
-  "updated_utc": "2026-11-20T07:48:43+00:00",
+  "mode": "overhead_field_setup",
+  "updated_utc": "2026-11-20T08:02:58+00:00",
   "current_report": "foundation/results/pi-combined-walk-kick-20261119.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -56,7 +56,8 @@
     "single_robot_kick_rehearsal": "foundation/results/field-kick-rehearsal-20261119.json",
     "combined_policy_physics": "foundation/results/combined-walk-kick-physics-20261119.json",
     "combined_native_wire": "foundation/results/combined-walk-kick-native-20261119.json",
-    "combined_pi_qualification": "foundation/results/pi-combined-walk-kick-20261119.json"
+    "combined_pi_qualification": "foundation/results/pi-combined-walk-kick-20261119.json",
+    "untagged_curve_rehearsal": "foundation/results/untagged-curve-rehearsal-20261119.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -96,7 +97,7 @@
     "automation": "No automation controls the physical session.",
     "compute": "The installed Pi controller and gateway passed target tests. Both selected feet completed walk, kick, walking recovery and acknowledged Stop on isolated memory joints.",
     "owners": {
-      "physical_robot": "Owner last confirmed exclusive access. Robot homed on its stand. At the standby snapshot both motion policies were inactive and shared Stop was latched. Recheck after any handoff or reboot.",
+      "physical_robot": "Offline while batteries charge. No stand or floor test completed in this block.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Shrish and project lead own gait readiness, pose/heading, kick approach and defense.",
       "shooting": "Tej owns the leg kick. Shrish and project lead own the transition from field-guided gameplay.",
@@ -121,7 +122,7 @@
     "software_verification": "All four MuJoCo trials completed walk, selected-paw contact and subsequent walking. Three scored. On the Pi, each native foot policy completed a walk\u2013kick\u2013walk cycle on memory joints. The runner then requested shared Stop, the gateway latched a new epoch, both leg controllers became inactive and the runner exited cleanly."
   },
   "hardware_session": {
-    "status": "Combined release homed on the stand. The loaded controller and board driver matched their recorded hashes. The standby snapshot showed shared Stop latched, both motion controllers inactive, gamepad present, and camera and IMU data arriving. See the qualification receipt for detector status.",
+    "status": "Owner reported all robot batteries depleted. Both SSH routes returned system shutdown before the stand-test program could connect. A physical Options press was reported separately; its effect and final torque state were not observed. Recheck a new boot before physical trials.",
     "observed_utc": "2026-11-20T07:39:00+00:00",
     "ssh": "mts",
     "current_boot_id": "44082e42-c61c-49b3-9cbe-f74fcdd0ecac",
@@ -130,7 +131,7 @@
     "platform_environment": "/home/pi/pupper-fc-releases/fc-platform-3bd1bc9f54db/environment.sh",
     "selected_driver_sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429",
     "selected_controller_sha256": "b393bf88376a718036f2ea0eb5cc4e5ba9f8936d418ae650461bf49b9d998c56",
-    "active_run": "/home/pi/pupper-fc-runs/fc-walk-kick-3bd1bc9f54db-prepared",
+    "active_run": null,
     "processes_at_observation": {
       "camera": "running",
       "launch": "running",
@@ -153,7 +154,8 @@
     },
     "frozen_release_source_commit": "3bd1bc9f54db7f96f5706355cec5d57b9ac1bf71",
     "verified_front_camera": "Live detection with viewer segmentation masks off. In one stationary minute all 286 guard checks had fresh camera data. Reapply masks off in a new detector and check freshness before motion.",
-    "thermal_log": "pi-thermal-56561-376178.jsonl in this run; CPU, firmware flags and fan, every ten seconds."
+    "thermal_log": "pi-thermal-56561-376178.jsonl in this run; CPU, firmware flags and fan, every ten seconds.",
+    "previous_run": "/home/pi/pupper-fc-runs/fc-walk-kick-3bd1bc9f54db-prepared"
   },
   "preservation": {
     "movement_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
@@ -182,6 +184,10 @@
   },
   "next": [
     {
+      "id": "field_setup",
+      "action": "On the Mac, use the camera-only localhost dashboard with four corner tags. Validate corner placement and field dimensions, record empty/stationary/rolling pink-ball observations. A robot tag is needed later for live robot position and heading."
+    },
+    {
       "id": "stand_walker_stop",
       "action": "With an operator beside the supported robot, recheck current run identity, Stop and live detector status. On the stand activate walking once, request Stop and verify the gateway latch and inactive controller inventory."
     },
@@ -206,12 +212,13 @@
   "context_review_date": "2026-11-19",
   "alignment": {
     "confirmed": "Nov16 owner accepted all demo/progression recommendations: two-robot soccer; measured gait gate then complete live play; manual ball reset plus one resume cue for first game; bounded physical get-up feasibility before demo commitment. Checkpoint complete. Ryan perception/targets, Tej foot kick, Shrish integration/movement/headbutt/defense. 8x12ft field,2ft goals, no bumper. Explicit Fable5.2 second opinions.",
-    "open": "Supervised walker and Stop, physical kick contact and recovery, mounted tag coverage, camera latency, field/ball/goal dimensions, intended ball, second robot and kick approval/provenance.",
+    "open": "Mounted tag visibility and calibration, real pink-ball position and speed, goal dimensions, physical walker/Stop and ball contact, second Pupper.",
     "next_discussion": "Review camera tracking error and the selected gait/kick release before live field steering. Tej supplies physical strike and walking recovery evidence.",
     "owner_steering_2026_11_17": "Onboard front-camera stop/hold/resume is sufficient; hybrid/all-around human coverage and detouring are not required. Ryan pose unavailable for several sessions. Build independent state/execution/harness/gait evaluation work now. Pink ball contact deferred. Owner likes architecture and requests context-blind adversarial audits.",
     "owner_steering_2026_11_19": "Goals available; intended ball and second Pupper outstanding; field setup planned soon. Minimum demo: 1\u20132 minutes, two opponents, useful goal-directed shots, automatic role switching and smooth responsive execution. Latest reply requests camera-free endpoint repeatability first, with same marked starts; precision and accuracy recorded separately.",
     "owner_steering_2026_11_19_kick": "Prioritize the improved walk\u2013kick\u2013walk transition on the test block and use the trained leg policy as the demo shot. Discuss closed-loop approach, contact timing and field heading before resuming tests.",
-    "owner_steering_2026_11_19_software": "Focus on one robot: continuous distance/heading feedback, low-latency steering at multiple speeds, natural deceleration into the leg kick, simulation and receipt-driven recovery. Tej handles physical kick testing. Mounted field camera and two-robot play follow later."
+    "owner_steering_2026_11_19_software": "Focus on one robot: continuous distance/heading feedback, low-latency steering at multiple speeds, natural deceleration into the leg kick, simulation and receipt-driven recovery. Tej handles physical kick testing. Mounted field camera and two-robot play follow later.",
+    "owner_steering_2026_11_20": "Phone and tripod available, pink size-5 ball received. Owner is placing the perimeter AprilTags. Qualify overhead framing, field scale and ball detection now. Later, measure a curved approach and move toward quicker play, with trained physical kicks owned by Tej."
   },
   "verified_commands": {
     "status": "python3 foundation/scripts/session_status.py --verify-inputs",

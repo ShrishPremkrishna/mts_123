@@ -3,6 +3,7 @@ the way a wireless phone camera does. No real camera is touched."""
 import sys
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import cv2
 import numpy as np
@@ -62,6 +63,54 @@ def wait_until(cond, timeout=6.0):
 def test_live_or_file():
     assert is_live(1) and is_live("http://192.168.1.20:8080/video") and is_live("rtsp://phone/stream")
     assert not is_live("clip.mov") and not is_live("out/run1.mp4")
+
+
+def test_file_frame_clock_uses_presentation_time():
+    world = FakeWorld()
+    with FrameGrabber("run.mov", 64, 48, 30, open_fn=world.open) as grab:
+        # Unequal frame intervals are ordinary for phone video.
+        stamp = None
+        for position_ms in (100, 139, 183):
+            assert grab.read()[0] is not None
+            world.handles[0].get = lambda prop: position_ms
+            stamp = grab.file_time_s(stamp)
+            assert stamp == position_ms / 1000
+        for bad_ms in (183, 100, -1, float("nan"), float("inf")):
+            world.handles[0].get = lambda prop: bad_ms
+            with pytest.raises(ValueError, match="presentation timestamp"):
+                grab.file_time_s(stamp)
+        assert grab.file_time_s(stamp, constant_fps=25) == 2 / 25
+
+
+@pytest.mark.parametrize(("options", "clock", "fps"), [
+    ([], "video_presentation", 20),
+    (["--replay-fps", "10"], "assumed_constant_fps", 10),
+])
+def test_file_clock_reaches_published_states(tmp_path, monkeypatch, options, clock, fps):
+    from scripts import run_perception
+
+    path = tmp_path / "short.avi"
+    writer = cv2.VideoWriter(str(path), cv2.VideoWriter_fourcc(*"MJPG"), 20, (64, 48))
+    assert writer.isOpened()
+    for _ in range(3):
+        writer.write(np.zeros((48, 64, 3), np.uint8))
+    writer.release()
+    states = []
+    sink = SimpleNamespace(source_id="test", source_session="test", send=states.append, close=lambda: None)
+    def publisher(_host, _port, *, live):
+        assert not live
+        return sink
+
+    monkeypatch.setattr(run_perception, "StatePublisher", publisher)
+    monkeypatch.setattr(run_perception, "OPEN_CAMERAS", [])
+    monkeypatch.setattr(sys, "argv", ["run_perception", "--source", str(path), "--no-gui", *options])
+    try:
+        run_perception.main()
+    finally:
+        for grab in run_perception.OPEN_CAMERAS:
+            grab.close()
+    assert [s["captured_at"] for s in states] == pytest.approx([0, 1 / fps, 2 / fps])
+    assert all(s["replay_clock"] == clock and s["stamp"] == s["captured_at"] for s in states)
 
 
 def test_waits_for_a_camera_that_is_not_there_yet():
