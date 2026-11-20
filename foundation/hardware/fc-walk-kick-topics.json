@@ -4,6 +4,7 @@
   "/fc/normalized_events",
   "/fc/kick_result",
   "/fc/obstacle_detections",
+  "/fc/onboard_ball",
   "/fc/body_command/request",
   "/fc/body_command/admitted",
   "/fc/body_command_guard/status",

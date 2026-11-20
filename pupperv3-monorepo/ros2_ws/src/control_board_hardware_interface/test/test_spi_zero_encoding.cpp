@@ -2,11 +2,42 @@
 #include "rt/rt_spi.h"
 #include <cstring>
 #include <iostream>
+#include <algorithm>
+#include <array>
+#include <cstdarg>
+#include <linux/spi/spidev.h>
 #include <stdexcept>
 extern void spi_to_spine(spi_command_t *, spine_cmd_t *, int);
 extern "C" int __wrap_open(const char *, int, ...) { throw std::runtime_error("unexpected device open"); }
 extern "C" int __wrap_open64(const char *, int, ...) { throw std::runtime_error("unexpected device open64"); }
-extern "C" int __wrap_ioctl(int, unsigned long, ...) { throw std::runtime_error("unexpected device ioctl"); }
+namespace {
+enum class Reply { good, short_transfer, failed, corrupt, empty };
+std::array<Reply, 2> replies;
+unsigned calls = 0;
+}
+extern "C" int __wrap_ioctl(int, unsigned long request, ...) {
+  if (request != SPI_IOC_MESSAGE(1)) throw std::runtime_error("unexpected device ioctl");
+  va_list args; va_start(args, request);
+  auto *transfer = va_arg(args, spi_ioc_transfer *);
+  va_end(args);
+  spine_data_t response{};
+  auto mode = replies.at(calls++);
+  if (mode != Reply::empty) {
+    response.q_abad[0] = 1.0f;
+    response.qd_abad[0] = -0.5f;
+    uint32_t words[15];
+    std::memcpy(words, &response, sizeof(response));
+    for (int i=0;i<14;++i) response.checksum ^= words[i];
+    if (mode == Reply::corrupt) ++response.checksum;
+  }
+  uint16_t words[30];
+  std::memcpy(words, &response, sizeof(response));
+  auto *out = reinterpret_cast<uint16_t *>(transfer->rx_buf);
+  for (size_t i=0;i<30;++i) out[i]=__builtin_bswap16(words[i]);
+  if (mode == Reply::failed) return -1;
+  if (mode == Reply::short_transfer) return transfer->len - 1;
+  return transfer->len;
+}
 int main() {
   try {
     spi_command_t zero{};
@@ -28,6 +59,18 @@ int main() {
       std::memcpy(words, &encoded, sizeof words); uint32_t checksum = 0;
       for (int i = 0; i < 32; ++i) checksum ^= words[i];
       if (words[32] != checksum) throw std::runtime_error("incorrect board checksum");
+    }
+    spi_data_t data{};
+    for (auto missing : {Reply::good, Reply::short_transfer, Reply::failed, Reply::corrupt, Reply::empty}) {
+      for (int board : {0, 1}) {
+        replies.fill(Reply::good);
+        replies[board] = missing;
+        calls=0;
+        spi_send_receive(&zero,&data);
+        const int expected=missing==Reply::good ? 3 : 3^(1<<board);
+        if (calls!=2 || (data.spi_driver_status & 3) != expected)
+          throw std::runtime_error("SPI receipt accepted invalid exchange or retained old good bit");
+      }
     }
     std::cout << "PASS actual_serializer board_groups=2 all_command_values_zero=1 enable_flags=0\n";
     return 0;

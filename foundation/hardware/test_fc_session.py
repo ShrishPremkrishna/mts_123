@@ -206,7 +206,7 @@ def test_camera_description_is_read_only_and_field_binds_the_actual_pi(setup, mo
     monkeypatch.setenv("SSH_CONNECTION", "192.0.2.5 51000 192.0.2.70 22")
     setup.call("describe", "--robot-id", "pupper-1")
     description = json.loads(capsys.readouterr().out)
-    assert description == {"robot_id": "pupper-1", "source_host": "192.0.2.5", "robot_host": "192.0.2.70",
+    assert description == {"imu_recovery": "strict", "match_pitch_version": 1, "match_capable": True, "robot_id": "pupper-1", "source_host": "192.0.2.5", "robot_host": "192.0.2.70",
                            "field_config": cli.read(setup.field), "port": 5005, "producer_id": "fc-field"}
     assert setup.calls == []
     setup.call("prepare")
@@ -262,7 +262,7 @@ def test_runner_emits_the_bound_ssh_profile_before_exec(setup, monkeypatch, caps
     with pytest.raises(SystemExit):
         setup.call("match", "--runner-only", "--robot-id", "pupper-1")
     profile = json.loads(capsys.readouterr().out)
-    assert profile == {"event": "profile", "robot_id": "pupper-1", "source_host": "192.0.2.5",
+    assert profile == {"event": "profile", "imu_recovery": "strict", "match_pitch_version": 1, "match_capable": True, "robot_id": "pupper-1", "source_host": "192.0.2.5",
                        "robot_host": "192.0.2.70", "port": 5005, "producer_id": "fc-field",
                        "field_config": cli.read(setup.field)}
 
@@ -393,3 +393,46 @@ finally: add('probe cleanup')
             try: os.killpg(pid, signal.SIGKILL)
             except ProcessLookupError: pass
             os.waitpid(pid, 0)
+
+
+def test_dashboard_connect_prepares_once_with_zero_motor_commands_and_reuses_manager(setup, monkeypatch, capsys):
+    args = ("match", "--runner-only", "--connect", "--robot-id", "pupper-1")
+    setup.call(*args)
+    receipt = json.loads(capsys.readouterr().out.splitlines()[-1])
+    assert receipt["event"] == "home_required" and receipt["match_capable"]
+    setup.call(*args)
+    assert setup.calls == ["prepare"]
+    setup.call("home", "--supported", "--home-only")
+    setup.call(*args)
+    assert json.loads(capsys.readouterr().out.splitlines()[-1])["event"] == "home_required"
+    setup.call("home", "--supported")
+    def exec_runner(python, argv, env):
+        assert argv[-1] == "--operator-controls"
+        raise SystemExit(0)
+    monkeypatch.setattr(os, "execve", exec_runner)
+    with pytest.raises(SystemExit):
+        setup.call(*args)
+    assert setup.calls == ["prepare", "home", "--read-hardware", "--supported-stand"]
+
+
+def test_pitch_is_scoped_to_field_feed_and_does_not_change_enrollment(setup, tmp_path):
+    before = setup.field.read_bytes()
+    field = cli.session_field(cli.read(setup.profile), tmp_path, '{"length":3.2,"width":2.0}')
+    assert cli.read(field)["field"] == {"length":3.2, "width":2.0}
+    assert setup.field.read_bytes() == before
+    with pytest.raises(ValueError):
+        cli.session_field(cli.read(setup.profile), tmp_path, '{"length":3.2,"width":0}')
+
+
+@pytest.mark.parametrize("mode", ["supported_damping", "supported_standby"])
+def test_described_bench_cannot_start_any_field_authority(setup, capsys, mode):
+    profile = cli.read(setup.profile)
+    profile["imu_recovery"] = mode
+    cli.write_new(setup.profile, profile)
+    setup.call("describe")
+    description = json.loads(capsys.readouterr().out)
+    assert description["imu_recovery"] == mode and description["match_capable"] is False
+    for action in ("match", "field"):
+        with pytest.raises(ValueError, match="permanent body support"):
+            setup.call(action)
+    assert not setup.calls

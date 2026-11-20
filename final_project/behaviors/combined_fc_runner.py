@@ -25,6 +25,7 @@ for directory in (ROOT, ROOT / "gemini_pupper/robot", ROOT / "gemini_pupper/lab"
 
 from final_project.behaviors import command_deadline as protocol
 from final_project.behaviors.operator_drive import OperatorDrive
+from follow_me_pupper.robot import onboard_ball
 from final_project.pupper_fc.model import zero
 from final_project.behaviors import command_path_evidence as evidence
 from final_project.behaviors.fc_executor_bridge import (
@@ -228,9 +229,18 @@ def resume_cycle(core, now):
     return executor.epoch, executor.resume_frame_seq[core.robot_id]
 
 
-def operator_action(message, core, path, runtime, gateway, controls):
+def operator_action(message, core, path, runtime, gateway, controls, *, set_ball_mode=None):
     action = message.get("command")
     robot = runtime.robot
+    if action == "onboard_ball_mode":
+        if controls is None or set_ball_mode is None:
+            raise ValueError("onboard settings require an operator connection")
+        mode = message.get("mode")
+        if mode not in onboard_ball.MODES:
+            raise ValueError("unknown onboard ball mode")
+        controls.consume_ticket(message, core.clock())
+        set_ball_mode(mode)
+        return {"accepted": True, "requested_mode": mode}
     if action in ("mode", "drive"):
         if controls is None:
             raise ValueError("keyboard controls are not enabled")
@@ -312,6 +322,18 @@ async def run(args):
     controls = OperatorDrive(core) if args.operator_controls else None
     kick_events = node.create_publisher(String, "/fc/kick_result", 4)
     emit = EventSink()
+    ball_receiver = onboard_ball.OnboardBallReceiver()
+    set_ball_mode = None
+    if controls is not None:
+        ball_modes = node.create_publisher(String, onboard_ball.MODE_TOPIC, 1)
+
+        def set_ball_mode(mode):
+            ball_modes.publish(String(data=mode))
+
+        def accept_ball(msg):
+            ball_receiver.accept(msg.data, node.get_clock().now().nanoseconds, clock())
+
+        node.create_subscription(String, onboard_ball.TOPIC, accept_ball, 1)
     quit_event = asyncio.Event()
     gateway = attach(node, clock=clock, selected_controller="gemini_walk")
 
@@ -388,7 +410,7 @@ async def run(args):
                     continue
                 if controls is not None:
                     sync_camera_hold()
-                reply = operator_action(message, core, path, runtime, gateway, controls)
+                reply = operator_action(message, core, path, runtime, gateway, controls, set_ball_mode=set_ball_mode)
             except (ValueError, TypeError, OverflowError) as exc:
                 reply = {"accepted": False, "reason": str(exc)[:180]}
             context = message if isinstance(message, dict) else {}
@@ -409,6 +431,7 @@ async def run(args):
             loop.add_signal_handler(sig, terminate)
         emit({"event": "ready", "armed": False, "side": args.side, "robot_id": args.robot_id})
         last_phase = None
+        next_ball_report = 0.0
         while not quit_event.is_set() and rclpy.ok():
             started = clock()
             for _ in range(10):
@@ -424,6 +447,10 @@ async def run(args):
                 kick_events.publish(String(data=json.dumps(edge, allow_nan=False)))
                 emit({"event": "kick", **edge})
             if controls is not None:
+                if now >= next_ball_report:
+                    next_ball_report = now + .10
+                    emit({"event": "onboard_ball", "robot_id": core.robot_id,
+                          "onboard_ball": ball_receiver.snapshot(node.get_clock().now().nanoseconds, now)})
                 if core.executor.external_holds[core.robot_id]:
                     controls.observe_path(False, controls.generation)
                 controls.observe_output(step.decision.command)

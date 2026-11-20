@@ -129,7 +129,7 @@ def rig(tmp_path,reject=None):
         runners[robot] = LabRunner(robot, reject == robot)
         return runners[robot]
     async def describe(host, robot):
-        return dict(field_config=dict(field=lobby.profile["field"], attack_signs={"pupper-1":-1,"pupper-2":1}),
+        return dict(match_pitch_version=1, field_config=dict(field=lobby.profile["field"], attack_signs={"pupper-1":-1,"pupper-2":1}),
                     robot_host=host, source_host="camera", port=5005)
     async def field(host, robot, info, epoch, session, revision, tracks):
         assert revision == 2 and robot in tracks.values()
@@ -310,3 +310,70 @@ def test_runner_profile_removes_the_kickoff_ssh_probe(tmp_path):
             start = client.post("/api/match/start")
             assert start.status_code == 200, start.text
             assert client.post("/api/match/end").status_code == 200
+
+
+@pytest.mark.parametrize("change", [
+    {"length": 3.01, "width": 1.82},
+    # A small round-off disagreement can exceed the Pi ingress's one micrometre tolerance.
+    {"length": 2.748275, "width": 1.442886155351121},
+])
+def test_measured_pitch_reaches_each_runner_and_field_feed(tmp_path, change):
+    from contextlib import ExitStack
+    client, lobby, robots, _, _ = rig(tmp_path)
+    pitches = []
+    orig = lobby.field
+    async def open_field(host, robot, info, *args):
+        pitches.append(info["pitch"])
+        return await orig(host, robot, info, *args)
+    lobby.field = open_field
+    with client, ExitStack() as stack:
+        for slot in ROBOT:
+            stack.enter_context(enter(client,slot)).receive_json()
+        assert client.post("/api/camera",json={"source":"0"}).status_code == 200
+        expected = change
+        snap = lobby.camera.snapshot
+        def measured():
+            result = snap()
+            result["frame"]["field"] = dict(lobby.profile["field"], **expected)
+            return result
+        lobby.camera.snapshot = measured
+        reply = client.post("/api/match/start")
+        assert reply.status_code == 200, reply.text
+        assert pitches == [expected, expected]
+        assert all([m["pitch"] for m in r.commands if m["command"] == "arm"] == [expected]
+                   for r in robots.values())
+        assert client.post("/api/match/end").status_code == 200
+
+
+def test_surveyed_posts_reach_match_while_base_map_still_passes_pi_ingress():
+    pytest.importorskip("cv2")
+    from final_project.behaviors.overhead_ingress import IngressCore
+    from final_project.pupper_fc.arena_camera import ArenaCamera
+    from final_project.pupper_fc.lobby import PROFILE
+    from final_project.pupper_fc.match_director import MatchDirector
+
+    camera = ArenaCamera(json.loads(PROFILE.read_text()), "sim")
+    camera.start()
+    try:
+        deadline = time.monotonic() + 4
+        while not camera.snapshot()["frame"] and time.monotonic() < deadline:
+            time.sleep(.02)
+        snap = camera.snapshot()
+        field = snap["frame"]["field"]
+        # Keep measured posts displaced and mouths laterally offset.
+        lines = {name: dict(x=sign * (field["length"] / 2 - .22), y_min=-.22, y_max=.44)
+                 for name, sign in (("west", -1), ("east", 1))}
+        camera.set_goals(lines)
+        director = MatchDirector("pitch-test", {"striker": "pupper-1"}, {"pupper-1": 1, "pupper-2": -1},
+                                 goal_lines=lines, pending_start=True)
+        camera.set_match(director)
+        while not camera.snapshot()["match"] and time.monotonic() < deadline:
+            time.sleep(.02)
+        frame = camera.snapshot()["frame"]
+        assert frame["fc_match"]["goal_lines"] == lines and frame["goals"] != lines
+        ingress = IngressCore(source_id="camera", source_session=camera.session, producer_id="test",
+                              epoch="pitch-test", boot_id="test", robot_map={"striker": "pupper-1"},
+                              calibration_revision=frame["calibration_revision"], field=field)
+        assert ingress._geometry(frame)["right"] == {"x": field["length"] / 2, "y": 0.}
+    finally:
+        camera.close()

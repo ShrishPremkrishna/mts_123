@@ -126,10 +126,13 @@ class FieldFeed:
 
 
 async def open_field(host, robot, info, epoch, session, revision, tracks):
-    args = remote_argv(host, "field", "--epoch", epoch, "--source-session", session,
-                       "--source-host", info["source_host"], "--revision", str(revision),
-                       "--tracks", json.dumps(tracks, separators=(",", ":")), "--robot-id", robot,
-                       "--duration", "3600")
+    options = ["field", "--epoch", epoch, "--source-session", session,
+               "--source-host", info["source_host"], "--revision", str(revision),
+               "--tracks", json.dumps(tracks, separators=(",", ":")), "--robot-id", robot,
+               "--duration", "3600"]
+    if info.get("pitch") is not None:
+        options.extend(["--pitch", json.dumps(info["pitch"], separators=(",", ":"))])
+    args = remote_argv(host, *options)
     proc = await asyncio.create_subprocess_exec(*args, stdin=PIPE, stdout=PIPE, stderr=asyncio.subprocess.DEVNULL)
     return FieldFeed(proc, robot, epoch, session)
 

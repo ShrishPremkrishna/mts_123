@@ -10,11 +10,11 @@
 <div id="teams" aria-label="Choose your robots"></div>
 <template id="team"><section class="team"><div class="teamtop"><span class="team-label"></span><span class="connection" role="status">Offline</span></div>
 <div class="teamfoot"><h2></h2><div class="actions"><button class="connect">Connect</button><button class="options" aria-expanded="false">Set up</button></div></div>
-<div class="team-settings" hidden><label>Control mode <select class="mode"><option value="autonomous">Autonomous</option><option value="teleop">Teleop</option></select></label><p class="guide" hidden></p><button class="disconnect">Disconnect</button></div>
+<div class="team-settings" hidden><label>Control mode <select class="mode"><option value="autonomous">Autonomous</option><option value="teleop">Teleop</option></select></label><p class="guide" hidden></p><label>Onboard pink ball <select class="ball-mode"><option value="pink">Color + shape</option><option value="confirmed">Require YOLO confirmation</option><option value="off">Off</option></select></label><p class="ball-reading" aria-live="off">Waiting for camera telemetry.</p><p class="imu-profile"></p><button class="disconnect">Disconnect</button></div>
 <p class="feedback" role="status"></p></section></template>
 <section id="robot-setup" class="setup-panel" aria-labelledby="setup-title" hidden>
 <div class="setup-heading"><h2 id="setup-title">Robot setup</h2><button id="setup-close" aria-label="Close robot setup">×</button></div>
-<div class="setup-grid"><div class="setup-step"><h3>Prepare session</h3><p>Select the installed release and reuse a healthy session. Prepare opens no motor devices.</p><button id="setup-prepare">Prepare</button></div>
+<div class="setup-grid"><div class="setup-step"><h3>Prepare session</h3><p>Connect prepares a cold session automatically. Prepare is also available on its own.</p><button id="setup-prepare">Prepare</button></div>
 <div class="setup-step home-step"><h3>Home on stand</h3><label class="support"><input id="setup-supported" type="checkbox"> Pupper is supported on its stand.</label><label class="home-mode">After homing <select id="setup-home-mode"><option value="stand">Stand for a match</option><option value="home-only">Finish homed · no gamepad</option></select></label>
 <p id="setup-hint">Standing requires a connected Stop gamepad and a fresh cue after homing.</p><button id="setup-home" disabled>Home</button><button id="setup-stand" hidden>Enable standing</button></div></div>
 <p id="setup-status" role="status" aria-live="polite"></p></section>
@@ -25,7 +25,25 @@
 </div><p id="error" role="status" aria-live="polite">Connect a team and the field camera to play.</p>
 <section class="fieldpanel" id="fieldpanel" hidden><div class="preview"><img id="view" alt="Overhead field with detected tags, ball and robots" hidden><span id="preview-wait">Waiting for a camera frame</span></div>
 <div class="cameraform"><h2>Camera settings</h2><label>Camera <select id="camera-source"><option value="phone">Wireless iPhone</option><option value="0">System camera 0</option><option value="1">System camera 1</option><option value="2">System camera 2</option><option value="3">System camera 3</option><option value="sim">Simulated field preview</option></select></label>
-<label class="check"><input type="checkbox" id="appearance"> Preview robot bodies without tags</label><button id="apply-camera">Open camera</button>
-<p id="seen"></p><p>On this field, tags 0, 5 and 1 run west to east along the north sideline. Tags 3, 4 and 2 run along the south. Blue wears 10 and Red wears 11, with the top edge toward the nose.</p><button id="survey" disabled>Mark goalposts</button><p id="survey-help">The field calibrates from its floor tags. Mark the posts if your goals differ from the field profile.</p>
+<label>Field reference <select id="field-mode"><option value="layout">Mapped floor tags</option><option value="corner">One measured corner tag</option></select></label>
+<div id="anchor-fields" hidden>
+<label>Corner <select id="anchor-corner"><option value="west_north">Northwest</option><option value="east_north">Northeast</option><option value="east_south">Southeast</option><option value="west_south">Southwest</option></select></label>
+<div class="measurements">
+<label>Tag ID <input id="anchor-id" type="number" value="0" min="0" max="586" step="1"></label>
+<label>Black square side (m) <input id="anchor-size" type="number" step="any" min=".04"></label>
+<label>Field length, west–east (m) <input id="anchor-length" type="number" step="any" min=".5"></label>
+<label>Field width, south–north (m) <input id="anchor-width" type="number" step="any" min=".5"></label>
+<label>Goal mouth width (m) <input id="anchor-mouth" type="number" step="any" min=".01"></label>
+<label>Tag rotation (° CCW) <input id="anchor-rotation" type="number" value="0" step="any" min="-360" max="360"></label>
+<label>Centre inset along length (m) <input id="anchor-x" type="number" value="0" step="any"></label>
+<label>Centre inset along width (m) <input id="anchor-y" type="number" value="0" step="any"></label>
+</div><p>Measure from the selected line intersection to the tag centre. Insets are positive toward the field interior. At 0° the printed top points north and its right edge faces east.</p></div>
+<label>Robot tracking <select id="robot-tracking"><option value="tags">Body AprilTags 10 and 11</option><option value="colors">Team colour and nose patches</option></select></label>
+<label id="patch-height-field" hidden>Height of both patch surfaces above floor (m) <input id="patch-height" type="number" min=".03" max=".60" step="any" value=".18"></label>
+<p id="tracking-help"></p>
+<label class="check"><input type="checkbox" id="appearance"> Show possible robot centres (preview only)</label><button id="apply-camera">Open camera</button>
+<p id="seen"></p><p id="layout-help"></p><p id="goal-source"></p>
+<div class="camera-actions"><button id="field-snapshot" disabled>Take snapshot</button><button id="far-corner" hidden>Mark opposite corner</button><button id="field-confirm" hidden>Confirm field overlay</button><button id="survey" disabled>Mark goalposts</button><button id="reset-goals" hidden>Use centred goals</button></div>
+<p id="survey-help" role="status" aria-live="polite"></p>
 <div class="self-test"><button id="self-test">Run offline check</button><p id="self-test-result" role="status" aria-live="polite"></p></div></div></section>
 </main></body></html>

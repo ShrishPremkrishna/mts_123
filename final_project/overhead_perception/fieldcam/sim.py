@@ -56,7 +56,10 @@ class SimArena:
         cv2.rectangle(canvas, to_px(-L / 2, W / 2), to_px(L / 2, -W / 2), (235, 235, 235), 4)
         cv2.line(canvas, to_px(0, W / 2), to_px(0, -W / 2), (235, 235, 235), 4)
         side = int(0.15 * ppm * 1.5)  # 15 cm tag plus quiet zone
+        single = self.cfg.get("field_setup", {}).get("mode") == "corner"
         for tid, (x, y) in self.cfg["tags"]["field"].items():
+            if single:
+                continue
             tag = cv2.cvtColor(cv2.resize(_tag_image(tid), (side, side), interpolation=cv2.INTER_AREA),
                                cv2.COLOR_GRAY2BGR)
             cx, cy = to_px(x, y)
@@ -64,7 +67,16 @@ class SimArena:
         # canvas px -> field plane -> image
         A = np.array([[1 / ppm, 0, -(L / 2 + m)], [0, -1 / ppm, W / 2 + m], [0, 0, 1]])
         Hf = self.cam.K @ np.column_stack([self.cam.R[:, 0], self.cam.R[:, 1], self.cam.tvec.ravel()])
-        return cv2.warpPerspective(canvas, Hf @ A, self.size, borderValue=(60, 60, 60))
+        view = cv2.warpPerspective(canvas, Hf @ A, self.size, borderValue=(60, 60, 60))
+        if single:
+            from .corner_anchor import anchor_geometry
+            setup = self.cfg["field_setup"]
+            square = anchor_geometry(setup)
+            center = square.mean(axis=0)
+            quiet = center + (square - center) * 1.5
+            sheet = cv2.cvtColor(_tag_image(setup["tag_id"]), cv2.COLOR_GRAY2BGR)
+            self._paste_quad(view, sheet, np.column_stack((quiet, np.zeros(4))))
+        return view
 
     def _paste_quad(self, img, texture, corners_xyz):
         h, w = texture.shape[:2]
@@ -127,6 +139,14 @@ class SimArena:
 
             body = np.array([x, y])
             self._paste_quad(img, np.full((40, 70, 3), (40, 40, 40), np.uint8), quad(body, 0.17, 0.10))
+            if self.cfg.get("robot_tracking") == "colors":
+                for point, radius, color in ((body, .045, (225, 56, 35) if name == "striker" else (32, 40, 226)),
+                                              (body + .09 * fwd, .018, (25, 235, 152))):
+                    theta = np.linspace(0, 2*math.pi, 32, endpoint=False)
+                    ring = point + radius * np.column_stack((np.cos(theta), np.sin(theta)))
+                    pixels = self.cam.project(np.column_stack((ring, np.full(len(ring), h))))
+                    cv2.fillConvexPoly(img, np.int32(np.round(pixels)), color)
+                continue
             tag_c = body + rc["tag_offset"][0] * fwd + rc["tag_offset"][1] * left
             # Undo yaw_offset so a tag mounted rotated on the robot is simulated rotated too.
             c2, s2 = math.cos(yaw - rc["yaw_offset"]), math.sin(yaw - rc["yaw_offset"])

@@ -44,6 +44,11 @@ void ControlBoardHardwareInterface::disable_for_imu_fault(const BNO055::Output &
   deactivate_motors();  // Send neutral before formatting or writing a diagnostic.
   latch_field_fault();
   invalidate_balance();
+  report_imu_fault(sample, now, phase, error);
+}
+
+void ControlBoardHardwareInterface::report_imu_fault(const BNO055::Output &sample,
+    std::chrono::steady_clock::time_point now, const char *phase, const char *error) {
   using namespace std::chrono;
   std::ostringstream log;
   // Preserve the startup failure marker consumed by persistent_session.
@@ -103,7 +108,13 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
   const auto profile = info_.hardware_parameters.find("fc_imu_recovery");
   if (profile != info_.hardware_parameters.end()) {
     supported_standby_ = profile->second == "supported_standby";
-    field_rehome_ = profile->second == "supported_rehome";
+    supported_damping_ = profile->second == "supported_damping";
+    field_rehome_ = profile->second == "supported_rehome" || supported_damping_;
+    if (supported_damping_) {
+      if (info_.joints.size() != 12) return hardware_interface::CallbackReturn::ERROR;
+      RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                  "FC_SUPPORTED_DAMPING_V1: permanent body support required; no gait or position control");
+    }
     if (!supported_standby_ && !field_rehome_ && profile->second != "strict") {
       RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "Unknown fc_imu_recovery profile");
       return hardware_interface::CallbackReturn::ERROR;
@@ -127,7 +138,8 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
   for (const hardware_interface::ComponentInfo &joint : info_.joints) {
     if (field_rehome_) {
       for (const auto *kind : {"position", "velocity", "effort", "kp", "kd"})
-        recovery_interfaces_.push_back(joint.name + "/" + kind);
+        if (!supported_damping_ || std::string_view(kind) == "effort")
+          recovery_interfaces_.push_back(joint.name + "/" + kind);
     }
     // Set params for each joint
     hw_actuator_can_channels_.push_back(std::stoi(joint.parameters.at("can_channel")));
@@ -153,6 +165,28 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_init(
     hw_actuator_homing_torque_thresholds_.push_back(
         std::stod(joint.parameters.at("homing_torque_threshold")));
     hw_actuator_is_homed_.push_back(false);
+  }
+
+  if (supported_damping_) {
+    std::array<bool, 12> assigned{};
+    for (size_t i = 0; i < info_.joints.size(); ++i) {
+      const int channel = hw_actuator_can_channels_[i], id = hw_actuator_can_ids_[i];
+      if (channel < 1 || channel > 4 || id < 1 || id > 3 || assigned[(channel-1)*3 + id-1] ||
+          !std::isfinite(hw_actuator_position_mins_[i]) || !std::isfinite(hw_actuator_position_maxs_[i]) ||
+          hw_actuator_position_mins_[i] >= hw_actuator_position_maxs_[i]) return hardware_interface::CallbackReturn::ERROR;
+      assigned[(channel-1)*3 + id-1] = true;
+      for (double limit : {hw_actuator_velocity_maxs_[i], hw_actuator_effort_maxs_[i],
+                           hw_actuator_kd_maxs_[i], hw_actuator_homing_kds_[i]})
+        if (!std::isfinite(limit) || limit <= 0) return hardware_interface::CallbackReturn::ERROR;
+      // The published board ELF packs MIT CAN velocity ±65, Kd [0,5] and
+      // feed-forward ±112.5 with 12 bits. Reserve a full zero-code torque step
+      // and velocity step for quantization, even at the wire velocity limit.
+      const double cap = std::min(0.50, hw_actuator_effort_maxs_[i]);
+      const double max_kd = (cap - 225.0/4095) / (65.0 + 130.0/4095);
+      const double gain = std::min({0.10, hw_actuator_kd_maxs_[i], hw_actuator_homing_kds_[i], max_kd});
+      if (gain < 5.0/4095) return hardware_interface::CallbackReturn::ERROR;
+      bench_kds_.push_back(static_cast<float>(gain));
+    }
   }
 
   if (info_.hardware_parameters.count("use_imu") &&
@@ -257,6 +291,8 @@ hardware_interface::CallbackReturn ControlBoardHardwareInterface::on_configure(
   if (field_rehome_) {
     fresh_claim_prepared_ = false;
     field_state_ = FieldState::configured;
+    damping_deadline_ = {};
+    last_joint_exchange_ = last_valid_q_ = last_valid_g_ = {};
   }
   // reset values always when configuring hardware
   for (uint i = 0; i < hw_state_positions_.size(); i++) {
@@ -305,6 +341,12 @@ bool ControlBoardHardwareInterface::touches_joints(const std::vector<std::string
 }
 
 bool ControlBoardHardwareInterface::complete_joint_claim(const std::vector<std::string> &start) const {
+  if (supported_damping_) {
+    // The bench lease claims effort alone. Both FC policies claim five handles per joint.
+    for (const auto &name : start)
+      if (touches_joints({name}) && std::find(recovery_interfaces_.begin(), recovery_interfaces_.end(), name)
+          == recovery_interfaces_.end()) return false;
+  }
   for (const auto &name : recovery_interfaces_)
     if (std::find(start.begin(), start.end(), name) == start.end()) return false;
   return !recovery_interfaces_.empty();
@@ -314,6 +356,8 @@ hardware_interface::return_type ControlBoardHardwareInterface::prepare_command_m
     const std::vector<std::string> &start, const std::vector<std::string> &stop) {
   if ((supported_standby_ || field_rehome_) && touches_joints(start)) {
     if (supported_standby_) return hardware_interface::return_type::ERROR;
+    if (supported_damping_ && (touches_joints(stop) || !complete_joint_claim(start) ||
+        field_state_ != FieldState::awaiting_claim)) return hardware_interface::return_type::ERROR;
     const auto state = field_state_.load();
     if (state == FieldState::awaiting_claim) {
       fresh_claim_prepared_ = complete_joint_claim(start);
@@ -331,10 +375,19 @@ hardware_interface::return_type ControlBoardHardwareInterface::perform_command_m
     deactivate_motors();
     clear_joint_commands();
     fresh_claim_prepared_ = false;
-    field_state_.compare_exchange_strong(state_at_stop, FieldState::awaiting_claim);
+    const auto next = supported_damping_ && damping_deadline_ != std::chrono::steady_clock::time_point{}
+                      ? FieldState::fault : FieldState::awaiting_claim;
+    field_state_.compare_exchange_strong(state_at_stop, next);
+    if (next == FieldState::fault) {
+      invalidate_balance();
+      report_imu_fault(imu_manager_.get_imu_data(), std::chrono::steady_clock::now(),
+                       "read", "operator Stop during supported bench IMU loss");
+    }
   }
   if ((supported_standby_ || field_rehome_) && touches_joints(start)) {
     if (supported_standby_) return hardware_interface::return_type::ERROR;
+    if (supported_damping_ && (touches_joints(stop) || !complete_joint_claim(start) ||
+        field_state_ != FieldState::awaiting_claim)) return hardware_interface::return_type::ERROR;
     const auto state = field_state_.load();
     if (state == FieldState::awaiting_claim) {
       if (!fresh_claim_prepared_.exchange(false) || !complete_joint_claim(start))
@@ -494,6 +547,88 @@ bool ControlBoardHardwareInterface::hw_states_contains_nan() {
          contains_nan(hw_state_imu_linear_acceleration_);
 }
 
+bool ControlBoardHardwareInterface::bench_joint_feedback_ok(std::chrono::steady_clock::time_point now) const {
+  using namespace std::chrono;
+  if ((spi_data_->spi_driver_status & SPI_BOTH_REPLIES_VALID) != SPI_BOTH_REPLIES_VALID ||
+      last_joint_exchange_ == steady_clock::time_point{} || now - last_joint_exchange_ > milliseconds(50))
+    return false;
+  for (size_t i = 0; i < hw_state_positions_.size(); ++i) {
+    const double q = hw_state_positions_[i], v = hw_state_velocities_[i];
+    if (!std::isfinite(q) || !std::isfinite(v) || q < hw_actuator_position_mins_[i] ||
+        q > hw_actuator_position_maxs_[i] || std::abs(v) > hw_actuator_velocity_maxs_[i]) return false;
+  }
+  return true;
+}
+
+hardware_interface::return_type ControlBoardHardwareInterface::read_bench(const BNO055::Output &sample) {
+  using namespace std::chrono;
+  using Return = hardware_interface::return_type;
+  const auto now = steady_clock::now();
+  const char *error = pupper_imu::feedback_error(sample, now);
+  const bool in_loss = damping_deadline_ != steady_clock::time_point{};
+  const std::string_view cause = error ? error : "";
+  const bool age_expired = cause == "stale gyro receipt" || cause == "stale quaternion receipt" ||
+                           cause == "gyro report known too old" || cause == "quaternion report known too old";
+  // Bridge an aging report that this driver actually saw fresh. A newly
+  // delivered old batch, missing report or future receipt is never a gap waiver.
+  const auto known_component = [&](steady_clock::time_point receipt, microseconds age, steady_clock::time_point &last) {
+    if (receipt == steady_clock::time_point{} || receipt > now || age < microseconds::zero() ||
+        age > pupper_imu::max_receipt_age || receipt < last) return false;
+    if (now - receipt + age <= pupper_imu::max_receipt_age) last = receipt;
+    return receipt == last;
+  };
+  const bool known_q = known_component(sample.quaternion_receipt_time, sample.quaternion_minimum_age_at_receipt, last_valid_q_);
+  const bool known_g = known_component(sample.gyro_receipt_time, sample.gyro_minimum_age_at_receipt, last_valid_g_);
+  const bool timed_loss = age_expired && known_q && known_g;
+  const auto last_balance = timed_loss ? std::min(sample.quaternion_receipt_time - sample.quaternion_minimum_age_at_receipt,
+      sample.gyro_receipt_time - sample.gyro_minimum_age_at_receipt) : now;
+  if (!known_q || !known_g || (in_loss && now >= damping_deadline_) || (error && !timed_loss) ||
+      (timed_loss && now - last_balance >= seconds(3)) || !bench_joint_feedback_ok(now)) {
+    disable_for_imu_fault(sample, now, "read", error ? error : (in_loss ? "supported bench recovery deadline" :
+                           "supported bench joint feedback invalid"));
+    return Return::ERROR;
+  }
+  const bool entering = !in_loss && timed_loss;
+  if (entering) damping_deadline_ = last_balance + seconds(3);
+  if (timed_loss) {
+    recovery_pairs_ = 0;
+    recovery_q_ = sample.quaternion_receipt_time;
+    recovery_g_ = sample.gyro_receipt_time;
+  } else if (in_loss && sample.quaternion_receipt_time > recovery_q_ && sample.gyro_receipt_time > recovery_g_) {
+    recovery_q_ = sample.quaternion_receipt_time;
+    recovery_g_ = sample.gyro_receipt_time;
+    if (recovery_pairs_++ == 0) recovery_since_ = now;
+    // Only balance telemetry resumes. The exclusively leased motor mode never
+    // changes and a field controller still cannot acquire these handles.
+    if (recovery_pairs_ >= 3 && now - recovery_since_ >= milliseconds(20)) {
+      damping_deadline_ = {};
+      RCLCPP_INFO(rclcpp::get_logger("ControlBoardHardwareInterface"),
+                  "Supported bench balance restored; actuator-local damping continues");
+    }
+  }
+  // Never synthesize feed-forward torque from the Pi's cached CAN readings.
+  // The motor drive applies its derivative gain to its own encoder velocity.
+  *spi_command_ = {};
+  for (auto &flag : spi_command_->flags) flag = 1;
+  if (field_state_ == FieldState::running) {
+    float *groups[]{spi_command_->kd_abad, spi_command_->kd_hip, spi_command_->kd_knee};
+    for (size_t i = 0; i < bench_kds_.size(); ++i)
+      groups[hw_actuator_can_ids_[i]-1][hw_actuator_can_channels_[i]-1] = bench_kds_[i];
+  }
+  last_joint_exchange_ = now;
+  spi_driver_run();
+  copy_actuator_states();
+  if (!bench_joint_feedback_ok(steady_clock::now())) {
+    disable_for_imu_fault(sample, steady_clock::now(), "read", "supported bench joint exchange failed");
+    return Return::ERROR;
+  }
+  if (entering) report_imu_fault(sample, now, "supported_damping", error);
+  auto first = FieldState::zero_first;
+  field_state_.compare_exchange_strong(first, FieldState::running);
+  if (damping_deadline_ != steady_clock::time_point{}) invalidate_balance();
+  return Return::OK;
+}
+
 hardware_interface::return_type ControlBoardHardwareInterface::read(
     [[maybe_unused]] const rclcpp::Time &time, [[maybe_unused]] const rclcpp::Duration &period) {
   // Validate BEFORE transmitting previously prepared actuator commands. Each
@@ -507,7 +642,13 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
     invalidate_balance();
     return field_state_ == FieldState::fault ? hardware_interface::return_type::ERROR : hardware_interface::return_type::OK;
   }
-  if (supported_standby_ && standby_homed_) {
+  const bool bench_active = supported_damping_ &&
+      (field_state_ == FieldState::running || field_state_ == FieldState::zero_first);
+  if (bench_active) {
+    const auto result = read_bench(imu_output);
+    if (result != hardware_interface::return_type::OK || damping_deadline_ != std::chrono::steady_clock::time_point{})
+      return result;
+  } else if (supported_standby_ && standby_homed_) {
     const auto now = std::chrono::steady_clock::now();
     const char *error = pupper_imu::feedback_error(imu_output, now);
     if (error && !standby_feedback_lost_) {
@@ -538,6 +679,7 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
       return hardware_interface::return_type::ERROR;
     }
     if (supported_standby_ || (field_rehome_ && field_state_ == FieldState::awaiting_claim)) {
+      if (supported_damping_) last_joint_exchange_ = std::chrono::steady_clock::now();
       deactivate_motors();
     } else {
       spi_driver_run();
@@ -632,6 +774,7 @@ hardware_interface::return_type ControlBoardHardwareInterface::read(
 
 hardware_interface::return_type ControlBoardHardwareInterface::write(
     const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/) {
+  if (supported_damping_) return hardware_interface::return_type::OK;
   if (field_rehome_ && (field_state_ == FieldState::zero_first || field_state_ == FieldState::homing))
     return hardware_interface::return_type::OK;
   if (supported_standby_ || (field_rehome_ && field_state_ != FieldState::running)) {

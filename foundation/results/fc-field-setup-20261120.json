@@ -1,0 +1,495 @@
+{
+  "method": "Eight annotated views from one mounted room. Crop the camera panel using its measured 62% content width below the 56 px window title. Older single-scale 896 px comparison re-decodes the same pixels. The shipped worker receives each panel independently as a one-frame offline file. Repeated placements are correlated.",
+  "sources": {
+    "phone_dir": "phone-field-dtrknxnz",
+    "pose_window_archive": "2026-11-20/field-live-loopback/pose-window.png",
+    "profile_sha256": "5f8511dc2b427590a829dc171006b7bbaa56b64f1b08ec0cf033f6feaaaadf26",
+    "opencv": "5.1.0"
+  },
+  "one_tag_assumptions": {
+    "training_view": "recheck",
+    "tag_rotation_source": "Tag 0 orientation estimated from a camera fit to IDs 1\u20135 in the training view. Rotation and offsets have no independent tape survey.",
+    "tag_size_source": "Operator's archived 6.25 inch black-square measurement.",
+    "settings": {
+      "length": 2.7482693750646883,
+      "width": 1.442886155351121,
+      "goal_width": 0.6096,
+      "tag_id": 0,
+      "corner": "west_north",
+      "rotation": 89.84812405456671,
+      "tag_size": 0.15875,
+      "inset_x": 0.01065296228447754,
+      "inset_y": -0.00687998116881583
+    },
+    "held_out_targets": "Other individually decoded floor centers compared with the archived metric field profile. The reference map is camera-derived. No independent field accuracy or physical post survey is available."
+  },
+  "views": [
+    {
+      "capture": "preview-window",
+      "sha256": "caa3e39b33fc62e04a7af465e5169380a83df5e40f0dfa9bf232ce486fd887b6",
+      "screenshot_wh": [
+        2900,
+        1568
+      ],
+      "crop_xywh": [
+        0,
+        56,
+        1798,
+        1011
+      ],
+      "baseline_896_ids": [
+        0
+      ],
+      "native_1280_ids": [
+        0
+      ],
+      "shipped_ids": [
+        0
+      ],
+      "layout_valid": false,
+      "layout_reference_error_px": null,
+      "diagnostics": {},
+      "one_tag": {
+        "fit_eligible": false,
+        "reason": "Two camera poses fit this square but disagree across the field. Enlarge the tag or use distributed tags.",
+        "metrics": {
+          "tag_fit_px": 0.487
+        },
+        "unchecked_other_id_errors_m": {}
+      }
+    },
+    {
+      "capture": "adjustment",
+      "sha256": "a130b7fcc2a530159f58d5830ebb3232c9884fd0c5016500056688a8464df7eb",
+      "screenshot_wh": [
+        2900,
+        1568
+      ],
+      "crop_xywh": [
+        0,
+        56,
+        1798,
+        1011
+      ],
+      "baseline_896_ids": [
+        0
+      ],
+      "native_1280_ids": [],
+      "shipped_ids": [
+        0
+      ],
+      "layout_valid": false,
+      "layout_reference_error_px": null,
+      "diagnostics": {}
+    },
+    {
+      "capture": "three-corners",
+      "sha256": "163c85d987b734177313bbff3087235a57b81ba92343b89d068895f33fd9cdfa",
+      "screenshot_wh": [
+        2900,
+        1568
+      ],
+      "crop_xywh": [
+        0,
+        56,
+        1798,
+        1011
+      ],
+      "baseline_896_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "native_1280_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "shipped_ids": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "layout_valid": true,
+      "layout_reference_error_px": 0.7141130385392644,
+      "diagnostics": {},
+      "one_tag": {
+        "fit_eligible": false,
+        "reason": "Two camera poses fit this square but disagree across the field. Enlarge the tag or use distributed tags.",
+        "metrics": {
+          "tag_fit_px": 0.173
+        },
+        "unchecked_other_id_errors_m": {
+          "1": 0.053,
+          "2": 0.069,
+          "3": 0.018
+        }
+      },
+      "one_tag_plus_opposite_mark": {
+        "fit_eligible": true,
+        "reason": null,
+        "metrics": {
+          "tag_fit_px": 0.257,
+          "far_sensitivity_m": 0.0391
+        },
+        "click_proxy": "Tag 2 center only, used as a point and texture patch; no ID/corners used in the fit.",
+        "other_id_errors_m": {
+          "1": 0.012,
+          "3": 0.006
+        }
+      }
+    },
+    {
+      "capture": "recheck",
+      "sha256": "6337d47867b0e7e1d24b90416446916452e48ed7cdeb0f5b1c7d2b60e36dd346",
+      "screenshot_wh": [
+        2900,
+        1568
+      ],
+      "crop_xywh": [
+        0,
+        56,
+        1798,
+        1011
+      ],
+      "baseline_896_ids": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "native_1280_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "shipped_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "layout_valid": true,
+      "layout_reference_error_px": 1.1849745613939364,
+      "diagnostics": {
+        "held_out_max_px": 2.17
+      },
+      "one_tag": {
+        "fit_eligible": false,
+        "reason": "Two camera poses fit this square but disagree across the field. Enlarge the tag or use distributed tags.",
+        "metrics": {
+          "tag_fit_px": 0.129
+        },
+        "unchecked_other_id_errors_m": {
+          "1": 0.023,
+          "2": 0.004,
+          "3": 0.007,
+          "4": 0.017,
+          "5": 0.007
+        }
+      },
+      "one_tag_plus_opposite_mark": {
+        "fit_eligible": true,
+        "reason": null,
+        "metrics": {
+          "tag_fit_px": 0.122,
+          "far_sensitivity_m": 0.0394
+        },
+        "click_proxy": "Tag 2 center only, used as a point and texture patch; no ID/corners used in the fit.",
+        "other_id_errors_m": {
+          "1": 0.023,
+          "3": 0.009,
+          "4": 0.018,
+          "5": 0.009
+        }
+      }
+    },
+    {
+      "capture": "measured-preview",
+      "sha256": "7150c2741dd4b52606e58dadf92b0248f0c4ee04744c84a8bc7738ae4860d211",
+      "screenshot_wh": [
+        2900,
+        1568
+      ],
+      "crop_xywh": [
+        0,
+        56,
+        1798,
+        1011
+      ],
+      "baseline_896_ids": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "native_1280_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "shipped_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "layout_valid": true,
+      "layout_reference_error_px": 0.345138987947368,
+      "diagnostics": {
+        "held_out_max_px": 1.03
+      },
+      "one_tag": {
+        "fit_eligible": false,
+        "reason": "Two camera poses fit this square but disagree across the field. Enlarge the tag or use distributed tags.",
+        "metrics": {
+          "tag_fit_px": 0.092
+        },
+        "unchecked_other_id_errors_m": {
+          "1": 0.09,
+          "2": 0.075,
+          "3": 0.008,
+          "4": 0.041,
+          "5": 0.039
+        }
+      },
+      "one_tag_plus_opposite_mark": {
+        "fit_eligible": true,
+        "reason": null,
+        "metrics": {
+          "tag_fit_px": 0.271,
+          "far_sensitivity_m": 0.0413
+        },
+        "click_proxy": "Tag 2 center only, used as a point and texture patch; no ID/corners used in the fit.",
+        "other_id_errors_m": {
+          "1": 0.046,
+          "3": 0.005,
+          "4": 0.03,
+          "5": 0.013
+        }
+      }
+    },
+    {
+      "capture": "live-calibrated",
+      "sha256": "24ed7b77e41e44909b496d74cad72a471a8e432312db5cf2ea41b520a89f2495",
+      "screenshot_wh": [
+        2900,
+        1568
+      ],
+      "crop_xywh": [
+        0,
+        56,
+        1798,
+        1011
+      ],
+      "baseline_896_ids": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "native_1280_ids": [
+        0,
+        1,
+        2,
+        3,
+        5
+      ],
+      "shipped_ids": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "layout_valid": true,
+      "layout_reference_error_px": 1.2261184294235563,
+      "diagnostics": {
+        "held_out_max_px": 1.84
+      },
+      "one_tag": {
+        "fit_eligible": false,
+        "reason": "Two camera poses fit this square but disagree across the field. Enlarge the tag or use distributed tags.",
+        "metrics": {
+          "tag_fit_px": 0.142
+        },
+        "unchecked_other_id_errors_m": {
+          "1": 0.107,
+          "2": 0.141,
+          "3": 0.036,
+          "5": 0.077
+        }
+      },
+      "one_tag_plus_opposite_mark": {
+        "fit_eligible": true,
+        "reason": null,
+        "metrics": {
+          "tag_fit_px": 0.428,
+          "far_sensitivity_m": 0.0414
+        },
+        "click_proxy": "Tag 2 center only, used as a point and texture patch; no ID/corners used in the fit.",
+        "other_id_errors_m": {
+          "1": 0.025,
+          "3": 0.012,
+          "5": 0.006
+        }
+      }
+    },
+    {
+      "capture": "framing-check",
+      "sha256": "44ac606925202d3777305fb0520c18f65bce12aff24c5ad1cf63c80b219f7371",
+      "screenshot_wh": [
+        2900,
+        1572
+      ],
+      "crop_xywh": [
+        0,
+        56,
+        1798,
+        1011
+      ],
+      "baseline_896_ids": [],
+      "native_1280_ids": [],
+      "shipped_ids": [],
+      "layout_valid": false,
+      "layout_reference_error_px": null,
+      "diagnostics": {}
+    },
+    {
+      "capture": "pose-window",
+      "sha256": "426c53c57807d39b48477ea8494f92c091be2e76eb58df8a89ad8a2fc1058bce",
+      "screenshot_wh": [
+        2300,
+        1358
+      ],
+      "crop_xywh": [
+        0,
+        56,
+        1426,
+        802
+      ],
+      "baseline_896_ids": [
+        0,
+        4,
+        5
+      ],
+      "native_1280_ids": [
+        0,
+        1,
+        4,
+        5
+      ],
+      "shipped_ids": [
+        0,
+        1,
+        4,
+        5
+      ],
+      "layout_valid": false,
+      "layout_reference_error_px": null,
+      "diagnostics": {},
+      "one_tag": {
+        "fit_eligible": false,
+        "reason": "Two camera poses fit this square but disagree across the field. Enlarge the tag or use distributed tags.",
+        "metrics": {
+          "tag_fit_px": 0.453
+        },
+        "unchecked_other_id_errors_m": {
+          "1": 0.193,
+          "4": 0.067,
+          "5": 0.097
+        }
+      }
+    }
+  ],
+  "processing_ms": {
+    "samples": 60,
+    "p50": 19.53,
+    "p95": 28.51,
+    "scope": "1280 x 720 match-only pipeline on development Mac, tags and ball; excludes capture, JPEG, network and Pi."
+  },
+  "known_pose_render": {
+    "passes_2cm_and_5deg": true,
+    "body_errors": {
+      "striker": {
+        "center_m": 0.0042,
+        "signed_yaw_error_deg": 1.19
+      },
+      "keeper": {
+        "center_m": 0.0038,
+        "signed_yaw_error_deg": 1.63
+      }
+    },
+    "ball_error_m": 0.0032,
+    "kind": "synthetic rendered pixels with known body and ball coordinates",
+    "detected_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      10,
+      11
+    ],
+    "synthetic_ball_bgr": [
+      168,
+      60,
+      220
+    ],
+    "reference_poses_xy_yaw": {
+      "striker": [
+        -0.43,
+        0.21,
+        0.35
+      ],
+      "keeper": [
+        0.58,
+        -0.23,
+        -2.791592653589793
+      ]
+    },
+    "reference_ball_xy": [
+      -0.06,
+      -0.09
+    ],
+    "result": {
+      "calibrated": true,
+      "ball": {
+        "x": -0.0574,
+        "y": -0.0919
+      },
+      "robots": {
+        "striker": {
+          "x": -0.4274,
+          "y": 0.2067,
+          "yaw": 0.3707
+        },
+        "keeper": {
+          "x": 0.5826,
+          "y": -0.2328,
+          "yaw": -2.7632
+        }
+      },
+      "fit_px": 0.4512481855906791
+    }
+  },
+  "limits": "Static dashboard graphics can hide floor and body tags or look like a ball. Different placements, motion blur, lens changes, physical sign and ground truth at both posts need independent field measurements."
+}

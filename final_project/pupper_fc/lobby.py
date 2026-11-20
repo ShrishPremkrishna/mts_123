@@ -9,7 +9,7 @@ import tempfile
 import time
 import uuid
 
-from .arena_camera import ArenaCamera
+from .arena_camera import ArenaCamera, camera_settings
 from .field_transport import describe, open_field, validate_profile
 from .match_director import MatchDirector, goal_geometry
 
@@ -92,19 +92,46 @@ class Lobby:
         self.publisher = publisher_factory
         self.camera, self.owner = None, None
         self.source, self.appearance, self.goals = "phone", False, None
+        self.setup, self.tracking = {"mode": "layout"}, "tags"
+        self.surveys = {}
         try:
             saved = json.loads(self.settings.read_text())
-            if saved.get("profile") == self.profile["tags"] and self.valid_goals(saved.get("goal_lines")):
-                self.goals = saved["goal_lines"]
-        except (OSError, ValueError, AttributeError):
+            self.setup, self.tracking = camera_settings(saved.get("camera_settings", {}), self.profile)
+            if saved.get("profile") == self.profile["tags"]:
+                if isinstance(saved.get("surveys"), dict):
+                    self.surveys = saved["surveys"]
+                elif self.valid_goals(saved.get("goal_lines")):
+                    self.surveys[self.geometry_key()] = saved["goal_lines"]
+                goals = self.surveys.get(self.geometry_key())
+                self.goals = goals if self.valid_goals(goals) else None
+        except (OSError, ValueError, TypeError, AttributeError):
             pass
         self.peers, self.feeds, self.publishers, self.players, self.autonomous = {}, {}, [], [], []
         self.phase, self.message = "idle", ""
         self.lock = asyncio.Lock()
         self.watcher = self.transition = self.ending = self.aborted = None
 
+    def geometry_key(self):
+        geometry = {k: v for k, v in self.setup.items() if k != "patch_height"}
+        return json.dumps(geometry, sort_keys=True, separators=(",", ":"))
+
+    def settings_data(self):
+        return dict(field_mode=self.setup["mode"], robot_tracking=self.tracking, patch_height=self.setup.get("patch_height", .18),
+                    anchor=self.setup if self.setup["mode"] == "corner" else None)
+
+    def save_settings(self):
+        self.settings.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(mode="w", dir=self.settings.parent, delete=False) as out:
+            tmp = out.name
+            json.dump(dict(profile=self.profile["tags"], camera_settings=self.settings_data(),
+                           surveys=self.surveys), out, allow_nan=False)
+        try:
+            os.replace(tmp, self.settings)
+        finally:
+            Path(tmp).unlink(missing_ok=True)
+
     def valid_goals(self, goals):
-        f = self.profile["field"]
+        f = dict(self.profile["field"], **self.setup)
         return goal_geometry(goals, f["length"], f["width"], f["ball_radius"])
 
     def state(self):
@@ -118,7 +145,8 @@ class Lobby:
         return dict(phase=self.phase, message=message, source=self.source, appearance=self.appearance,
                     resume_ready=self.phase == "playing" and bool(camera and (camera.get("match") or {}).get("reset_ready"))
                     and all(p.offer.get("resume_ready") for p in self.autonomous),
-                    goal_lines=self.goals, camera=camera)
+                    goal_lines=self.goals, camera=camera, camera_settings=self.settings_data(),
+                    field_defaults=self.profile["field"], floor_size=self.profile["floor_size"])
 
     def check_owner(self, token):
         if self.owner is not None and self.owner != token:
@@ -132,11 +160,41 @@ class Lobby:
             source, appearance = data.get("source"), data.get("appearance", False)
             if source not in ("phone","0","1","2","3","sim") or type(appearance) is not bool:
                 raise ValueError("Select a camera from settings")
+            setup, tracking = camera_settings(data, self.profile)
             if self.camera:
                 await asyncio.to_thread(self.camera.close)
-            self.camera = self.camera_factory(self.profile, source, appearance=appearance)
+            self.setup, self.tracking = setup, tracking
+            saved = self.surveys.get(self.geometry_key())
+            self.goals = saved if source != "sim" and self.valid_goals(saved) else None
+            profile = dict(self.profile, field_setup=setup, robot_tracking=tracking, surveyed_goals=self.goals)
+            self.camera = self.camera_factory(profile, source, appearance=appearance)
+            self.save_settings()
             self.source, self.appearance = source, appearance
             self.camera.start()
+            return self.state()
+
+    async def setup_snapshot(self, action, data, token):
+        async with self.lock:
+            self.check_owner(token)
+            if self.phase != "idle" or not self.camera:
+                raise ValueError("Connect a camera and end the match before checking the field.")
+            if action == "camera/snapshot":
+                return self.camera.capture_setup()
+            if action == "camera/far-corner":
+                self.camera.mark_far_corner(data)
+            else:
+                self.camera.confirm_field(data)
+            return self.state()
+
+    async def use_configured_goals(self, token):
+        async with self.lock:
+            self.check_owner(token)
+            if self.phase != "idle" or not self.camera:
+                raise ValueError("Connect the field camera and end the match before changing goals.")
+            self.surveys.pop(self.geometry_key(), None)
+            self.save_settings()
+            self.goals = None
+            self.camera.set_goals(None)
             return self.state()
 
     async def survey(self, data, token):
@@ -147,15 +205,10 @@ class Lobby:
             goals = self.camera.survey(data)
             if not self.valid_goals(goals):
                 raise ValueError("Choose the two west posts first, then the two east posts, at floor level")
-            self.settings.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(mode="w", dir=self.settings.parent, delete=False) as out:
-                tmp = out.name
-                json.dump({"profile": self.profile["tags"], "goal_lines": goals}, out, allow_nan=False)
-            try:
-                os.replace(tmp, self.settings)
-            finally:
-                Path(tmp).unlink(missing_ok=True)
+            self.surveys[self.geometry_key()] = goals
+            self.save_settings()
             self.goals = goals
+            self.camera.set_goals(goals)
             return self.state()
 
     def camera_ready(self, players):
@@ -168,11 +221,13 @@ class Lobby:
             raise ValueError("Place the ball and each connected robot in view")
         return snap, f
 
-    async def await_camera(self, players, *, commit=False):
+    async def await_camera(self, players, *, commit=False, binding=None):
         end = time.monotonic() + 2
         while True:
             try:
                 scene = self.camera_ready(players)
+                if binding is not None and binding != (scene[0]["source_session"], scene[1]["calibration_revision"]):
+                    raise ValueError("The field calibration changed during kickoff. Start again.")
                 if commit:
                     self.camera.commit_start()
                 return scene
@@ -203,6 +258,7 @@ class Lobby:
             try:
                 async with asyncio.timeout(18):
                     snap, f = await self.await_camera(players)
+                    binding = snap["source_session"], f["calibration_revision"]
                     async def profile(p):
                         if getattr(p, "field_info", None) is None:
                             p.field_info = await self.describe(p.host, p.robot)
@@ -211,9 +267,19 @@ class Lobby:
                     cfg = infos[0]["field_config"]
                     if any(i["field_config"] != cfg for i in infos):
                         raise ValueError("Robots have different field profiles")
-                    for key in ("length","width","ball_radius","goal_width"):
-                        if not math.isclose(cfg["field"][key], self.profile["field"][key], rel_tol=1e-5):
-                            raise ValueError(f"Camera and Pi disagree on field {key}")
+                    camera_geometry = f.get("field", self.profile["field"])
+                    if not math.isclose(cfg["field"]["ball_radius"], camera_geometry["ball_radius"], rel_tol=0., abs_tol=1e-6):
+                        raise ValueError("Camera and Pi disagree on ball radius")
+                    pitch = {key: camera_geometry[key] for key in ("length", "width")}
+                    if not math.isclose(camera_geometry["goal_width"], cfg["field"]["goal_width"], rel_tol=0., abs_tol=1e-6):
+                        pitch["goal_width"] = camera_geometry["goal_width"]
+                    if any(not math.isclose(value, cfg["field"][key], rel_tol=0., abs_tol=1e-6)
+                           for key, value in pitch.items()):
+                        if any(info.get("match_pitch_version") != 1 for info in infos):
+                            raise ValueError("Update the Pi release to use this measured pitch")
+                        infos = [dict(info, pitch=pitch) for info in infos]
+                    else:
+                        pitch = None
                     epoch = uuid.uuid4().hex
                     tracks = {TRACKS[p.robot]: p.robot for p in players}
                     director = MatchDirector(epoch, tracks, cfg["attack_signs"], goal_lines=self.goals, pending_start=True)
@@ -234,13 +300,13 @@ class Lobby:
                         for p, info in zip(players, infos):
                             if p in auto:
                                 group.create_task(open_one(p, info))
-                    await self.await_camera(players)
+                    await self.await_camera(players, binding=binding)
                     attempted = True
-                    results = await asyncio.gather(*(p.request("arm", epoch=epoch, mode=modes[p.robot]) for p in players), return_exceptions=True)
+                    results = await asyncio.gather(*(p.request("arm", epoch=epoch, mode=modes[p.robot], **({"pitch": pitch} if pitch else {})) for p in players), return_exceptions=True)
                     for result in results:
                         if isinstance(result, BaseException):
                             raise result
-                    await self.await_camera(players, commit=True)
+                    await self.await_camera(players, commit=True, binding=binding)
                 self.phase, self.message = "playing", "Match in progress"
                 self.watcher = asyncio.create_task(self._monitor())
                 return self.state()

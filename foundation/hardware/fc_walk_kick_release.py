@@ -36,6 +36,17 @@ def file_digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def check_imu_recovery(driver, mode):
+    if mode == "strict":
+        return
+    if mode not in ("supported_damping", "supported_rehome", "supported_standby"):
+        raise ValueError("unknown FC balance mode")
+    if b"FC_IMU_RECOVERY_CONTRACT_V1_SUPPORTED_REHOME" not in driver:
+        raise ValueError("selected target board driver lacks the explicit FC IMU recovery contract")
+    if mode == "supported_damping" and (b"FC_SUPPORTED_DAMPING_V1" not in driver or b"SupportedDampingLease" not in driver):
+        raise ValueError("build the bundled bench damping driver and ownership controller on this Pi")
+
+
 def inspect_native(library):
     """Static requirements for a Pi candidate. Runtime ownership and receipts are checked separately."""
     path = Path(library).resolve(strict=True)
@@ -270,7 +281,7 @@ def main():
     group.add_argument("--platform-template", type=Path, help="prior selected-session.json from this Pi")
     group.add_argument("--platform-env", type=Path, help="installed FC ROS overlay's environment.sh")
     enroll.add_argument("--imu-prefix", type=Path, help="select newly installed control-board ROS package prefix")
-    enroll.add_argument("--imu-recovery", choices=("strict", "supported_rehome", "supported_standby"), default="strict")
+    enroll.add_argument("--imu-recovery", choices=("strict", "supported_rehome", "supported_standby", "supported_damping"), default="strict")
     enroll.add_argument("--field-config", type=Path, help="measured venue geometry; defaults to the mounted arena")
     enroll.add_argument("--detector-model", type=Path)
     enroll.add_argument("--recording", choices=("events","full"), default="events", help="full records per-frame diagnostics")

@@ -1,0 +1,170 @@
+{
+  "date": "2026-11-20",
+  "profile": "supported_damping",
+  "result": "Supported bench only. After a deliberate supported Home and gateway cue, the actuator-local damping lease persisted across the short IMU gaps. Controller and SPI tests used only memory-backed or intercepted interfaces. The packed robot was not operated.",
+  "source_sha256": {
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp": "e397ece352087d8c0da1f27d1668cc7967819b0a684cc350347c789031fabfaa",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/supported_damping_lease.cpp": "827009a086f46098677a03ee29a689caffbceaacca84dc6272342c761565657d",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/rt/rt_spi.cpp": "70075aff36597757ceca33e3adfcce1f95cb7e1dfc3cbfe5a30287642c404eef",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/rt/rt_bno055.cpp": "c9a09a3df6099e62ec9be659c7645cd6e442410304b80d11863d1f3fbb34b423",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_imu_health_guard.cpp": "e88b0708b039abb9bb13e690ce6ee3356ffb6325f785c6379b262ca965a82f78",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_spi_zero_encoding.cpp": "5ffa45bade4cdaa5869796563c6411fb38962e93c9f292780310185818329e73",
+    "foundation/hardware/floor_stock/baseline-expanded.urdf": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44",
+    "foundation/scripts/simulate_fc_supported_damping.py": "8408d5ebfdea1e6917f1a4544fc111dd8ffc8c6e1a0909269bf55380f18849ff"
+  },
+  "image_id": "sha256:0d6be9f2a86dfaa7231093a9596c5df754bed0afb6f7a05e205fc1445a4b0a44",
+  "offline_jazzy_installed_board_library_sha256": "df518a439ed21258ec4f40a646f96b437723f7e0cf66700197c192e93630fede",
+  "target": "Ubuntu ARM64 build only. No Debian Pi build or board mapping for the new driver.",
+  "resource_manager": {
+    "fixture": "Actual ROS Jazzy ResourceManager with exported state and command interfaces, real production driver's home, mode switches, read and write, simulated 100 Hz component receipts and in-memory exchanges for both SPI boards. Every powered loss packet was checked against all 256 expected bytes even after forging position, gain and torque in the prior packet.",
+    "tests": {
+      "damping_both": {
+        "trip_ms": 101,
+        "disabled_ms": 3005,
+        "powered_loss_packets": 450,
+        "host_kd": 0.00684366,
+        "handles_withdrawn": 60
+      },
+      "damping_stop": {
+        "trip_ms": 103,
+        "disabled_ms": 109,
+        "powered_loss_packets": 1,
+        "host_kd": 0.00684366,
+        "handles_withdrawn": 60
+      },
+      "damping_spi": {
+        "trip_ms": 100,
+        "disabled_ms": 107,
+        "powered_loss_packets": 1,
+        "host_kd": 0.00684366,
+        "handles_withdrawn": 60
+      },
+      "damping_gyro": {
+        "trip_ms": 101,
+        "balance_restored_ms": 1041,
+        "powered_loss_packets": 147,
+        "host_kd": 0.00684366,
+        "continuous_bench_lease": 1
+      },
+      "damping_quat": {
+        "trip_ms": 100,
+        "balance_restored_ms": 2036,
+        "powered_loss_packets": 303,
+        "host_kd": 0.00684366,
+        "continuous_bench_lease": 1
+      },
+      "damping_joint": {
+        "trip_ms": 104,
+        "disabled_ms": 110,
+        "powered_loss_packets": 1,
+        "host_kd": 0.00684366,
+        "handles_withdrawn": 60
+      },
+      "damping_batch": {
+        "trip_ms": 107,
+        "disabled_ms": 136,
+        "powered_loss_packets": 1,
+        "host_kd": 0.00684366,
+        "handles_withdrawn": 60
+      },
+      "damping_gap": {
+        "trip_ms": 107,
+        "disabled_ms": 184,
+        "powered_loss_packets": 1,
+        "host_kd": 0.00684366,
+        "handles_withdrawn": 60
+      },
+      "damping_flap": {
+        "trip_ms": 100,
+        "disabled_ms": 3003,
+        "powered_loss_packets": 435,
+        "host_kd": 0.00684366,
+        "handles_withdrawn": 60
+      }
+    },
+    "counts": "Time in ms since the frozen component's last receipt. Terminal transitions are observed on the first scheduled read. In the Stop case, releasing the twelve-handle lease synchronously sent a full neutral packet before another read or fresh IMU report.",
+    "strict_three_seconds": {
+      "trip_ms": 100,
+      "outage_ms": 3002,
+      "handles_withdrawn": 60
+    },
+    "supported_rehome_three_seconds": {
+      "trip_ms": 105,
+      "outage_ms": 3006,
+      "handles_withdrawn": 60,
+      "explicit_home_same_manager_ms": 3192
+    },
+    "supported_standby_one_second": {
+      "trip_ms": 104,
+      "outage_ms": 1002,
+      "telemetry_resume_ms": 3054,
+      "preserved_offsets": 12
+    },
+    "supported_rehome_two_seconds": {
+      "trip_ms": 105,
+      "outage_ms": 2006,
+      "explicit_home_ms": 3195,
+      "reset_encoder_zeros_remeasured": 12
+    }
+  },
+  "qualification": {
+    "native": "72 device-free functional tests passed. CMake lint passed independently. Vendor-tree flake8 and uncrustify enforce formatting throughout pre-existing sources. The unrestricted XML lint could not fetch the package-format schema in the offline container. Both plugin XMLs validated.",
+    "python": "97 passed and 10 subtests in launch, enrollment, session, stage/verify/rollback and persistent session tests (concurrent integrated checkout).",
+    "plugin": "Installed board ELF discovered via pluginlib as control_board_hardware_interface/SupportedDampingLease. ROS lifecycle configured, activated, updated without bound sensor handles, and deactivated. Exactly 12 effort handles requested and zero state handles. The available image had ResourceManager but lacked the ros2_control_node executable for a full node-level rehearsal of this plugin.",
+    "spi": "Both real serializer groups. Intercepted production ioctl exchange checked good, short, failed, checksum-corrupt and empty replies independently for each board. All-zero replies are refused even though XOR would pass.",
+    "reader": "120 ms next-header I2C stall. Current threaded publication was 25 microseconds after host receipt. Swapping only rt_bno055.cpp for 5ad07e1 in a separate build reproduced the two expected test failures: the pair became visible after 120 ms, and the threaded controller missed it while the next read blocked."
+  },
+  "motor_model": {
+    "request": "Motor enable plus derivative gain only. Every host feed-forward, desired position, stiffness and desired velocity is zero. Healthy and degraded bench packets are identical. No gait uses IMU or joint observations on this profile.",
+    "enrolled_hardware_limits": {
+      "effort_max": [
+        3.0
+      ],
+      "velocity_max": [
+        30.0
+      ],
+      "kd_max": [
+        1.0
+      ],
+      "homing_kd": [
+        0.2
+      ]
+    },
+    "formula": "kd = min(0.10, enrolled kd_max, enrolled homing_kd, (min(0.50, effort_max) - 225/4095)/(65 + 130/4095)). Kd is approximately 0.00684 N m s/rad on the selected URDF. Rounded down by the reference CAN encoder it is approximately 0.00611. The 0.50 N m envelope reserves a full torque and velocity code for rounding; it describes the ideal command over encoded speed, not measured current or a mechanical guarantee.",
+    "physics": {
+      "mujoco": "3.10.0",
+      "model": "pupperv3-monorepo/ros2_ws/src/pupper_v3_description/description/mujoco_xml/pupper_v3_complete.xml",
+      "model_sha256": "23838ebdb04128fa0c411daecf6fbee43916c42790355313ab28cb237d3cb23d",
+      "duration_s": 3.0,
+      "host_kd": 0.006843656709412139,
+      "nominal_decoded_kd": 0.006105006105006105,
+      "disabled": {
+        "damping_work_j": 0.0,
+        "peak_ideal_torque_nm": 0.0,
+        "peak_joint_speed_rad_s": 2.908949904854286
+      },
+      "damping": {
+        "damping_work_j": -0.04827614397894293,
+        "peak_ideal_torque_nm": 0.01518279764051547,
+        "peak_joint_speed_rad_s": 2.486942253516434
+      }
+    },
+    "physics_scope": "MuJoCo torso fixed above the floor. Removed only visual meshes, keyframe, free joint; retained link inertias, joint limits, gravity and collision geometry. Same initial pose and angular velocities for disabled and damped trials. Ideal zero-effort decoding and local motor damping. No torque/current or encoder receipt measured on physical hardware."
+  },
+  "reference_firmware": {
+    "guide": "https://pupper-v3-documentation.readthedocs.io/en/latest/guide/flashing_control_board.html",
+    "official_image": "https://drive.google.com/file/d/1D_24V-na4hx1gnoLJxgpeXmecSkJCtj6/view",
+    "name": "SPIneV1.elf",
+    "sha256": "24a9ebf1f4c353b6abafef8dc9f6a3dc651a4c431da688470716adac569d1279",
+    "inspection": "ARM ELF debug macros V_MIN=-65, V_MAX=65, KD_MAX=5, T_MIN=-112.5, T_MAX=112.5. pack_cmd at 0x08001184 clamps values and packs 12-bit derivative gain, velocity and feed-forward. float_to_uint at 0x08001cbe truncates. control at 0x08001760 uses motor-mode transitions, zeroes both reply flag words at 0x08001952-0x0800195c and computes the XOR of 14 words. main at 0x08001a54 tests CAN receive status before refreshing cached motor feedback. spi_isr invokes HAL_SPI_TransmitReceive with timeout 0xffffffff. No board- or motor-generation or per-actuator sample sequence is carried by this SPI reply. The published firmware identity is not tied to either robot's installed firmware."
+  },
+  "field_observation": {
+    "archive": "2026-11-20/final-offense-74798bf0/fc-field-74798bf0/robot.log",
+    "sha256": "f502ea5ad7adecbc728023cef802832a7c098fdcc10b95ed02a3a5eb225419d7",
+    "line": 408,
+    "event": "The prior Pi driver explicitly reported a stale IMU component receipt and disabled motors. No component identity, exact physical outage duration or board-gen continuity recorded. The bench candidate was never on that robot."
+  },
+  "fault_policy": "100 ms follows the last independently aged gyro or quaternion component. The 3 s upper limit is anchored to the oldest expired component plus its known batch age; the deadline never renews from one healthy component. Healthy pair qualification requires at least three new pairs in at least 20 ms. Held bench authority only. Strict floor and supported full rehome options retained.",
+  "floor_gap": "Fresh SPI data cannot prove CAN freshness or unchanged actuator coordinates. No floor posture or balance survives on evidence of joint angles alone. A separate floor release needs measured body and contact transitions, drive restart/age/timeout evidence, new authority, and independently current pose/match and command inputs; a dead Pi cannot deliver a software-timed stop. Supervised stand test and course approval are pending.",
+  "independent_review": "Exact claude-fable-5-2 reviewed the pre-change host SPI and board fragments, identifying accepted bad/empty SPI returns, host-only fake torque clamping and missing generation/watchdog proof. Final checks validate transport receipts and put velocity damping on the drive. The reference firmware was inspected independently."
+}

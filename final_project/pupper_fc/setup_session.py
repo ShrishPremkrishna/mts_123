@@ -58,7 +58,7 @@ async def run_setup(ws, host, robot, launch):
                     await proc.stdin.drain()
                 else:
                     cue = uuid.uuid4().hex
-                    events.put_nowait(dict(stage="stand_prompt", cue=cue, message="Homed. Keep Pupper supported to enable standing."))
+                    events.put_nowait(dict(stage="stand_prompt", cue=cue, message=event.get("message") or "Homed. Keep Pupper supported to enable standing."))
             if (event.get("stage") == action and event.get("robot_id") == robot
                     and event.get("match_armed") is False and event.get("home_only") is home_only
                     and isinstance(event.get("run"), str) and event["run"]):
@@ -68,7 +68,11 @@ async def run_setup(ws, host, robot, launch):
             raise ValueError(diagnostic or "The Pi closed setup without confirming this team's action")
         message = ("Session prepared." if action == "prepare" else
                    "Homed on stand." if home_only else "Walker active. Ready to connect for play.")
-        events.put_nowait(dict(stage="complete", run=receipt["run"], message=message))
+        mode = receipt.get("imu_recovery", "strict")
+        if action == "home" and not home_only and mode == "supported_damping":
+            message = "Bench damping enabled. Keep Pupper supported."
+        events.put_nowait(dict(stage="complete", run=receipt["run"], message=message,
+                               imu_recovery=mode, match_capable=mode in ("strict", "supported_rehome")))
 
     async def send_events():
         await ws.send_json(dict(event="setup", stage="running", robot_id=robot, action=action,

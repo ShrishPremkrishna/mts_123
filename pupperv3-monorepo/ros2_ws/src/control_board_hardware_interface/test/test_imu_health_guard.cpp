@@ -43,6 +43,7 @@ std::chrono::steady_clock::time_point start_dropout(int component) {
   return last_report;
 }
 bool lose_during_enable=false;
+int spi_replies = SPI_BOTH_REPLIES_VALID;
 constexpr int lock_fd=19322;
 void require(bool ok,const char *why) { if(!ok) throw std::runtime_error(why); }
 BNO055::Output output(std::chrono::steady_clock::time_point now) {
@@ -301,6 +302,120 @@ void resource_manager_case(hardware_interface::HardwareInfo &info, bool strict) 
   std::cout << "resource_manager=1 same_import=1 recovered_active_ms=" << elapsed << '\n';
 }
 
+// Exercise the normal ResourceManager read/write and switch entry points. Only the
+// 100 Hz IMU and the physical SPI exchange are replaced by memory interfaces.
+void damping_case(hardware_interface::HardwareInfo &info, const std::string &scenario) {
+  using namespace std::chrono;
+  using Return = hardware_interface::return_type;
+  using State = lifecycle_msgs::msg::State;
+  int argc = 0;
+  rclcpp::init(argc, nullptr);
+  auto clock = std::make_shared<rclcpp::Clock>(RCL_SYSTEM_TIME);
+  hardware_interface::ResourceManager manager(clock, rclcpp::get_logger("fc_supported_bench"));
+  info.hardware_parameters["fc_imu_recovery"] = "supported_damping";
+  info.rw_rate = 500;
+  recovery_joints(info);
+  manager.import_component(std::make_unique<control_board_hardware_interface::ControlBoardHardwareInterface>(), info);
+  rclcpp_lifecycle::State active(State::PRIMARY_STATE_ACTIVE, "active");
+  require(manager.set_component_state(info.name, active) == Return::OK, "supported home failed");
+  const auto all = manager.available_command_interfaces();
+  std::vector<std::string> lease;
+  for (const auto &name : all)
+    if (name.substr(name.rfind('/')+1) == "effort") lease.push_back(name);
+  require(all.size()==60 && lease.size()==12, "wrong board handles");
+  const auto dt = rclcpp::Duration::from_seconds(.005);
+  auto read = [&] {return manager.read(clock->now(), dt).result;};
+  require(read() == Return::OK, "idle neutral exchange");
+  require(!manager.prepare_command_mode_switch(all,{}), "gait acquired bench hardware");
+  require(!manager.prepare_command_mode_switch({lease.front()},{}), "partial bench lease");
+  require(manager.prepare_command_mode_switch(lease,{}) && manager.perform_command_mode_switch(lease,{}), "bench cue failed");
+  for (size_t leg = 0; leg < 4; ++leg) {
+    data.qd_abad[leg] = 0.5f;
+    data.qd_hip[leg] = -2.5f;
+    data.qd_knee[leg] = 0;
+  }
+  require(read() == Return::OK, "first enable failed");
+  spi_command_t expected{};
+  for (auto &flag : expected.flags) flag=1;
+  require(std::memcmp(&sent.back(),&expected,sizeof(expected))==0, "first enable carried torque");
+  const float kd=(.50 - 225.0/4095)/(65.+130./4095);
+  for (size_t leg = 0; leg < 4; ++leg)
+    expected.kd_abad[leg]=expected.kd_hip[leg]=expected.kd_knee[leg]=kd;
+  const bool stop = scenario=="damping_stop", bad_spi=scenario=="damping_spi", bad_q=scenario=="damping_joint";
+  const bool gap=scenario=="damping_gap", batch=scenario=="damping_batch", flap=scenario=="damping_flap";
+  const auto duration = scenario=="damping_gyro" ? seconds(1) : scenario=="damping_quat" ? seconds(2) : seconds(3);
+  const auto lost = start_dropout(scenario=="damping_gyro" ? freeze_gyro : scenario=="damping_quat" ? freeze_quat : freeze_both);
+  auto orientation=manager.claim_state_interface("imu_sensor/orientation.w");
+  milliseconds trip{0}, disabled{0};
+  size_t powered=0;
+  bool injected=false, recovered=false;
+  while (true) {
+    const auto elapsed=steady_clock::now()-lost;
+    if (elapsed >= duration && duration<seconds(3)) mode=0;
+    if (flap && elapsed>milliseconds(200)) {
+      // Advancing gyro reports alone cannot clear or renew the original outage.
+      mode=freeze_quat;
+    }
+    if (trip.count() && !injected && (bad_spi || bad_q || stop || gap || batch)) {
+      if (gap) std::this_thread::sleep_for(milliseconds(70));
+      if (batch) {mode=6; std::this_thread::sleep_for(milliseconds(20));}
+      if (bad_spi) spi_replies=1;
+      if (bad_q) data.qd_knee[2]=std::numeric_limits<float>::infinity();
+      if (stop) {
+        sent.clear();
+        require(manager.prepare_command_mode_switch({},lease) && manager.perform_command_mode_switch({},lease),
+                "physical gateway ownership release failed");
+        neutral_only(); // synchronous at the switch, no future IMU sample required
+      }
+      injected=true;
+    }
+    command.tau_knee_ff[0]=99; command.kp_abad[3]=99; command.q_des_hip[2]=99;
+    manager.write(clock->now(),dt);
+    const auto result=read();
+    if (result==Return::ERROR) {
+      disabled=duration_cast<milliseconds>(steady_clock::now()-lost);
+      spi_command_t zero{};
+      require(std::memcmp(&sent.back(),&zero,sizeof(zero))==0,"fault left powered packet");
+      break;
+    }
+    require(result==Return::OK && std::memcmp(&sent.back(),&expected,sizeof(expected))==0,
+            "unsupported target, gain, effort or flag reached wire");
+    if (!std::isfinite(orientation.get_value())) {
+      if (!trip.count()) trip=duration_cast<milliseconds>(steady_clock::now()-lost);
+      ++powered;
+    }
+    if (duration<seconds(3) && trip.count() && elapsed>=duration && std::isfinite(orientation.get_value())) {
+      require(!manager.prepare_command_mode_switch(all,{}), "fresh IMU allowed gait");
+      require(manager.get_components_status().at(info.name).state.id()==State::PRIMARY_STATE_ACTIVE,
+              "bench lost lease on short dropout");
+      recovered=true;
+      disabled=duration_cast<milliseconds>(steady_clock::now()-lost);
+      break;
+    }
+    require(elapsed < seconds(4), "bench window exceeded");
+    std::this_thread::sleep_for(milliseconds(5));
+  }
+  require(powered>0 && trip>=milliseconds(100), "no real receipt-age transition");
+  if (recovered) {
+    sent.clear();
+    require(manager.prepare_command_mode_switch({},lease) && manager.perform_command_mode_switch({},lease),
+            "post-recovery Stop failed");
+    neutral_only();
+    std::cout<<"bench="<<scenario<<" trip_ms="<<trip.count()<<" balance_restored_ms="<<disabled.count()
+             <<" powered_loss_packets="<<powered<<" host_kd="<<kd<<" continuous_bench_lease=1"<<std::endl;
+    return;
+  }
+  require(manager.get_components_status().at(info.name).state.id()==State::PRIMARY_STATE_UNCONFIGURED &&
+          manager.available_command_interfaces().empty(), "expired bench retained authority");
+  mode=0; sent.clear();
+  std::this_thread::sleep_for(milliseconds(30));
+  read(); manager.write(clock->now(),dt);
+  require(manager.available_command_interfaces().empty(), "new report rearmed a lease");
+  for(const auto &packet:sent){spi_command_t zero{};require(std::memcmp(&packet,&zero,sizeof(zero))==0,"queued action revived");}
+  std::cout<<"bench="<<scenario<<" trip_ms="<<trip.count()<<" disabled_ms="<<disabled.count()
+           <<" powered_loss_packets="<<powered<<" host_kd="<<kd<<" handles_withdrawn="<<all.size()<<std::endl;
+}
+
 void unit_health() {
   using namespace std::chrono;
   auto now=steady_clock::time_point{}+seconds(100);
@@ -355,7 +470,7 @@ void unit_health() {
 void init_spi(){command={};data={};}
 spi_command_t *get_spi_command(){return &command;}
 spi_data_t *get_spi_data(){return &data;}
-void spi_driver_run(){sent.push_back(command);if(lose_during_enable && command.flags[0])mode=1;}
+void spi_driver_run(){sent.push_back(command);data.spi_driver_status = spi_replies;if(lose_during_enable && command.flags[0])mode=1;}
 BNO055::BNO055(int,uint32_t){}
 BNO055::~BNO055(){}
 BNO055::Output BNO055::sample(){return output(std::chrono::steady_clock::now());}
@@ -372,6 +487,11 @@ int main(int argc,char **argv){try{
   auto driver=std::make_unique<control_board_hardware_interface::ControlBoardHardwareInterface>();
   hardware_interface::HardwareInfo info{};info.is_async=false;info.name="imu_guard_fake";info.type="system";
   hardware_interface::ComponentInfo sensor;sensor.name="imu_sensor";sensor.parameters={{"roll","0"},{"pitch","0"},{"yaw","0"}};info.sensors.push_back(sensor);
+  if (scenario.rfind("damping_", 0)==0) {
+    clocked_reports=true;
+    damping_case(info, scenario);
+    return 0;
+  }
   if (scenario == "resource_manager" || scenario == "resource_manager_strict") {
     const bool strict = scenario == "resource_manager_strict";
     if (!strict) info.hardware_parameters["fc_imu_recovery"] = "supported_rehome";

@@ -24,8 +24,8 @@ ROBOTS = {"blue": "pupper-1", "red": "pupper-2"}
 
 async def open_runner(host, robot_id):
     return await asyncio.create_subprocess_exec(
-        *remote_argv(host, "match", "--runner-only", "--robot-id", robot_id),
-        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+        *remote_argv(host, "match", "--runner-only", "--connect", "--robot-id", robot_id),
+        stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
 
 
 def operator_message(data, robot_id):
@@ -39,6 +39,8 @@ def operator_message(data, robot_id):
         raise ValueError("Missing current robot ticket")
     message = dict(command=action, ticket=ticket, robot_id=robot_id)
     if action == "mode" and data.get("mode") in ("teleop", "autonomous"):
+        return dict(message, mode=data["mode"])
+    if action == "onboard_ball_mode" and data.get("mode") in ("pink", "confirmed", "off"):
         return dict(message, mode=data["mode"])
     if action == "arm" and isinstance(data.get("epoch"), str) and 0 < len(data["epoch"]) <= 128:
         return dict(message, epoch=data["epoch"])
@@ -123,8 +125,12 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
                     raise ValueError("End the match before running the offline check")
                 from .self_test import check
                 return await asyncio.to_thread(check)
+            if action in ("camera/snapshot", "camera/confirm", "camera/far-corner"):
+                return await lobby.setup_snapshot(action, data, token)
             if action == "camera":
                 return await lobby.attach_camera(data, token)
+            if action == "goals/configured":
+                return await lobby.use_configured_goals(token)
             if action == "goals":
                 return await lobby.survey(data, token)
             if action == "discover":
@@ -200,19 +206,35 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
             lobby.peers[robot_id] = peer
 
             async def from_robot():
-                has_controls = False
+                has_controls = preparing = False
+                diagnostic = ""
                 first_ticket_by = asyncio.get_running_loop().time() + 15
                 while True:
                     timeout = 2 if has_controls else max(.01, first_ticket_by - asyncio.get_running_loop().time())
                     line = await asyncio.wait_for(proc.stdout.readline(), timeout)
                     if not line:
+                        if not has_controls and diagnostic:
+                            raise ValueError(diagnostic)
                         return
                     try:
                         event = json.loads(line)
                     except (ValueError, UnicodeError):
+                        diagnostic = line.decode(errors="replace").strip()[-350:] or diagnostic
                         continue  # native ROS diagnostics also use stdout
                     if not isinstance(event, dict):
                         continue
+                    if event.get("event") == "preparing" and not has_controls and not preparing:
+                        if event.get("robot_id") != robot_id:
+                            raise ValueError("Prepared Pi belongs to the other team")
+                        preparing = True
+                        first_ticket_by = asyncio.get_running_loop().time() + 95
+                        await ws.send_json(event)
+                        continue
+                    if event.get("event") == "home_required" and not has_controls:
+                        if event.get("robot_id") != robot_id:
+                            raise ValueError("Prepared Pi belongs to the other team")
+                        await ws.send_json(event)
+                        return
                     peer.observe(event)
                     if event.get("event") == "kick" and lobby.camera and peer in lobby.players:
                         lobby.camera.observe_kick(event)
@@ -220,7 +242,7 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
                         if event.get("robot_id") != robot_id:
                             raise ValueError("Connected runner returned the wrong robot identity")
                         has_controls = True
-                    if has_controls or "reason" in event or event.get("event") == "stop_result":
+                    if has_controls or "reason" in event or event.get("event") in ("stop_result", "profile"):
                         await ws.send_json(event)
 
             async def to_robot():

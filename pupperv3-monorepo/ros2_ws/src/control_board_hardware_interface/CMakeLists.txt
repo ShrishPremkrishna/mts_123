@@ -9,6 +9,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(hardware_interface REQUIRED)
+find_package(controller_interface REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(tf2 REQUIRED)
@@ -16,6 +17,7 @@ find_package(tf2 REQUIRED)
 # add compile directive for shared library
 add_library(control_board_hardware_interface SHARED
   src/control_board_hardware_interface.cpp
+  src/supported_damping_lease.cpp
   src/rt/rt_spi.cpp
   src/rt/rt_bno055.cpp
   src/imu_manager.cpp
@@ -30,12 +32,14 @@ target_include_directories(control_board_hardware_interface
 ament_target_dependencies(
   control_board_hardware_interface
   hardware_interface
+  controller_interface
   pluginlib
   rclcpp
   rclcpp_lifecycle
   tf2
 )
 
+pluginlib_export_plugin_description_file(controller_interface supported_damping_lease.xml)
 pluginlib_export_plugin_description_file(hardware_interface control_board_hardware_interface.xml)
 
 # INSTALL
@@ -91,7 +95,10 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_imu_health_guard hardware_interface pluginlib rclcpp rclcpp_lifecycle tf2)
   target_link_options(test_imu_health_guard PRIVATE
     -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=close -Wl,--wrap=flock -Wl,--wrap=unlink)
-  foreach(scenario health init_missing read_gyro read_quat read_norm activate_bias homing_stale activate_fresh supported_standby supported_rehome resource_manager resource_manager_strict strict_rehome)
+  foreach(scenario health init_missing read_gyro read_quat read_norm activate_bias homing_stale activate_fresh
+      supported_standby supported_rehome damping_gyro damping_quat damping_both damping_stop damping_spi damping_joint
+      damping_flap damping_gap damping_batch
+      resource_manager resource_manager_strict strict_rehome)
     add_test(NAME imu_health_${scenario} COMMAND test_imu_health_guard ${scenario})
     set_tests_properties(imu_health_${scenario} PROPERTIES TIMEOUT 25)
   endforeach()
@@ -99,7 +106,9 @@ if(BUILD_TESTING)
   add_executable(test_bno_protocol test/test_bno_protocol.cpp)
   target_compile_features(test_bno_protocol PRIVATE cxx_std_17)
   target_include_directories(test_bno_protocol PRIVATE include)
-  foreach(scenario normal two delayed_tail large three probe2 short_read bad_channel bad_sequence bad_length missing_continuation orphan too_short too_large empty bounded_retry atomic_truncated atomic_unknown signed_timing unknown_time no_base game_and_stability sequence)
+  foreach(scenario normal two delayed_tail large three probe2 short_read bad_channel bad_sequence bad_length
+      missing_continuation orphan too_short too_large empty bounded_retry atomic_truncated atomic_unknown
+      signed_timing unknown_time no_base game_and_stability sequence)
     add_test(NAME bno_protocol_${scenario} COMMAND test_bno_protocol ${scenario})
     set_tests_properties(bno_protocol_${scenario} PROPERTIES TIMEOUT 5)
   endforeach()
@@ -110,7 +119,9 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_bno_cache rclcpp tf2)
   target_link_options(test_bno_cache PRIVATE
     -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=ioctl -Wl,--wrap=read -Wl,--wrap=write -Wl,--wrap=close)
-  foreach(scenario initial gyro_only valid delayed_tail duplicate gyro_refresh control game_not_selected bad_quaternion truncated short_read open_failure overlap_deadline following_read_blocked stale_before_fresh manager_blocked_read)
+  foreach(scenario initial gyro_only valid delayed_tail duplicate gyro_refresh control game_not_selected
+      bad_quaternion truncated short_read open_failure overlap_deadline following_read_blocked stale_before_fresh
+      manager_blocked_read)
     add_test(NAME bno_cache_${scenario} COMMAND test_bno_cache ${scenario})
     set_tests_properties(bno_cache_${scenario} PROPERTIES TIMEOUT 5)
   endforeach()

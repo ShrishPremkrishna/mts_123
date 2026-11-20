@@ -107,6 +107,8 @@ void init_spi();
 void spi_send_receive(spi_command_t* command, spi_data_t* data);
 void spi_driver_run();
 
+// Low bits mark board groups with a complete, nonempty, checksum-valid reply this exchange.
+constexpr int SPI_BOTH_REPLIES_VALID = 3;
 spi_data_t* get_spi_data();
 spi_command_t* get_spi_command();
 

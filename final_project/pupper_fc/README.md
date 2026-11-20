@@ -2,9 +2,9 @@
 
 Double-click **Pupper FC.command** in the checkout root, or run `./pupper-fc`. The first launch installs the pinned laptop dependencies. Subsequent launches open the local match lobby. The robot does not move when the app opens.
 
-On the Pi, enroll the selected build once. The daily actions are **Prepare**, **Home** with Pupper supported, and **Start match** from the laptop. An ordinary End match keeps the walker standing. Starting a fresh match reuses that session. [Pi setup and operator commands](../../foundation/hardware/FC_OPERATOR.md)
+On the Pi, enroll the selected build once. Click **Connect** to prepare a cold Pi, **Home** with Pupper supported, then **Start match**. The Pi asks for a fresh standing cue with its Stop gamepad connected. An ordinary End match keeps the walker standing. Starting a fresh match reuses that session. [Pi setup and operator commands](../../foundation/hardware/FC_OPERATOR.md)
 
-Click Blue or Red to discover an enrolled robot on Wi-Fi. Connect the overhead camera, put the ball and the selected robots in view, then start. Camera settings show the live detections, device selection and goalpost survey. The six mounted field tags provide the default calibration. Blue uses body tag 10, Red uses 11. The optional appearance preview marks anonymous bodies.
+Click Blue or Red to discover an enrolled robot on Wi-Fi. Connect the overhead camera, put the ball and the selected robots in view, then start. Camera settings show the live detections, device selection and goalpost survey. The six mounted field tags provide the default calibration. Blue uses body tag 10, Red uses 11. The optional appearance preview marks anonymous bodies. For team identity without body tags, choose **Team colour and nose patches** and enter their height above the floor. A matte blue or red center and smaller lime nose distinguish the team and facing direction. With just one floor tag, select **One measured corner tag** and compare the projected lines to a frozen camera picture.
 
 Use the gear beside a connected team to select **Teleop**. Blue uses W/S to move forward and back, A/D to sidestep and Q/E to turn. Red uses the arrow keys to move and comma/period to turn. Escape sends Stop to connected teams. After a goal, return the ball to the field and press **Resume play**.
 

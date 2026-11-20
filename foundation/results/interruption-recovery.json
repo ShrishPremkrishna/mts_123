@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/.codex/worktrees/fc-teleop/cs123",
   "branch": "codex/pupper-fc-match",
   "mode": "fc_matchday_dashboard_verified",
-  "updated_utc": "2026-11-20T11:30:52+00:00",
+  "updated_utc": "2026-11-20T19:15:01+00:00",
   "current_report": "final_project/pupper_fc/RELEASE.md",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -68,7 +68,8 @@
     "final_native_reliability": "foundation/results/fc-native-reliability-20261120.json",
     "final_match_rehearsal": "foundation/results/fc-match-ros-20261120.json",
     "offline_release": "foundation/results/fc-offline-release-20261120.json",
-    "matchday_dashboard_release": "foundation/results/fc-matchday-release-20261120.json"
+    "matchday_dashboard_release": "foundation/results/fc-matchday-release-20261120.json",
+    "fc_appliance": "foundation/results/fc-appliance-release-20261120.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -130,7 +131,8 @@
       "unowned_port_8765": "Historical November 17 observation: PID 95237 was reelrelay serve, left untouched. Not rechecked November 19.",
       "completed": "Field camera closed. Both Pi sessions closed and recordings were copied and SHA-256 verified. No live offense source or controller."
     },
-    "software_verification": "Both ffdaed5 packages rebuilt byte-identically. Extracted Mac launched under Chrome; independently extracted Pi application staged, imported the actual ROS client and matched all native sources. Three ROS rosters, including two warm standing sessions, passed. See latest release receipt."
+    "software_verification": "Both ffdaed5 packages rebuilt byte-identically. Extracted Mac launched under Chrome; independently extracted Pi application staged, imported the actual ROS client and matched all native sources. Three ROS rosters, including two warm standing sessions, passed. See latest release receipt.",
+    "fc_appliance_release": "Cold Connect/Home/Start and headless install; separate supported damping, one-corner snapshots, team-color patches and onboard pink-ball modes. See appliance release receipt."
   },
   "hardware_session": {
     "status": "CLOSED after the last supervised test. The front-camera guard refused offense. Gateway Stop acknowledged at epoch 2, both leg controllers inactive before driver shutdown, all owned processes exited, recordings closed.",
@@ -206,11 +208,11 @@
   "next": [
     {
       "id": "verify_physical_release",
-      "action": "Check operator ownership, build and enroll the board in strict mode if needed. Use the team card to Prepare, support the robot for Home and give a fresh standing cue with the Stop gamepad connected. Confirm physical Stop on the stand."
+      "action": "On the prepared Pi, install the extracted archive for its Blue/Red team and verify headless startup, battery monitor, SSH and discovery after reboot. Connect in the laptop lobby. Support it for Home and give a fresh standing cue with the independent Stop gamepad. Verify physical Stop on the stand."
     },
     {
       "id": "field_setup",
-      "action": "Use the laptop lobby's camera settings to compare the six floor tags with the mounted field, survey the physical posts if needed, and verify the robot heading and pink ball."
+      "action": "Check six-tag automatic goal overlay. For a one-corner setup, enter measured field and printed tag dimensions, check the far corner in the snapshot and confirm the overlay. Try the two physical team patches, and compare onboard color vs YOLO-confirmed pink detections with the real ball."
     },
     {
       "id": "physical_match",

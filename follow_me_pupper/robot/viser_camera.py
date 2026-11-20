@@ -171,6 +171,9 @@ class RosSource:
 
     queue_depth = 10
 
+    def subscription_qos(self):
+        return self.queue_depth
+
     def __init__(self, topic="/camera/image_raw/compressed"):
         import rclpy
         from rclpy.node import Node
@@ -187,7 +190,7 @@ class RosSource:
         self.last_read_stamp = None
         self.last_image_stamp = None
 
-        self.node.create_subscription(CompressedImage, topic, self._on_image, self.queue_depth)
+        self.node.create_subscription(CompressedImage, topic, self._on_image, self.subscription_qos())
         self.thread = threading.Thread(target=self._spin, daemon=True)
         self.thread.start()
 
@@ -269,8 +272,7 @@ class RosSource:
         # Order matters: shut down rclpy so spin() returns and the thread exits,
         # and only then destroy the node. Destroying a node that a live spin
         # thread still holds aborts the process during C++ teardown.
-        if self.rclpy.ok():
-            self.rclpy.shutdown()
+        self.rclpy.try_shutdown()
         self.thread.join(timeout=2.0)
         self.node.destroy_node()
 
@@ -280,6 +282,15 @@ class LatestCompressedSource(RosSource):
 
     queue_depth = 1
 
+    def __init__(self):
+        self.available = threading.Event()
+        self.overwritten = 0
+        super().__init__()
+
+    def subscription_qos(self):
+        from rclpy.qos import QoSProfile, ReliabilityPolicy
+        return QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+
     def _on_image(self, msg):
         received_ns = time.monotonic_ns()
         ros_now_ns = self.node.get_clock().now().nanoseconds
@@ -288,12 +299,15 @@ class LatestCompressedSource(RosSource):
             return
         with self.lock:
             if self.last_image_stamp is None or stamp > self.last_image_stamp:
+                self.overwritten += self.frame is not None
                 self.frame = (msg.data, stamp, received_ns, ros_now_ns)
+                self.available.set()
                 self.last_image_stamp = stamp
 
     def take(self):
         with self.lock:
             sample, self.frame = self.frame, None
+            self.available.clear()
             return sample
 
 
@@ -850,6 +864,10 @@ def run_fc_detector(args):
     import json
     from contextlib import ExitStack
 
+    from onboard_ball import TOPIC, MODE_TOPIC, MODES, SCHEMA, capture_is_current
+    from pink_ball import PinkBallTracker
+    from std_msgs.msg import String
+
     with ExitStack() as resources:
         timings = resources.enter_context(open(args.fc_timings, "x", buffering=16384)) if args.fc_timings else None
         source = LatestCompressedSource()
@@ -858,36 +876,102 @@ def run_fc_detector(args):
         resources.callback(detector.close)
         detector.want_masks = False
         publisher = DetectionPublisher(source.node, detector.labels, detector_identity=identity, fc_only=True)
-        camera_model = shape = None
+        ball_output = source.node.create_publisher(String, TOPIC, 1)
+        tracker = PinkBallTracker()
+        requested_mode = args.fc_ball_mode
+
+        def set_mode(msg):
+            nonlocal requested_mode
+            if msg.data in MODES:
+                requested_mode = msg.data
+
+        source.node.create_subscription(String, MODE_TOPIC, set_mode, 1)
+        current_mode = camera_model = shape = None
+        last_warn = -float("inf")
+
+        def warn_frame(exc):
+            nonlocal last_warn
+            now = time.monotonic()
+            if now - last_warn >= 5:
+                source.node.get_logger().warning(f"Skipping detector sample: {type(exc).__name__}: {exc}")
+                last_warn = now
+
+        def ros_now():
+            return source.node.get_clock().now().nanoseconds
+
         while source.ok():
-            started = time.monotonic()
+            # camera_ros supplies the 10 Hz rate. Wake on arrivals and take the
+            # newest JPEG once Hailo becomes free, without a second phase clock.
+            if not source.available.wait(.10):
+                continue
             sample = source.take()
             if sample is None:
-                time.sleep(.005)
                 continue
             data, stamp, received, received_ros = sample
+            captured_mono = received - (received_ros - stamp)
+
+            def current():
+                return (capture_is_current(stamp, ros_now())
+                        and capture_is_current(captured_mono, time.monotonic_ns()))
             record = dict(capture_ros_ns=stamp, receipt_ros_ns=received_ros, receipt_mono_ns=received,
-                          decode_start_mono_ns=time.monotonic_ns())
-            bgr = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
-            if bgr is None:
-                record["outcome"] = "decode_failed"
-            else:
-                frame = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+                          decode_start_mono_ns=time.monotonic_ns(), mailbox_overwrites=source.overwritten)
+            try:
+                if not current():
+                    record["outcome"] = "expired_before_decode"
+                    continue
+                bgr = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+                if bgr is None:
+                    record["outcome"] = "decode_failed"
+                    continue
                 record["decoded_mono_ns"] = time.monotonic_ns()
-                if shape != frame.shape[:2]:
-                    shape = frame.shape[:2]
+                if shape != bgr.shape[:2]:
+                    shape = bgr.shape[:2]
                     camera_model = load_camera_model(args.camera_params, shape[1], shape[0])
-                projected = detection_projection(detector_source_frame(frame, swap_rb=args.swap_rb),
-                                                 camera_model, args.detect_width)
+                # Remapping channels independently commutes with BGR-to-RGB.
+                projected = detection_projection(bgr, camera_model, args.detect_width)
+                if not args.swap_rb:
+                    projected = cv2.cvtColor(projected, cv2.COLOR_BGR2RGB)
                 record["inference_start_mono_ns"] = time.monotonic_ns()
-                detections = detector.infer(projected)
+                if not current():
+                    record["outcome"] = "expired_before_inference"
+                    continue
+                try:
+                    detections = detector.infer(projected)
+                except Exception as exc:
+                    # HailoRT versions expose different exception types. A failed
+                    # inference must never become a clear/empty obstacle frame.
+                    record.update(outcome="inference_failed", error=type(exc).__name__)
+                    warn_frame(exc)
+                    continue
                 record["inferred_mono_ns"] = time.monotonic_ns()
+                record["hailort_ms"] = round(detector.last_inference_ms, 3)
+                sequence = publisher.obstacle_sequence
                 count = publisher.publish(detections, projected, capture_stamp_ns=stamp, received_at=received / 1e9)
                 record["publication_end_mono_ns"] = time.monotonic_ns()
                 record["outcome"] = "published" if count is not None else "rejected"
-            if timings:
-                timings.write(json.dumps(record, separators=(",", ":")) + "\n")
-            time.sleep(max(0, .10 - (time.monotonic() - started)))
+                if count is None or not current():
+                    continue
+                mode = requested_mode
+                if mode != current_mode:
+                    tracker.reset()
+                    current_mode = mode
+                try:
+                    result = tracker.observe(projected, detections, stamp, mode)
+                except (cv2.error, ValueError, ArithmeticError) as exc:
+                    record["ball_error"] = type(exc).__name__
+                    warn_frame(exc)
+                    continue
+                if current():
+                    payload = dict(schema=SCHEMA, mode=mode, sequence=sequence, captured_at_ros_ns=stamp,
+                                   captured_at_mono_ns=captured_mono, projection_width=projected.shape[1], **result)
+                    ball_output.publish(String(data=json.dumps(payload, allow_nan=False, separators=(",", ":"))))
+                record["ball_end_mono_ns"] = time.monotonic_ns()
+            except cv2.error as exc:
+                record.update(outcome="image_error", error=type(exc).__name__)
+                warn_frame(exc)
+            finally:
+                if timings:
+                    timings.write(json.dumps(record, separators=(",", ":")) + "\n")
 
 
 def main():
@@ -895,6 +979,8 @@ def main():
     parser.add_argument("--source", choices=["picam", "ros"], default="picam")
     parser.add_argument("--fc-headless", action="store_true",
                         help="publish FC obstacle boxes from the newest ROS frame without a viewer")
+    parser.add_argument("--fc-ball-mode", choices=("pink", "confirmed", "off"), default="pink",
+                        help="onboard telemetry: pink appearance, require YOLO corroboration, or off")
     parser.add_argument("--fc-timings", metavar="NEW_JSONL", help="record capture-to-publication timing in FC mode")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--width", type=int, default=1400, help="capture width (picam)")
@@ -941,7 +1027,10 @@ def main():
     if args.fc_headless:
         if args.source != "ros" or not args.detect or not args.publish_detections:
             parser.error("--fc-headless requires --source ros with detection and publication enabled")
-        run_fc_detector(args)
+        try:
+            run_fc_detector(args)
+        except KeyboardInterrupt:
+            pass  # ExitStack releases the ROS subscription and accelerator.
         return
     if args.fc_timings:
         parser.error("--fc-timings requires --fc-headless")

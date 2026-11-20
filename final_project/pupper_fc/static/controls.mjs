@@ -4,7 +4,30 @@ const $ = id => document.getElementById(id);
 const owner = crypto.randomUUID();
 const teams = {}, down = new Set();
 let state = {phase:'idle'}, pending = false, survey = null, frameKey = '', lastError = '';
-let setupTeam = null;
+let setupTeam = null, frozen = null, pickingFar = false, cameraFormLoaded = false;
+const anchorIds = {length:'anchor-length', width:'anchor-width', goal_width:'anchor-mouth',
+  tag_size:'anchor-size', rotation:'anchor-rotation', inset_x:'anchor-x', inset_y:'anchor-y', tag_id:'anchor-id'};
+function cameraForm() {
+  const corner = $('field-mode').value === 'corner', colors = $('robot-tracking').value === 'colors';
+  $('anchor-fields').hidden = !corner;
+  $('patch-height-field').hidden = !colors;
+  $('tracking-help').textContent = colors ? 'Centre a matte 9 cm blue or red patch on the back. Place a 3.6 cm bright lime patch 9 cm forward on the same plane. A missing or ambiguous nose holds play.' :
+    'Blue wears tag 10 and Red wears tag 11. Point the printed top toward the nose.';
+}
+function loadCameraForm(){
+  if (cameraFormLoaded || !state.field_defaults) return;
+  cameraFormLoaded = true;
+  const settings = state.camera_settings || {}, f = state.field_defaults;
+  $('field-mode').value = settings.field_mode || 'layout';
+  $('robot-tracking').value = settings.robot_tracking || 'tags';
+  $('patch-height').value = settings.patch_height ?? .18;
+  const values = settings.anchor || {length:f.length, width:f.width, goal_width:f.goal_width, tag_size:state.floor_size};
+  for(const [key,id] of Object.entries(anchorIds)) if(values[key] != null) $(id).value = values[key];
+  $('anchor-corner').value = values.corner || 'west_north';
+  cameraForm();
+}
+$('field-mode').onchange = $('robot-tracking').onchange = cameraForm;
+
 const message = text => { lastError = text; $('error').textContent = text; };
 
 async function post(path, data = {}) {
@@ -31,12 +54,39 @@ function render() {
   $('end-match').hidden = !['starting','playing'].includes(state.phase);
   $('resume-match').hidden = state.phase !== 'playing' || !match?.reset_ready;
   $('resume-match').disabled = pending || !state.resume_ready;
+  loadCameraForm();
+  if (frozen && (frozen.source_session !== cam?.source_session || frozen.revision !== cam?.frame?.calibration_revision)) clearSnapshot();
+  $('reset-goals').hidden = !(state.goal_lines && cam?.live && state.phase === 'idle');
   $('survey').disabled = !cam?.live || !cam?.frame?.calibration_valid || state.phase !== 'idle';
   $('apply-camera').disabled = pending || state.phase !== 'idle';
-  $('seen').textContent = cam?.frame ? [((visible.tags || []).filter(i => i>=0 && i<=5).length) + '/6 field tags',
-    visible.ball ? 'Ball visible' : 'Searching for ball', ...Object.entries(visible.robots || {}).filter(([,v])=>v).map(([k])=>k==='striker'?'Blue visible':'Red visible')].join(' · ') : '';
+  $('field-snapshot').disabled = !cam?.frame || state.phase !== 'idle';
+  $('field-snapshot').textContent = frozen ? 'Return to live view' : 'Take snapshot';
+  $('far-corner').hidden = !(frozen?.mode === 'corner' && frozen.ids.includes(state.camera_settings?.anchor?.tag_id) && state.phase === 'idle');
+  $('field-confirm').hidden = !(frozen?.fit_valid && cam?.needs_confirm && state.phase === 'idle');
+  const geometry = frozen || cam?.geometry;
+  const ids = frozen?.ids || visible.tags || [];
+  const fieldIds = ids.filter(i => geometry?.mode === 'corner' ? i === state.camera_settings?.anchor?.tag_id : i>=0 && i<=5);
+  const idsText = geometry?.mode === 'corner' ? 'Corner tag' : 'Mapped floor tags';
+  const robotStatus = Object.entries(cam?.frame?.robots || {}).map(([name, rb]) => {
+    const team = name === 'striker' ? 'Blue' : 'Red';
+    const detail=geometry?.robot_status?.[name];
+    return detail ? team + ' · ' + detail : geometry?.robots_seen?.[name] ? team + ' visible' : '';
+  }).filter(Boolean);
+  $('seen').textContent = cam?.frame ? [idsText + ' ' + (fieldIds.join(', ') || 'none'), geometry?.ball_seen ? 'Ball visible' : 'Searching for ball', ...robotStatus].join(' · ') : '';
+  $('layout-help').textContent = geometry?.mode === 'layout' ? geometry.layout_guide : '';
+  $('goal-source').textContent = geometry ? 'Goal lines and mouth: ' + geometry.goal_source + '.' : '';
   for (const t of Object.values(teams)) {
     t.modeEl.disabled = !t.online || state.phase !== 'idle';
+    t.ballMode.disabled = !t.online;
+    if (t.ball) {
+      const elapsed = performance.now() - t.ballReceived;
+      const stale = elapsed > 1000 || (t.ball.state === 'tracked' &&
+        (!Number.isFinite(t.ball.age_ms) || t.ball.age_ms + elapsed >= 350));
+      const bearing = Number.isFinite(t.ball.bearing_deg) ? ' · ~' + Math.abs(t.ball.bearing_deg).toFixed(0) +
+        '° camera ' + (t.ball.bearing_deg < 0 ? 'left' : 'right') : '';
+      t.ballReading.textContent = stale ? 'Camera observation expired.' :
+        t.ball.state === 'tracked' ? 'Ball tracked · ' + t.ball.source + bearing : 'Camera · ' + t.ball.state;
+    }
     if (!t.online) {
       t.connect.disabled = t.connecting || t.setup.busy || state.phase !== 'idle';
       t.options.disabled = t.connecting || (state.phase !== 'idle' && !t.setup.busy);
@@ -48,7 +98,7 @@ function render() {
     (match.reset_ready ? (state.resume_ready ? 'Ball in place. Ready to resume.' : 'Ball in place. Waiting for robots to reach home.') : 'Goal! Return the ball to the field.') : (state.message ||
     (state.source === 'sim' && cam ? 'Field preview is running. Select a live camera to start a match.' :
       canStart ? 'Field ready for kickoff.' : live.length && cam?.live ? 'Place the ball and connected teams in camera view.' : 'Connect a team and the field camera to play.'));
-  if (!$('fieldpanel').hidden && cam?.frame) {
+  if (!$('fieldpanel').hidden && cam?.frame && !frozen) {
     const key = cam.source_session + '/' + cam.frame.seq;
     if (key !== frameKey) {
       frameKey = key;
@@ -88,13 +138,14 @@ function renderSetup() {
   }
   $('robot-setup').dataset.team = t.slot;
   $('setup-title').textContent = (t.slot === 'blue' ? 'Blue' : 'Red') + ' Pupper setup';
-  $('setup-prepare').disabled = locked;
+  $('setup-prepare').disabled = locked || setup.prepared;
   $('setup-supported').disabled = locked;
   $('setup-home-mode').disabled = locked;
   $('setup-home').hidden = Boolean(setup.cue);
   $('setup-home').disabled = locked || !$('setup-supported').checked;
   $('setup-stand').hidden = !setup.cue;
   $('setup-stand').disabled = !setup.cue;
+  $('setup-stand').textContent = t.matchCapable === false ? 'Enable bench test' : 'Enable standing';
   if (setup.busy && setup.action === 'home') {
     $('setup-hint').textContent = 'Keep Pupper supported. Use the gamepad for physical Stop. Esc cancels a pending standing cue.';
   } else {
@@ -102,6 +153,7 @@ function renderSetup() {
       ? 'Home the legs and leave the walker inactive.'
       : 'Standing requires a connected Stop gamepad and a fresh cue after homing.';
   }
+  if (t.matchCapable === false) $('setup-hint').textContent = 'Bench damping profile · keep Pupper supported throughout. Match play is disabled.';
   if ($('setup-status').textContent !== setup.message) $('setup-status').textContent = setup.message;
 }
 
@@ -154,8 +206,9 @@ async function beginSetup(t, action) {
         t.connection.textContent = 'Ready to stand';
       } else if (event.stage === 'complete') {
         completed = event.action === action;
+        if (typeof event.match_capable === 'boolean') t.matchCapable = event.match_capable;
         setup.cue = null;
-        setup.connectAfterHome = completed && action === 'home' && !request.home_only && event.home_only === false;
+        setup.connectAfterHome = completed && t.matchCapable !== false && action === 'home' && !request.home_only && event.home_only === false;
         t.connection.textContent = action === 'prepare' ? 'Prepared' : 'Homed';
       } else if (event.stage === 'error') {
         fail(event.message || 'The Pi reported a setup error.');
@@ -201,7 +254,7 @@ function addTeam(slot, config) {
   const pane = $('team').content.firstElementChild.cloneNode(true);
   const el = key => pane.querySelector('.' + key);
   const t = {slot,id:config.robot_id,connect:el('connect'),modeEl:el('mode'),feedback:el('feedback'),
-             setup:{message:''},options:el('options'),connection:el('connection'),online:false,connecting:false,ready:false,mode:null,requested:null,socket:null,stopping:false};
+             ballMode:el('ball-mode'),ballReading:el('ball-reading'),setup:{message:''},options:el('options'),connection:el('connection'),online:false,connecting:false,ready:false,mode:null,requested:null,socket:null,stopping:false};
   teams[slot] = t;
   pane.classList.add(slot);
   el('team-label').textContent = slot === 'blue' ? 'HOME' : 'AWAY';
@@ -218,6 +271,7 @@ function addTeam(slot, config) {
     else showSetup(setupTeam === t ? null : t);
   };
   el('disconnect').onclick = () => { clearKeys(slot); t.socket?.close(); };
+  t.ballMode.onchange = () => { t.requestedBall = t.ballMode.value; t.ballMode.blur(); };
   t.modeEl.onchange = () => { t.requested = {mode:t.modeEl.value, expires:performance.now()+400}; clearKeys(slot); t.modeEl.blur(); };
   t.openRunner = async (alreadyDiscovered = false) => {
     if (t.online) { toggle(settings.hidden); return; }
@@ -233,6 +287,23 @@ function addTeam(slot, config) {
       t.socket = sock; el('connection').textContent='Connecting…';
       sock.onmessage = ({data}) => {
         const event = JSON.parse(data);
+        if (event.event === 'preparing') {
+          t.connection.textContent = 'Preparing…';
+          return;
+        }
+        if (event.event === 'profile' || event.event === 'home_required') {
+          t.matchCapable = event.match_capable !== false;
+          el('imu-profile').textContent = 'IMU profile · ' + (event.imu_recovery || 'strict').replaceAll('_', ' ');
+          if (event.event === 'home_required') t.needsHome = true;
+          return;
+        }
+        if (event.event === 'onboard_ball' && event.robot_id === t.id && event.onboard_ball) {
+          t.ball = event.onboard_ball;
+          t.ballReceived = performance.now();
+          if (!t.requestedBall && ['pink','confirmed','off'].includes(t.ball.mode)) t.ballMode.value = t.ball.mode;
+          render();
+          return;
+        }
         if (event.event === 'stop_result') {
           t.feedback.textContent = event.confirmed ? 'Robot acknowledged Stop.' : 'Stop was not confirmed.';
           return;
@@ -253,7 +324,10 @@ function addTeam(slot, config) {
         t.connect.textContent='Connected'; t.modeEl.value=t.mode;
         el('guide').hidden=t.mode!=='teleop';
         let command=null;
-        if (t.requested) {
+        if (t.requestedBall) {
+          command = {command:'onboard_ball_mode', mode:t.requestedBall};
+          t.requestedBall = null;
+        } else if (t.requested) {
           if (t.requested.expires>=performance.now()) command={command:'mode',mode:t.requested.mode};
           t.requested=null;
         } else if (t.mode==='teleop' && state.phase==='playing' && state.camera?.match?.epoch && !pending) {
@@ -267,11 +341,22 @@ function addTeam(slot, config) {
       sock.onerror=()=>{ t.feedback.textContent='Could not open the prepared Pi session.'; };
       sock.onclose=()=>{
         t.socket=null;t.online=t.connecting=t.ready=false;t.requested=null;t.mode=null;
+        t.ball = t.requestedBall = null;
+        t.ballReading.textContent = 'Waiting for camera telemetry.';
         clearKeys(slot);pane.dataset.online='false';toggle(false);
         options.textContent='Set up'; options.setAttribute('aria-label', 'Set up ' + title);
         options.setAttribute('aria-controls', 'robot-setup'); t.setup = {message:''};
         el('connection').textContent='Offline';t.connect.textContent='Connect';
-        if (!t.feedback.textContent) t.feedback.textContent='Session closed. Check power, Wi-Fi and homing if unexpected.';
+        if (t.needsHome) {
+          t.needsHome = false;
+          t.setup = {prepared:true, discovered:true, message:t.matchCapable ?
+            'Connected. Support Pupper on the stand, then select Home.' :
+            'Supported damping bench profile. Keep Pupper supported for the entire test.'};
+          t.connection.textContent = 'Needs Home';
+          t.connect.textContent = 'Home';
+          showSetup(t);
+
+        } else if (!t.feedback.textContent) t.feedback.textContent='Session closed. Check power, Wi-Fi and homing if unexpected.';
         render();
       };
     } catch(e) {
@@ -279,7 +364,7 @@ function addTeam(slot, config) {
       t.feedback.textContent=e.message; el('connection').textContent='Offline'; t.connecting=false; render();
     }
   };
-  t.connect.onclick = () => t.openRunner();
+  t.connect.onclick = () => t.setup.prepared ? showSetup(t) : t.openRunner();
 }
 function stopAll() {
   down.clear();
@@ -317,9 +402,49 @@ function panel(open) {
 }
 $('camera-settings').onclick=()=>panel($('fieldpanel').hidden);
 $('camera-connect').onclick=()=>{panel(true);if(!state.camera?.frame && state.phase==='idle')openCamera();};
+function clearSnapshot(){
+  frozen=null;survey=null;pickingFar=false;frameKey='';$('survey-help').textContent='';
+}
+async function takeSnapshot(){
+  const shot = await post('camera/snapshot');
+  frozen=shot;survey=null;pickingFar=false;$('view').src=shot.image;
+  const fit = shot.metrics?.reference_error_px;
+  const sensitivity = shot.metrics?.far_sensitivity_m;
+  const info = ['Snapshot '+shot.seq, shot.status, shot.lens];
+  if(Number.isFinite(fit)) info.push('reference error '+fit.toFixed(1)+' px');
+  if(Number.isFinite(sensitivity)) info.push('far-corner sensitivity '+(sensitivity*100).toFixed(1)+' cm');
+  if(shot.mode==='corner' && shot.fit_valid) info.push('Confirm only if each physical line intersection lies inside its labelled 7.5 cm ring and both end lines align.');
+  if(shot.mode==='corner' && !shot.fit_valid && shot.ids.includes(state.camera_settings?.anchor?.tag_id)) info.push('Mark the diagonally opposite floor-line intersection to add a distant reference.');
+  $('survey-help').textContent=info.join(' · ');
+  render();
+  return shot;
+}
+$('field-snapshot').onclick=async()=>{
+  try{if(frozen){clearSnapshot();render();}else await takeSnapshot();}
+  catch(e){message(e.message);}
+};
+$('far-corner').onclick=()=>{
+  if(!frozen)return;
+  const opposite={west_north:'southeast',east_north:'southwest',west_south:'northeast',east_south:'northwest'};
+  pickingFar=true;survey=null;
+  $('survey-help').textContent='Click the '+opposite[state.camera_settings.anchor.corner]+' line intersection on the floor. Use a distinct tape cross if the lines are unclear.';
+};
+$('field-confirm').onclick=async()=>{
+  if(!frozen)return;
+  await action('camera/confirm',{token:frozen.token});
+  if(!lastError){clearSnapshot();render();}
+};
 function openCamera(){
-  survey=null;frameKey='';
-  return action('camera',{source:$('camera-source').value,appearance:$('appearance').checked});
+  clearSnapshot();
+  const field_mode=$('field-mode').value, anchor={corner:$('anchor-corner').value};
+  if(field_mode==='corner') for(const [key,id] of Object.entries(anchorIds)){
+    if($(id).value.trim()==='' || !Number.isFinite($(id).valueAsNumber)){message('Enter '+$(id).parentElement.textContent.trim()+'.');return;}
+    anchor[key]=$(id).valueAsNumber;
+  }
+  const patch_height=$('patch-height').valueAsNumber;
+  if($('robot-tracking').value==='colors' && !Number.isFinite(patch_height)){message('Enter the height of the patch surfaces above the floor.');return;}
+  return action('camera',{source:$('camera-source').value, appearance:$('appearance').checked, patch_height,
+    field_mode, robot_tracking:$('robot-tracking').value, anchor});
 }
 $('apply-camera').onclick=openCamera;
 $('self-test').onclick = async () => {
@@ -335,20 +460,29 @@ $('self-test').onclick = async () => {
 $('view').onload=()=>{$('view').hidden=false;$('preview-wait').hidden=true;};
 $('view').onerror=()=>{$('view').hidden=true;$('preview-wait').hidden=false;};
 const postNames=['first west post','second west post','first east post','second east post'];
-$('survey').onclick=()=>{
-  const cam=state.camera;
-  if(survey){survey=null;$('survey-help').textContent='Survey canceled.';return;}
-  if(!cam?.frame)return;
-  survey={points:[],session:cam.source_session,revision:cam.frame.calibration_revision};
-  $('survey-help').textContent='Click the base of the '+postNames[0]+'.';
+$('reset-goals').onclick=()=>action('goals/configured');
+$('survey').onclick=async()=>{
+  if(survey){clearSnapshot();render();return;}
+  try{
+    const shot=frozen || await takeSnapshot();
+    survey={points:[],session:shot.source_session,revision:shot.revision,token:shot.token};
+    $('survey-help').textContent='Click the base of the '+postNames[0]+' in the snapshot.';
+  }catch(e){message(e.message);}
 };
 $('view').onclick=async e=>{
-  if(!survey)return;
+  if(!survey && !pickingFar)return;
   const r=e.currentTarget.getBoundingClientRect();
+  if(pickingFar){
+    pickingFar=false;
+    await action('camera/far-corner',{token:frozen.token,point:[(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]});
+    if(!lastError){clearSnapshot();render();}
+    return;
+  }
   survey.points.push([(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height]);
   if(survey.points.length<4){$('survey-help').textContent='Click the base of the '+postNames[survey.points.length]+'.';return;}
   const data=survey;survey=null;
   await action('goals',data);
+  if(!lastError)clearSnapshot();
   $('survey-help').textContent=lastError||'Goalposts saved for this field.';
 };
 async function refresh(){

@@ -12,6 +12,6 @@
   "corner_ids": {"west_south": 3, "east_south": 2, "east_north": 1, "west_north": 0},
   "floor_size": 0.15875,
   "camera": {"width": 1280, "height": 720, "latency_s": 0.12},
-  "processing_width": 896,
+  "processing_width": 1280,
   "source": "First calibrated 896-pixel field observation in the archived November 20 field run. The goal width, ball radius, and camera latency are setup estimates. Survey the physical posts in camera settings."
 }

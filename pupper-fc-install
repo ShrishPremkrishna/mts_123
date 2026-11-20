@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# One-time setup in a permanent extraction on a prepared soccer Pi.
+set -eo pipefail
+root=$(cd "$(dirname "$0")" && pwd -P)
+cd "$root"
+usage() {
+  echo 'Usage: ./pupper-fc-install {blue|red} [installed-platform-environment.sh]' >&2
+}
+if [[ $# -lt 1 || $# -gt 2 ]]; then usage; exit 2; fi
+case "$1" in blue) robot=pupper-1 ;; red) robot=pupper-2 ;; *) usage; exit 2 ;; esac
+if [[ ! -f release-source.json || ! -d native/src/control_board_hardware_interface ]]; then
+  echo 'Run this installer from the extracted Pi release archive.' >&2
+  exit 2
+fi
+if [[ $(id -u) == 0 ]]; then
+  echo 'Run as the robot operator. The boot selector uses sudo after enrollment.' >&2
+  exit 2
+fi
+# A completed FC run can contain a separately installed Stop gateway ahead of
+# the original platform prefix. Preserve the environment that actually ran.
+python3 -B - "$robot" "${2:-}" <<'PYTHON'
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+root = Path.cwd()
+sys.path.insert(0, str(root / "foundation/hardware"))
+from fc_enrollment import check_idle
+from fc_session import PLATFORM_KEYS
+
+home = Path.home()
+config = home / ".config/pupper-fc"
+check_idle(config)
+robot, explicit = sys.argv[1:]
+env = os.environ.copy()
+selected = []
+profile_path = config / "session.json"
+profile = json.loads(profile_path.read_text()) if profile_path.is_file() else {}
+template = None
+if not explicit:
+    if profile.get("platform_template"):
+        template = Path(profile["platform_template"]).resolve(strict=True)
+    else:
+        runs = (home / "pupper-fc-runs").glob("*/selected-session.json")
+        for path in sorted(runs, key=lambda p: p.stat().st_mtime_ns, reverse=True):
+            if not (path.parent / "native-readiness.json").is_file():
+                continue
+            prior = json.loads(path.read_text())
+            if (prior.get("prepared") and prior.get("controllers") == ["gemini_walk", "trick_leg_kick"] and
+                    prior.get("environment", {}).get("PUPPER_SESSION_MOTION_MODE") == "fc_walk_kick"):
+                template = path
+                break
+if template:
+    prior = json.loads(template.read_text())
+    # Replace all overlay search paths, even if the caller sourced a different robot workspace.
+    for key in PLATFORM_KEYS:
+        env.pop(key, None)
+        if key in prior["environment"]:
+            env[key] = prior["environment"][key]
+    python = prior["interpreter"]["executable"]
+    selected = ["--platform-template", str(template)]
+else:
+    if explicit:
+        platform = Path(explicit).resolve(strict=True)
+    else:
+        platforms = sorted((home / "pupper-fc-releases").glob("fc-platform-*/environment.sh"))
+        if len(platforms) != 1:
+            sys.exit("Supply the installed FC platform environment.sh as the second argument.")
+        platform = platforms[0]
+    # Extract the same variables used by enrollment from the chosen setup script.
+    query = "import os, sys, json; print(json.dumps([sys.executable, {k:os.environ[k] for k in " + repr(PLATFORM_KEYS) + " if k in os.environ}]))"
+    python, sourced = json.loads(subprocess.check_output(
+        ["bash", "-c", 'source "$1" >/dev/null && exec python3 -c "$2"', "pupper-fc-install", str(platform), query]))
+    for key in PLATFORM_KEYS:
+        env.pop(key, None)
+    env.update(sourced)
+    selected = ["--platform-env", str(platform)]
+if profile.get("detector_model") and Path(profile["detector_model"]).is_file():
+    selected += ["--detector-model", profile["detector_model"]]
+
+native = root / "native"
+subprocess.run(["colcon", "build", "--base-paths", "src", "--packages-select", "control_board_hardware_interface",
+                "--executor", "sequential", "--cmake-args", "-DBUILD_TESTING=OFF", "-DCMAKE_BUILD_TYPE=Release"],
+               cwd=native, env=env, check=True)
+subprocess.run([python, "foundation/hardware/fc_walk_kick_release.py", "enroll", "--robot-id", robot,
+                *selected, "--imu-prefix", str(native / "install/control_board_hardware_interface")],
+               env=env, check=True)
+PYTHON
+sudo /usr/bin/python3 "$root/foundation/hardware/fc_appliance.py" enable

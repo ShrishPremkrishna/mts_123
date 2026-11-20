@@ -110,3 +110,13 @@ def test_guard_requires_matching_arguments_and_one_session_owner(tmp_path):
     process(124, argv[:-1])
     with pytest.raises(ValueError, match="unexpected arguments"):
         release.verify_guard(life, "expected", tmp_path)
+
+
+def test_bench_requires_matching_driver_and_ownership_plugin():
+    from fc_walk_kick_release import check_imu_recovery
+    base = b"FC_IMU_RECOVERY_CONTRACT_V1_SUPPORTED_REHOME"
+    check_imu_recovery(base, "supported_rehome")
+    for incomplete in (base, base + b" FC_SUPPORTED_DAMPING_V1", base + b" SupportedDampingLease"):
+        with pytest.raises(ValueError, match="bench damping"):
+            check_imu_recovery(incomplete, "supported_damping")
+    check_imu_recovery(base + b" FC_SUPPORTED_DAMPING_V1 SupportedDampingLease", "supported_damping")

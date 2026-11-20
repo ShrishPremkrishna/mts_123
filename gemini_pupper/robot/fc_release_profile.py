@@ -20,7 +20,7 @@ FIELD_FILES = (
     "final_project/behaviors/overhead_ingress.py", "final_project/behaviors/live_field_attack.py",
     "final_project/overhead_perception/fieldcam/__init__.py", "final_project/overhead_perception/fieldcam/net.py",
     *(f"follow_me_pupper/robot/{name}" for name in
-      ("viser_camera.py", "fisheye_converter.py", "yolo_seg.py", "perception_safety.py", "camera_params.yaml", "coco.txt")),
+      ("viser_camera.py", "fisheye_converter.py", "yolo_seg.py", "perception_safety.py", "onboard_ball.py", "pink_ball.py", "camera_params.yaml", "coco.txt")),
     *(f"final_project/pupper_fc/{name}.py" for name in
       ("__init__", "model", "controller", "paw_approach", "integration", "tactics", "match_director",
        "obstacles", "kick_handoff", "operator_kick_receipts")),
@@ -60,6 +60,10 @@ def verify_profile(manifest, root, config):
             raise ValueError("missing combined release input: " + path)
     walk = config["gemini_walk"]["ros__parameters"]
     kick = config["trick_leg_kick"]["ros__parameters"]
+    manager = config["controller_manager"]["ros__parameters"]
+    owner = "control_board_hardware_interface/SupportedDampingLease" if manifest.get("fc_imu_recovery") == "supported_damping" else "neural_controller/NeuralController"
+    if manager["gemini_walk"]["type"] != owner:
+        raise ValueError("FC actuator owner type differs from the selected board profile")
     if (str(Path(manifest["configuration"]).resolve()) not in manifest["assets"]
             or Path(walk["model_path"]).resolve() != (root / WALK_MODEL).resolve()
             or manifest["assets"].get(str((root / WALK_MODEL).resolve())) != WALK_SHA

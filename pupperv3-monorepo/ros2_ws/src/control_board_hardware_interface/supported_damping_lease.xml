@@ -1,0 +1,7 @@
+<library path="control_board_hardware_interface">
+  <class name="control_board_hardware_interface/SupportedDampingLease"
+         type="control_board_hardware_interface::SupportedDampingLease"
+         base_class_type="controller_interface::ControllerInterface">
+    <description>Effort-only ownership for a continuously supported Pupper damping experiment.</description>
+  </class>
+</library>

@@ -28,3 +28,29 @@ button,select{font:inherit;color:inherit;border:1px solid var(--line);background
 @media(max-width:520px){.teamfoot .actions{gap:4px}.options{padding:9px 8px;min-width:0}.team[data-online=true] .options{padding:7px 9px}.teamfoot .connect{padding:9px 10px}}
 @media(max-width:370px){.teamfoot{left:7px;right:7px}.teamfoot .connect,.teamfoot .options{padding:9px 6px;font-size:12px}}
 .self-test{border-top:1px solid var(--line);padding-top:12px}.self-test p:not(:empty){margin-top:7px}
+
+.cameraform .measurements{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 12px;margin:10px 0}
+.measurements label{display:grid;align-content:start;gap:4px;font-size:12px}
+.measurements input,#patch-height{box-sizing:border-box;width:100%;min-width:0;background:var(--panel,#192427);color:inherit;border:1px solid var(--line);border-radius:5px;padding:7px;font:inherit}
+.camera-actions{display:flex;flex-wrap:wrap;gap:6px}.cameraform p:empty{display:none}
+
+@media (max-width: 780px) {
+  .team:has(.team-settings:not([hidden])) {
+    grid-column: 1 / -1;
+    height: auto;
+    min-height: 310px;
+    padding: 48px 12px 78px;
+  }
+  .team:has(.team-settings:not([hidden])) .team-settings {
+    position: relative;
+    inset: auto;
+    width: min(100%, 320px);
+    max-width: 100%;
+    margin-left: auto;
+    padding: 12px;
+  }
+  .team-settings select { min-width: 0; width: 100%; }
+}
+@media (max-width: 780px) {
+  #teams:has(.team-settings:not([hidden])) .team { grid-column: 1 / -1; }
+}

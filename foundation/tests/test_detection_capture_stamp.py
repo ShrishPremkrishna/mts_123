@@ -75,6 +75,8 @@ def viewer(monkeypatch):
 
 def test_fc_uses_latest_jpeg_only_and_one_obstacle_publication(viewer):
     obj = object.__new__(viewer.LatestCompressedSource)
+    obj.available = threading.Event()
+    obj.overwritten = 0
     obj.lock = threading.Lock()
     obj.frame = obj.last_image_stamp = None
     obj.node = SimpleNamespace(get_clock=lambda: SimpleNamespace(now=lambda: SimpleNamespace(nanoseconds=100)))
@@ -84,7 +86,9 @@ def test_fc_uses_latest_jpeg_only_and_one_obstacle_publication(viewer):
                                data=bytes([stamp]))
     for stamp in (1, 2, 1, 101):
         obj._on_image(image(stamp))
+    assert obj.available.is_set() and obj.overwritten == 1
     assert obj.take() == (bytes([2]), 2, 10, 100)
+    assert not obj.available.is_set()
     assert obj.take() is None
     streams = []
     messages = []

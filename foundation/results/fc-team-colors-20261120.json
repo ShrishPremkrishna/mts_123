@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "method": "Recorded 896px camera-panel crops, no inpainting or field mask. No recorded robot wore the proposed patches. Digital patches on six labeled bodies are a separate software control.",
+  "frames": [
+    {
+      "frame": "preview-window",
+      "placement": "untagged placement",
+      "sha256": "caa3e39b33fc62e04a7af465e5169380a83df5e40f0dfa9bf232ce486fd887b6",
+      "working_size": [
+        896,
+        408
+      ],
+      "recorded_proposals": {},
+      "digital_patch_controls": {
+        "striker": true,
+        "keeper": true
+      }
+    },
+    {
+      "frame": "adjustment",
+      "placement": "untagged placement",
+      "sha256": "a130b7fcc2a530159f58d5830ebb3232c9884fd0c5016500056688a8464df7eb",
+      "working_size": [
+        896,
+        408
+      ],
+      "recorded_proposals": {},
+      "digital_patch_controls": {
+        "striker": true,
+        "keeper": true
+      }
+    },
+    {
+      "frame": "three-corners",
+      "placement": "no visible robot",
+      "sha256": "163c85d987b734177313bbff3087235a57b81ba92343b89d068895f33fd9cdfa",
+      "working_size": [
+        896,
+        408
+      ],
+      "recorded_proposals": {}
+    },
+    {
+      "frame": "recheck",
+      "placement": "central placement",
+      "sha256": "6337d47867b0e7e1d24b90416446916452e48ed7cdeb0f5b1c7d2b60e36dd346",
+      "working_size": [
+        896,
+        408
+      ],
+      "recorded_proposals": {},
+      "digital_patch_controls": {
+        "striker": true,
+        "keeper": true
+      }
+    },
+    {
+      "frame": "measured-preview",
+      "placement": "central placement",
+      "sha256": "7150c2741dd4b52606e58dadf92b0248f0c4ee04744c84a8bc7738ae4860d211",
+      "working_size": [
+        896,
+        408
+      ],
+      "recorded_proposals": {},
+      "digital_patch_controls": {
+        "striker": true,
+        "keeper": true
+      }
+    },
+    {
+      "frame": "live-calibrated",
+      "placement": "central placement with person",
+      "sha256": "24ed7b77e41e44909b496d74cad72a471a8e432312db5cf2ea41b520a89f2495",
+      "working_size": [
+        896,
+        408
+      ],
+      "recorded_proposals": {},
+      "digital_patch_controls": {
+        "striker": false,
+        "keeper": true
+      }
+    },
+    {
+      "frame": "pose-window",
+      "placement": "oblique goal-side placement",
+      "sha256": "426c53c57807d39b48477ea8494f92c091be2e76eb58df8a89ad8a2fc1058bce",
+      "working_size": [
+        896,
+        496
+      ],
+      "recorded_proposals": {
+        "striker": {
+          "center": [
+            484.7004830917874,
+            48.31400966183575
+          ],
+          "front": null
+        }
+      },
+      "digital_patch_controls": {
+        "striker": false,
+        "keeper": true
+      }
+    },
+    {
+      "frame": "framing-check",
+      "placement": "defocused; position unresolved",
+      "sha256": "44ac606925202d3777305fb0520c18f65bce12aff24c5ad1cf63c80b219f7371",
+      "working_size": [
+        896,
+        408
+      ],
+      "recorded_proposals": {}
+    }
+  ],
+  "recorded_signed_poses": 0,
+  "recorded_team_centers": 1,
+  "digital_controls_passed": 10,
+  "digital_controls_total": 12,
+  "detector_ms_median": 2.0,
+  "detector_ms_p95": 2.71
+}

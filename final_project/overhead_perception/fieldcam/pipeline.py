@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+from itertools import combinations
 
 import cv2
 import numpy as np
@@ -9,6 +10,7 @@ import numpy as np
 from . import planner
 from .camera_model import CameraModel, default_intrinsics, load_intrinsics, solve_camera_pose
 from .config import resolve, set_field_size
+from .corner_anchor import FIELD_TOLERANCE_M, anchor_geometry, corner_fit
 from .detect import BallDetector, TagDetector
 from .filters import CVFilter2D, YawFilter, wrap
 from .relative import relative_geometry
@@ -39,11 +41,14 @@ class Perception:
 
         self.cam: CameraModel | None = None
         self.roi_mask: np.ndarray | None = None
+        self.ball_scale = 1.
         self.ball_radius_px: float | None = None
         self.calib_err_px: float | None = None
         self.calib_mode: str | None = None  # 'tags' | 'survey' | 'clicks'
         self.floor_layout: dict = {}        # floor tag id -> field xy, for the bumped-camera check
         self.survey: dict | None = None     # set by calibrate_from_survey: reference tag + tag poses
+        self.far_corner = None
+        self.setup_metrics = {}
         self.calib_fail: str | None = None  # why the last calibration attempt failed, in plain words
         self.calibration_valid = False
         self.calibration_revision = 0
@@ -51,7 +56,8 @@ class Perception:
         self.calibration_checked_at: float | None = None
         self._config_field = (cfg["field"]["length"], cfg["field"]["width"])  # as written in the config
 
-        self.tag_det = TagDetector()
+        mapped = cfg["tags"]["field"] if cfg.get("field_setup", {}).get("mode") == "layout" else ()
+        self.tag_det = TagDetector(mapped)
         b = cfg["ball"]
         self.ball_det = BallDetector(b["colors"])
         tr = cfg["tracking"]
@@ -69,11 +75,82 @@ class Perception:
         tags = self.tag_det.detect(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
         field = self.cfg["tags"]["field"]
         ids = [i for i in tags if i in field]
-        if len(ids) < min_tags:
+        self.calib_fail, self.setup_metrics = None, {}
+        setup = self.cfg.get("field_setup", {})
+        duplicates = self.tag_det.duplicates & set(field)
+        if duplicates:
+            self.calib_fail = f"Duplicate floor tag IDs {sorted(duplicates)}. Remove the extra copies."
             return False
-        cam = solve_camera_pose(self.K, self.dist,
-                                [_quad_center(tags[i]) for i in ids], [field[i] for i in ids])
+        if setup.get("mode") == "corner":
+            anchor_id = setup["tag_id"]
+            if anchor_id not in tags:
+                self.calib_fail = f"Show the whole black square and white border of corner tag {anchor_id}."
+                return False
+            anchor = anchor_geometry(setup)
+            cam, self.calib_fail, self.setup_metrics = self._anchor_fit(frame, tags[anchor_id], anchor)
+            return cam is not None and self._use_camera(cam, "corner_anchor", {anchor_id: anchor.mean(axis=0)})
+        if len(ids) < min_tags:
+            self.calib_fail = f"Found floor IDs {sorted(ids) or 'none'}. Uncover at least {min_tags} mapped tags across both ends."
+            return False
+        xy = np.array([field[i] for i in ids])
+        if setup and not self._spans_field(xy, require_quad=True):
+            self.calib_fail = "Visible floor tags are clustered. Uncover tags on both sidelines and both end lines."
+            return False
+        observed = np.array([_quad_center(tags[i]) for i in ids])
+        cam = solve_camera_pose(self.K, self.dist, observed, xy)
+        if cam is None:
+            self.calib_fail = "The floor IDs do not fit an overhead camera. Check their placement and camera focus."
+            return False
+        errors = np.linalg.norm(cam.project(np.column_stack((xy, np.zeros(len(xy))))) - observed, axis=1)
+        if errors.max() > CALIBRATION_DRIFT_LIMIT_PX:
+            worst = ids[int(np.argmax(errors))]
+            self.calib_fail = f"Floor tag {worst} is {errors.max():.1f} pixels from its mapped position. Check the tag IDs and placement."
+            return False
+        if setup and len(ids) >= 5:
+            held_out = []
+            for index, tag_id in enumerate(ids):
+                others = np.arange(len(ids)) != index
+                if not self._spans_field(xy[others], require_quad=True):
+                    continue
+                prediction = solve_camera_pose(self.K, self.dist, observed[others], xy[others])
+                if prediction is None:
+                    continue
+                projected = prediction.project([[*xy[index], 0]])[0]
+                held_out.append((float(np.linalg.norm(projected-observed[index])), tag_id))
+            if held_out:
+                error, tag_id = max(held_out)
+                self.setup_metrics["held_out_max_px"] = round(error, 2)
+                if error > CALIBRATION_DRIFT_LIMIT_PX:
+                    self.calib_fail = f"Tag {tag_id} is {error:.1f} pixels from the position predicted by the other IDs. Check that floor label."
+                    return False
         return self._use_camera(cam, "tags", dict(field))
+
+    def _anchor_fit(self, frame, observed, anchor):
+        corners = np.asarray(self.cfg["field"]["corners"])
+        ref = None
+        if self.far_corner is not None:
+            uv = self.far_corner.locate(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
+            if uv is None:
+                return None, "The opposite corner mark moved or is hidden. Take a new snapshot and mark it again.", {}
+            opposite = corners[np.argmax(np.linalg.norm(corners - anchor.mean(axis=0), axis=1))]
+            ref = opposite, uv
+        return corner_fit(self.K, self.dist, observed, anchor, corners, self.size, ref)
+
+    def _spans_field(self, xy, require_quad=False):
+        if len(xy) < 3:
+            return False
+        length, width = self._config_field
+        if require_quad:
+            # Three collinear references plus a single opposite point can
+            # enclose area yet leave an unconstrained projective degree of freedom.
+            def triangle_area(a, b, c):
+                v, w = b - a, c - a
+                return abs(v[0]*w[1] - v[1]*w[0]) / 2
+            if not any(min(triangle_area(*triple) for triple in combinations(quad, 3)) > .025 * length * width
+                       for quad in combinations(xy, 4)):
+                return False
+        return (np.all(np.ptp(xy, axis=0) >= np.array([length, width]) * .70)
+                and cv2.contourArea(cv2.convexHull(np.float32(xy))) >= .38 * length * width)
 
     def calibrate_from_survey(self, frame: np.ndarray, min_tags: int = 2, use_ids=None) -> bool:
         """Locate the camera from whatever floor tags are in view, with nothing measured.
@@ -217,6 +294,11 @@ class Perception:
             for name in self.cfg["robots"]
         }
         self._set_field_roi()
+        if self.cfg.get("robot_tracking") == "colors":
+            from .patch_plane import PatchPlane
+            f = self.cfg["field"]
+            heights = {rc["tag_height"] for rc in self.cfg["robots"].values()}
+            self.patch_planes = {h: PatchPlane(cam, h, f["length"], f["width"], self.size) for h in heights}
 
         r = self.cfg["ball"]["radius"]
         right = cam.R[0]  # camera x axis expressed in the field frame
@@ -241,6 +323,11 @@ class Perception:
         poly = self.cam.project(np.hstack([grown, np.zeros((4, 1))])).astype(np.int32)
         self.roi_mask = np.zeros((self.size[1], self.size[0]), np.uint8)
         cv2.fillConvexPoly(self.roi_mask, poly, 255)
+        # A large pink ball retains its outline at 896 px; keep native pixels
+        # for the small fiducials that benefit from the higher resolution.
+        self.ball_scale = min(1., 896 / self.size[0]) if self.cfg.get("field_setup") else 1.
+        self.ball_roi = self.roi_mask if self.ball_scale == 1 else cv2.resize(
+            self.roi_mask, None, fx=self.ball_scale, fy=self.ball_scale, interpolation=cv2.INTER_NEAREST)
 
     def _ball_radius_at(self, u: float, v: float, r: float | None = None) -> float | None:
         """How many pixels a ball of radius r (default: the configured one) should span
@@ -296,8 +383,9 @@ class Perception:
             "goals": cfg["goals"], "shots": {}, "relative": {},
             # Enough for a viewer to draw the scene without the config file.
             "field": {"length": cfg["field"]["length"], "width": cfg["field"]["width"],
-                      "ball_radius": cfg["ball"]["radius"]},
+                      "ball_radius": cfg["ball"]["radius"], "goal_width": cfg["field"]["goal_width"]},
             "calib_mode": self.calib_mode, "floor_tags": {},
+            "setup_metrics": self.setup_metrics, "tracking": cfg.get("robot_tracking", "tags"),
         }
         self.debug = {"tags": {}, "ball_px": None}
         if frame_size_changed:
@@ -338,32 +426,96 @@ class Perception:
                                 "verified" if seen else "occluded" if field else "unmonitored"),
         )
 
-        # Robots: tag corners -> plane at tag height -> centre + heading.
+        # The dashboard admits current distributed references, or a current check
+        # of the single square and its extrapolation across the field.
+        setup = cfg.get("field_setup")
+        if setup and self.calibration_valid:
+            reason = None
+            if self.tag_det.duplicates & set(field):
+                reason = "Duplicate floor ID. Remove the duplicate tag."
+            elif self.calib_mode == "corner_anchor":
+                anchor_id = setup["tag_id"]
+                if anchor_id not in tags:
+                    reason = f"Corner tag {anchor_id} is hidden. Uncover it and recheck the field."
+                else:
+                    field_xy = np.asarray(cfg["field"]["corners"])
+                    measured_cam, reason, _ = self._anchor_fit(frame, tags[anchor_id], anchor_geometry(setup))
+                    if measured_cam is not None:
+                        reobserved = measured_cam.pixel_to_plane(cam.project(np.column_stack((field_xy, np.zeros(4)))), 0)
+                        if np.linalg.norm(reobserved - field_xy, axis=1).max() > FIELD_TOLERANCE_M:
+                            reason = "The single-tag field moved. Check the mount and confirm a new snapshot."
+                if reason:
+                    self.invalidate_calibration(reason)
+            elif not self._spans_field(np.array([field[i] for i in seen])):
+                reason = "Uncover mapped tags across both ends and sidelines to verify the camera."
+            if reason:
+                state.update(calibration_valid=False, calibrated=False, calibration_reason=reason,
+                             calibration_status="unverified")
+
+        color_poses = {}
+        if state["tracking"] == "colors":
+            self.debug["team_colors"] = {}
+            for h, plane in self.patch_planes.items():
+                for team, pose in plane.detect(frame).items():
+                    if cfg["robots"][team]["tag_height"] != h:
+                        continue
+                    center = plane.to_xy(pose.center_px)
+                    front = plane.to_xy(pose.front_px) if pose.front_px is not None else None
+                    color_poses[team] = (center, front)
+                    self.debug["team_colors"][team] = (plane.image_pixels(center)[0], front is not None)
+        # Both color patches sit on the same standing body-height plane.
         for name, rc in cfg["robots"].items():
             pos_f, yaw_f = self.robot_f[name]
             measured = False
-            if rc["tag_id"] in tags:
+            body = yaw = None
+            if state["tracking"] == "colors":
+                pose = color_poses.get(name)
+                detail = "No unique team patch"
+                if pose is not None:
+                    detail = "Team visible; signed heading needs a unique nose patch"
+                    body, front = pose
+                    if front is not None:
+                        direction = front - body
+                        if np.isfinite(direction).all() and .06 <= np.linalg.norm(direction) <= .126:
+                            yaw = math.atan2(direction[1], direction[0])
+                            detail = "Team and nose measured"
+                state["robots"][name]["tracking_detail"] = detail
+            elif rc["tag_id"] in tags:
                 c = cam.pixel_to_plane(tags[rc["tag_id"]], rc["tag_height"])  # TL, TR, BR, BL
                 fwd = (c[0] + c[1]) / 2 - (c[3] + c[2]) / 2
                 yaw = wrap(math.atan2(fwd[1], fwd[0]) + rc["yaw_offset"])
                 cy, sy = math.cos(yaw), math.sin(yaw)
                 off = rc["tag_offset"]
                 body = c.mean(axis=0) - np.array([cy * off[0] - sy * off[1], sy * off[0] + cy * off[1]])
-                if pos_f.update(body, t_capture):
-                    measured = yaw_f.update(yaw, t_capture)
+            if yaw is not None and pos_f.update(body, t_capture):
+                measured = yaw_f.update(yaw, t_capture)
             if pos_f.initialised and yaw_f.yaw is not None:
                 x = pos_f.predict_to(t_now)
                 state["robots"][name] = {
+                    **state["robots"][name],
                     "visible": (t_capture - pos_f.t_meas) < lost,
                     "x": float(x[0]), "y": float(x[1]),
-                    "yaw": wrap(yaw_f.yaw + yaw_f.rate * (t_now - yaw_f.t)),
+                    # A measured pair gives signed heading at capture. An abrupt
+                    # reacquisition must never extrapolate the nose to the far side.
+                    "yaw": yaw if measured and state["tracking"] == "colors"
+                           else wrap(yaw_f.yaw + yaw_f.rate * (t_now - yaw_f.t)),
                     "vx": float(x[2]), "vy": float(x[3]), "wz": float(yaw_f.rate),
                     "age_s": t_now - pos_f.t_meas,
                     "measured_this_frame": measured, "measured_at": pos_f.t_meas,
                 }
 
         # Ball: orange blob -> plane through the ball's centre.
-        det = self.ball_det.detect(frame, self.roi_mask, self.ball_radius_px, self._ball_radius_at)
+        if self.ball_scale < 1:
+            scale = self.ball_scale
+            small = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+            def small_radius(x, y):
+                radius = self._ball_radius_at(x/scale, y/scale)
+                return radius * scale if radius is not None else None
+            det = self.ball_det.detect(small, self.ball_roi, self.ball_radius_px*scale, small_radius)
+            if det is not None:
+                det = tuple(v/scale for v in det)
+        else:
+            det = self.ball_det.detect(frame, self.roi_mask, self.ball_radius_px, self._ball_radius_at)
         measured = False
         if det is not None:
             self.debug["ball_px"] = det
@@ -412,6 +564,12 @@ class Perception:
         for tid, c in self.debug.get("tags", {}).items():
             cv2.polylines(out, [c.astype(np.int32)], True, (255, 200, 0), 2)
             cv2.putText(out, str(tid), tuple(c[0].astype(int)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 200, 0), 2)
+        for team, (point, signed) in self.debug.get("team_colors", {}).items():
+            center = tuple(round(float(i)) for i in point)
+            color = (250, 140, 42) if team == "striker" else (68, 66, 245)
+            cv2.circle(out, center, 7, color, 2)
+            if not signed:
+                cv2.putText(out, "nose?", (center[0]+8, center[1]), cv2.FONT_HERSHEY_SIMPLEX, .48, color, 1)
         if self.cam is None:
             if banner:
                 cv2.putText(out, "NOT CALIBRATED   c: 4+ measured floor tags   t: any 2+ floor tags, nothing measured   m: click corners",
@@ -427,6 +585,17 @@ class Perception:
         corners = self.cfg["field"]["corners"]
         for a, b in zip(corners, corners[1:] + corners[:1]):
             cv2.line(out, P(*a), P(*b), (255, 255, 255), 1)
+        if self.calib_mode == "corner_anchor":
+            # The operator compares the *physical* floor intersections to these
+            # metric tolerance rings. Their ellipse shape includes perspective.
+            theta = np.linspace(0, 2 * math.pi, 36, endpoint=False)
+            offsets = FIELD_TOLERANCE_M * np.column_stack((np.cos(theta), np.sin(theta)))
+            for x, y in corners:
+                ring = np.asarray([x, y]) + offsets
+                pts = self.cam.project(np.column_stack((ring, np.zeros(len(ring)))))
+                cv2.polylines(out, [np.int32(np.round(pts))], True, (0, 190, 255), 2, cv2.LINE_AA)
+                side = ("E" if x > 0 else "W") + ("N" if y > 0 else "S")
+                cv2.putText(out, side, P(x, y), cv2.FONT_HERSHEY_SIMPLEX, .5, (0, 190, 255), 1)
         for g in state["goals"].values():
             cv2.line(out, P(g["x"], g["y_min"]), P(g["x"], g["y_max"]), (0, 255, 255), 4)
 

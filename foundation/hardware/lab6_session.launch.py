@@ -31,7 +31,7 @@ def selected_robot_description(urdf, directory, motion_mode):
     recovery = os.environ.get("PUPPER_FC_IMU_RECOVERY", "strict")
     if recovery == "strict":
         return urdf, recovery
-    if motion_mode != "fc_walk_kick" or recovery not in {"supported_rehome", "supported_standby"}:
+    if motion_mode != "fc_walk_kick" or recovery not in {"supported_rehome", "supported_standby", "supported_damping"}:
         raise ValueError("unknown or non-FC PUPPER_FC_IMU_RECOVERY selection")
     source = urdf.read_text()
     plugin = "<plugin>control_board_hardware_interface/ControlBoardHardwareInterface</plugin>"
@@ -123,6 +123,9 @@ def prepare_session_profile(config_path, urdf):
         used_nodes = ("controller_manager", "estop_controller", "floor_physical_joy", *plugins)
         combined = {name: combined[name] for name in used_nodes}
         manager = combined["controller_manager"]["ros__parameters"]
+        if os.environ.get("PUPPER_FC_IMU_RECOVERY") == "supported_damping":
+            # This retains the Stop gateway's selected owner name, without loading the gait as that owner.
+            manager["gemini_walk"] = {"type": "control_board_hardware_interface/SupportedDampingLease"}
         for name, value in list(manager.items()):
             if isinstance(value, dict) and "type" in value and name not in plugins:
                 del manager[name]

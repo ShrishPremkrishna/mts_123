@@ -1,0 +1,33 @@
+{
+  "date": "2026-11-20",
+  "release": "Pupper FC appliance and perception release",
+  "installed_pi_status": "Packed and not accessed. No physical boot, new homing time, torque, return to play, field dimensions or real two-team color identity claimed.",
+  "prior_release": "ffdaed5280d48fa382e18bc7fc6144b533c401c6",
+  "baseline": {
+    "recorded_mechanical_home_s": 5.08,
+    "home_finished_to_walker_s": 252.07,
+    "launch_to_first_body_request_s": 609.8,
+    "historical_timeout": "Legacy driver reported stale balance data; failed component and origin of gap unknown.",
+    "later_offense": "Separate attempt: camera clearance and arming problems, no accepted body motion."
+  },
+  "evidence": {
+    "boot_and_runtime_inventory": "foundation/results/fc-appliance-inventory-20261120.json",
+    "sensor_injection_and_firmware": "foundation/results/fc-supported-damping-20261120.json",
+    "camera_archive_and_measured_pitch": "foundation/results/fc-field-setup-20261120.json",
+    "body_centers": "foundation/results/markerless-appearance-20261120.json",
+    "team_color_archive": "foundation/results/fc-team-colors-20261120.json",
+    "onboard_detector_archives_and_qualification": "foundation/results/fc-onboard-ball-20261120.json",
+    "earlier_physical_evidence": "foundation/results/fc-matchday-release-20261120.json"
+  },
+  "design_sources": [
+    "https://robocup-ssl.github.io/ssl-rules/sslrules.html",
+    "https://docs.opencv.org/4.x/d5/d1f/calib3d_solvePnP.html"
+  ],
+  "design_decisions": [
+    "Deterministic measured projection and frozen local snapshot. No cloud image upload.",
+    "Connect prepares when cold. Supported Home and an independent Stop gamepad are needed to stand. Warm matches reuse the healthy posture.",
+    "Physical body ID/heading uses either two body tags or asymmetric center/nose color patches. Anonymous body preview cannot command a robot.",
+    "Onboard pixels and detector mode are telemetry. Obstacle processing remains independent."
+  ],
+  "boot_and_versions": "Appliance boot writes next-boot systemd settings once. Runtime has no new boot daemon or desktop. Normal mode restores prior selection; FC application rollback is separate."
+}

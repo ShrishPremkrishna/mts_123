@@ -28,6 +28,8 @@ def load_intrinsics(path: Path, width: int, height: int):
     if not path.exists():
         return None
     d = yaml.safe_load(path.read_text())
+    if not math.isclose(width / height, d["width"] / d["height"], rel_tol=.005):
+        raise ValueError("Lens calibration has a different aspect ratio. Use the calibrated crop or recalibrate the current lens.")
     K = np.array(d["K"], float)
     sx, sy = width / d["width"], height / d["height"]
     K[0] *= sx
@@ -71,23 +73,28 @@ class CameraModel:
         return px.reshape(-1, 2)
 
 
-def solve_camera_pose(K, dist, image_pts, field_xy) -> CameraModel | None:
+def camera_pose_candidates(K, dist, image_pts, field_xy) -> list[CameraModel]:
     """Camera pose from >= 4 floor points (z = 0) with known field coordinates."""
     image_pts = np.asarray(image_pts, float).reshape(-1, 1, 2)
     obj = np.hstack([np.asarray(field_xy, float), np.zeros((len(field_xy), 1))]).reshape(-1, 1, 3)
     if len(obj) < 4:
-        return None
+        return []
     ok, rvecs, tvecs, errs = cv2.solvePnPGeneric(obj, image_pts, K, dist, flags=cv2.SOLVEPNP_IPPE)
     if not ok:
-        return None
-    best = None
+        return []
+    candidates = []
     for rvec, tvec in zip(rvecs, tvecs):  # planar PnP has two candidate poses
         rvec, tvec = cv2.solvePnPRefineLM(obj, image_pts, K, dist, rvec, tvec)
         cam = CameraModel(K, dist, rvec, tvec)
-        if cam.center[2] <= 0:  # camera must be above the floor
+        if not np.isfinite(cam.center).all() or cam.center[2] <= 0 or np.any((obj.reshape(-1, 3) @ cam.R[2] + tvec[2, 0]) <= 0):  # camera must be above the floor
             continue
         err = float(np.sqrt(np.mean(np.sum((cam.project(obj) - image_pts.reshape(-1, 2)) ** 2, axis=1))))
         cam.reproj_err_px = err
-        if best is None or err < best.reproj_err_px:
-            best = cam
-    return best
+        if math.isfinite(err):
+            candidates.append(cam)
+    return sorted(candidates, key=lambda c: c.reproj_err_px)
+
+
+def solve_camera_pose(K, dist, image_pts, field_xy) -> CameraModel | None:
+    candidates = camera_pose_candidates(K, dist, image_pts, field_xy)
+    return candidates[0] if candidates else None

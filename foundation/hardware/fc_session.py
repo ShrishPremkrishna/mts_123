@@ -62,7 +62,7 @@ def check_profile(profile, requested_robot, template):
         raise ValueError("select a previously prepared FC platform template")
     if profile.get("recording","events") not in ("events","full"):
         raise ValueError("unknown FC recording selection")
-    if profile.get("imu_recovery", "strict") not in ("strict", "supported_rehome", "supported_standby"):
+    if profile.get("imu_recovery", "strict") not in ("strict", "supported_rehome", "supported_standby", "supported_damping"):
         raise ValueError("unknown selected FC IMU recovery profile")
     if profile.get("side", "right") not in ("left", "right"):
         raise ValueError("kick side must be left or right")
@@ -146,6 +146,8 @@ def acquire_run(action, args, profile_path, profile, template, env, boot, python
         for name in ("native", "imu"):
             cmd.extend(["--" + name + "-library", parts[name]["path"],
                         "--" + name + "-sha256", parts[name]["sha256"]])
+        if getattr(args, "connect", False):
+            print(json.dumps(dict(event="preparing", robot_id=profile["robot_id"])), flush=True)
         subprocess.run(cmd, env=env, check=True, stdout=subprocess.DEVNULL, timeout=90)
         state = {"run_dir": str(run), "boot": boot, "robot_id": profile["robot_id"], "profile": profile_key}
         write_new(current, state)
@@ -158,13 +160,14 @@ def acquire_run(action, args, profile_path, profile, template, env, boot, python
                 raise ValueError("no existing native hardware session to recover")
             if not args.supported:
                 raise ValueError("support the robot on its stand; use home --supported to start the motors")
+            write_new(run / "awaiting-standing.json", {"session_id": plan["session_id"]})
             subprocess.run([python, "-B", "-s", helper, "start-native", "--run-dir", run],
                            env=env, check=True, stdout=subprocess.DEVNULL, timeout=120)
         check_manager(run, plan, boot)
         probe = [python, "-B", "-s", str(Path(__file__).resolve())]
         if args.recover_imu:
-            if plan["environment"].get("PUPPER_FC_IMU_RECOVERY") != "supported_rehome":
-                raise ValueError("motor recovery requires an enrolled supported_rehome board driver")
+            if plan["environment"].get("PUPPER_FC_IMU_RECOVERY") not in ("supported_rehome", "supported_damping"):
+                raise ValueError("motor recovery requires an enrolled supported rehome or bench damping driver")
             probe.extend(["--recover-supported-only" if args.home_only else "--recover-supported", str(run)])
         else:
             if args.supported and not args.home_only:
@@ -179,13 +182,24 @@ def acquire_run(action, args, profile_path, profile, template, env, boot, python
                     fcntl.flock(owner, fcntl.LOCK_EX | fcntl.LOCK_NB)
             run_home_probe(probe, env={**env, **plan["environment"]},
                            timeout=160 if args.recover_imu else 80)
+            if args.supported and not args.home_only:
+                (run / "awaiting-standing.json").unlink(missing_ok=True)
     elif action in ("match", "field"):
         check_manager(run, plan, boot)
     return run, plan
 
 
-def session_field(profile, run):
+def session_field(profile, run, pitch=None):
     geometry = Path(profile["field_config"]).read_bytes()
+    if pitch is not None:
+        if str(ROOT) not in sys.path:
+            sys.path.insert(0, str(ROOT))
+        from final_project.pupper_fc.model import Field
+        config = json.loads(geometry)
+        dimensions = json.loads(pitch)
+        measured = Field(**config["field"]).measured_pitch(dimensions)
+        config["field"].update({key: getattr(measured, key) for key in dimensions})
+        geometry = json.dumps(config, sort_keys=True).encode()
     field_path = run / ("field-" + hashlib.sha256(geometry).hexdigest() + ".json")
     if not field_path.exists():
         write_new(field_path, json.loads(geometry))
@@ -204,7 +218,9 @@ def camera_host(profile):
 
 
 def describe_profile(profile, field):
+    mode = profile.get("imu_recovery", "strict")
     return {"robot_id": profile["robot_id"], "producer_id": profile.get("producer_id", "fc-field"),
+            "imu_recovery": mode, "match_pitch_version": 1, "match_capable": mode in ("strict", "supported_rehome"),
             "source_host": camera_host(profile), "robot_host": ssh_address(2),
             "port": profile.get("camera", {}).get("port", 5005), "field_config": field}
 
@@ -218,7 +234,7 @@ def field_command(args, profile, run, python, epoch, *, continuous):
     if not (host and session and type(revision) is int and revision >= 1):
         raise ValueError("field needs current source host, session and calibration revision")
     cmd = [python, "-B", "-s", str(ROOT / "final_project/behaviors/live_field_attack.py"),
-           "--release", str(ROOT), "--field-config", session_field(profile, run), "--robot-id", robot,
+           "--release", str(ROOT), "--field-config", session_field(profile, run, getattr(args, "pitch", None)), "--robot-id", robot,
            "--producer-id", profile.get("producer_id", "fc-field"), "--epoch", epoch,
            "--source-host", host, "--source-session", session, "--port", str(cam.get("port", 5005)),
            "--calibration-revision", str(revision), "--publish", "--duration", str(args.duration)]
@@ -377,9 +393,11 @@ def main(argv=None):
     p.add_argument("--home-only", action="store_true", help="home on the stand without requesting walker Start")
     p.add_argument("--recover-imu", action="store_true", help="explicitly rehome a supported robot after a verified IMU fault")
     p.add_argument("--runner-only", action="store_true")
+    p.add_argument("--connect", action="store_true", help="Prepare on a cold dashboard connection; prompt before Home")
     p.add_argument("--camera-session")
     p.add_argument("--source-session")
     p.add_argument("--source-host")
+    p.add_argument("--pitch", help="Measured floor length and width for this match")
     p.add_argument("--tracks", help="JSON mapping from camera track names to team IDs")
     p.add_argument("--epoch")
     p.add_argument("--revision", type=int)
@@ -401,9 +419,15 @@ def main(argv=None):
     profile = read(profile_path)
     template = read(profile["platform_template"])
     check_profile(profile, args.robot_id, template)
+    if args.action in ("match", "field") and not args.connect and profile.get("imu_recovery") in ("supported_damping", "supported_standby"):
+        raise ValueError("this enrolled bench profile requires permanent body support and cannot enter a match")
     if args.action == "describe":
         print(json.dumps(describe_profile(profile, read(profile["field_config"]))))
         return 0
+    if args.connect and (args.action != "match" or not args.runner_only):
+        p.error("--connect requires match --runner-only")
+    if args.pitch is not None and args.action != "field":
+        p.error("--pitch belongs to a match field feed")
     if args.action == "field" and not args.epoch:
         p.error("field needs the current match epoch")
     env = environment(template, profile)
@@ -412,7 +436,16 @@ def main(argv=None):
     helper = ROOT / "foundation/hardware/persistent_session.py"
     with profile_path.with_suffix(".lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        run, plan = acquire_run(args.action, args, profile_path, profile, template, env, boot, python, helper)
+        run, plan = acquire_run("prepare" if args.connect else args.action, args, profile_path, profile,
+                                template, env, boot, python, helper)
+        if args.connect:
+            bench = profile.get("imu_recovery") in ("supported_standby", "supported_damping")
+            if bench or not (run / "owned_session.json").exists() or (run / "awaiting-standing.json").exists():
+                print(json.dumps(dict(event="home_required", robot_id=profile["robot_id"], run=str(run),
+                                      imu_recovery=profile.get("imu_recovery", "strict"), match_capable=not bench)),
+                      flush=True)
+                return 0
+            check_manager(run, plan, boot)
     if args.action == "field":
         cmd = field_command(args, profile, run, python, args.epoch, continuous=True)
         cmd.append("--stop-on-eof")
@@ -425,7 +458,8 @@ def main(argv=None):
         return run_match(args, profile, plan, run, python, env)
     print(json.dumps({"run": str(run), "robot_id": profile["robot_id"], "stage": args.action,
                       "state": "session prepared" if args.action == "prepare" else "homed, hardware active; match disarmed",
-                      "match_armed": False, "home_only": args.home_only}))
+                      "match_armed": False, "home_only": args.home_only,
+                      "imu_recovery": profile.get("imu_recovery", "strict")}))
     return 0
 
 
@@ -468,7 +502,9 @@ def supervised_stand(node, rclpy, *, dashboard=False):
     if dashboard:
         print(json.dumps({"event": "stand_prompt"}), flush=True)
     else:
-        print("Keep Pupper supported. Press Enter to enable standing, or use gamepad Options.", file=sys.stderr, flush=True)
+        cue = ("enable bounded joint damping on the stand" if os.environ.get("PUPPER_FC_IMU_RECOVERY") == "supported_damping"
+               else "enable standing")
+        print(f"Keep Pupper supported. Press Enter to {cue}, or use gamepad Options.", file=sys.stderr, flush=True)
     deadline = time.monotonic() + 45
     while time.monotonic() < deadline:
         rclpy.spin_once(node, timeout_sec=.02)
@@ -523,8 +559,8 @@ def recover_board(node, rclpy, run):
     manifest = plan["runtime_manifest"]
     pinned(Path(manifest["path"]), manifest["sha256"])
     native_manifest = read(manifest["path"])
-    if (native_manifest.get("fc_imu_recovery") != "supported_rehome"
-            or plan["environment"].get("PUPPER_FC_IMU_RECOVERY") != "supported_rehome"):
+    selection = plan["environment"].get("PUPPER_FC_IMU_RECOVERY")
+    if selection not in ("supported_rehome", "supported_damping") or native_manifest.get("fc_imu_recovery") != selection:
         raise ValueError("this live native release did not select supported full rehoming")
     imu = plan["components"]["imu"]
     pinned(Path(imu["path"]), imu["sha256"])

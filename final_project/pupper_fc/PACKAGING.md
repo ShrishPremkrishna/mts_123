@@ -6,21 +6,28 @@ The laptop and Pi archives are independently installable. The desktop app runs o
 
 1. Expand `pupper-fc-laptop.zip` into a writable local folder. Keep the extracted `Pupper FC` folder together.
 2. On an Apple Silicon Mac running macOS 15 or later with CPython 3.12 installed, double-click **Pupper FC.command**. The ZIP includes all 19 runtime wheels, pinned by SHA-256. The first launch creates `.venv-fc` and installs directly from the ZIP’s extracted wheels. Later launches reuse that environment. The full source checkout also supports installation from the package index.
-3. For a cold robot choose **Set up** on its team card, click **Prepare**, then **Home** with the robot supported. Confirm **Enable standing** when the Pi reports ready. The full Home flow connects the runner. Use **Connect** directly for an already standing robot. Connect the field camera. You can choose the simulated preview in Camera settings to inspect the field without a robot. A live match needs an enrolled Pi, trusted SSH key, active homed walker and live calibrated camera.
+3. Click **Connect**. A cold Pi prepares itself and opens **Home**. Put the robot on its stand and confirm support. Confirm **Enable standing** when the Pi reports ready. The full Home flow connects the runner. Use **Connect** directly for an already standing robot. Connect the field camera. You can choose the simulated preview in Camera settings to inspect the field without a robot. A live match needs an enrolled Pi, trusted SSH key, active homed walker and live calibrated camera.
 
 For terminal use, run `./pupper-fc --no-open` and open the local URL it prints. Host overrides and the port are listed by `./pupper-fc --help`. Run **Camera settings → Run offline check** or `./pupper-fc --self-test` for a repeatable check of the installed camera pipeline and kickoff on synthetic frames. The source checkout adds `./pupper-fc-check` for quick regressions and `./pupper-fc-check --ros` for the quick suite followed by all three match rosters in ROS Jazzy. The ROS rehearsal requires Docker and the local `ros:jazzy-ros-base` image.
 
 ## Pi
 
-Extract to a permanent, writable directory on each prepared robot. Keep the previous installation and native prefix for rollback. The previously used Pi already has the deadline controller, physical Stop gateway and Hailo runtime. This release requires the updated control-board driver even in strict mode. With the native session shut down, build **only the board package** once on that Pi. From the extracted `pupper-fc-pi` directory, in Bash:
+Extract the Pi archive into its own permanent directory on each prepared robot. Keep the previous extraction and platform. The Pi must already have the FC walking controller, Stop gateway, Hailo runtime and approved model, and trusted SSH from the laptop. With the owning native session shut down, run one installer as the robot operator from the new extraction.
 
 ```sh
-source /home/pi/pupper-fc-releases/fc-platform-3bd1bc9f54db/environment.sh
-(cd native && colcon build --base-paths src --packages-select control_board_hardware_interface --executor sequential --cmake-args -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release)
-python3 foundation/hardware/fc_walk_kick_release.py enroll --robot-id pupper-1 --imu-prefix "$PWD/native/install/control_board_hardware_interface"
+./pupper-fc-install blue
 ```
 
-The first command names the recorded Pi's FC underlay. On a different Pi substitute its installed FC environment and use `pupper-2` for Red. If this exact driver is already installed, enroll with its existing prefix and skip the build. Enrollment checks the driver's per-report IMU contract, saves its SHA-256 and verifies the local controller, Stop gateway and detector selections. Strict mode is the default. Opt-in supported recovery requires `--imu-recovery supported_rehome` and its supervised qualification. The new overlay must stay at its enrolled path. Enrollment leaves the motors inactive.
+Use `red` for the second robot. With multiple installed platform environments, pass the intended `environment.sh` as the second argument. The installer builds only the changed control-board package, enrolls this release, publishes its team over Avahi, then uses sudo for the next-boot appliance setting. It leaves the robot powered as it is. At the next boot the Pi comes up headless with networking and FC discovery. Motors first activate at supported Home.
+
+Check the boot selection or restore the previous boot target from the same extracted directory. Restoration takes effect at the next normal reboot.
+
+```sh
+python3 foundation/hardware/fc_appliance.py status
+sudo python3 foundation/hardware/fc_appliance.py normal
+```
+
+The installer chooses strict balance handling for floor play. The separate supported damping profile is a bench experiment. Keep the robot externally supported for its entire duration. Enrollment and motor behavior are described in `foundation/hardware/FC_OPERATOR.md`.
 
 For the daily three actions, Stop and recovery, see `foundation/hardware/FC_OPERATOR.md` in the tarball. To revert after supporting the robot and shutting down the owning session, from the extracted directory:
 

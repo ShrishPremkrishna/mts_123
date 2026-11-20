@@ -6,8 +6,7 @@ This repository provides a ros2_control hardware interface for the Pupper v3 con
 
 The default FC profile uses the original hard fault behavior. The FC release preparer reads
 `PUPPER_FC_IMU_RECOVERY` and records the selected mode and robot-description SHA-256 in its
-runtime manifest. `strict` keeps the pinned description. `supported_standby` and
-`supported_rehome` each produce a separate derived description for this driver.
+runtime manifest. `strict` keeps the pinned description. Each supported profile produces a separate derived description.
 Preparing a release or running the offline tests does not connect to hardware.
 
 - `supported_standby` is for a robot physically held on its stand for the entire session.
@@ -25,6 +24,16 @@ Preparing a release or running the offline tests does not connect to hardware.
   Stop must remain effective and the prior match and kick ownership must be cleared before the
   supported activation. If the manager or board cannot be recovered, use the ordinary cold home.
 
+### Bench damping through a short IMU outage
+
+`supported_damping` requires a stand that supports the torso for the entire session. Supported mechanical Home runs first, then the board sends disabled packets until a deliberate cue through the physical Stop gateway. A dedicated controller uses the existing gateway owner name `gemini_walk` and claims exactly the twelve effort handles. It reads no IMU, runs no policy and writes no actuator setpoint. The board rejects the sixty-handle gait and kick claims. The first enabled packet has zero gains. Every subsequent bench packet requests only a small derivative gain, zero velocity, zero stiffness and zero feed-forward. The motor drive damps its own velocity. A frozen Pi-side encoder sample cannot manufacture a persistent feed-forward torque. The legs can still move under gravity and the torso needs support.
+
+At the 100 ms freshness threshold the driver marks balance unknown. An ordinary expiry can be bridged only for a component the driver previously saw fresh. Fresh, distinct quaternion and gyro pairs must advance together at least three times over at least 20 ms, before the original three-second deadline. Only the telemetry becomes available again. The same bench motor mode, owner and calibrated coordinates persist. A missing or malformed report, a newly queued ancient report, a recent loop interval over 50 ms, invalid joint position or velocity, or either invalid SPI exchange ends the powered experiment. The deadline is measured from the oldest expired report including its known batch age. A new healthy component on its own cannot extend it. A terminal fault sends a neutral disable packet, revokes control and requires supported rehome. During loss a Stop release sends neutral inside the switch callback, independent of an IMU update. A healthy Stop also sends neutral and requires a fresh cue to enable damping again.
+
+The selected joint configuration permits 3 N·m feed-forward and 30 rad/s. The candidate chooses a 0.50 N·m **design envelope** for the drive-local term and protocol rounding. It reduces the gain for lower enrolled effort or damping limits. For the pinned twelve joints the requested gain is 0.00684 N·m·s/rad. The published reference board packs this as approximately 0.00611. This is a light damper. Host and reference board code give no measurement of actual motor current. The software timer runs in the Pi control loop. A stopped process, frozen bus or unpowered board cannot guarantee physical delivery of Stop or the three-second packet. A stand-side acceptance test must check drive response and the independent means of removing power.
+
+**Why the floor still needs a different recovery.** The walker uses gravity direction and body angular velocity together with joints. After 100 ms it can already be using observations from approximately ten missed reports. A second or more can cover entire steps. Stored joint angles alone do not identify body orientation, floor contact or heading. In the published STM32 image, the returned flags are both zero and the encoder cache changes on successful CAN reads. A checksum-valid SPI reply can repeat old CAN state. Its return message has no board generation, per-actuator generation, sample sequence or measured current. A floor mode that kept calibrated coordinates across faults would need independent evidence of continuity plus a fresh full controller activation, fresh inputs and a new match/drive cue. The existing `supported_rehome` mode keeps the manager and remeasures the coordinates. The packed robot's installed board image and physical response remain unverified. [Published SPIneV1 image and flashing guide](https://pupper-v3-documentation.readthedocs.io/en/latest/guide/flashing_control_board.html) · [Trace, simulation and source identities](../../../../foundation/results/fc-supported-damping-20261120.json)
+
 The native reader publishes a newly usable quaternion/gyro pair before its next I²C probe.
 Each component retains its own sequence, host receipt time and known batch age. A real gap
 still trips the 100 ms watchdog. The compiled reader identifies this behavior with
@@ -33,7 +42,7 @@ still trips the 100 ms watchdog. The compiled reader identifies this behavior wi
 The current SPI firmware supplies no board boot counter or encoder generation. An unchanged
 joint reading and a live Pi cannot establish that the motor coordinate survived a reset.
 Field use still needs supported board-reset and interrupted-controller tests, followed by
-supervised floor qualification. Both candidates default off. A recovery-enabled release must pin the rebuilt target driver by its
+supervised floor qualification. The candidates default off. A recovery-enabled release must pin the rebuilt target driver by its
 own SHA-256 and verify it is the file mapped by the manager. Its enrollment banner contains
 `FC_IMU_RECOVERY_CONTRACT_V1_SUPPORTED_REHOME` and the selected profile.
 

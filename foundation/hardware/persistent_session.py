@@ -92,13 +92,13 @@ def prepare(args):
             len(set(topics)) != len(topics)):
         raise ValueError('Telemetry JSON must list distinct absolute topics')
     if os.environ.get('PUPPER_SESSION_MOTION_MODE') == 'fc_walk_kick':
-        from fc_walk_kick_release import inspect_native, validate_selection
+        from fc_walk_kick_release import check_imu_recovery, inspect_native, validate_selection
         validate_selection(root, components, app, recording=os.environ.get("PUPPER_FC_RECORDING","full"))
         if gateway := os.environ.get('PUPPER_FC_GATEWAY'):
             components['gateway'] = pinned(Path(gateway), os.environ['PUPPER_FC_GATEWAY_SHA256'])
-        if os.environ.get('PUPPER_FC_IMU_RECOVERY', 'strict') != 'strict':
-            if b'FC_IMU_RECOVERY_CONTRACT_V1_SUPPORTED_REHOME' not in args.imu_library.read_bytes():
-                raise ValueError('Selected target board driver lacks the explicit FC IMU recovery contract')
+        recovery = os.environ.get("PUPPER_FC_IMU_RECOVERY", "strict")
+        if recovery != "strict":
+            check_imu_recovery(args.imu_library.read_bytes(), recovery)
         if model := os.environ.get('PUPPER_FC_DETECTOR_MODEL'):
             # Refuse a mismatched HEF at preparation, before any motor activity.
             sys.path.insert(0, str(root))

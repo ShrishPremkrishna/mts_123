@@ -8,19 +8,40 @@ TAG_DICT = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_APRILTAG_36h11)
 
 
 class TagDetector:
-    def __init__(self):
+    def __init__(self, expected_floor_ids=()):
+        self.expected = set(expected_floor_ids)
         p = cv2.aruco.DetectorParameters()
         p.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
         p.adaptiveThreshWinSizeMax = 45      # copes with uneven arena lighting
         p.minMarkerPerimeterRate = 0.01      # tags are small in a whole-field view
+        self.duplicates = set()
         self._det = cv2.aruco.ArucoDetector(TAG_DICT, p)
 
     def detect(self, gray: np.ndarray) -> dict[int, np.ndarray]:
         """Returns {tag_id: corners (4,2)} in order TL, TR, BR, BL of the printed tag."""
-        corners, ids, _ = self._det.detectMarkers(gray)
-        if ids is None:
-            return {}
-        return {int(i): c.reshape(4, 2) for i, c in zip(ids.ravel(), corners)}
+        def decode(image):
+            corners, ids, _ = self._det.detectMarkers(image)
+            if ids is None:
+                return {}, set()
+            labels, counts = np.unique(ids, return_counts=True)
+            repeats = set(map(int, labels[counts > 1]))
+            return {int(i): c.reshape(4, 2) for i, c in zip(ids.ravel(), corners)}, repeats
+
+        tags, self.duplicates = decode(gray)
+        # Annotated mounted-camera captures resolve different small tags at the
+        # two scales. Keep the native corners when both decodes agree.
+        if self.expected - tags.keys() and gray.shape[1] >= 960:
+            small = cv2.resize(gray, None, fx=.7, fy=.7, interpolation=cv2.INTER_AREA)
+            extra, repeats = decode(small)
+            self.duplicates.update(repeats)
+            scale = np.array([gray.shape[1] / small.shape[1], gray.shape[0] / small.shape[0]])
+            for tid, corners in extra.items():
+                corners = ((corners + .5) * scale - .5).astype(np.float32)
+                if tid in tags and np.linalg.norm(tags[tid] - corners, axis=1).max() > 5:
+                    self.duplicates.add(tid)
+                else:
+                    tags.setdefault(tid, corners)
+        return {tid: corners for tid, corners in tags.items() if tid not in self.duplicates}
 
 
 class BallDetector:

@@ -203,7 +203,8 @@ class BridgeCore:
             raise ValueError("bridge Stop is latched; create a new explicit session")
         now = self.clock()
         if command == "arm":
-            event = {"event": "arm", "epoch": message.get("epoch"), "clock": self.clock_name, "now": now}
+            event = {"event": "arm", "epoch": message.get("epoch"), "clock": self.clock_name, "now": now,
+                     "pitch": message.get("pitch")}
         elif command == "resume":
             event = {"event": "resume", "robot_id": self.robot_id, "frame_seq": message.get("frame_seq"),
                      "epoch": self.executor.epoch, "clock": self.clock_name, "now": now}

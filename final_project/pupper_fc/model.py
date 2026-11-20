@@ -6,7 +6,8 @@ body frame: vx forward, vy left, wz counter-clockwise radians/second. Times are
 seconds on one monotonic simulation clock. Real adapters must reconcile clocks.
 Defaults are sandbox assumptions, not measured Pupper operating limits.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+import math
 
 
 @dataclass(frozen=True)
@@ -18,6 +19,19 @@ class Field:
     robot_radius: float = 0.16
     ball_radius: float = 0.06
     bumper_offset: float = 0.19
+
+
+    def measured_pitch(self, pitch):
+        """Apply only the measured floor rectangle. Hardware dimensions stay enrolled. A measured goal mouth may be included."""
+        if not isinstance(pitch, dict) or set(pitch) not in ({"length", "width"}, {"length", "width", "goal_width"}):
+            raise ValueError("Pitch requires a length and width in metres")
+        if any(type(v) not in (int, float) or not math.isfinite(v) for v in pitch.values()):
+            raise ValueError("Pitch dimensions must be finite metres")
+        clearance = max(self.robot_radius, self.ball_radius, self.bumper_offset) * 2
+        mouth = pitch.get("goal_width", self.goal_width)
+        if min(pitch["length"], pitch["width"]) <= clearance or not 2*self.ball_radius < mouth <= pitch["width"]:
+            raise ValueError("Measured pitch is too small for the enrolled robot or goal")
+        return replace(self, **pitch)
 
 
 @dataclass(frozen=True)

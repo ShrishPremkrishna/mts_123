@@ -45,7 +45,7 @@ def selected_package(env, package, relative):
 
 
 def platform(args, runs):
-    from fc_walk_kick_release import file_digest, inspect_native
+    from fc_walk_kick_release import check_imu_recovery, file_digest, inspect_native
     template_path = args.platform_template
     if template_path is None and not args.platform_env:
         for path in sorted(runs.glob("*/selected-session.json"), key=lambda p: p.stat().st_mtime_ns, reverse=True):
@@ -101,8 +101,9 @@ def platform(args, runs):
     if b"FC_IMU_PUBLISH_PER_REPORT_V1" not in driver:
         raise ValueError("build the bundled control_board_hardware_interface and select its install prefix "
                          "with --imu-prefix; this driver lacks per-report IMU publication")
-    if args.imu_recovery != "strict" and b"FC_IMU_RECOVERY_CONTRACT_V1_SUPPORTED_REHOME" not in driver:
-        raise ValueError("requested IMU recovery is absent from the selected target driver")
+    check_imu_recovery(driver, args.imu_recovery)
+    if args.imu_recovery == "supported_damping":
+        selected_package(env, "control_board_hardware_interface", "share/control_board_hardware_interface/supported_damping_lease.xml")
     deps = ("import cv2,numpy,rclpy,hailo_platform; from joy_utils.srv import StartMotion; "
             "from controller_manager_msgs.srv import ListControllers, ListHardwareComponents, SetHardwareComponentState")
     subprocess.run([python,"-B","-s","-c",deps],env={**os.environ,**env},check=True,timeout=20)

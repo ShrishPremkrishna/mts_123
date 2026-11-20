@@ -402,7 +402,7 @@ def test_fc_walk_kick_profile_owns_one_walker_and_a_model_bound_guard(profile, m
     assert description_node.kwargs["parameters"][0]["robot_description"] == Path(manifest["robot_description"]).read_text()
 
 
-@pytest.mark.parametrize("mode", ["strict", "supported_standby", "supported_rehome"])
+@pytest.mark.parametrize("mode", ["strict", "supported_standby", "supported_rehome", "supported_damping"])
 def test_native_imu_profile_rehearsal(profile, monkeypatch, mode):
     import xml.etree.ElementTree as ET
 
@@ -420,6 +420,10 @@ def test_native_imu_profile_rehearsal(profile, monkeypatch, mode):
     manager = next(e for e in description.args[0] if getattr(e, "kwargs", {}).get("executable") == "ros2_control_node")
     xml = manager.kwargs["parameters"][1]["robot_description"]
     assert xml == actual.read_text()
+    config = yaml.safe_load(Path(manifest["configuration"]).read_text())
+    owner = config["controller_manager"]["ros__parameters"]["gemini_walk"]["type"]
+    assert owner == ("control_board_hardware_interface/SupportedDampingLease" if mode == "supported_damping"
+                     else "neural_controller/NeuralController")
     field = ET.fromstring(xml).find("./ros2_control/hardware/param[@name='fc_imu_recovery']")
     if mode == "strict":
         assert field is None

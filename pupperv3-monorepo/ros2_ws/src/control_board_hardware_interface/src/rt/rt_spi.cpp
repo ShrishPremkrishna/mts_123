@@ -229,7 +229,7 @@ int spi_open() {
   return rv;
 }
 
-int spi_driver_iterations = 0;
+uint32_t spi_driver_iterations = 0;
 
 /*!
  * convert spi command to spine_cmd_t
@@ -311,7 +311,7 @@ void spine_to_spi(spi_data_t *data, spine_data_t *spine_data, int leg_0) {
 void spi_send_receive(spi_command_t *command, spi_data_t *data) {
   // update driver status flag
   spi_driver_iterations++;
-  data->spi_driver_status = spi_driver_iterations << 16;
+  data->spi_driver_status = static_cast<int32_t>(static_cast<uint32_t>(spi_driver_iterations) << 16);
 
   // transmit and receive buffers
   uint16_t tx_buf[K_WORDS_PER_MESSAGE];
@@ -361,7 +361,7 @@ void spi_send_receive(spi_command_t *command, spi_data_t *data) {
 
     // do spi communication
     int rv = ioctl(spi_board == 0 ? spi_1_fd : spi_2_fd, SPI_IOC_MESSAGE(1), &spi_message);
-    (void)rv;
+
 
     // flip bytes the other way
     for (int i = 0; i < 30; i++) {
@@ -375,6 +375,16 @@ void spi_send_receive(spi_command_t *command, spi_data_t *data) {
     // }
     // printf("\n");
 
+    // An all-zero buffer also passes XOR when an unplugged bus returns zeros.
+    // This is a transport receipt only; the firmware supplies no motor sample counter.
+    const auto *reply = reinterpret_cast<const unsigned char *>(&g_spine_data);
+    bool nonempty = false;
+    for (size_t i = 0; i < sizeof(g_spine_data); ++i) nonempty |= reply[i] != 0;
+    if (rv == static_cast<int>(spi_message[0].len) && nonempty &&
+        xor_checksum(reinterpret_cast<uint32_t *>(&g_spine_data), 14) ==
+            static_cast<uint32_t>(g_spine_data.checksum)) {
+      data->spi_driver_status |= 1 << spi_board;
+    }
     // copy back to data
     spine_to_spi(data, &g_spine_data, spi_board * 2);
   }

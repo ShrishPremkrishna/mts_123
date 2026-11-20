@@ -1,5 +1,10 @@
 # Pupper FC operator commands
 
+On an enrolled Pi, **Connect** selects the release, prepares a cold session and opens its Home panel. Support the robot and select **Home**. A connected physical Stop gamepad and a fresh standing cue are required for soccer. A warm connection skips Home when the session is healthy. End match keeps the robot standing. The next Start match creates a fresh kickoff on the existing connection.
+
+The Pi archive supplies `./pupper-fc-install blue` (or `red`) for initial appliance installation on a prepared FC platform, and `sudo python3 foundation/hardware/fc_appliance.py normal` to restore its previous boot target on the next boot.
+
+
 Open **Pupper FC.command** on the laptop. For each cold, enrolled robot, open its team setup and click **Prepare**. Support that robot on its stand, confirm support and click **Home**. When the Pi reports that homing is complete, **Enable standing** sends a fresh standing cue through the same terminal used by Home. Gamepad Options also works. The dashboard connects the match runner after the Pi confirms an active walker. A prepared, standing robot can use **Connect** directly.
 
 The terminal equivalents below use `mts` as the robot’s SSH host.
@@ -70,3 +75,9 @@ ssh -t mts python3 /home/pi/pupper-fc/bin/fc_session.py home --supported --recov
 ```
 
 The command checks the mapped board library, new fault in this run, 60 unavailable motor handles, inactive leg owners and Stop state, then requests the board's supported full homing transition. After activation it verifies all command handles remain unclaimed and restores only the selected read-only state broadcasters if needed. Standing still uses a fresh operator cue. A timeout leaves a consumed recovery marker so a retry cannot repeat a motor transition with an unknown result. This route has resource-manager/fake-device and software evidence. The Pi controller manager and physical homing remain unqualified until a supervised check.
+
+## Supported bench damping
+
+For a supervised bench experiment, rebuild the bundled board package against the Pi's installed ROS environment and use the ordinary enrollment command with `--imu-prefix "$PWD/native/install/control_board_hardware_interface" --imu-recovery supported_damping`. Enrollment and Prepare are motor-inactive. Keep the torso supported and the legs clear for the entire trial. `home --supported --home-only` homes and leaves the bench controller inactive. A connected Stop gamepad and a fresh supported cue through `home --supported` enable light joint damping. The legs can swing. The dashboard and Pi report `match_capable=false` for this profile.
+
+A short IMU loss keeps the drives in the same damping mode. Three fresh pairs restore balance telemetry. Three seconds without qualification, invalid joint feedback or a failed SPI exchange disables all drives on the next controller read. R3 releases the damping owner and submits neutral independently of fresh balance. A terminal fault needs a supported full home. Run `home --supported --recover-imu --home-only` in the supervised terminal after a verified fault and latched Stop. Before field use, shut down the bench session, restore the strict enrollment and perform supported Home. These are candidate procedures for the first hardware qualification. [Native behavior and test evidence](../../pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/README.md)

@@ -1,0 +1,201 @@
+{
+  "date": "2026-11-20",
+  "scope": "Archived measurements on Pupper and offline tests of the new headless path. No new Pi, Hailo, motor or physical pink-ball run.",
+  "course": {
+    "handout": "https://cs123-stanford.readthedocs.io/en/latest/schedule/labs/fall-26/lab-5.html",
+    "source": "https://github.com/cs123-stanford/follow_me_pupper/tree/0bb12a114ee7c2e7c033413c2b3d28e0fd6435f8",
+    "compared_byte_for_byte": {
+      "yolo_seg.py": "8290bd34a4f0a6406437d65b6085460b9c8289b0f731bf4be522c5fee9df9b87",
+      "fisheye_converter.py": "703eed7ee0c79974536cb6495780f2ed1ad50add2ec58daffa7e66f5be866385",
+      "camera_params.yaml": "a6ab2537a1751571139c9a596fe422a3acfc7472fd3ec50c74442359ec9ff5a7",
+      "coco.txt": "bd17f1ee35d5f3c862a4894605855abbb9dda4b0621fdb0ac4c2c8c7bb7e730a"
+    },
+    "hef": "3e91fd4c8be77a560169185bd8cba7e6a6b9ab8be14ea118d5e9d054df51ca36",
+    "accelerator": "8L HEF run on Hailo8 in field log. Published SDK benchmark rates for newer HEFs/hosts do not measure this configuration."
+  },
+  "historical_field": {
+    "run": "fc-final-74798bf0-0051",
+    "release": "fc-walk-kick-3bd1bc9f54db",
+    "archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-20/final-offense-74798bf0/fc-final-74798bf0-0051",
+    "gui": {
+      "file": "vision-detector.log",
+      "sha256": "4db6b9f5a779a07eb6c8c2946baccedac79614b15c3cd0009f71316be06209b2",
+      "observation": "Viser started, advertised legacy /detections, one viewer connected and disconnected; Hailo8L-on-Hailo8 warning."
+    },
+    "mcap": {
+      "n": 2616,
+      "capture_to_recorder_receipt_ms": {
+        "median": 93.19,
+        "p95": 239.77,
+        "max": 525.68
+      },
+      "already_older_than_350_ms": 39,
+      "longest_consecutive_over_350": 6,
+      "recorder_duration_s": 275.302,
+      "distinct_sequences": 2616,
+      "first_last_seq": [
+        0,
+        2615
+      ],
+      "all_valid_healthy": true,
+      "unique_detector_instances": 1,
+      "source_capture_spacing_ms": {
+        "median": 100.06,
+        "p95": 169.02,
+        "max": 309.13
+      },
+      "recorder_receipt_spacing_ms": {
+        "median": 99.97,
+        "p95": 152.55,
+        "max": 365.7
+      },
+      "frames_by_class": {
+        "4": 519,
+        "1": 6,
+        "2": 455,
+        "56": 1,
+        "0": 250
+      },
+      "nearest_thermal_sample_within_5_1s": {
+        "bit_2_clear": {
+          "n": 2319,
+          "capture_to_recorder_receipt_ms": {
+            "median": 90.07,
+            "p95": 236.19,
+            "max": 525.68
+          },
+          "already_older_than_350_ms": 32,
+          "longest_consecutive_over_350": 6
+        },
+        "active_throttle_bit_2": {
+          "n": 273,
+          "capture_to_recorder_receipt_ms": {
+            "median": 116.23,
+            "p95": 178.25,
+            "max": 263.19
+          },
+          "already_older_than_350_ms": 0,
+          "longest_consecutive_over_350": 0
+        },
+        "no_nearby_thermal_sample": {
+          "n": 24,
+          "capture_to_recorder_receipt_ms": {
+            "median": 270.78,
+            "p95": 371.25,
+            "max": 387.14
+          },
+          "already_older_than_350_ms": 7,
+          "longest_consecutive_over_350": 3
+        }
+      },
+      "thermal_samples": 28,
+      "fan_rpm_range": [
+        9331,
+        9686
+      ],
+      "thermal_flags": {
+        "0x80000": 11,
+        "0x80008": 5,
+        "0xe0008": 9,
+        "0xe0006": 3
+      },
+      "cpu_celsius_max": 84.8,
+      "mcap_sha256": "ac2ab05f59605f1464ae994ccda2cd45cee9c46910038b876b8fadfd26dcaa75",
+      "thermal_sha256": "1f5dddfebd32994f77bac0b491ff17416c0ac80ec73cd06461d3f7948b9f98f7"
+    },
+    "thermal_method": "Nearest firmware sample within 5.1 seconds of ROS bag log time, by UTC on that same Pi. Counted true live-throttle bit 2 separately from historical bits. This sparse association cannot measure sub-sample throttling, camera/Hailo temperature, or causality.",
+    "late_source_method": "Subtracted original integer captured_at_ros_ns from MCAP log_time for each /fc/obstacle_detections message. This includes scheduling and bag/middleware delay. Individual JPEG or Hailo timings were not recorded.",
+    "guard_window": "57.196 s from first to last monotonic at in attack-final-west.jsonl; 276 status samples, 168 ready, 46 stale, 62 rebuilding the three-frame clear streak (32 on first, 30 on second). Zero nonzero guard outputs or kick receipts. See field-offense-final-20261120.json.",
+    "camera_ground_truth": "No raw or compressed camera images in this bag. Zero frames contained sports-ball class 32; visibility and field recall unknown.",
+    "other_physical_evidence": "In live-camera-perception-reviewed.json, an earlier six-frame camera-only test saw two people in all six with mean SDK call time 23.72 ms (22.41\u201326.22). It used different conditions, produced other tensors and included deliberate pauses. It was not a sustained FPS or full-field latency test."
+  },
+  "replay": {
+    "frames": 490,
+    "jpeg_sequence_sha256": "b76ae17798492080971cc52bb06993a080d5822a2f0ecb5a1c6d48d5e29bedf0",
+    "results": {
+      "negative": {
+        "searching": 488,
+        "tracked": 1,
+        "ambiguous": 1
+      },
+      "composited": {
+        "searching": 71,
+        "correct": 418,
+        "ambiguous": 1
+      },
+      "mocked_confirmation": {
+        "correct": 490
+      }
+    },
+    "same_projected_pixels": 490,
+    "tracked_center_error_px": {
+      "p50": 1.118,
+      "p95": 1.118,
+      "max": 1.803
+    },
+    "longest_consecutive_composite_misses": 31,
+    "cpu_color_stage_ms": {
+      "p50": 1.727,
+      "p95": 2.424,
+      "max": 4.356
+    },
+    "cpu_jpeg_and_projection_ms": {
+      "p50": 3.726,
+      "p95": 4.318,
+      "max": 9.745
+    },
+    "hardware": "arm64",
+    "opencv": "5.1.0",
+    "python": "3.12.8",
+    "host": "Apple M4 Pro",
+    "source": "front-camera-20261117-a/telemetry/telemetry_0.mcap; actual 1400x1050 JPEGs from seconds 64\u2013113 of the archived demonstration timeline",
+    "source_poses": "People approaching and crossing, plus a narrow tower. This window was used in tracker development.",
+    "optical_fixture": {
+      "file": "2026-11-20/field-74798bf0/setup-preview.png",
+      "sha256": "39132abc4a0b1ecf58caa20ec50581efd6ee116ebb1331713aa5730acf621e92",
+      "crop_xyxy": [
+        838,
+        506,
+        887,
+        555
+      ],
+      "method": "49x49 annotated overhead optical patch including a small displayed line. Resize to a circular patch of radius 6, 12, 24 or 42 pixels and insert on a moving trajectory after onboard lens projection. Exposure, optical blur and physical occlusion were not reproduced."
+    },
+    "comparison": "No model outputs were supplied in negative or colour-only runs. Confirmed-mode input had an injected correct semantic box in every positive frame, measuring fusion wiring only.",
+    "miss_definition": "Correct requires a tracked center within the inserted radius. Searching and ambiguous have zero published position.",
+    "timing": "Warm wall time on host, excluding network, ROS, Hailo, hardware capture and first map allocation. Median/p95/max computed across 489 frames. Same pixels compares previous RGB-before-remap and new RGB-after-remap, all channels.",
+    "independent_nonpink": "Eight previously archived onboard equirectangular photos of the red/white/blue beach ball across two poses from the 2026-11-16 stock-shot ball-frames produced zero confirmed tracks; sparse source stamps exceed the two-frame acquisition window. Five frames contained an initial colour-only candidate."
+  },
+  "software_checks": {
+    "focused_tests": 114,
+    "command": ".venv-fc/bin/python -m pytest -q foundation/tests/test_onboard_ball.py foundation/tests/test_detection_capture_stamp.py foundation/tests/test_detection_cadence.py final_project/behaviors/test_combined_fc_runner.py final_project/behaviors/test_operator_drive.py foundation/hardware/test_fc_walk_kick_release.py",
+    "ros": "Network-isolated ARM64 ros:jazzy-ros-base, real camera_ros-compatible best-effort compressed image publication, actual ROS subscription and headless CLI, fixed lens map, OpenCV 4.10.0.84, mock Hailo infer() supplying person and sports ball, synthetic JPEG input. No camera_ros driver, sensor, device, controllers or Pi.",
+    "ros_results": [
+      "pink and confirmed both reported pink+yolo on the pink object",
+      "confirmed reported searching on a black image despite unchanged semantic boxes",
+      "off confirmed while both person and ball remained in the obstacle payload",
+      "every matched pair carried identical source capture and sequence",
+      "silence produced stale without coordinates",
+      "SIGINT closed ROS cleanly with a zero process exit"
+    ]
+  },
+  "new_behavior": {
+    "modes": [
+      "pink",
+      "confirmed",
+      "off"
+    ],
+    "inputs": "one compressed-camera subscription and one pinned Hailo inference per selected frame",
+    "output": "/fc/onboard_ball (display only), before expiry; guarded /fc/obstacle_detections first and unchanged",
+    "mode_inputs": "per-robot ticketed SSH runner command onboard_ball_mode -> /fc/onboard_ball_mode; actual mode comes from measured detector telemetry",
+    "bearing": "Nominal camera-right longitude from endpoint rays of the fixed 220-degree projection with actual image width. Camera-body yaw and physical uncertainty unmeasured.",
+    "instrumentation": "Full recording logs receipt, decode, warp, Hailo SDK duration, host inference completion, obstacle publish, optional ball completion and overwrite count to detector-timings.jsonl."
+  },
+  "sources": {
+    "hailo_reference": "https://github.com/hailo-ai/hailo-apps/blob/main/hailo_apps/python/standalone_apps/instance_segmentation/README.md",
+    "ros_sensor_qos": "https://github.com/ros2/ros2_documentation/blob/jazzy/source/Concepts/Intermediate/About-Quality-of-Service-Settings.rst",
+    "temperature": "https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#frequency-management-and-thermal-control",
+    "throttle_bits": "https://www.raspberrypi.com/documentation/computers/os.html#get_throttled"
+  },
+  "next_measurement": "Pi-only camera qualification under field lights with actual ball, distractors and occlusion through a cold-to-warm run. Sample physics-free ROS stamps, timings, temperature and firmware flags together. Image evidence can qualify detection independent from motion."
+}

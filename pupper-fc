@@ -28,6 +28,9 @@ TESTS = [
     "final_project/behaviors/test_operator_drive.py",
     "foundation/hardware/test_fc_session.py",
     "final_project/overhead_perception/tests/test_appearance.py",
+    "final_project/overhead_perception/tests/test_team_colors.py",
+    "final_project/overhead_perception/tests/test_field_setup.py",
+    "foundation/tests/test_onboard_ball.py",
 ]
 
 
