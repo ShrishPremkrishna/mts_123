@@ -14,6 +14,8 @@ from .filters import CVFilter2D, YawFilter, wrap
 from .relative import relative_geometry
 from .tagmeasure import survey_tags, tag_corners
 
+CALIBRATION_DRIFT_LIMIT_PX = 8.0
+
 
 def _quad_center(c: np.ndarray) -> np.ndarray:
     """Intersection of the diagonals: the true centre of a square under perspective."""
@@ -43,6 +45,10 @@ class Perception:
         self.floor_layout: dict = {}        # floor tag id -> field xy, for the bumped-camera check
         self.survey: dict | None = None     # set by calibrate_from_survey: reference tag + tag poses
         self.calib_fail: str | None = None  # why the last calibration attempt failed, in plain words
+        self.calibration_valid = False
+        self.calibration_revision = 0
+        self.calibration_reason: str | None = None
+        self.calibration_checked_at: float | None = None
         self._config_field = (cfg["field"]["length"], cfg["field"]["width"])  # as written in the config
 
         self.tag_det = TagDetector()
@@ -143,8 +149,10 @@ class Perception:
         if cam is None:
             self.calib_fail = "the corner tags do not fit a camera above the floor"
             return False
+        if not self._use_camera(cam, "corners", layout):
+            return False
         set_field_size(self.cfg, length, width)  # the field is now what the tags say it is
-        self._use_camera(cam, "corners", layout)
+        self._set_field_roi()
         self.survey = {"ref": roles["west_south"], "tags": field_poses,
                        "field": {"length": length, "width": width, "off_rectangle": off_rectangle}}
         return True
@@ -186,24 +194,53 @@ class Perception:
     def _use_camera(self, cam: CameraModel | None, mode: str, floor_layout: dict) -> bool:
         if cam is None:
             return False
+        if not math.isfinite(cam.reproj_err_px) or cam.reproj_err_px > CALIBRATION_DRIFT_LIMIT_PX:
+            self.calib_fail = "camera calibration does not fit the reference points within 8 pixels"
+            self.invalidate_calibration("calibration_fit_failed")
+            return False
         if mode != "corners":  # every other mode uses the field size written in the config
             set_field_size(self.cfg, *self._config_field)
         self.cam = cam
         self.calib_mode, self.floor_layout = mode, floor_layout
         self.calib_err_px = cam.reproj_err_px
+        self.calibration_valid = True
+        self.calibration_revision += 1
+        self.calibration_reason = None
+        self.calibration_checked_at = None
+        self.calib_fail = None
 
-        # Only look for the ball on (and just around) the field.
-        corners = np.array(self.cfg["field"]["corners"], float)
-        grown = corners + 0.25 * np.sign(corners)
-        poly = cam.project(np.hstack([grown, np.zeros((4, 1))])).astype(np.int32)
-        self.roi_mask = np.zeros((self.size[1], self.size[0]), np.uint8)
-        cv2.fillConvexPoly(self.roi_mask, poly, 255)
+        # A new transform must not inherit positions/velocities from the previous one.
+        tr = self.cfg["tracking"]
+        self.ball_f = CVFilter2D(tr["ball_accel_sigma"], tr["meas_sigma"])
+        self.robot_f = {
+            name: (CVFilter2D(tr["robot_accel_sigma"], tr["meas_sigma"]), YawFilter())
+            for name in self.cfg["robots"]
+        }
+        self._set_field_roi()
 
         r = self.cfg["ball"]["radius"]
         right = cam.R[0]  # camera x axis expressed in the field frame
         px = cam.project([[0, 0, r], list(right * r + np.array([0, 0, r]))])
         self.ball_radius_px = float(np.linalg.norm(px[1] - px[0]))
         return True
+
+    def invalidate_calibration(self, reason: str) -> None:
+        """Latch a hold while retaining the frozen transform for inspection.
+
+        A later good frame does not clear this. Only an explicit successful
+        calibration selects a new revision and clears the latch. Capture owners
+        must call this on reconnect/source changes, even if floor tags are hidden.
+        """
+        self.calibration_valid = False
+        self.calibration_reason = reason
+
+    def _set_field_roi(self) -> None:
+        # Only look for the ball on (and just around) the field.
+        corners = np.array(self.cfg["field"]["corners"], float)
+        grown = corners + 0.25 * np.sign(corners)
+        poly = self.cam.project(np.hstack([grown, np.zeros((4, 1))])).astype(np.int32)
+        self.roi_mask = np.zeros((self.size[1], self.size[0]), np.uint8)
+        cv2.fillConvexPoly(self.roi_mask, poly, 255)
 
     def _ball_radius_at(self, u: float, v: float, r: float | None = None) -> float | None:
         """How many pixels a ball of radius r (default: the configured one) should span
@@ -238,15 +275,24 @@ class Perception:
         """t_capture: when the photons hit the sensor. t_now: when this state will be used.
 
         Reported positions are extrapolated to t_now; age_s says how old the
-        newest real measurement behind each one is.
+        newest real measurement behind each one is. Control consumers must use
+        calibration_valid and measured_this_frame; visible includes display coasting.
         """
         t_now = t_capture if t_now is None else t_now
         cfg = self.cfg
         self.seq += 1
+        frame_size_changed = (frame.shape[1], frame.shape[0]) != self.size
+        if frame_size_changed:
+            self.invalidate_calibration("frame_size_changed")
         state = {
-            "seq": self.seq, "stamp": t_now, "frame_age_s": t_now - t_capture,
-            "calibrated": self.cam is not None, "calib_err_px": self.calib_err_px,
-            "ball": {"visible": False}, "robots": {n: {"visible": False} for n in cfg["robots"]},
+            "seq": self.seq, "stamp": t_now, "captured_at": t_capture, "frame_age_s": t_now - t_capture,
+            "calibrated": self.calibration_valid, "calib_err_px": self.calib_err_px,
+            "calibration_valid": self.calibration_valid, "calibration_revision": self.calibration_revision,
+            "calibration_status": "uncalibrated" if self.cam is None else "invalidated",
+            "calibration_reason": self.calibration_reason, "calibration_checked_at": self.calibration_checked_at,
+            "ball": {"visible": False, "measured_this_frame": False, "measured_at": None},
+            "robots": {n: {"visible": False, "measured_this_frame": False, "measured_at": None}
+                       for n in cfg["robots"]},
             "goals": cfg["goals"], "shots": {}, "relative": {},
             # Enough for a viewer to draw the scene without the config file.
             "field": {"length": cfg["field"]["length"], "width": cfg["field"]["width"],
@@ -254,6 +300,10 @@ class Perception:
             "calib_mode": self.calib_mode, "floor_tags": {},
         }
         self.debug = {"tags": {}, "ball_px": None}
+        if frame_size_changed:
+            # Intrinsics/ROI belong to the selected resolution. Do not project
+            # this frame with them or let a later old-sized frame clear the hold.
+            return state
         if self.cam is None:
             # Not calibrated: no positions, but still show what is being seen.
             self.debug["tags"] = self.tag_det.detect(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
@@ -274,12 +324,24 @@ class Perception:
         if seen:
             proj = cam.project([[*field[i], 0.0] for i in seen])
             obs = np.array([_quad_center(tags[i]) for i in seen])
-            self.calib_err_px = float(np.median(np.linalg.norm(proj - obs, axis=1)))
+            # Any moved reference invalidates the selected transform. A median
+            # could conceal a displaced tag while most other tags remain fixed.
+            self.calib_err_px = float(np.max(np.linalg.norm(proj - obs, axis=1)))
+            self.calibration_checked_at = t_capture
+            if not math.isfinite(self.calib_err_px) or self.calib_err_px > CALIBRATION_DRIFT_LIMIT_PX:
+                self.invalidate_calibration("floor_reference_drift")
             state["calib_err_px"] = self.calib_err_px
+        state.update(
+            calibrated=self.calibration_valid, calibration_valid=self.calibration_valid,
+            calibration_reason=self.calibration_reason, calibration_checked_at=self.calibration_checked_at,
+            calibration_status=("invalidated" if not self.calibration_valid else
+                                "verified" if seen else "occluded" if field else "unmonitored"),
+        )
 
         # Robots: tag corners -> plane at tag height -> centre + heading.
         for name, rc in cfg["robots"].items():
             pos_f, yaw_f = self.robot_f[name]
+            measured = False
             if rc["tag_id"] in tags:
                 c = cam.pixel_to_plane(tags[rc["tag_id"]], rc["tag_height"])  # TL, TR, BR, BL
                 fwd = (c[0] + c[1]) / 2 - (c[3] + c[2]) / 2
@@ -287,8 +349,8 @@ class Perception:
                 cy, sy = math.cos(yaw), math.sin(yaw)
                 off = rc["tag_offset"]
                 body = c.mean(axis=0) - np.array([cy * off[0] - sy * off[1], sy * off[0] + cy * off[1]])
-                pos_f.update(body, t_capture)
-                yaw_f.update(yaw, t_capture)
+                if pos_f.update(body, t_capture):
+                    measured = yaw_f.update(yaw, t_capture)
             if pos_f.initialised and yaw_f.yaw is not None:
                 x = pos_f.predict_to(t_now)
                 state["robots"][name] = {
@@ -297,25 +359,28 @@ class Perception:
                     "yaw": wrap(yaw_f.yaw + yaw_f.rate * (t_now - yaw_f.t)),
                     "vx": float(x[2]), "vy": float(x[3]), "wz": float(yaw_f.rate),
                     "age_s": t_now - pos_f.t_meas,
+                    "measured_this_frame": measured, "measured_at": pos_f.t_meas,
                 }
 
         # Ball: orange blob -> plane through the ball's centre.
         det = self.ball_det.detect(frame, self.roi_mask, self.ball_radius_px, self._ball_radius_at)
+        measured = False
         if det is not None:
             self.debug["ball_px"] = det
             xy = cam.pixel_to_plane([det[:2]], cfg["ball"]["radius"])[0]
-            self.ball_f.update(xy, t_capture)
+            measured = self.ball_f.update(xy, t_capture)
         if self.ball_f.initialised:
             x = self.ball_f.predict_to(t_now)
             state["ball"] = {
                 "visible": (t_capture - self.ball_f.t_meas) < lost,
                 "x": float(x[0]), "y": float(x[1]), "vx": float(x[2]), "vy": float(x[3]),
                 "age_s": t_now - self.ball_f.t_meas,
+                "measured_this_frame": measured, "measured_at": self.ball_f.t_meas,
             }
 
         # Shooting geometry per robot.
         ball = state["ball"]
-        if ball["visible"]:
+        if self.calibration_valid and ball["visible"]:
             for name, rc in cfg["robots"].items():
                 robot = state["robots"][name]
                 others = [r for n, r in state["robots"].items() if n != name and r["visible"]]
@@ -332,7 +397,7 @@ class Perception:
         # The same scene from each robot's point of view (see relative.py for conventions).
         for name, rc in cfg["robots"].items():
             robot = state["robots"][name]
-            if robot["visible"]:
+            if self.calibration_valid and robot["visible"]:
                 state["relative"][name] = relative_geometry(
                     robot, ball if ball["visible"] else None, cfg["goals"][rc["attacks"]])
         return state

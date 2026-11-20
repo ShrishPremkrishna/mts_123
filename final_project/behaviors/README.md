@@ -207,11 +207,24 @@ same live owner. A new arm after a prior hold still needs newer evidence.
 ROS String `/fc/normalized_events` accepts only `frame` and `intent` events from
 the configured `producer_id`. They use the executor's normalized contract and
 `clock="linux-monotonic:<local Linux boot UUID>"`. Receipt replaces only event
-`now`, never capture, issue or expiry. This first bridge supports a same-host
-fixture; Ryan's actual camera clock still needs an adapter. These names identify
+`now`, never capture, issue or expiry. The new `overhead_ingress.py` converts
+Ryan's live camera packets using measured cross-host clock bounds and pinned
+source/calibration/geometry. Its default is observation only; `--publish` emits
+frames but never arms or renews an intent. Hardware deployment remains unqualified.
+These names identify
 the intended source operationally and do not authenticate DDS traffic. Perception
 cannot arm or send goal resume through this topic. Intents for the other robot
 are refused; field snapshots can include both robots.
+
+For the owner's camera-free repeatability block, `tools/pose_trial.py --target
+0.3 0.2 0` prepares a small destination plan in metres/degrees without publishing
+anything. It reuses the resident movement client's IMU turns and bounded forward
+pulse, requiring a passing receipt between steps. Translation uses a declared
+speed scale, not position feedback. Restore the marked start before each trial
+and record every independently measured endpoint, including failed attempts.
+`--measurements FILE` reports target error separately from endpoint spread.
+The plan's `tracked_action` uses the same `move` target once live tracking is
+available. It never creates synthetic robot poses or claims arrival from timing.
 
 Use `--require-participants pupper-1 pupper-2` when both tracks are required for
 motion. Each present row must carry its original `captured_at`, no later than

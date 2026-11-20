@@ -32,6 +32,7 @@ class CVFilter2D:
         self.P = np.diag([self.r, self.r, 4.0, 4.0])
         self.t = self.t_meas = t
         self._rejects = 0
+        return True
 
     def _predict(self, dt: float):
         if dt <= 0:
@@ -42,7 +43,8 @@ class CVFilter2D:
         self.x = F @ self.x
         self.P = F @ self.P @ F.T + g @ g.T * self.q
 
-    def update(self, z, t: float):
+    def update(self, z, t: float) -> bool:
+        """Return whether this measurement was accepted (not just predicted through)."""
         z = np.asarray(z, float)
         if self.x is None:
             return self._reset(z, t)
@@ -56,13 +58,14 @@ class CVFilter2D:
             # Outlier, or the ball really was kicked/teleported: believe it after 3 in a row.
             self._rejects += 1
             if self._rejects >= 3:
-                self._reset(z, t)
-            return
+                return self._reset(z, t)
+            return False
         self._rejects = 0
         Kg = self.P @ H.T @ np.linalg.inv(S)
         self.x = self.x + Kg @ y
         self.P = (np.eye(4) - Kg @ H) @ self.P
         self.t_meas = t
+        return True
 
     def predict_to(self, t: float) -> np.ndarray:
         """State extrapolated to time t without modifying the filter."""
@@ -79,13 +82,14 @@ class YawFilter:
         self.rate = 0.0
         self.t = 0.0
 
-    def update(self, yaw: float, t: float):
+    def update(self, yaw: float, t: float) -> bool:
         if self.yaw is None:
             self.yaw, self.t = yaw, t
-            return
+            return True
         dt = t - self.t
         if dt <= 0:
-            return
+            return False
         new = wrap(self.yaw + self.alpha * wrap(yaw - self.yaw))
         self.rate += self.rate_alpha * (wrap(new - self.yaw) / dt - self.rate)
         self.yaw, self.t = new, t
+        return True

@@ -17,6 +17,16 @@ feedback. The exact same target interface will later accept a shot staging pose.
 No ball is needed for this navigation test. Stopping at a pose and making a moving
 run-up are separate tests; a timer or simulated position does not measure either.
 
+The owner additionally requested a camera-free repeatability block first: restore
+the same marked starting pose, repeat a short destination plan, and measure every
+endpoint. This measures precision separately from accuracy. Use existing IMU
+turns and bounded timed translation with an explicitly declared distance scale;
+do not fake tag observations or claim position feedback. `behaviors/tools/pose_trial.py`
+prepares these requests and scores independent measurements. Its tracked target
+format stays the same when camera feedback becomes available. IMU turning and
+the selected candidate release still require physical qualification before a
+combined trial; short straight repeats can use the known movement baseline.
+
 1. Integrate the incoming perception source with the existing executor, resolve
    its demonstrated calibration-health defect, and normalize actual measurements,
    IDs and capture ages into each robot's clock. Its UDP-to-ROS `--drive` sketch
@@ -44,6 +54,13 @@ planner, broad detector searches and presentation polish. The existing calibrate
 camera stop/hold path and physical Stop remain part of execution qualification.
 The [November 19 review](../foundation/results/perception-integration-review-20261119.json)
 records incoming commits, tests, reproduced defects and deferred work.
+
+The separately supplied `tej/gemini-ball-kick` handoff at `07ed0fd` corrects the
+earlier branch inventory: it contains leg-kick assets and tools. Review found
+unrelated gate removal, timed navigation and concrete speed/freshness/result
+defects. Do not merge it wholesale. Discuss narrow kick-in-place extraction with
+the owner first, preserving main behavior and requiring corrected receipt/return
+semantics. Reported earlier contact and unverified fast transitions are distinct.
 
 ## Outcome and ownership
 

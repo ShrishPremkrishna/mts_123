@@ -12,7 +12,18 @@ is **real tracked robot pose → scripted target pose → measured repeatable ar
 without a ball, followed by strike qualification and the two-robot demo. The
 [current plan](PLAN.md#current-sprint--november-19) replaces the earlier wait-for-code
 assumption. The incoming perception source is now merged with the local overnight harness;
-the live connection and corrective changes are in progress.
+the measured-clock live ingress and corrective changes are implemented and
+locally tested. They have not been deployed to the Pi or physically qualified.
+The owner wants short camera-free destination-repeatability trials first, using
+a marked start and independently measured endpoints. These use estimated
+translation and IMU turns; they do not substitute fake tracking for actual pose
+feedback. The same target format will feed tracked navigation later.
+
+The newly supplied `tej/gemini-ball-kick` branch (`07ed0fd`) does contain kick
+assets and operator tools, correcting the earlier branch inventory. Its broad
+gate removal and reproduced motion/freshness/result defects prevent wholesale
+integration. The proposed narrow kick-in-place extraction awaits owner discussion;
+the branch remains unmerged and its faster transitions are not hardware-qualified.
 
 - Shrish currently owns movement/sprinting, locomotion-based headbutts, gameplay and integration. Tej iterates on the foot-kick policy. Ryan owns overhead perception, localization and proposed actions/shot targets; our harness translates those into responsive robot execution. Marcus’s existing gait exports remain available for comparison; the active ownership checkpoint governs robot access. Shrish builds the 8 × 12-foot arena with approximately 2-foot goals; no bumper is fitted yet.
 - The owner accepted manual ball replacement and one deliberate resume cue after goals for the first working game; robots reposition themselves with software still running. Physical self-righting gets a bounded feasibility investigation before a demo commitment. Fall stopping, ordinary standing and physical get-up remain distinct capabilities.
@@ -22,12 +33,13 @@ the live connection and corrective changes are in progress.
 
 The [plan](PLAN.md) records outcomes, proposals, integration responsibilities and acceptance evidence. Working notes cover [movement](handoffs/MOVEMENT.md), [shooting](handoffs/SHOOTING.md) and [perception](handoffs/PERCEPTION.md).
 
-## Implementation and evidence — November 17, 2026
+## Implementation and evidence — through November 19, 2026
 
 Active development is in the `main` checkout, currently `/Users/shrish/workspace/cs123`. The sibling `cs123-foundation` checkout preserves earlier engineering work and its November 4 checkpoint; it is not the current FC handoff.
 
 | Capability | What the evidence establishes | Remaining acceptance |
 | --- | --- | --- |
+| Overhead integration | Incoming source merged through `65f9f37`. Calibration faults latch; explicit measurement timestamps distinguish observation from coasting. A measured-clock UDP adapter emits normalized frames into the existing executor. Local rendered-image/UDP checks admitted frames and revoked after a camera bump. Combined regression: 1,086 passed, two unchanged oblique desk-tag detector failures. [Integration and kick review](../foundation/results/perception-harness-integration-20261119.json). | Pi deployment; mounted tag coverage, measured geometry and capture latency; real coordinate arrival. Field/goal/ball placeholders currently differ across configs. No kick-branch code has been merged. |
 | Movement | After removing per-step controller logging, three-second left/right floor tests at 0.15 m/s were stable and stopped cleanly; a marked 0.45 m/s, two-second forward repeat traveled roughly 30 inches. Earlier low-rate turns worked. [Trials and fall diagnosis](../foundation/results/gait-gate-20261116.json). | The original 1.32-second interruption's exact cause remains provisional. Long lateral endurance, repeatability, braking distance and exact-angle turns remain unaccepted. |
 | Shooting | [Recovered behaviors](behaviors/README.md) include stock-gait run-through, onboard detection and an experimental foot-kick candidate. The latest contact attempt did not reach the ball; placement was uncertain, and a subsequent marked no-ball run confirmed 30-inch travel. | Reliable contact and shot direction remain unproved. Further contact trials await the intended ball and calibrated geometry. [Earlier trial evidence](../foundation/results/stock-shot-session-20261116.json). |
 | Gameplay | [Executor](pupper_fc/README.md) connects leased automatic offense/defense, ball-facing guard motion, retained goal events and explicit goal resume. A deterministic two-robot replay exercises tracking/lease/camera loss, goals, resume and Stop. A resident per-robot bridge exercises actual ROS routing, expiry and holds against fake native feedback; concurrent domain tests kept one robot moving when the other stopped, expired or lost its guard. Separate mirrored ROS rehearsals naturally scored in the simulator, returned home and resumed with one cue. They use idealized one-robot physics, not a shared-ball match. [Overnight evidence](../foundation/results/overnight-execution-20261117.json). | Pi deployment/acceptance of the bridge, Ryan's actual overhead producer and clock conversion, physical defense and two-robot commissioning. Scripted referee events are not scored goals. |
