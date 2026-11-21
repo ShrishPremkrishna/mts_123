@@ -80,7 +80,9 @@ ball:
   # It prints the lines to paste here. Do it under the arena lights.
   # The range below is a generic pink / magenta guess, NOT tuned on the real ball.
   colors:
-    - {lo: [140, 60, 90], hi: [175, 255, 255]}    # pink
+    # Measured on the pink flower ball, 2026-11-20, phone on the tripod, room lights.
+    - {lo: [164, 40, 142], hi: [179, 255, 255]}
+    - {lo: [0, 40, 142], hi: [8, 255, 255]}
   # The earlier red / blue / grey mini basketball, for reference:
   #   - {lo: [0, 110, 70],   hi: [8, 255, 255]}     # red
   #   - {lo: [172, 110, 70], hi: [179, 255, 255]}   # red (other side of the hue wrap)
