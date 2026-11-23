@@ -65,6 +65,9 @@ TESTS = ["drive", "goto", "push_ball", "goalie", "match", "sim_eval"]
 # Sim scenario each test starts from (sim source only; the UI can override).
 SIM_SCENARIO = {"push_ball": "attack_solo", "goalie": "shot_on_goal", "match": "kickoff"}
 ROBOT_OPS = ["status", "start", "stop", "bridge_start", "bridge_stop", "imu_test", "stage"]
+PROFILES_DIR = HERE / "robot" / "profiles"
+HOST_RE = re.compile(r"[A-Za-z0-9_.@-]{1,253}")   # robots.json host: [user@]name, no shell or ssh-option chars
+IMU_TEST_S = (1, 30)
 
 # ---------------------------------------------------------------------------------------
 # Brain / Sim: the real ones (lane A) if importable, else tiny stand-ins so the app runs.
@@ -707,14 +710,31 @@ class App:
         cur = self.ops.get(rid)
         if cur and cur.get("running"):
             return {"ok": False, "error": f"{cur['op']} still running on {rid}"}
-        host = r.host
-        ctl = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", host, "bash", "~/fc-v1/robot/fcctl.sh"]
-        cmd = {"status": ctl + ["status"],
-               "start": ctl + ["start", str(body.get("profile") or r.profile), "--confirm"],
-               "stop": ctl + ["stop"],
-               "bridge_start": ctl + ["bridge", "start"], "bridge_stop": ctl + ["bridge", "stop"],
-               "imu_test": ctl + ["imu-test", str(int(body.get("seconds", 5)))],
-               "stage": ["bash", str(HERE / "robot" / "stage.sh"), host]}[op]
+        host = r.host  # only ever from robots.json, never from the request
+        if not HOST_RE.fullmatch(host) or host.startswith("-"):
+            return {"ok": False, "error": f"{rid}: bad host {host!r} in robots.json"}
+        # ssh joins remote args into one string for the Pi's shell, so every argument is
+        # allowlisted here and shlex-quoted below.
+        if op == "start":
+            profile = body.get("profile") or r.profile
+            known = sorted(p.stem for p in PROFILES_DIR.glob("*.sh"))
+            if profile not in known:
+                return {"ok": False, "error": f"unknown profile {profile!r}; one of {known}"}
+            args = ["start", profile, "--confirm"]
+        elif op == "imu_test":
+            secs = body.get("seconds", 5)
+            lo, hi = IMU_TEST_S
+            if isinstance(secs, bool) or not isinstance(secs, int) or not lo <= secs <= hi:
+                return {"ok": False, "error": f"seconds must be an integer in [{lo}, {hi}]"}
+            args = ["imu-test", str(secs)]
+        else:
+            args = {"status": ["status"], "stop": ["stop"], "bridge_start": ["bridge", "start"],
+                    "bridge_stop": ["bridge", "stop"], "stage": []}[op]
+        if op == "stage":
+            cmd = ["bash", str(HERE / "robot" / "stage.sh"), host]  # local script, no shell
+        else:
+            remote = "bash ~/fc-v1/robot/fcctl.sh " + " ".join(shlex.quote(a) for a in args)
+            cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "--", host, remote]
         if self.dry_run_ops:
             cmd = ["echo", "DRY-RUN:", *cmd]
         state = {"op": op, "cmd": " ".join(cmd), "running": True, "rc": None, "out": "", "t": time.strftime("%H:%M:%S")}
@@ -810,7 +830,17 @@ def make_handler(app: App):
                 return self._send(200, (app.runs_root / m[1] / m[2]).read_bytes(), "text/plain; charset=utf-8")
             self._send(404, b"not found", "text/plain")
 
+        def _post_allowed(self) -> bool:
+            """Block cross-site POSTs: JSON content type forces a CORS preflight (which we never
+            answer), and a browser-sent Origin must be this server's own."""
+            if self.headers.get_content_type() != "application/json":
+                return False
+            origin = self.headers.get("Origin")
+            return origin is None or origin in self.server.allowed_origins
+
         def do_POST(self):  # noqa: N802
+            if not self._post_allowed():
+                return self._json({"ok": False, "error": "forbidden: JSON from this page only"}, 403)
             try:
                 n = int(self.headers.get("Content-Length") or 0)
                 body = json.loads(self.rfile.read(n) or b"{}")
@@ -831,6 +861,9 @@ def make_handler(app: App):
 def serve(app: App, host: str, port: int) -> ThreadingHTTPServer:
     srv = ThreadingHTTPServer((host, port), make_handler(app))
     srv.daemon_threads = True
+    p = srv.server_address[1]
+    names = {"127.0.0.1", "localhost"} | ({host} if host not in ("", "0.0.0.0", "::") else set())
+    srv.allowed_origins = {f"http://{h}:{p}" for h in names}  # POSTs from other origins get 403
     threading.Thread(target=srv.serve_forever, daemon=True, name="fc-http").start()
     return srv
 
@@ -840,7 +873,7 @@ def main(argv=None) -> None:
     ap.add_argument("--source", choices=["sim", "camera"], default="sim")
     ap.add_argument("--robots", default=None, help="comma list of robot ids to control (default: all in robots.json)")
     ap.add_argument("--port", type=int, default=8800)
-    ap.add_argument("--host", default="127.0.0.1", help="0.0.0.0 to reach the UI from another device")
+    ap.add_argument("--host", default="127.0.0.1", help="default loopback only; a LAN IP serves the UI to other devices (POSTs must come from that same address)")
     ap.add_argument("--video", default=None, help="camera source: video file, image folder, or 'synthetic'")
     ap.add_argument("--camera", default="phone", help="live camera name or index (fieldcam capture)")
     ap.add_argument("--dry-run-ops", action="store_true", help="robot ops print their ssh command instead of running it")

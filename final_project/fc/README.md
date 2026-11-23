@@ -12,7 +12,7 @@ python -m fc.app --source camera --video synthetic --no-link --dry-run-ops   # o
 python -m fc.app --source camera --video clip.mov  # or a folder of jpg/png
 ```
 
-Flags: `--port 8800`, `--host 0.0.0.0` (UI from another device), `--camera NAME|INDEX`,
+Flags: `--port 8800`, `--host <LAN IP>` (UI from another device; default 127.0.0.1), `--camera NAME|INDEX`,
 `--no-link` (compute commands, send nothing), `--dry-run-ops` (robot buttons print their ssh command).
 
 UI: **space = stop all, always**. Pick a robot, press a test button; each run writes
@@ -32,7 +32,10 @@ Params: every knob (params.json + brain/sim/app defaults) is editable live; limi
 (speed ceilings 0.5 / 0.3 / 2.0 also in `link.py`). Presets save/load to `config/presets/<name>.json`.
 
 Robot ops run `ssh <host> bash ~/fc-v1/robot/fcctl.sh ...` or `fc/robot/stage.sh <host>` in the
-background; `start` asks for confirmation because it homes the legs.
+background; `start` asks for confirmation because it homes the legs. The host comes only from
+`config/robots.json`; profile must be a `robot/profiles/*.sh` name and `imu_test` seconds an int
+in 1–30, and each remote argument is shell-quoted. POSTs need `Content-Type: application/json`
+and, when the browser sends `Origin`, this server's own address (else 403).
 
 Eye offline check (error vs. truth on rendered frames):
 `python -m fc.eye --source synthetic --seconds 8 --save /tmp/eye.jpg`

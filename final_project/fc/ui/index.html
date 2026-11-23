@@ -113,6 +113,10 @@
 const $ = (id) => document.getElementById(id);
 let S = null, gotoArmed = false, keys = new Set(), lastTeleop = "", paramsBuilt = "", presetsSeen = "";
 const TEAM = { blue: "#2563eb", red: "#dc2626" };
+// Every server/state value that goes into innerHTML passes through esc().
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const kvHtml = (rows) => rows.map(([k, v]) => `<span>${esc(k)}</span><span>${esc(v)}</span>`).join("");
+const options = (list) => list.map((v) => `<option>${esc(v)}</option>`).join("");
 const f2 = (v, n = 2) => (v === null || v === undefined || Number.isNaN(v)) ? "-" : Number(v).toFixed(n);
 
 async function post(path, body) {
@@ -250,15 +254,15 @@ function renderRobots() {
   if (box.dataset.ids !== ids.join()) {
     box.dataset.ids = ids.join();
     box.innerHTML = S.robots.map(r => `
-      <div class="robot" id="r-${r.id}">
-        <h3><span class="dot" id="dot-${r.id}"></span><span style="color:${TEAM[r.team]}">${r.id}</span>
-            <span class="mute">tag ${r.tag} · ${r.host || "no host"} · ${r.profile}</span></h3>
-        <div class="kv" id="kv-${r.id}"></div>
+      <div class="robot" id="r-${esc(r.id)}">
+        <h3><span class="dot" id="dot-${esc(r.id)}"></span><span style="color:${TEAM[r.team] || "#555"}">${esc(r.id)}</span>
+            <span class="mute">tag ${esc(r.tag)} · ${esc(r.host || "no host")} · ${esc(r.profile)}</span></h3>
+        <div class="kv" id="kv-${esc(r.id)}"></div>
         <div class="row">
           ${["status", "start", "stop", "bridge_start", "bridge_stop", "imu_test", "stage"].map(op =>
-            `<button data-op="${op}" data-r="${r.id}" class="${op === "start" ? "danger" : ""}">${op.replace("_", " ")}</button>`).join("")}
+            `<button data-op="${op}" data-r="${esc(r.id)}" class="${op === "start" ? "danger" : ""}">${op.replace("_", " ")}</button>`).join("")}
         </div>
-        <pre id="op-${r.id}" style="display:none"></pre>
+        <pre id="op-${esc(r.id)}" style="display:none"></pre>
       </div>`).join("");
     box.querySelectorAll("[data-op]").forEach(b => b.onclick = () => {
       const body = { robot: b.dataset.r, op: b.dataset.op };
@@ -283,7 +287,7 @@ function renderRobots() {
       ["role/phase", d.role ? `${d.role} / ${d.phase}` : "-"],
       ["cmd", c ? `vx ${f2(c.vx)} vy ${f2(c.vy)} wz ${f2(c.wz)} ${c.tag}` : "-"],
     ];
-    $("kv-" + r.id).innerHTML = rows.map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join("");
+    $("kv-" + r.id).innerHTML = kvHtml(rows);
     $("dot-" + r.id).className = "dot " + (L ? (L.connected ? levelClass(imu && imu.level) || "ok" : "bad") : (w ? "ok" : ""));
     const op = S.ops[r.id], pre = $("op-" + r.id);
     if (op) { pre.style.display = "block"; pre.textContent = `[${op.t}] ${op.op} ${op.running ? "running..." : "rc " + op.rc}\n$ ${op.cmd}\n${op.out}`; }
@@ -297,7 +301,7 @@ function renderTest() {
   if (t) { rows.push(["running", `${t.name}${t.robot ? " · " + t.robot : ""} · ${f2(t.elapsed, 1)} s`], ["run", S.run_dir]); }
   if (ls) rows.push(["last", Object.entries(ls).filter(([k]) => k !== "output_tail")
                                  .map(([k, v]) => `${k}=${typeof v === "object" ? JSON.stringify(v) : v}`).join("  ")]);
-  $("testInfo").innerHTML = rows.map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join("");
+  $("testInfo").innerHTML = kvHtml(rows);
   const out = (t && t.output) || (!t && ls && ls.output_tail) || "";
   $("testOut").style.display = out ? "block" : "none"; $("testOut").textContent = out;
 }
@@ -308,11 +312,12 @@ function buildParams() {
     const v = S.params[k], lim = S.limits[k], ch = S.choices[k];
     const title = lim ? `limits ${lim[0]} … ${lim[1]}` : "";
     let input;
-    if (ch) input = `<select data-k="${k}">${ch.map(c => `<option>${c}</option>`).join("")}</select>`;
-    else if (typeof v === "boolean") input = `<input type="checkbox" data-k="${k}">`;
-    else if (typeof v === "number") input = `<input type="number" step="any" data-k="${k}" title="${title}">`;
-    else input = `<input data-k="${k}">`;
-    return `<label title="${k} ${title}">${k}</label>${input}`;
+    const ek = esc(k);
+    if (ch) input = `<select data-k="${ek}">${options(ch)}</select>`;
+    else if (typeof v === "boolean") input = `<input type="checkbox" data-k="${ek}">`;
+    else if (typeof v === "number") input = `<input type="number" step="any" data-k="${ek}" title="${esc(title)}">`;
+    else input = `<input data-k="${ek}">`;
+    return `<label title="${ek} ${esc(title)}">${ek}</label>${input}`;
   }).join("");
   $("params").querySelectorAll("[data-k]").forEach(el => el.onchange = async () => {
     const k = el.dataset.k, old = S.params[k];
@@ -332,7 +337,7 @@ function renderParams() {
     if (el.type === "checkbox") el.checked = !!v; else if (String(el.value) !== String(v)) el.value = v;
   });
   const p = S.presets.join();
-  if (p !== presetsSeen) { presetsSeen = p; $("presetSel").innerHTML = S.presets.map(n => `<option>${n}</option>`).join(""); }
+  if (p !== presetsSeen) { presetsSeen = p; $("presetSel").innerHTML = options(S.presets); }
 }
 $("presetSave").onclick = () => post("/preset", { op: "save", name: $("presetName").value.trim() }).then(j => j.ok && say("preset saved"));
 $("presetLoad").onclick = () => post("/preset", { op: "load", name: $("presetSel").value }).then(j => j.ok && say("preset loaded"));
@@ -347,8 +352,8 @@ function render() {
   $("fieldinfo").textContent = `${S.field.length} × ${S.field.width} m` + (S.eye ? ` · eye: ${S.eye.message || ""}` : "");
   $("scenarioBox").style.display = S.source === "sim" ? "" : "none";
   const sel = $("robotSel");
-  if (sel.dataset.ids !== S.active.join()) { sel.dataset.ids = S.active.join(); sel.innerHTML = S.active.map(i => `<option>${i}</option>`).join(""); }
-  $("events").innerHTML = S.events.slice().reverse().map(e => `<div><span class="mute">${e.t}</span> ${e.msg}</div>`).join("");
+  if (sel.dataset.ids !== S.active.join()) { sel.dataset.ids = S.active.join(); sel.innerHTML = options(S.active); }
+  $("events").innerHTML = S.events.slice().reverse().map(e => `<div><span class="mute">${esc(e.t)}</span> ${esc(e.msg)}</div>`).join("");
   renderRobots(); renderTest(); renderParams(); draw();
 }
 
@@ -365,7 +370,7 @@ async function pollRuns() {
       const txt = s ? `${s.result} · ${s.duration_s}s` + (s.pos_err_m !== undefined ? ` · err ${s.pos_err_m} m` : "")
                     + (s.score ? ` · ${s.score.blue}-${s.score.red}` : "") + (s.time_s !== undefined ? ` · t ${s.time_s}s` : "")
                     : "running / no summary";
-      return `<div><a href="/runs/${r.name}/summary.json" target="_blank">${r.name}</a> <span class="mute">${txt}</span></div>`;
+      return `<div><a href="/runs/${esc(encodeURIComponent(r.name))}/summary.json" target="_blank" rel="noopener">${esc(r.name)}</a> <span class="mute">${esc(txt)}</span></div>`;
     }).join("") || '<span class="mute">no runs yet</span>';
   } catch (e) {}
   setTimeout(pollRuns, 2000);

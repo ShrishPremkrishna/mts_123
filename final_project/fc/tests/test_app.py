@@ -159,3 +159,80 @@ def test_bad_requests(server):
     assert post(base, "/action", {"action": "test", "test": "goto", "robot": "blue"})[0] == 400
     assert post(base, "/nope", {})[0] == 404
     assert get(base, "/state")[0] == 200
+
+
+# ---- security hardening ------------------------------------------------------------------
+def raw_post(base, path, body: bytes, headers: dict):
+    req = urllib.request.Request(base + path, body, headers)
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return r.status
+    except urllib.error.HTTPError as e:
+        return e.code
+
+
+def test_post_needs_json_content_type(server):
+    app, base = server
+    before = app.params["max_vx"]
+    body = json.dumps({"max_vx": 0.21}).encode()
+    assert raw_post(base, "/params", body, {}) == 403                                  # no content type
+    assert raw_post(base, "/params", body, {"Content-Type": "text/plain"}) == 403      # CSRF-able "simple" type
+    assert app.params["max_vx"] == before
+    assert raw_post(base, "/params", body, {"Content-Type": "application/json; charset=utf-8"}) == 200
+
+
+def test_post_rejects_foreign_origin(server):
+    app, base = server
+    port = base.rsplit(":", 1)[1]
+    body = json.dumps({"action": "go"}).encode()
+    ctype = {"Content-Type": "application/json"}
+    for bad in ("http://evil.example", f"http://evil.example:{port}", "null", f"http://127.0.0.1:{int(port) + 1}"):
+        assert raw_post(base, "/action", body, {**ctype, "Origin": bad}) == 403, bad
+    assert app.mode == "idle"
+    for good in (f"http://127.0.0.1:{port}", f"http://localhost:{port}"):
+        assert raw_post(base, "/action", body, {**ctype, "Origin": good}) == 200
+    post(base, "/action", {"action": "stop"})
+
+
+@pytest.fixture
+def live_ops(tmp_path, monkeypatch):
+    """App with real (not dry-run) robot ops and subprocess.run recorded instead of executed."""
+    import fc.app as fcapp
+    calls = []
+
+    def fake_run(cmd, **kw):
+        calls.append(cmd)
+        return fcapp.subprocess.CompletedProcess(cmd, 0, "{}\n", "")
+
+    monkeypatch.setattr(fcapp.subprocess, "run", fake_run)
+    monkeypatch.setattr(fcapp.subprocess, "Popen", lambda *a, **k: calls.append(a) or pytest.fail("Popen"))
+    app = App("sim", runs_root=tmp_path / "runs", presets_dir=tmp_path / "presets")
+    yield app, calls
+    app.close()
+
+
+def test_bad_robot_op_args_never_spawn(live_ops):
+    app, calls = live_ops
+    for bad in ("stock; reboot", "$(reboot)", "../stock", "nope", "stock ", 7):
+        r = app.robot_op({"robot": "blue", "op": "start", "confirm": True, "profile": bad})
+        assert not r["ok"], bad
+    for bad in ("5; reboot", 0, 31, 2.5, True, "5"):
+        assert not app.robot_op({"robot": "blue", "op": "imu_test", "seconds": bad})["ok"], bad
+    assert not app.robot_op({"robot": "blue", "op": "rm -rf"})["ok"]
+    assert not app.robot_op({"robot": "blue", "op": "status", "host": "evil"})["cmd"].count("evil")
+    assert wait(lambda: calls, 2)
+    assert len(calls) == 1 and "evil" not in " ".join(calls[0])                         # host only from robots.json
+
+
+def test_robot_op_remote_args_are_quoted(live_ops):
+    app, calls = live_ops
+    from dataclasses import replace
+    blue = app.cfg["blue"]
+    for bad_host in ("pi; reboot", "-oProxyCommand=x"):                                 # even a bad config is refused
+        app.cfg["blue"] = replace(blue, host=bad_host)
+        assert not app.robot_op({"robot": "blue", "op": "status"})["ok"]
+    app.cfg["blue"] = blue
+    assert app.robot_op({"robot": "blue", "op": "imu_test", "seconds": 7})["ok"]
+    assert wait(lambda: calls, 2)
+    assert calls[0][-3:] == ["--", "mts", "bash ~/fc-v1/robot/fcctl.sh imu-test 7"]
+    assert not calls[1:]
