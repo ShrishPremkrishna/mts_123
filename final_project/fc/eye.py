@@ -192,6 +192,9 @@ class Eye:
         self._next_cal = self._next_jpg = 0.0
         self._zoom_n = 0
         self.src_size = (width, height)
+        self._frame, self._frame_n = None, 0          # latest raw frame (recorder, Play view)
+        self._view: tuple | None = None              # (frame_n, width, jpeg) cache for view_jpeg
+        self._overlay: tuple | None = None           # (cam id, tag height, homographies) cache
 
     # ---- setup -------------------------------------------------------------------
     def mount(self) -> dict:
@@ -436,6 +439,7 @@ class Eye:
                 jpg = self._annotate(frame, world)
             with self._lock:
                 self._world = world
+                self._frame, self._frame_n = frame, self._frame_n + 1
                 if jpg:
                     self._jpeg = jpg
 
@@ -451,6 +455,56 @@ class Eye:
     def jpeg(self) -> bytes | None:
         with self._lock:
             return self._jpeg
+
+    def frame(self):
+        """(latest raw BGR frame, frame number) or (None, 0). Never copy-modify the frame."""
+        with self._lock:
+            return self._frame, self._frame_n
+
+    def view_jpeg(self, width: int = 1280, quality: int = 75) -> bytes | None:
+        """Clean (unannotated) downscaled JPEG of the latest frame for the Play screen; encoded on
+        the caller's thread, once per frame."""
+        frame, n = self.frame()
+        if frame is None:
+            return None
+        v = self._view
+        if v and v[0] == n and v[1] == width:
+            return v[2]
+        cv2 = self.cv2
+        scale = width / frame.shape[1]
+        out = cv2.resize(frame, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else frame
+        ok, buf = cv2.imencode(".jpg", out, [cv2.IMWRITE_JPEG_QUALITY, quality])
+        if not ok:
+            return None
+        self._view = (n, width, buf.tobytes())
+        return self._view[2]
+
+    def overlay(self) -> dict | None:
+        """Homographies field (x, y) -> normalised image coords (0..1) for drawing on the view:
+        "floor" (z = 0) and "tag" (z = robot tag height). Fitted to the calibrated camera model
+        (lens distortion included as well as a plane map allows). None until calibrated."""
+        perc = self.perc
+        if perc is None or not perc.calibration_valid or perc.cam is None or self.src is None:
+            return None
+        th = self.mount()["tag_height"]
+        key = (id(perc.cam), round(th, 4))
+        if self._overlay and self._overlay[0] == key:
+            return self._overlay[1]
+        np, cv2, f = self.np, self.cv2, self.field
+        gx, gy = np.meshgrid(np.linspace(-f.length / 2 - 0.3, f.length / 2 + 0.3, 9),
+                             np.linspace(-f.width / 2 - 0.2, f.width / 2 + 0.2, 7))
+        pts = np.stack([gx.ravel(), gy.ravel()], axis=1)
+        out = {}
+        for name, z in (("floor", 0.0), ("tag", th)):
+            px = perc.cam.project(np.hstack([pts, np.full((len(pts), 1), z)])).reshape(-1, 2)
+            px = px / [self.src.width, self.src.height]
+            H, _ = cv2.findHomography(pts.astype(np.float64), px.astype(np.float64))
+            if H is None:
+                return None
+            out[name] = [[round(float(v), 9) for v in row] for row in H]
+        out["aspect"] = round(self.src.width / self.src.height, 4)
+        self._overlay = (key, out)
+        return out
 
     def status(self) -> dict:
         w = self.latest()

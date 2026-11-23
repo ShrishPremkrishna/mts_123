@@ -3,6 +3,10 @@
 Contract: [SPEC.md](SPEC.md). Run everything from `final_project/`.
 
 ```bash
+# launcher: makes/repairs <repo>/.venv-fc from requirements.txt (Python 3.12), then runs fc.app
+fc/run.sh                                          # sim: Play screen http://127.0.0.1:8800/, tests at /ops
+fc/run.sh camera --robots blue --udp-host blue=<LAN IP>
+
 # sim: no camera, no robots (stdlib Python is enough)
 python -m fc.app --source sim                      # http://127.0.0.1:8800/
 
@@ -20,6 +24,38 @@ Floor day: follow [RUNBOOK.md](RUNBOOK.md).
 
 The app imports the real `fc.brain` and `fc.sim`; if either fails to import, the app does not start
 (no fallback controller).
+
+## Play screen (`/`, for the projector)
+
+Overhead view (camera frame with field lines, belief rings, target crosses and 4 s trails drawn through the
+calibrated camera's floor/tag-height homographies; a rendered field in sim, with solid = truth and dashed =
+what the brain sees), Blue vs Red score, match clock, per robot: health light, role chip, plain-words
+action, what it sees (own tag age, ball distance, target distance, speed), job (auto/attack/goalie), optional
+front camera, **Ready**. A ticker narrates real brain decisions (role flips with the travel-time reason,
+debounced phase changes); banners say in plain words why a playing robot is stopped or held (tag lost, IMU
+bad, mux lost, bridge hold, no link, ball not seen). Nothing is shown as ready without evidence: the light
+says "ready" only when fcctl reports phase `ready` (else "link ok", "not seen by camera", ...).
+
+Keys: **space stop** (always), K kickoff, P play/pause (or start now), R walk back to kickoff spots,
+T / shift+T referee touch +1/-1, V cycle who plays (both, blue alone, red alone; no restart), 1/2 cycle
+the first/second robot's job, C camera/field view, Esc hide the end card. `/ops` is the test page below.
+
+Match flow (`play.py`, one `match` run with `flow`): **kickoff** (brain `role_mode=goto` to spots at
+∓`kickoff_x_frac`·length, facing the other goal; waits for both in position and the ball still at the
+centre; the sim referee re-centres the ball) → **countdown** (`countdown_s`, robots hold) → **play**
+(clock runs only here; jobs from the Play screen, a lone robot defaults to attack) → goal: **goal**
+(`goal_pause_s`, robots hold, score + flash) → **restart** (play resumes once the ball is seen still,
+`ball_settle_s` within `ball_rest_m`, anywhere in the field; `restart_mode=kickoff` walks back to the spots
+instead) → … → **full_time** at `match_s`. Pause holds everyone (zero at once) and freezes the clock. A
+robot the bridge halts (IMU/mux) is zeroed and bannered but the match goes on for the other one. Each
+tick logs `m` (phase, score, clock, touches) and new ticker lines `tk` to `events.jsonl`.
+
+Recording: with the camera source and `record: 1`, every run writes `<run>/overhead.mp4` (clean frames,
+`rec_fps`, ≤1280 px, real time; side thread, `summary.json` → `video`). Onboard feeds: optional
+`cam_url` per robot in robots.json (MJPEG from `robot/camstream.py`); a side thread per feed, served as
+`/cam/<id>.jpg`; the card says "not connected" when it stalls. Feeds never touch the loop.
+
+## Ops page (`/ops`)
 
 UI: **space = stop all, always**. Pick a robot, press a test button; each run writes
 `fc/runs/<UTC>-<test>/{params.json,events.jsonl,summary.json}` and shows in the Runs list.
@@ -67,7 +103,9 @@ Network: `link.py` sends to robots.json `udp_host` (or `--udp-host`) when set, e
 (the app already tolerates it).
 
 Robot ops run `ssh <host> bash ~/fc-v1/robot/fcctl.sh ...` or `fc/robot/stage.sh <host>` in the
-background; `start` asks for confirmation because it homes the legs. The host comes only from
+background; `start` and `ready` ask for confirmation because they home the legs. `ready <profile>` streams
+its JSON progress lines (`phase`, `elapsed`, `ok`, `error`) into the op state and the Play card (timeout
+300 s); `phase` from `ready`/`status` feeds the health light. `stop` and `down` are never refused. The host comes only from
 `config/robots.json`; profile must be a `robot/profiles/*.sh` name (picked per robot in the UI; a preset's
 `_profile` is the default), `imu_test` seconds an int in 1–900 with optional `mode` (bno|ros|auto) and
 `condition` (a-z0-9_), and each remote argument is shell-quoted. `stop` is never refused by a running op;

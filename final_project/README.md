@@ -5,6 +5,8 @@
 > bridge. Floor plan: [fc/RUNBOOK.md](fc/RUNBOOK.md); contract: [fc/SPEC.md](fc/SPEC.md). The previous FC
 > stack below is historical; the Codex Phase 2–4 rebuild is archived at tags `archive/codex-fc-20261123`
 > and `archive/codex-fc-unaccepted-20261123`. Nothing in `fc/` has run on the physical robot yet.
+> Demo UI: Play screen at `/` (match flow, decision ticker, stop banners, per-run overhead video; tests at
+> `/ops`), launched with `fc/run.sh` ([lane E note](fc/notes/lane-E-play.md)); sim and synthetic camera only so far.
 
 Pupper FC aims to have two autonomous Puppers play soccer in an approximately 8 × 12-foot arena. Overhead perception estimates robot and ball positions in a calibrated field with known goal locations. The immediate demo needs one to two minutes of responsive play, useful goal-directed shots and automatic offense/defense. The demo shot uses Tej’s leg-kick policy. The combined single-robot release steers using a measured field pose, hands the legs to the selected kick, and restores walking. Both feet have scored in simulation. The Pi completed walk–kick–walk for each foot on memory-backed joints, then latched Stop and deactivated both leg controllers. The physical robot homed on the stand with the verified build loaded. At standby both motion controllers were inactive and the gamepad, camera and IMU were live. The next supervised check is walker activation and Stop on the stand. Tej owns physical kick qualification, and mounted field tracking remains open. [Pi qualification](../foundation/results/pi-combined-walk-kick-20261119.json)
 

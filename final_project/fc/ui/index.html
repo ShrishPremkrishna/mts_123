@@ -61,6 +61,7 @@
 <body>
 <header>
   <h1>Pupper FC v1</h1>
+  <a href="/" style="color:#93c5fd;font-size:13px">Play screen</a>
   <span class="pill" id="src">-</span>
   <span class="pill" id="mode">idle</span>
   <span class="pill preset" id="presetPill" title="active params preset (* = edited since loading)">preset: base</span>
@@ -293,10 +294,11 @@ function renderRobots() {
         <div class="kv" id="kv-${esc(r.id)}"></div>
         <div class="warnline" id="warn-${esc(r.id)}"></div>
         <div class="row">
-          ${["status", "stop", "bridge_start", "bridge_stop", "stage"].map(op =>
+          ${["status", "stop", "down", "bridge_start", "bridge_stop", "stage"].map(op =>
             `<button data-op="${op}" data-r="${esc(r.id)}">${op.replace("_", " ")}</button>`).join("")}
         </div>
         <div class="row">
+          <button data-op="ready" data-r="${esc(r.id)}" class="danger" title="fcctl ready: start + stand + bridge (homes the legs)">ready</button>
           <button data-op="start" data-r="${esc(r.id)}" class="danger">start</button>
           profile <select id="prof-${esc(r.id)}" data-prof="${esc(r.id)}"></select>
         </div>
@@ -310,9 +312,9 @@ function renderRobots() {
       </div>`).join("");
     box.querySelectorAll("[data-op]").forEach(b => b.onclick = () => {
       const body = { robot: b.dataset.r, op: b.dataset.op };
-      if (body.op === "start") {
+      if (body.op === "start" || body.op === "ready") {
         body.profile = $("prof-" + body.robot).value;
-        if (!confirm(`Start ${body.robot} with profile ${body.profile}? This may HOME THE LEGS. Robot on the stand / clear area?`)) return;
+        if (!confirm(`${body.op} ${body.robot} with profile ${body.profile}? This may HOME THE LEGS. Robot on the stand / clear area?`)) return;
         body.confirm = true;
       }
       if (body.op === "imu_test") {
@@ -358,7 +360,8 @@ function renderRobots() {
     $("warn-" + r.id).textContent = warns.join(" · ");
     $("dot-" + r.id).className = "dot " + (L ? (L.connected && !L.hold && L.mux_ok !== false ? levelClass(imu && imu.level) || "ok" : "bad") : (w ? "ok" : ""));
     const op = S.ops[r.id], pre = $("op-" + r.id);
-    if (op) { pre.style.display = "block"; pre.textContent = `[${op.t}] ${op.op} ${op.running ? "running..." : "rc " + op.rc}\n$ ${op.cmd}\n${op.out}`; }
+    if (op) { pre.style.display = "block"; pre.textContent = `[${op.t}] ${op.op} ${op.running ? "running..." : "rc " + op.rc}`
+      + (op.progress && Object.keys(op.progress).length ? `  progress ${JSON.stringify(op.progress)}` : "") + `\n$ ${op.cmd}\n${op.out}`; }
   }
 }
 function renderTest() {

@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pupper FC</title>
+<style>
+  :root {
+    --bg:#0a0e15; --panel:#111824; --panel2:#0d131d; --line:#1e2837; --ink:#eef2f8; --mute:#8592a6; --dim:#556275;
+    --blue:#3b82f6; --blue-soft:#93c5fd; --red:#ef4444; --red-soft:#fca5a5; --ball:#ff5fa2;
+    --ok:#22c55e; --warn:#f59e0b; --bad:#ef4444; --off:#4b5563;
+    --fs:clamp(13px, 1.05vw, 22px);
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--ink); overflow:hidden;
+    font:var(--fs)/1.3 "SF Pro Display", -apple-system, "Segoe UI", Inter, system-ui, sans-serif; }
+  .num { font-variant-numeric:tabular-nums; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  #app { display:grid; grid-template-rows:auto 1fr auto; height:100vh; gap:.7em; padding:.8em 1em; }
+
+  /* ---- header: brand, scoreboard, stop ---- */
+  header { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; }
+  .brand { display:flex; align-items:center; gap:.8em; }
+  .brand b { letter-spacing:.22em; font-size:1.05em; font-weight:800; }
+  .chip { font-size:.72em; letter-spacing:.12em; text-transform:uppercase; padding:.3em .7em; border-radius:99px;
+    background:#1b2433; color:var(--mute); white-space:nowrap; }
+  .chip.rec { color:#fecaca; background:#3a1414; } .chip.rec::before { content:"● "; color:var(--red); }
+  .score { display:flex; align-items:center; gap:1.1em; }
+  .team-name { font-weight:800; letter-spacing:.16em; font-size:1.15em; display:flex; align-items:center; gap:.5em; }
+  .team-name i { width:.9em; height:.9em; border-radius:.2em; display:inline-block; }
+  .team-name.muted { opacity:.35; }
+  .digit { font-size:3.4em; font-weight:800; line-height:1; min-width:1.1em; text-align:center; }
+  .digit.pop { animation:pop .9s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes pop { 0% { transform:scale(1); } 30% { transform:scale(1.6); } 100% { transform:scale(1); } }
+  .clockbox { text-align:center; min-width:7.5em; }
+  .clock { font-size:2.2em; font-weight:700; line-height:1.05; }
+  .phase { font-size:.75em; letter-spacing:.18em; text-transform:uppercase; color:var(--mute); }
+  .right { display:flex; justify-content:flex-end; align-items:center; gap:.8em; }
+  .right a { color:var(--dim); font-size:.8em; text-decoration:none; }
+  #stop { background:var(--red); border:0; color:#fff; font-weight:800; letter-spacing:.12em; padding:.7em 1.6em;
+    border-radius:.6em; font-size:1.05em; box-shadow:0 0 0 3px #ef444433; }
+  #stop:active { transform:scale(.97); }
+
+  /* ---- stage ---- */
+  main { display:grid; grid-template-columns:minmax(14em, 1fr) minmax(0, 3.6fr) minmax(14em, 1fr); gap:.9em; min-height:0; }
+  main.solo-blue { grid-template-columns:minmax(15em, 1fr) minmax(0, 3.9fr); }
+  main.solo-red { grid-template-columns:minmax(0, 3.9fr) minmax(15em, 1fr); }
+  main.solo-blue .team.red, main.solo-red .team.blue { display:none; }
+  main.solo-red .pitch { order:-1; }
+  .pitch { position:relative; min-height:0; border-radius:.9em; overflow:hidden; background:var(--panel2); }
+  canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+  .team { background:var(--panel); border:1px solid var(--line); border-radius:.9em; padding:1em; display:flex;
+    flex-direction:column; gap:.8em; min-height:0; position:relative; overflow:hidden; }
+  .team::before { content:""; position:absolute; inset:0 0 auto 0; height:.35em; background:var(--tc); }
+  .team.blue { --tc:var(--blue); --tcs:var(--blue-soft); } .team.red { --tc:var(--red); --tcs:var(--red-soft); }
+  .team.benched { opacity:.45; }
+  .t-head { display:flex; align-items:center; justify-content:space-between; gap:.5em; margin-top:.2em; }
+  .t-name { font-size:1.6em; font-weight:800; letter-spacing:.12em; color:var(--tcs); }
+  .light { display:flex; align-items:center; gap:.45em; font-size:.8em; color:var(--mute); text-align:right; }
+  .light i { width:.95em; height:.95em; border-radius:50%; flex:none; background:var(--off); }
+  .light.ok i { background:var(--ok); box-shadow:0 0 .7em var(--ok); } .light.warn i { background:var(--warn); box-shadow:0 0 .7em var(--warn); }
+  .light.bad i { background:var(--bad); box-shadow:0 0 .7em var(--bad); animation:blink 1s steps(2) infinite; }
+  @keyframes blink { 50% { opacity:.35; } }
+  .role { font-size:1.9em; font-weight:800; letter-spacing:.1em; padding:.25em .55em; border-radius:.35em; align-self:flex-start;
+    border:2px solid var(--tc); color:var(--tcs); transition:all .3s; }
+  .role.attack { background:var(--tc); color:#fff; }
+  .role.idle { border-color:var(--line); color:var(--dim); }
+  .action { font-size:1.35em; font-weight:600; min-height:1.3em; }
+  .sees { display:grid; grid-template-columns:auto 1fr; gap:.25em .7em; font-size:.85em; color:var(--mute); }
+  .sees b { font-weight:600; color:var(--ink); } .sees .no { color:var(--warn); }
+  .jobs { display:flex; gap:.3em; font-size:.75em; }
+  .jobs button { flex:1; background:transparent; border:1px solid var(--line); border-radius:.4em; padding:.35em 0; color:var(--mute); }
+  .jobs button.on { border-color:var(--tc); color:var(--ink); background:#ffffff0d; }
+  .cam { position:relative; aspect-ratio:4/3; border-radius:.6em; background:#0a0f17; border:1px solid var(--line);
+    overflow:hidden; display:flex; align-items:center; justify-content:center; color:var(--dim); font-size:.8em; }
+  .cam img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:none; }
+  .cam span { position:absolute; left:.6em; bottom:.4em; font-size:.85em; color:#cbd5e1; text-shadow:0 1px 2px #000; }
+  .spacer { flex:1; }
+  .ready { background:var(--tc); border:0; color:#fff; font-weight:700; letter-spacing:.08em; border-radius:.55em; padding:.75em; font-size:1em; }
+  .ready:disabled { background:#1f2937; color:var(--mute); cursor:default; }
+  .progress { height:.35em; background:#1f2937; border-radius:99px; overflow:hidden; display:none; }
+  .progress b { display:block; height:100%; width:0; background:var(--tc); transition:width .4s; }
+  .opline { font-size:.75em; color:var(--mute); min-height:1.2em; display:flex; justify-content:space-between; gap:.5em; }
+  .opline button { background:none; border:0; color:var(--dim); text-decoration:underline; padding:0; font-size:1em; }
+
+  /* ---- overlays on the pitch ---- */
+  .banners { position:absolute; top:.8em; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:.4em;
+    align-items:center; width:90%; pointer-events:none; }
+  .banner { background:#3a1212ee; border:1px solid var(--bad); color:#fee2e2; padding:.45em 1em; border-radius:.5em; font-weight:600;
+    font-size:1.05em; box-shadow:0 .4em 1.4em #0008; }
+  .banner.warn { background:#3a2a0aee; border-color:var(--warn); color:#fef3c7; }
+  .center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    pointer-events:none; text-align:center; }
+  .center .big { font-size:5em; font-weight:900; letter-spacing:.08em; text-shadow:0 .1em .5em #000a; line-height:1; }
+  .center .sub { margin-top:.5em; font-size:1.25em; color:#dbe3ee; background:#0a0e15cc; padding:.4em 1em; border-radius:.5em; }
+  .center .sub:empty { display:none; }
+  .center.count .big { font-size:9em; }
+  .flash { position:absolute; inset:0; pointer-events:none; opacity:0; }
+  .flash.go { animation:flash 2.2s ease-out; }
+  @keyframes flash { 0% { opacity:0; } 8% { opacity:.85; } 100% { opacity:0; } }
+  .goalword { animation:goalin 2.2s cubic-bezier(.2,1.4,.3,1) both; }
+  @keyframes goalin { 0% { transform:scale(.3); opacity:0; } 15% { transform:scale(1.15); opacity:1; } 30% { transform:scale(1); }
+    85% { opacity:1; } 100% { opacity:0; } }
+  .card { pointer-events:auto; background:#0d131dee; border:1px solid var(--line); border-radius:1em; padding:1.4em 2.4em; }
+  .card .big { font-size:3em; }
+  .card .final { font-size:3.2em; font-weight:800; margin:.2em 0; }
+  .legend { position:absolute; right:.8em; bottom:.6em; font-size:.7em; color:var(--mute); background:#0a0e15aa;
+    padding:.25em .6em; border-radius:.4em; pointer-events:none; }
+
+  /* ---- footer: ticker + controls ---- */
+  footer { display:grid; grid-template-columns:minmax(0, 1.5fr) auto; gap:1em; align-items:stretch; }
+  .ticker { background:var(--panel); border:1px solid var(--line); border-radius:.9em; padding:.6em 1em; overflow:hidden;
+    display:flex; flex-direction:column; gap:.2em; height:6.2em; }
+  .tk { display:flex; gap:.6em; align-items:baseline; color:var(--mute); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tk:first-child { color:var(--ink); font-size:1.18em; font-weight:600; animation:tkin .5s ease-out; }
+  .tk i { width:.6em; height:.6em; border-radius:50%; flex:none; background:var(--dim); transform:translateY(-.05em); }
+  .tk.blue i { background:var(--blue); } .tk.red i { background:var(--red); }
+  .tk.goal { color:#fde68a; } .tk small { color:var(--dim); font-size:.75em; }
+  @keyframes tkin { from { opacity:0; transform:translateY(-.4em); } }
+  .controls { display:flex; gap:.5em; align-items:stretch; }
+  .controls button { background:var(--panel); border:1px solid var(--line); border-radius:.7em; padding:.4em 1.1em;
+    font-weight:700; letter-spacing:.05em; display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:6.2em; }
+  .controls button:hover { border-color:#334155; }
+  .controls button kbd { font:inherit; font-size:.62em; color:var(--dim); font-weight:500; margin-top:.15em; }
+  .controls button.primary { background:#14532d; border-color:#16a34a; }
+  .controls button.lit { border-color:var(--warn); }
+  .controls .touch b { font-size:1.4em; line-height:1; }
+
+  dialog { background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:1em; padding:1.4em 1.8em;
+    max-width:30em; font-size:1em; }
+  dialog::backdrop { background:#000a; }
+  dialog h3 { margin:0 0 .5em; font-size:1.4em; }
+  dialog p { color:#cbd5e1; margin:.4em 0 1.2em; }
+  dialog .row { display:flex; gap:.6em; justify-content:flex-end; }
+  dialog button { border-radius:.5em; padding:.6em 1.2em; border:1px solid var(--line); background:transparent; }
+  dialog button.go { background:var(--blue); border-color:var(--blue); font-weight:700; }
+  #toast { position:fixed; left:50%; bottom:1.2em; transform:translateX(-50%); background:#1f2937; padding:.5em 1em; border-radius:.5em;
+    font-size:.85em; opacity:0; transition:opacity .3s; pointer-events:none; }
+  #toast.show { opacity:1; } #toast.err { background:#7f1d1d; }
+  #offline { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:#000c; font-size:2em; font-weight:700; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="brand"><b>PUPPER&nbsp;FC</b><span class="chip" id="src">sim</span><span class="chip rec" id="rec" hidden>rec</span></div>
+    <div class="score">
+      <div class="team-name" id="nb"><i style="background:var(--blue)"></i>BLUE</div>
+      <div class="digit num" id="sb">0</div>
+      <div class="clockbox"><div class="clock num" id="clock">0:00</div><div class="phase" id="phase">ready</div></div>
+      <div class="digit num" id="sr">0</div>
+      <div class="team-name" id="nr">RED<i style="background:var(--red)"></i></div>
+    </div>
+    <div class="right"><span class="chip num" id="touches" title="referee touches (T / shift+T)">touches 0</span>
+      <a href="/ops" title="operator / test page">ops</a><button id="stop" title="space bar">STOP</button></div>
+  </header>
+  <main id="stage">
+    <aside class="team blue" data-team="blue"></aside>
+    <section class="pitch" id="pitch">
+      <canvas id="cv"></canvas>
+      <div class="flash" id="flash"></div>
+      <div class="center" id="center"></div>
+      <div class="banners" id="banners"></div>
+      <div class="legend" id="legend"></div>
+    </section>
+    <aside class="team red" data-team="red"></aside>
+  </main>
+  <footer>
+    <div class="ticker" id="ticker"></div>
+    <div class="controls">
+      <button id="bKick" class="primary">Kickoff<kbd>K</kbd></button>
+      <button id="bPlay">Play<kbd>P</kbd></button>
+      <button id="bReset">Reset<kbd>R</kbd></button>
+      <button id="bVar">2 robots<kbd>V</kbd></button>
+      <button id="bTouch" class="touch"><b id="touchN">0</b><kbd>touch T</kbd></button>
+    </div>
+  </footer>
+</div>
+<dialog id="dlg"><h3 id="dlgT"></h3><p id="dlgP"></p>
+  <div class="row"><button id="dlgNo">Cancel</button><button id="dlgYes" class="go">Yes</button></div></dialog>
+<div id="toast"></div>
+<div id="offline">App not reachable: is fc.app running?</div>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const NAME = (id) => String(id).toUpperCase();
+const COL = { blue: "#3b82f6", red: "#ef4444" }, SOFT = { blue: "#93c5fd", red: "#fca5a5" };
+const PHASE = { kickoff: "kickoff", countdown: "get ready", play: "live", goal: "goal", restart: "ball reset",
+                paused: "paused", full_time: "full time" };
+let S = null, gotAt = 0, lastGoalN = 0, lastTickN = -1, view = "camera", built = "";
+
+// ---------- server ----------
+async function post(path, body) {
+  try {
+    const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!j.ok) toast(j.error || (j.errors || []).join("; ") || "refused", true);
+    return j;
+  } catch (e) { toast("app not reachable", true); return { ok: false }; }
+}
+const act = (action, extra) => post("/action", { action, ...extra });
+let toastT = 0;
+function toast(text, err) { const t = $("toast"); t.textContent = text; t.className = "show" + (err ? " err" : ""); clearTimeout(toastT); toastT = setTimeout(() => t.className = "", 2600); }
+
+// ---------- keys: space always stops ----------
+function stopAll() { act("stop"); toast("STOP sent"); }
+$("stop").onclick = stopAll;
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space") { e.preventDefault(); stopAll(); return; }
+  if ($("dlg").open || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+  const k = e.key.toLowerCase();
+  const ids = S ? S.active : [];
+  if (k === "k") act("kickoff");
+  else if (k === "p") playPause();
+  else if (k === "r") act("reposition");
+  else if (k === "t") act("touch", { delta: e.shiftKey ? -1 : 1 });
+  else if (k === "v") act("variant");
+  else if (k === "c") { view = view === "camera" ? "field" : "camera"; toast("view: " + view); }
+  else if ((k === "1" || k === "2") && ids[+k - 1]) cycleJob(ids[+k - 1]);
+  else if (k === "escape") hideCard = true;
+}, true);
+document.addEventListener("keyup", (e) => { if (e.code === "Space") e.preventDefault(); }, true);
+document.addEventListener("click", (e) => { if (e.target.closest("button")) e.target.closest("button").blur(); });
+let hideCard = false;
+function playPause() {
+  const f = S && S.play.flow;
+  if (!f) return act("play");
+  if (f.phase === "paused" || f.phase === "kickoff" || f.phase === "restart") return act("play");
+  return act("pause");
+}
+function cycleJob(rid) {
+  const f = S.play.flow; if (!f || !(rid in f.roles)) return toast("start a match first", true);
+  const jobs = ["auto", "attack", "defend"]; act("job", { robot: rid, job: jobs[(jobs.indexOf(f.roles[rid]) + 1) % 3] });
+}
+$("bKick").onclick = () => act("kickoff");
+$("bPlay").onclick = playPause;
+$("bReset").onclick = () => act("reposition");
+$("bVar").onclick = () => act("variant");
+$("bTouch").onclick = (e) => act("touch", { delta: e.shiftKey ? -1 : 1 });
+$("bTouch").oncontextmenu = (e) => { e.preventDefault(); act("touch", { delta: -1 }); };
+
+// ---------- confirm dialog (Ready homes the legs) ----------
+function confirmBox(title, text, yes) {
+  return new Promise((res) => {
+    $("dlgT").textContent = title; $("dlgP").textContent = text; $("dlgYes").textContent = yes;
+    const d = $("dlg"); d.showModal();
+    const done = (v) => { d.close(); $("dlgYes").onclick = $("dlgNo").onclick = null; res(v); };
+    $("dlgYes").onclick = () => done(true); $("dlgNo").onclick = () => done(false);
+  });
+}
+async function ready(rid) {
+  const r = S.robots.find((q) => q.id === rid), prof = (S.preset && S.preset.profile) || r.profile;
+  if (!await confirmBox(`Get ${NAME(rid)} ready?`, `Runs fcctl ready (${prof}) on ${r.host}: this homes the legs, stands the robot up and starts its link. Robot clear and R3 within reach?`, "Yes, get ready")) return;
+  post("/robot", { robot: rid, op: "ready", confirm: true });
+}
+
+// ---------- team cards ----------
+function buildCards() {
+  for (const el of document.querySelectorAll(".team")) {
+    const team = el.dataset.team, r = S.robots.find((q) => q.team === team);
+    if (!r) { el.innerHTML = `<div class="t-head"><div class="t-name">${NAME(team)}</div></div><div class="action" style="color:var(--dim)">no robot configured</div>`; continue; }
+    const id = esc(r.id);
+    el.dataset.rid = r.id;
+    el.innerHTML = `
+      <div class="t-head"><div class="t-name">${NAME(r.id)}</div><div class="light" id="lt-${id}"><span></span><i></i></div></div>
+      <div class="role idle" id="role-${id}">IDLE</div>
+      <div class="action" id="act-${id}"></div>
+      <div class="sees" id="sees-${id}"></div>
+      <div class="jobs" id="jobs-${id}">${["auto", "attack", "defend"].map((j) =>
+        `<button data-job="${j}" data-r="${id}">${j === "defend" ? "goalie" : j}</button>`).join("")}</div>
+      ${r.cam_url ? `<div class="cam" id="cam-${id}"><img alt=""><div>front camera · not connected</div><span>front camera</span></div>` : ""}
+      <div class="spacer"></div>
+      <div class="progress" id="pg-${id}"><b></b></div>
+      <div class="opline"><span id="op-${id}"></span><button data-down="${id}" title="fcctl down">down</button></div>
+      <button class="ready" id="rd-${id}" data-ready="${id}">Ready</button>`;
+  }
+  document.querySelectorAll("[data-job]").forEach((b) => b.onclick = () => act("job", { robot: b.dataset.r, job: b.dataset.job }));
+  document.querySelectorAll("[data-ready]").forEach((b) => b.onclick = () => ready(b.dataset.ready));
+  document.querySelectorAll("[data-down]").forEach((b) => b.onclick = () => post("/robot", { robot: b.dataset.down, op: "down" }));
+}
+function renderCards() {
+  const key = S.robots.map((r) => r.id + r.team + r.cam_url).join();
+  if (key !== built) { built = key; buildCards(); }
+  const P = S.play, f = P.flow, ops = S.source === "camera" || S.dry_run_ops;
+  for (const r of S.robots) {
+    const pr = P.robots[r.id] || {}, el = document.querySelector(`.team[data-rid="${r.id}"]`);
+    if (!el) continue;
+    el.classList.toggle("benched", !pr.playing || !S.active.includes(r.id));
+    const lt = $("lt-" + r.id), h = pr.health || { level: "off", text: "-" };
+    lt.className = "light " + h.level; lt.firstElementChild.textContent = h.text;
+    const role = !S.active.includes(r.id) ? "OFF" : !pr.playing ? "BENCH" : pr.role === "attack" ? "ATTACK" : pr.role === "defend" ? "DEFEND"
+      : pr.role === "goto" ? "KICKOFF" : "IDLE";
+    const re = $("role-" + r.id); re.textContent = role;
+    re.className = "role " + (role === "ATTACK" ? "attack" : role === "DEFEND" || role === "KICKOFF" ? "" : "idle");
+    $("act-" + r.id).textContent = pr.playing ? pr.action || "" : "not playing";
+    $("sees-" + r.id).innerHTML = seesHtml(r.id);
+    const job = f && f.roles[r.id];
+    $("jobs-" + r.id).style.visibility = job ? "visible" : "hidden";
+    $("jobs-" + r.id).querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.job === job));
+    const op = S.ops[r.id], rd = $("rd-" + r.id), pg = $("pg-" + r.id);
+    const running = op && op.op === "ready" && op.running, prog = (op && op.progress) || {};
+    rd.style.display = ops && r.host ? "" : "none";
+    el.querySelector(".opline").style.display = ops && r.host ? "" : "none";
+    const isReady = pr.phase === "ready" && h.level === "ok";
+    rd.disabled = !!running || isReady;
+    rd.textContent = running ? "Getting ready…" : isReady ? "Ready ✓" : "Ready";
+    pg.style.display = running ? "block" : "none";
+    if (running) pg.firstElementChild.style.width = Math.min(100, (prog.elapsed || 0) / 1.2) + "%";
+    $("op-" + r.id).textContent = op ? `${op.op}: ${op.running ? (prog.phase || "running") : op.rc === 0 ? "done" : "failed (rc " + op.rc + ")"}` : "";
+    const cam = $("cam-" + r.id);
+    if (cam) {
+      const ok = pr.cam && pr.cam.ok, img = cam.querySelector("img");
+      img.style.display = ok ? "block" : "none";
+      cam.querySelector("div").textContent = ok ? "" : "front camera · not connected";
+      cam.querySelector("span").style.display = ok ? "" : "none";
+      if (ok && !img.dataset.busy && Date.now() - (+img.dataset.t || 0) > 120) {
+        img.dataset.busy = 1; img.dataset.t = Date.now();
+        const n = new Image(); n.onload = () => { img.src = n.src; delete img.dataset.busy; }; n.onerror = () => delete img.dataset.busy;
+        n.src = `/cam/${encodeURIComponent(r.id)}.jpg?t=${Date.now()}`;
+      }
+    }
+  }
+}
+
+// what the robot believes: its own tag, the ball, where it is heading (glass box)
+function seesHtml(rid) {
+  const w = S.world, me = w && w.robots[rid], b = w && w.ball, d = S.debug[rid] || {}, c = S.cmds[rid];
+  if (!S.active.includes(rid)) return "";
+  const row = (k, v, ok) => `<span>${k}</span><b class="${ok ? "" : "no"}">${v}</b>`;
+  const fresh = me && me.age < 0.5, bf = b && b.age < 1.0;
+  let out = row("itself", fresh ? `seen · ${(me.age * 1000).toFixed(0)} ms` : "not seen", fresh);
+  out += row("ball", bf ? (me ? `${Math.hypot(b.x - me.x, b.y - me.y).toFixed(2)} m away` : "seen") : "not seen", bf);
+  if (d.target && me) out += row("heading to", `${Math.hypot(d.target[0] - me.x, d.target[1] - me.y).toFixed(2)} m`, true);
+  if (c && (c.vx || c.vy || c.wz)) out += row("speed", `${Math.abs(c.vx).toFixed(2)} m/s · turn ${c.wz.toFixed(1)}`, true);
+  return out;
+}
+
+// ---------- header, overlays, ticker ----------
+const fmt = (s) => { s = Math.max(0, Math.ceil(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
+function renderHeader() {
+  const P = S.play, f = P.flow, lm = !f && !hideCard ? P.last_match : null, m = f || lm;
+  $("src").textContent = S.source === "sim" ? "simulation" : "live camera" + (S.link ? "" : " · link off");
+  $("rec").hidden = !P.recording;
+  const sc = m ? m.score : { blue: 0, red: 0 };
+  setDigit("sb", sc.blue); setDigit("sr", sc.red);
+  $("nb").classList.toggle("muted", !P.playing.some((r) => (S.robots.find((q) => q.id === r) || {}).team === "blue"));
+  $("nr").classList.toggle("muted", !P.playing.some((r) => (S.robots.find((q) => q.id === r) || {}).team === "red"));
+  let left = m ? m.clock_left : S.params.match_s;
+  if (f && f.phase === "play") left -= (performance.now() - gotAt) / 1000;
+  $("clock").textContent = fmt(left);
+  $("phase").textContent = f ? PHASE[f.phase] || f.phase : lm ? (lm.result === "full_time" ? "full time" : lm.result) : S.mode === "idle" ? "ready" : S.mode;
+  $("touches").textContent = `referee touches ${m ? m.touches : 0}`;
+  $("touchN").textContent = m ? m.touches : 0;
+  const pl = P.playing;
+  $("bVar").firstChild.textContent = pl.length > 1 ? `${pl.length} robots` : `${NAME(pl[0] || "-")} solo`;
+  $("bPlay").firstChild.textContent = f && f.phase !== "paused" && f.phase !== "kickoff" && f.phase !== "restart" ? "Pause" : "Play";
+  $("bPlay").classList.toggle("lit", !!f && f.phase === "paused");
+  const st = $("stage"), teams = pl.map((r) => (S.robots.find((q) => q.id === r) || {}).team);
+  st.className = pl.length === 1 ? "solo-" + teams[0] : "";
+}
+function setDigit(id, v) { const e = $(id); if (e.textContent !== String(v)) { e.textContent = v; e.classList.remove("pop"); void e.offsetWidth; e.classList.add("pop"); } }
+function renderCenter() {
+  const P = S.play, f = P.flow, c = $("center");
+  let html = "", cls = "center";
+  if (f && f.goals.length && f.goals[f.goals.length - 1].n !== lastGoalN) {
+    const g = f.goals[f.goals.length - 1]; lastGoalN = g.n;
+    const fl = $("flash"); fl.style.background = `radial-gradient(circle at 50% 50%, ${COL[g.team]}cc, transparent 70%)`;
+    fl.classList.remove("go"); void fl.offsetWidth; fl.classList.add("go");
+  }
+  if (f && !f.goals.length) lastGoalN = 0;
+  if (f) {
+    const w = f.waiting.join(" · ");
+    if (f.phase === "goal") { const g = f.goals[f.goals.length - 1] || {}; html = `<div class="big goalword" style="color:${SOFT[g.team] || "#fff"}">GOAL!</div><div class="sub">${esc(NAME(g.team || ""))} scores</div>`; }
+    else if (f.phase === "countdown") { cls += " count"; html = `<div class="big num">${Math.max(1, Math.ceil(f.countdown_left - (performance.now() - gotAt) / 1000))}</div>`; }
+    else if (f.phase === "kickoff") html = `<div class="big" style="font-size:3em">KICKOFF</div><div class="sub">${w ? "Waiting for " + esc(w) : "Starting"}</div>`;
+    else if (f.phase === "restart") html = `<div class="big" style="font-size:3em">PLACE THE BALL</div><div class="sub">Play resumes when the ball is still</div>`;
+    else if (f.phase === "paused") html = `<div class="big" style="font-size:3.4em">PAUSED</div><div class="sub">P to resume</div>`;
+  } else if (P.last_match && !hideCard) {
+    const lm = P.last_match, t = lm.result === "full_time" ? "FULL TIME" : lm.result === "stopped" ? "STOPPED" : "MATCH ENDED";
+    html = `<div class="card"><div class="big" style="font-size:2em;letter-spacing:.2em">${t}</div>
+      <div class="final num"><span style="color:${SOFT.blue}">${lm.score.blue}</span> – <span style="color:${SOFT.red}">${lm.score.red}</span></div>
+      <div style="color:var(--mute)">${fmt(lm.clock)} played · referee touches ${lm.touches}</div></div>`;
+  } else if (S.mode === "idle") html = `<div class="sub" style="margin-top:auto;margin-bottom:1.2em">K kickoff · P play from here · V robots · space stops everything</div>`;
+  if (c.dataset.h !== html) { c.dataset.h = html; c.innerHTML = html; }
+  c.className = cls;
+  const b = P.banners.map((x) => `<div class="banner ${x.level === "warn" ? "warn" : ""}">${esc(x.text)}</div>`);
+  if (S.source === "camera" && S.eye && !S.eye.calibrated) b.push(`<div class="banner warn">Camera: ${esc(S.eye.message)}</div>`);
+  const bh = b.join(""); if ($("banners").dataset.h !== bh) { $("banners").dataset.h = bh; $("banners").innerHTML = bh; }
+  $("legend").textContent = camOn() ? "ring = where it thinks it is · × = where it is going" : S.truth ? "solid = robot · dashed ring = what it sees · × = where it is going" : "× = where it is going";
+}
+function renderTicker() {
+  const items = S.play.ticker.slice().reverse().slice(0, 3);
+  const top = items.length ? items[0].n : 0;
+  if (top === lastTickN) return; lastTickN = top;
+  $("ticker").innerHTML = items.length ? items.map((x) => `<div class="tk ${esc(x.team || "")} ${x.kind === "goal" ? "goal" : ""}"><i></i>${esc(x.text)} <small>${esc(x.t)}</small></div>`).join("")
+    : `<div class="tk" style="color:var(--dim)">The robots' decisions appear here as they make them.</div>`;
+}
+
+// ---------- pitch drawing (requestAnimationFrame, smoothed between 10 Hz states) ----------
+const cv = $("cv"), cx = cv.getContext("2d"), disp = {}, trails = {};
+let camImg = null, camBusy = false, camT = 0, camOk = false;
+const camOn = () => view === "camera" && S && S.source === "camera" && camOk;
+function pollCam() {
+  if (!S || S.source !== "camera" || camBusy || performance.now() - camT < 66) return;
+  camBusy = true; camT = performance.now();
+  const n = new Image();
+  n.onload = () => { camImg = n; camOk = true; camBusy = false; };
+  n.onerror = () => { camOk = false; camBusy = false; camT += 900; };
+  n.src = "/view.jpg?t=" + Date.now();
+}
+function smooth(key, tgt, dt, tau = 0.09) {
+  if (!tgt) { delete disp[key]; return null; }
+  const d = disp[key];
+  if (!d || Math.hypot(tgt.x - d.x, tgt.y - d.y) > 0.6) return (disp[key] = { ...tgt });
+  const k = 1 - Math.exp(-dt / tau);
+  d.x += (tgt.x - d.x) * k; d.y += (tgt.y - d.y) * k;
+  if (tgt.yaw !== undefined) { const dy = Math.atan2(Math.sin(tgt.yaw - (d.yaw ?? tgt.yaw)), Math.cos(tgt.yaw - (d.yaw ?? tgt.yaw))); d.yaw = (d.yaw ?? tgt.yaw) + dy * k; }
+  return d;
+}
+let M = null;   // field (x, y) -> canvas px
+function mapping(W, H) {
+  const F = S.field, ov = S.play.overlay;
+  if (camOn() && camImg) {
+    const ar = camImg.naturalWidth / camImg.naturalHeight, s = Math.min(W / ar, H);
+    const iw = s * ar, ih = s, ix = (W - iw) / 2, iy = (H - ih) / 2;
+    const hp = (h, x, y) => { const w = h[2][0] * x + h[2][1] * y + h[2][2]; return [ix + iw * (h[0][0] * x + h[0][1] * y + h[0][2]) / w, iy + ih * (h[1][0] * x + h[1][1] * y + h[1][2]) / w]; };
+    return { cam: true, img: [ix, iy, iw, ih], ok: !!ov, p: (x, y, tag) => ov ? hp(tag ? ov.tag : ov.floor, x, y) : [NaN, NaN] };
+  }
+  const m = 0.42, s = Math.min(W / (F.length + 2 * m), H / (F.width + 2 * m));
+  return { cam: false, ok: true, s, p: (x, y) => [W / 2 + x * s, H / 2 - y * s] };
+}
+function poly(pts, close = true) { cx.beginPath(); pts.forEach(([x, y], i) => i ? cx.lineTo(...M.p(x, y, pts.tag)) : cx.moveTo(...M.p(x, y, pts.tag))); if (close) cx.closePath(); }
+function circlePts(x, y, r, n = 28) { return Array.from({ length: n }, (_, i) => [x + r * Math.cos(i / n * 6.2832), y + r * Math.sin(i / n * 6.2832)]); }
+function drawField(W, H) {
+  const F = S.field, L = F.length / 2, Wd = F.width / 2, G = F.goal_width / 2, D = F.goal_depth, dpr = devicePixelRatio || 1;
+  if (M.cam) {
+    cx.drawImage(camImg, ...M.img);
+    if (!M.ok) return;
+    cx.strokeStyle = "#ffffff55"; cx.lineWidth = 1.5 * dpr;
+  } else {
+    // grass stripes
+    const n = 10;
+    for (let i = 0; i < n; i++) {
+      const x0 = -L - 0.25 + i * (2 * L + 0.5) / n;
+      cx.fillStyle = i % 2 ? "#1d5a37" : "#215f3b";
+      poly([[x0, Wd + 0.25], [x0 + (2 * L + 0.5) / n + 0.003, Wd + 0.25], [x0 + (2 * L + 0.5) / n + 0.003, -Wd - 0.25], [x0, -Wd - 0.25]]); cx.fill();
+    }
+    cx.strokeStyle = "#ffffffd0"; cx.lineWidth = 2.2 * dpr;
+  }
+  for (const [sx, team] of [[-1, "blue"], [1, "red"]]) {
+    const box = [[sx * L, G], [sx * (L + D), G], [sx * (L + D), -G], [sx * L, -G]];
+    if (!M.cam) { cx.fillStyle = "#0d1522"; poly(box); cx.fill(); }
+    cx.fillStyle = COL[team] + (M.cam ? "44" : "77"); poly(box); cx.fill();
+    cx.save(); cx.strokeStyle = COL[team]; cx.lineWidth = 5 * dpr; poly([[sx * L, G], [sx * L, -G]], false); cx.stroke(); cx.restore();
+  }
+  poly([[-L, Wd], [L, Wd], [L, -Wd], [-L, -Wd]]); cx.stroke();
+  poly([[0, Wd], [0, -Wd]], false); cx.stroke();
+  poly(circlePts(0, 0, 0.25, 48)); cx.stroke();
+  cx.fillStyle = cx.strokeStyle; poly(circlePts(0, 0, 0.015, 10)); cx.fill();
+  const f = S.play.flow;
+  if (f && f.phase === "kickoff") {        // kickoff spots
+    const fr = S.params.kickoff_x_frac || 0.27;
+    for (const rid of f.playing) {
+      const team = (S.robots.find((q) => q.id === rid) || {}).team, x = (team === "blue" ? -1 : 1) * fr * F.length;
+      cx.save(); cx.setLineDash([6 * dpr, 5 * dpr]); cx.strokeStyle = SOFT[team]; cx.lineWidth = 2 * dpr;
+      poly(circlePts(x, 0, F.robot_radius)); cx.stroke(); cx.restore();
+    }
+  }
+}
+function drawBody(p, team, alpha) {
+  const c = Math.cos(p.yaw || 0), s = Math.sin(p.yaw || 0), T = (u, v) => [p.x + c * u - s * v, p.y + s * u + c * v];
+  const dpr = devicePixelRatio || 1;
+  cx.save(); cx.globalAlpha = alpha;
+  cx.fillStyle = "#00000055"; poly([T(-.17, .12), T(.19, .12), T(.19, -.12), T(-.17, -.12)].map(([x, y]) => [x + .02, y - .02])); cx.fill();
+  cx.fillStyle = "#0f172a";
+  for (const [u, v] of [[.12, .11], [.12, -.11], [-.11, .11], [-.11, -.11]]) { poly(circlePts(...T(u, v), .03, 10)); cx.fill(); }
+  cx.fillStyle = COL[team]; cx.strokeStyle = "#ffffffcc"; cx.lineWidth = 1.5 * dpr;
+  poly([T(-.16, .09), T(.13, .09), T(.17, .05), T(.17, -.05), T(.13, -.09), T(-.16, -.09)]); cx.fill(); cx.stroke();
+  cx.fillStyle = "#ffffffdd"; poly(circlePts(...T(.13, 0), .035, 12)); cx.fill();
+  cx.restore();
+}
+function ring(p, team, dashed, tag) {
+  const dpr = devicePixelRatio || 1, r = S.field.robot_radius;
+  cx.save(); cx.strokeStyle = M.cam ? "#fff" : SOFT[team]; cx.lineWidth = (M.cam ? 3 : 2) * dpr;
+  if (dashed) cx.setLineDash([5 * dpr, 4 * dpr]);
+  const pts = circlePts(p.x, p.y, r); pts.tag = tag; poly(pts); cx.stroke();
+  if (M.cam) { cx.strokeStyle = COL[team]; cx.lineWidth = 2 * dpr; cx.setLineDash([]); poly(pts); cx.stroke(); }
+  if (p.yaw !== undefined) {
+    const a = [[p.x, p.y], [p.x + Math.cos(p.yaw) * r * 1.35, p.y + Math.sin(p.yaw) * r * 1.35]]; a.tag = tag;
+    cx.setLineDash([]); cx.lineWidth = 3 * dpr; cx.strokeStyle = M.cam ? COL[team] : SOFT[team]; poly(a, false); cx.stroke();
+  }
+  cx.restore();
+}
+function label(p, rid, team, tag) {
+  const pr = S.play.robots[rid] || {}, dpr = devicePixelRatio || 1;
+  const role = pr.role === "attack" ? "ATTACK" : pr.role === "defend" ? "DEFEND" : "";
+  const txt = NAME(rid) + (role ? " · " + role : "");
+  const [x, y] = M.p(p.x, p.y + S.field.robot_radius + 0.06, tag);
+  cx.save(); cx.font = `700 ${13 * dpr}px system-ui, sans-serif`;
+  const w = cx.measureText(txt).width + 14 * dpr, h = 22 * dpr;
+  cx.fillStyle = COL[team]; cx.beginPath(); cx.roundRect(x - w / 2, y - h, w, h, 6 * dpr); cx.fill();
+  cx.fillStyle = "#fff"; cx.textAlign = "center"; cx.textBaseline = "middle"; cx.fillText(txt, x, y - h / 2 + 0.5);
+  cx.restore();
+}
+function drawBall(b, ghost) {
+  const dpr = devicePixelRatio || 1, r = S.field.ball_radius, pts = circlePts(b.x, b.y, r, 20);
+  cx.save();
+  if (ghost) { cx.setLineDash([4 * dpr, 3 * dpr]); cx.strokeStyle = M.cam ? "#fff" : "#ffd1e6"; cx.lineWidth = 2 * dpr; poly(pts); cx.stroke(); }
+  else { cx.fillStyle = "#00000050"; poly(circlePts(b.x + .015, b.y - .015, r, 16)); cx.fill();
+         cx.fillStyle = "#ff5fa2"; poly(pts); cx.fill(); cx.strokeStyle = "#fff"; cx.lineWidth = 1.5 * dpr; cx.stroke();
+         cx.fillStyle = "#ffffffaa"; poly(circlePts(b.x - r * .35, b.y + r * .35, r * .28, 10)); cx.fill(); }
+  cx.restore();
+}
+function target(rid, p, team, tgt) {
+  const dpr = devicePixelRatio || 1, s = 0.05;
+  cx.save(); cx.strokeStyle = M.cam ? "#fde047" : SOFT[team]; cx.lineWidth = 2 * dpr; cx.setLineDash([6 * dpr, 6 * dpr]);
+  cx.lineDashOffset = -performance.now() / 40;
+  poly([[p.x, p.y], tgt], false); cx.stroke(); cx.setLineDash([]); cx.lineWidth = 3.5 * dpr;
+  poly([[tgt[0] - s, tgt[1] - s], [tgt[0] + s, tgt[1] + s]], false); cx.stroke();
+  poly([[tgt[0] - s, tgt[1] + s], [tgt[0] + s, tgt[1] - s]], false); cx.stroke();
+  cx.restore();
+}
+function trail(rid, p, team, now) {
+  const tr = trails[rid] || (trails[rid] = []);
+  if (p && (!tr.length || now - tr[tr.length - 1].t > 100)) tr.push({ x: p.x, y: p.y, t: now });
+  while (tr.length && now - tr[0].t > 4000) tr.shift();
+  const dpr = devicePixelRatio || 1;
+  cx.save(); cx.lineWidth = 3 * dpr; cx.lineCap = "round";
+  for (let i = 1; i < tr.length; i++) {
+    cx.strokeStyle = COL[team]; cx.globalAlpha = 0.5 * (1 - (now - tr[i].t) / 4000);
+    const seg = [[tr[i - 1].x, tr[i - 1].y], [tr[i].x, tr[i].y]]; seg.tag = M.cam; poly(seg, false); cx.stroke();
+  }
+  cx.restore();
+}
+let lastFrame = performance.now();
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.1, (now - lastFrame) / 1000); lastFrame = now;
+  if (!S) return;
+  pollCam();
+  const dpr = devicePixelRatio || 1, W = Math.round(cv.clientWidth * dpr), H = Math.round(cv.clientHeight * dpr);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  cx.clearRect(0, 0, W, H);
+  M = mapping(W, H);
+  drawField(W, H);
+  if (!M.ok) return;
+  const T = S.truth, Wd = S.world || { robots: {} }, team = (rid) => (S.robots.find((q) => q.id === rid) || {}).team || "blue";
+  for (const rid of Object.keys(disp)) if (rid.startsWith("t:") && !(T && T.robots[rid.slice(2)])) delete disp[rid];
+  const ids = new Set([...Object.keys(Wd.robots || {}), ...Object.keys((T && T.robots) || {})]);
+  for (const rid of ids) {
+    const tm = team(rid), d = S.debug[rid] || {};
+    const truth = T && smooth("t:" + rid, T.robots[rid], dt), seen = smooth("w:" + rid, Wd.robots[rid], dt);
+    const anchor = truth || seen;
+    if (!anchor) continue;
+    trail(rid, anchor, tm, now);
+    if (d.target && (S.play.robots[rid] || {}).playing) target(rid, anchor, tm, d.target);
+  }
+  const bt = T && T.ball && smooth("tb", T.ball, dt, 0.05), bw = smooth("wb", Wd.ball, dt, 0.05);
+  if (bt) drawBall(bt, false);
+  if (bw) drawBall(bw, !!bt || M.cam);
+  for (const rid of ids) {
+    const tm = team(rid), truth = disp["t:" + rid], seen = disp["w:" + rid];
+    if (truth) drawBody(truth, tm, 1);
+    if (seen) ring(seen, tm, true, M.cam);
+    const anchor = truth || seen;
+    if (anchor) label(anchor, rid, tm, M.cam && !truth);
+  }
+}
+requestAnimationFrame(frame);
+
+// ---------- state poll (10 Hz) ----------
+function render() { renderHeader(); renderCards(); renderCenter(); renderTicker(); }
+async function poll() {
+  try {
+    const s = await (await fetch("/state")).json();
+    if (S && S.play.flow && !s.play.flow) hideCard = false;
+    S = s; gotAt = performance.now(); $("offline").style.display = "none"; render();
+  } catch (e) { $("offline").style.display = "flex"; }
+  setTimeout(poll, 100);
+}
+poll();
+</script>
+</body>
+</html>
