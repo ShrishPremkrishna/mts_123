@@ -66,3 +66,24 @@ keyboard space stop all robots; speed caps in params with hard ceilings in
 
 Each run writes `fc/runs/<UTC timestamp>-<test>/` (gitignored): `params.json`,
 `events.jsonl` (world, cmds, acks at loop rate), `summary.json`.
+
+## Python interfaces (fixed for v1 lanes)
+
+- `fc.brain.Brain(cfg: RobotCfg, field: Field)`;
+  `.decide(world: World, params: dict) -> tuple[Cmd, dict]`. Debug dict keys:
+  `role` (attack|defend|idle), `phase` (str), `target` ([x, y] or null), free extras.
+- `fc.sim.Sim(field: Field, robots: list[RobotCfg], params: dict, seed: int = 0)`;
+  `.reset(scenario: str = "kickoff")`, `.step(cmds: dict[str, Cmd], dt: float)`,
+  `.observe(now: float) -> World` (delayed, noisy), `.truth() -> dict` (exact
+  poses/ball for drawing), `.events: list[dict]` (goals, out of bounds).
+- `fc.link.Link(robots: list[RobotCfg], params: dict)`; `.send(cmds: dict[str, Cmd])`,
+  `.status() -> dict[str, dict]` (last ack age, imu health, profile), `.stop_all()`.
+- `fc.eye.Eye(field: Field, robots: list[RobotCfg], params: dict)`; `.start()`,
+  `.latest() -> World | None`, `.jpeg() -> bytes | None` (annotated frame).
+- `fc.robot.imu_health.ImuHealth(params: dict)`;
+  `.update(t, quat_xyzw, gyro_xyz, cmd_zero: bool)`, `.summary() -> dict` with
+  `tilt_deg, pulse_density, bias_x, stale_ms, level` (ok|warn|bad).
+- Pi control (run by the app over ssh): `~/fc-v1/robot/fcctl.sh` with
+  `status` (prints one JSON line), `start <profile> --confirm` (may home the legs),
+  `stop`, `bridge start|stop`, `imu-test <seconds>`. Staged by
+  `fc/robot/stage.sh <host>` (rsync into `~/fc-v1/` only).
