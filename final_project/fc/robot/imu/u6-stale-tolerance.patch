@@ -1,0 +1,127 @@
+diff -ruN a/control_board_hardware_interface/CMakeLists.txt b/control_board_hardware_interface/CMakeLists.txt
+--- a/control_board_hardware_interface/CMakeLists.txt	2026-11-23 02:52:16
++++ b/control_board_hardware_interface/CMakeLists.txt	2026-11-23 02:53:23
+@@ -91,7 +91,7 @@
+   ament_target_dependencies(test_imu_health_guard hardware_interface pluginlib rclcpp rclcpp_lifecycle tf2)
+   target_link_options(test_imu_health_guard PRIVATE
+     -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=close -Wl,--wrap=flock -Wl,--wrap=unlink)
+-  foreach(scenario health init_missing read_gyro read_quat read_norm activate_bias homing_stale activate_fresh)
++  foreach(scenario health init_missing read_gyro read_quat read_norm read_brief_gap read_norm_after_good activate_bias homing_stale activate_fresh)
+     add_test(NAME imu_health_${scenario} COMMAND test_imu_health_guard ${scenario})
+     set_tests_properties(imu_health_${scenario} PROPERTIES TIMEOUT 25)
+   endforeach()
+diff -ruN a/control_board_hardware_interface/include/control_board_hardware_interface/control_board_hardware_interface.hpp b/control_board_hardware_interface/include/control_board_hardware_interface/control_board_hardware_interface.hpp
+--- a/control_board_hardware_interface/include/control_board_hardware_interface/control_board_hardware_interface.hpp	2026-11-23 02:52:16
++++ b/control_board_hardware_interface/include/control_board_hardware_interface/control_board_hardware_interface.hpp	2026-11-23 02:53:23
+@@ -87,6 +87,11 @@
+   int lock_fd_ = -1;  // File descriptor for lock file
+ 
+   IMUManager imu_manager_;
++  // FC v1 stale tolerance: last good IMU sample and the current gap, if any.
++  BNO055::Output last_good_imu_;
++  bool have_good_imu_ = false;
++  std::chrono::steady_clock::time_point imu_gap_start_{};
++  unsigned imu_gap_events_ = 0;
+ 
+   // TODO: Refactor the horrible c-style spi code
+   spi_command_t *spi_command_ = nullptr;
+diff -ruN a/control_board_hardware_interface/include/control_board_hardware_interface/imu_health.hpp b/control_board_hardware_interface/include/control_board_hardware_interface/imu_health.hpp
+--- a/control_board_hardware_interface/include/control_board_hardware_interface/imu_health.hpp	2026-11-23 02:52:16
++++ b/control_board_hardware_interface/include/control_board_hardware_interface/imu_health.hpp	2026-11-23 02:53:23
+@@ -4,6 +4,7 @@
+ #include <array>
+ #include <initializer_list>
+ #include <cmath>
++#include <cstring>
+ 
+ namespace pupper_imu {
+ // Receipt freshness is an availability bound, NOT physical measurement age or
+@@ -13,6 +14,16 @@
+ constexpr double stationary_gyro_mean_limit_rad_s = 0.025;
+ constexpr auto stationary_window = std::chrono::seconds(3);
+ constexpr auto startup_timeout = std::chrono::seconds(15);
++// FC v1 stale tolerance (fc/robot/imu/u6-stale-tolerance.patch, 2026-11-23):
++// once read() has seen a good sample, a receipt gap is bridged by holding that
++// sample for up to stale_grace after the first stale read(), i.e. about 300 ms
++// without reports in total, instead of disabling motors on one 100 ms miss.
++// Non-finite values and bad quaternion norms still fail immediately.
++constexpr auto stale_grace = std::chrono::milliseconds(200);
++inline bool tolerable_gap(const char *error) {
++  return error && (std::strcmp(error, "stale IMU component receipt") == 0 ||
++                   std::strcmp(error, "missing complete IMU report") == 0);
++}
+ 
+ template <class Output>
+ const char *feedback_error(const Output &sample,
+diff -ruN a/control_board_hardware_interface/src/control_board_hardware_interface.cpp b/control_board_hardware_interface/src/control_board_hardware_interface.cpp
+--- a/control_board_hardware_interface/src/control_board_hardware_interface.cpp	2026-11-23 02:52:16
++++ b/control_board_hardware_interface/src/control_board_hardware_interface.cpp	2026-11-23 02:53:23
+@@ -321,9 +321,39 @@
+     [[maybe_unused]] const rclcpp::Time &time, [[maybe_unused]] const rclcpp::Duration &period) {
+   // Validate BEFORE transmitting previously prepared actuator commands. Each
+   // sensor component has its own monotonic receipt; one cannot freshen another.
+-  const BNO055::Output imu_output = imu_manager_.get_imu_data();
++  BNO055::Output imu_output = imu_manager_.get_imu_data();
+   if (imu_manager_.enabled) {
+-    if (const char *error = pupper_imu::feedback_error(imu_output, std::chrono::steady_clock::now())) {
++    const auto now = std::chrono::steady_clock::now();
++    const char *error = pupper_imu::feedback_error(imu_output, now);
++    const auto gap_ms = [&]() {
++      return std::chrono::duration<double, std::milli>(now - imu_gap_start_).count();
++    };
++    if (!error) {
++      if (imu_gap_start_ != std::chrono::steady_clock::time_point{}) {
++        // Receipts resumed: evidence for reader starvation rather than a BNO dropout.
++        RCLCPP_WARN(rclcpp::get_logger("ControlBoardHardwareInterface"),
++                    "FC_IMU_GAP resumed after %.0f ms held (event %u)", gap_ms(), imu_gap_events_);
++        imu_gap_start_ = {};
++      }
++      last_good_imu_ = imu_output;
++      have_good_imu_ = true;
++    } else if (have_good_imu_ && pupper_imu::tolerable_gap(error)) {
++      if (imu_gap_start_ == std::chrono::steady_clock::time_point{}) {
++        imu_gap_start_ = now;
++        ++imu_gap_events_;
++        RCLCPP_WARN(rclcpp::get_logger("ControlBoardHardwareInterface"),
++                    "FC_IMU_GAP %s; holding last good sample up to %ld ms (event %u)", error,
++                    static_cast<long>(pupper_imu::stale_grace.count()), imu_gap_events_);
++      }
++      if (now - imu_gap_start_ > pupper_imu::stale_grace) {
++        RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"),
++                     "%s for %.0f ms after grace start (event %u); disabling motors", error, gap_ms(),
++                     imu_gap_events_);
++        deactivate_motors();
++        return hardware_interface::return_type::ERROR;
++      }
++      imu_output = last_good_imu_;
++    } else {
+       RCLCPP_ERROR(rclcpp::get_logger("ControlBoardHardwareInterface"), "%s; disabling motors", error);
+       deactivate_motors();
+       return hardware_interface::return_type::ERROR;
+diff -ruN a/control_board_hardware_interface/test/test_imu_health_guard.cpp b/control_board_hardware_interface/test/test_imu_health_guard.cpp
+--- a/control_board_hardware_interface/test/test_imu_health_guard.cpp	2026-11-23 02:52:16
++++ b/control_board_hardware_interface/test/test_imu_health_guard.cpp	2026-11-23 02:53:23
+@@ -107,6 +107,23 @@
+       for(int i=0;i<4;++i)command.flags[i]=1;
+       command.kp_hip[0]=2;
+       require(driver->read(rclcpp::Time(0),rclcpp::Duration::from_seconds(.01))==hardware_interface::return_type::ERROR,"invalid feedback accepted by read");neutral_only();
++    }else if(scenario=="read_brief_gap"){
++      auto rd=[&]{return driver->read(rclcpp::Time(0),rclcpp::Duration::from_seconds(.01));};
++      std::this_thread::sleep_for(std::chrono::milliseconds(30));
++      require(rd()==hardware_interface::return_type::OK,"fresh read rejected");
++      mode=2;std::this_thread::sleep_for(std::chrono::milliseconds(30));
++      require(rd()==hardware_interface::return_type::OK,"brief quaternion gap not bridged");
++      mode=0;std::this_thread::sleep_for(std::chrono::milliseconds(30));
++      require(rd()==hardware_interface::return_type::OK,"recovery after gap rejected");
++      mode=5;std::this_thread::sleep_for(std::chrono::milliseconds(30));
++      require(rd()==hardware_interface::return_type::OK,"brief missing report not bridged");
++      std::this_thread::sleep_for(pupper_imu::stale_grace+std::chrono::milliseconds(50));
++      require(rd()==hardware_interface::return_type::ERROR,"gap longer than grace tolerated");neutral_only();
++    }else if(scenario=="read_norm_after_good"){
++      std::this_thread::sleep_for(std::chrono::milliseconds(30));
++      require(driver->read(rclcpp::Time(0),rclcpp::Duration::from_seconds(.01))==hardware_interface::return_type::OK,"fresh read rejected");
++      mode=4;std::this_thread::sleep_for(std::chrono::milliseconds(30));
++      require(driver->read(rclcpp::Time(0),rclcpp::Duration::from_seconds(.01))==hardware_interface::return_type::ERROR,"bad norm bridged as a gap");neutral_only();
+     }else if(scenario=="activate_bias"){
+       mode=3;std::this_thread::sleep_for(std::chrono::milliseconds(30));
+       require(driver->on_activate(rclcpp_lifecycle::State())==hardware_interface::CallbackReturn::ERROR,"biased IMU enabled");neutral_only();
