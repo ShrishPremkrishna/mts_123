@@ -7,5 +7,13 @@
   "max_wz": 1.0,
   "accel_vx": 0.6,
   "accel_wz": 3.0,
-  "ttl_s": 0.25
+  "ttl_s": 0.25,
+  "goalie_style": "sideways",
+  "ball_lost": "hold",
+  "pose_stale_s": 0.6,
+  "role_hold_s": 2.5,
+  "role_hyst_s": 1.0,
+  "push_vx": 0.30,
+  "goalie_dist": 0.25,
+  "yaw_learn": 1
 }
