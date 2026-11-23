@@ -11,6 +11,7 @@ gamepad `/teleop_cmd_vel` wins) → `/cmd_vel` → walker. Contract: [../SPEC.md
 | `fcctl.sh` | Runs on the Pi from `~/fc-v1/robot/`: `status` (incl. `mux_alive`, `mux_ok`, `ros.mux`), `start <profile> --confirm`, `stop`, `bridge start\|stop`, `imu-test <seconds>`, plus `walk`/`rest`. |
 | `profiles/stock.sh` | Class platform: monorepo `ros2 launch neural_controller launch.py teleop:=False` + teleop→`/teleop_cmd_vel` + `cmd_vel_mux_node`. Domain 0. |
 | `profiles/tej_u6.sh` | Tej's `software-ballkick-20261120-u6` via his `kickseen6` kit (prepare + start-native), fresh run dir, no HTTP API; + teleop→`/teleop_cmd_vel`. Domain 168. |
+| `profiles/stock_hh0.sh`, `profiles/tej_u6_hh0.sh` | The same stacks with the walker's heading hold off: set `FC_HEADING_HOLD=0` and source the base profile. Its `profile_start` first runs `fc_hh_overlay` (`imu/heading_hold.py`, lane D): a fresh kp=0 policy overlay in `<run>/hh0/`, re-read and verified (only `heading_hold.kp` and the policy path differ from the sources; refuses to write outside `~/fc-v1`). Any failure refuses the start before motion. stock: `ros2 launch <run>/hh0/launch_hh0.py` (src and installed launch/config/policy must be identical). tej_u6: kit scripts still checked against their sha pins; only prepare's `--launch/--config/--urdf` point at `<run>/hh0/foundation/hardware/`. `status` reports `heading_hold` (`on`/`off`) and `heading_hold_overlay` (policy sha). |
 | `stage.sh <host>` | Laptop: rsync this dir (minus `vendor/`) to `<host>:~/fc-v1/robot/`, print changes; copy `fc/config/link.key` (0600) and write `robot_id` from the `robots.json` entry for `<host>` (or `FC_ROBOT_ID`). |
 | `keygen.py` | Laptop, once: `python -m fc.robot.keygen` writes `fc/config/link.key` (0600, gitignored). |
 | `vendor/tej_u6/` | Text sources/configs/manifests of u6, the kit, its driver source and gateway source (3.5 MB). Full archive with binaries: `~/workspace/pupper-foundation-artifacts/tej_u6_20261120.tar.gz` (+ `.sha256`). |
@@ -83,5 +84,6 @@ mux in domain 77 every command is held as `mux_unseen`; start a lone `cmd_vel_mu
 `--reset-replay`, `--no-imu-stop`, `--no-mux-guard`.
 
 Tests (no ROS): `.venv/bin/python -m pytest -q fc/robot/tests` from `final_project/`. `test_fcctl.py` (fake
-profile: lock, stop during homing, topology gate) needs Linux and is skipped on the Mac; run it with
-`docker run --rm --network none -v "$PWD/fc/robot:/src:ro" ros:jazzy-ros-base bash -c 'cd /src && python3 -m pytest -q -p no:cacheprovider tests/test_fcctl.py'`.
+profile: lock, stop during homing, topology gate, heading-hold overlay gate) needs Linux and is skipped on the
+Mac; run it with (`--init` reaps zombies; without it pytest is PID 1 and `stop` waits on dead pids)
+`docker run --rm --init --network none -v "$PWD/fc/robot:/src:ro" ros:jazzy-ros-base bash -c 'cd /src && python3 -m pytest -q -p no:cacheprovider tests/test_fcctl.py'`.

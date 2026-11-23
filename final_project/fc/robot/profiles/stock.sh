@@ -16,6 +16,14 @@ PROFILE_WALKER=neural_controller_default
 PROFILE_LEG_CONTROLLERS="neural_controller neural_controller_default neural_controller_default_alt neural_controller_three_legged neural_controller_student"
 MONO=/home/pi/pupperv3-monorepo
 STOCK_CONFIG=$MONO/ros2_ws/install/neural_controller/share/neural_controller/launch/config.yaml
+# Heading hold (the walker's yaw hold, see imu/heading_hold.py): on, unless a variant (stock_hh0.sh,
+# tej_u6_hh0.sh) set FC_HEADING_HOLD=0 before sourcing this file. Off = profile_start first builds and
+# verifies a fresh kp=0 policy overlay in RUN_DIR/hh0 (fcctl.sh fc_hh_overlay) and refuses if it cannot.
+case "${FC_HEADING_HOLD:-1}" in
+  1) PROFILE_HEADING_HOLD=on ;;
+  0) PROFILE_HEADING_HOLD=off; PROFILE_DESC+=" + heading hold OFF (kp=0 overlay)" ;;
+  *) PROFILE_HEADING_HOLD="invalid:$FC_HEADING_HOLD" ;;   # fcctl load_profile refuses it
+esac
 
 profile_env() {
   set +u
@@ -33,7 +41,14 @@ profile_start() {
   local run=$1
   profile_env
   [ -f "$STOCK_CONFIG" ] || { fc_log "missing $STOCK_CONFIG"; return 1; }
-  fc_spawn launch "$run/robot.log" ros2 launch neural_controller launch.py teleop:=False
+  local launch=(neural_controller launch.py)
+  if [ "$PROFILE_HEADING_HOLD" = off ]; then
+    # launch_hh0.py = the installed launch.py (checked byte-identical) reading an overlay config.yaml whose
+    # neural_controller_default(_alt) model_path is the kp=0 policy; teleop keeps $STOCK_CONFIG (unchanged).
+    fc_hh_overlay stock "$run" || return 1
+    launch=("$run/hh0/launch_hh0.py")
+  fi
+  fc_spawn launch "$run/robot.log" ros2 launch "${launch[@]}" teleop:=False
   fc_spawn teleop "$run/teleop.log" ros2 run teleop_twist_joy teleop_node --ros-args \
     --params-file "$STOCK_CONFIG" -r cmd_vel:=/teleop_cmd_vel
   fc_spawn mux "$run/mux.log" ros2 run cmd_vel_mux cmd_vel_mux_node --ros-args \

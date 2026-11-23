@@ -25,6 +25,14 @@ TEJ_YAML=$TEJ_RELEASE/foundation/hardware/lab6-session.yaml
 # sha256 of the kit scripts we derive from (observed on mts 2026-11-23).
 TEJ_PREPARE_SHA=6dea87f4636c15c825e9ebd3f6aae45d03b530dc133fb2d71995c27f09813417
 TEJ_SESSION_SHA=f5913e5b48285b71b981c0265e9efae599ba0312deffb162f6f47fbbfa92f099
+# Heading hold (the walker's yaw hold, see imu/heading_hold.py): on, unless a variant (stock_hh0.sh,
+# tej_u6_hh0.sh) set FC_HEADING_HOLD=0 before sourcing this file. Off = profile_start first builds and
+# verifies a fresh kp=0 policy overlay in RUN_DIR/hh0 (fcctl.sh fc_hh_overlay) and refuses if it cannot.
+case "${FC_HEADING_HOLD:-1}" in
+  1) PROFILE_HEADING_HOLD=on ;;
+  0) PROFILE_HEADING_HOLD=off; PROFILE_DESC+=" + heading hold OFF (kp=0 overlay)" ;;
+  *) PROFILE_HEADING_HOLD="invalid:$FC_HEADING_HOLD" ;;   # fcctl load_profile refuses it
+esac
 
 profile_env() {
   set +u
@@ -36,17 +44,33 @@ profile_env() {
 }
 
 # Copy a kit script with only RUN_DIR changed. Refuses if the kit script changed since it was pinned.
+# With HW (heading hold off, prepare script only) the --launch/--config/--urdf arguments also point at the
+# overlay's foundation/hardware/ (siblings, as persistent_session.py requires); nothing else changes.
 _tej_derive() {
-  local src=$1 sha=$2 dst=$3 session=$4
+  local src=$1 sha=$2 dst=$3 session=$4 hw=${5:-} want=1
   [ "$(sha256sum "$src" | cut -d' ' -f1)" = "$sha" ] || { fc_log "kit script changed: $src"; return 1; }
-  sed "s|^RUN_DIR=.*|RUN_DIR=\"$session\"|" "$src" > "$dst"
+  if [ -n "$hw" ]; then
+    want=4
+    sed -E -e "s|^RUN_DIR=.*|RUN_DIR=\"$session\"|" \
+      -e 's#^(  --(launch|config|urdf) )"\$APP_RELEASE/foundation/hardware/#\1"'"$hw"'/#' "$src" > "$dst"
+    [ "$(grep -cF -- " \"$hw/" "$dst")" = 3 ] || { fc_log "overlay --launch/--config/--urdf rewrite failed: $dst"; return 1; }
+  else
+    sed "s|^RUN_DIR=.*|RUN_DIR=\"$session\"|" "$src" > "$dst"
+  fi
   [ "$(grep -c "^RUN_DIR=\"$session\"$" "$dst")" = 1 ] || { fc_log "RUN_DIR rewrite failed: $dst"; return 1; }
+  [ "$(diff "$src" "$dst" | grep -c '^>')" = "$want" ] || { fc_log "derived $dst does not change exactly $want line(s); refusing"; return 1; }
   if grep -v '^#' "$dst" | grep -q 'supervised-console-runs'; then fc_log "stale run path in $dst"; return 1; fi
 }
 
 profile_start() {
-  local run=$1 session=$1/session
-  _tej_derive "$TEJ_KIT/kickseen6-prepare.sh" "$TEJ_PREPARE_SHA" "$run/prepare.sh" "$session" || return 1
+  local run=$1 session=$1/session hw=""
+  if [ "$PROFILE_HEADING_HOLD" = off ]; then
+    # Overlay of Tej's pinned launch dir: lab6_session.launch.py + the kp=0 policy (sha-pinned inside it),
+    # byte-identical lab6-session.yaml / URDF. The kit scripts are still checked against their pins.
+    fc_hh_overlay u6 "$run" || return 1
+    hw=$run/hh0/foundation/hardware
+  fi
+  _tej_derive "$TEJ_KIT/kickseen6-prepare.sh" "$TEJ_PREPARE_SHA" "$run/prepare.sh" "$session" "$hw" || return 1
   _tej_derive "$TEJ_KIT/kickseen6-session.sh" "$TEJ_SESSION_SHA" "$run/session.sh" "$session" || return 1
   fc_log "prepare (no motion)"
   bash "$run/prepare.sh" > "$run/prepare.log" 2>&1 || { fc_log "prepare failed; see prepare.log"; return 1; }

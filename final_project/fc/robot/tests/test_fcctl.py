@@ -1,7 +1,7 @@
 """fcctl.sh process/lock behaviour with a fake profile (no ROS, no robot).
 
 Needs Linux (flock, setsid, /proc); skipped elsewhere. On the Mac run it in a throwaway container:
-  docker run --rm --network none -v "$PWD/fc/robot:/src:ro" ros:jazzy-ros-base \
+  docker run --rm --init --network none -v "$PWD/fc/robot:/src:ro" ros:jazzy-ros-base \
     bash -c 'apt-get -qq install -y python3-pytest >/dev/null 2>&1; cd /src && python3 -m pytest -q -p no:cacheprovider tests/test_fcctl.py'
 """
 import json
@@ -66,6 +66,7 @@ def fc(tmp_path):
         return json.loads(lines[-1]) if lines else {"raw": out.stdout, "err": out.stderr}
 
     run.root = root
+    run.robot = robot
     yield run
     run("stop")
     for pidfile in (root / "run").glob("*.pid"):   # belt and braces: never leak sleepers
@@ -98,6 +99,7 @@ def test_start_then_bridge_start_then_stop(fc):
     assert argv[argv.index("--state-file") + 1] == str(fc.root / "run" / "bridge_state.json")
     assert "--reset-replay" in argv and "--no-mux-guard" in argv and argv[argv.index("--robot-id") + 1] == "blue"
     assert lock_holders(fc.root) == []
+    assert fc("status")["heading_hold"] is None                # fake profile declares nothing
     stop = fc("stop")
     assert stop["ok"] and stop["left_running"] == "", stop
     assert not (fc.root / "run" / "active").exists()
@@ -148,3 +150,42 @@ def test_adopts_orphan_pid_tmp(fc):
     sleeper.kill()
     sleeper.wait()
     os.remove(fc.root / "run" / "teleop.pid")
+
+
+# Heading-hold-off variants (stock_hh0 / tej_u6_hh0) call fc_hh_overlay first in profile_start.
+FAKE_HH0_PROFILE = FAKE_PROFILE.replace("profile_start() {\n", 'profile_start() {\n  fc_hh_overlay u6 "$1" || return 1\n') + \
+    "\nPROFILE_HEADING_HOLD=off\n"
+FAKE_HH_TOOL = r"""
+import json, os, sys
+kind, out, root = sys.argv[1], sys.argv[2], sys.argv[4]
+assert os.path.realpath(out).startswith(os.path.realpath(root) + "/")
+os.makedirs(out)
+print(json.dumps({"kind": kind, "verified": True, "policy": out + "/p.json", "sha256": "9f5a3e98" + "0" * 56,
+                  "heading_hold": {"kp": 0.0}}))
+"""
+
+
+def test_overlay_failure_refuses_start(fc):
+    # The real imu/heading_hold.py: no Tej tree here, so it must fail loudly and nothing may be spawned.
+    (fc.robot / "profiles" / "fakehh.sh").write_text(FAKE_HH0_PROFILE)
+    start = fc("start", "fakehh", "--confirm")
+    assert start["ok"] is False
+    run_dir = sorted((fc.root / "runs").iterdir())[-1]
+    log = (run_dir / "starter.log").read_text()
+    assert "COULD NOT BE BUILT" in log and "heading_hold: " in log, log
+    assert not (fc.root / "run" / "launch.pid").exists() and not (run_dir / "heading_hold.json").exists()
+    assert fc("status")["heading_hold"] == "off"
+    assert fc("stop")["ok"]
+    assert lock_holders(fc.root) == []
+
+
+def test_status_reports_heading_hold_off(fc):
+    (fc.robot / "profiles" / "fakehh.sh").write_text(FAKE_HH0_PROFILE)
+    (fc.robot / "imu" / "heading_hold.py").write_text(FAKE_HH_TOOL)
+    start = fc("start", "fakehh", "--confirm")
+    assert start["ok"] and start["heading_hold"] == "off", start
+    st = fc("status")
+    assert st["heading_hold"] == "off" and st["heading_hold_overlay"]["verified"] is True
+    assert st["heading_hold_overlay"]["sha256"].startswith("9f5a3e98") and st["heading_hold_overlay"]["kind"] == "u6"
+    assert lock_holders(fc.root) == []
+    assert fc("stop")["ok"]

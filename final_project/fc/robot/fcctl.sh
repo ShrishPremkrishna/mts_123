@@ -10,7 +10,7 @@
 #   imu-test <seconds>          delegates to imu_test.py (IMU lane) if present
 #   walk | rest                 activate / deactivate the profile's walker controller (optional;
 #                               the gamepad X / R3 do the same)
-# Profiles: profiles/<name>.sh. State: ~/fc-v1/run/ (pidfiles, active), runs: ~/fc-v1/runs/.
+# Profiles: profiles/<name>.sh (*_hh0 = same stack, heading hold off via a verified kp=0 policy overlay). State: ~/fc-v1/run/ (pidfiles, active), runs: ~/fc-v1/runs/.
 # Never touches systemd units. Never SIGKILLs a robot stack.
 set -uo pipefail
 
@@ -90,8 +90,23 @@ load_profile() {
   local name=$1
   [[ "$name" =~ ^[a-z0-9_]+$ ]] && [ -f "$HERE/profiles/$name.sh" ] || die "unknown profile '$name' (have: $(cd "$HERE/profiles" && ls *.sh | sed 's/\.sh$//' | tr '\n' ' '))"
   PROFILE=$name
+  # Only the profile file decides heading hold (a variant sets FC_HEADING_HOLD=0 and sources its base).
+  unset FC_HEADING_HOLD PROFILE_HEADING_HOLD
   # shellcheck disable=SC1090
   source "$HERE/profiles/$name.sh"
+  case "${PROFILE_HEADING_HOLD:-}" in on|off|"") ;; *) die "profile '$name': bad heading hold '$PROFILE_HEADING_HOLD' (FC_HEADING_HOLD must be 0 or 1)" ;; esac
+}
+
+# fc_hh_overlay KIND RUN : build + verify a fresh heading-hold-off overlay (imu/heading_hold.py KIND, lane D)
+# in RUN/hh0, record its JSON in RUN/heading_hold.json. Writes only under FC_ROOT. Any failure returns 1,
+# so the profile refuses to start (before any motion).
+fc_hh_overlay() {
+  local kind=$1 run=$2 res
+  [ ! -e "$run/hh0" ] || { fc_log "heading-hold overlay: $run/hh0 already exists; refusing"; return 1; }
+  res=$(python3 "$HERE/imu/heading_hold.py" "$kind" "$run/hh0" --root "$FC_ROOT") && [ -n "$res" ] ||
+    { fc_log "HEADING-HOLD-OFF OVERLAY ($kind) COULD NOT BE BUILT/VERIFIED: refusing to start (see above)"; return 1; }
+  printf '%s\n' "$res" > "$run/heading_hold.json"
+  fc_log "heading hold OFF: $kind overlay verified in $run/hh0 (policy sha256 $(python3 -c 'import json,sys; print(json.load(sys.stdin)["sha256"][:12])' <<< "$res"))"
 }
 
 active_profile() { [ -f "$FC_RUN/active" ] && sed -n 1p "$FC_RUN/active"; }
@@ -214,9 +229,16 @@ cmd_status() {
     [ -n "$batt" ] || batt='null'
   fi
   python3 - "$prof" "$run" "$alive" "$stack" "$foreign" "$bpid" "${temp:-}" "${thr:-}" "$q" "$batt" \
-    "$(cat /proc/loadavg)" "$(fc_pid starter || true)" <<'PY'
+    "$(cat /proc/loadavg)" "$(fc_pid starter || true)" "${PROFILE_HEADING_HOLD:-}" <<'PY'
 import json, os, sys, time
-prof, run, alive, stack, foreign, bpid, temp, thr, q, batt, load, starter = sys.argv[1:13]
+prof, run, alive, stack, foreign, bpid, temp, thr, q, batt, load, starter, hh = sys.argv[1:14]
+overlay = None
+try:  # written by fc_hh_overlay when the running profile turned heading hold off
+    with open(os.path.join(run, "heading_hold.json")) as f:
+        o = json.load(f)
+    overlay = {k: o.get(k) for k in ("kind", "verified", "policy", "sha256", "heading_hold")}
+except (OSError, ValueError, AttributeError):
+    pass
 ready = bool(run) and os.path.exists(os.path.join(run, "READY"))
 ros = json.loads(q) if q and q != "null" else None
 mux = (ros or {}).get("mux") or {}
@@ -225,6 +247,7 @@ print(json.dumps({
     "ok": True, "t": round(time.time(), 3), "host": os.uname().nodename,
     "profile": prof or None, "run_dir": run or None,
     "profile_alive": alive == "true", "starting": bool(starter), "ready": ready, "start_failed": failed,
+    "heading_hold": hh or None, "heading_hold_overlay": overlay,   # "on"/"off" per profile; null = no profile
     "ros2_control_node": stack == "true", "foreign_stack": foreign == "true",
     "mux_alive": mux.get("alive"), "mux_ok": mux.get("ok"),   # null = not probed (no live profile)
     "ros": ros,
@@ -270,7 +293,7 @@ cmd_start() {
   done
   if [ -f "$run/READY" ]; then
     fc_log "ready. Next: on the floor press X (tej_u6: Options first, then X) to stand; then 'fcctl.sh bridge start'."
-    printf '{"ok":true,"profile":"%s","run_dir":"%s","walker":"%s","cmd_topic":"%s"}\n' "$name" "$run" "$PROFILE_WALKER" "$PROFILE_CMD_TOPIC"
+    printf '{"ok":true,"profile":"%s","run_dir":"%s","walker":"%s","cmd_topic":"%s","heading_hold":"%s"}\n' "$name" "$run" "$PROFILE_WALKER" "$PROFILE_CMD_TOPIC" "${PROFILE_HEADING_HOLD:-}"
   else
     fc_log "start failed or timed out; logs in $run. Run 'fcctl.sh stop' to clean up what was started."
     printf '{"ok":false,"profile":"%s","run_dir":"%s","error":"start failed"}\n' "$name" "$run"
