@@ -20,6 +20,7 @@ from __future__ import annotations
 import math
 import sys
 from pathlib import Path
+from .observations import capture_measurement, finite_number
 
 REPO_ROOT = Path(__file__).resolve().parents[3]  # .../final_project/overhead_perception/fieldcam -> repo root
 
@@ -45,34 +46,29 @@ def to_observation(state: dict, robot: str = "striker", robot_id: str = "pupper-
     m = _model()
     # Timestamp fields are retained at full precision on the wire. Rounded ages
     # cannot establish whether a measurement came from this frame (e.g. at 60 Hz).
-    frame_capture = state.get("captured_at")
-    capture_valid = (isinstance(frame_capture, (float, int)) and not isinstance(frame_capture, bool)
-                     and math.isfinite(frame_capture))
-    # Invalid provenance stays invalid even when display timing looks plausible.
-    captured_at = frame_capture + clock_offset if capture_valid else math.nan
-    frame_age = state["stamp"] - frame_capture if capture_valid else state["frame_age_s"]
-
-    def from_this_frame(obj) -> bool:
-        measured_at = obj.get("measured_at")
-        return (capture_valid and obj.get("visible") is True and obj.get("measured_this_frame") is True
-                and isinstance(measured_at, (float, int)) and not isinstance(measured_at, bool)
-                and math.isfinite(measured_at) and measured_at == frame_capture)
-
     pose, ball = None, None
-    r = state["robots"].get(robot, {})
-    if state.get("calibration_valid") is True and from_this_frame(r):
-        # Undo the extrapolation to "now": report where it was when the photons arrived.
-        yaw = r.get("yaw_at_capture")
-        if "yaw_at_capture" not in r:
-            tracking = state.get("tracking", "tags")
-            if tracking == "colors":
-                yaw = r["yaw"]
-            elif tracking == "tags":
-                yaw = r["yaw"] - r["wz"] * frame_age
-        if type(yaw) in (float, int) and math.isfinite(yaw):
-            pose = m.Pose(r["x"] - r["vx"] * frame_age, r["y"] - r["vy"] * frame_age,
-                          math.atan2(math.sin(yaw), math.cos(yaw)))
-    b = state["ball"]
-    if state.get("calibration_valid") is True and from_this_frame(b):
-        ball = m.Ball(b["x"] - b["vx"] * frame_age, b["y"] - b["vy"] * frame_age, b["vx"], b["vy"])
+    captured_at = math.nan
+    try:
+        capture = finite_number(state.get("captured_at"), "capture time")
+        age = finite_number(state.get("stamp"), "state time") - capture
+        captured_at = finite_number(capture + finite_number(clock_offset, "clock offset"), "mapped capture")
+    except ValueError:
+        return m.Observation(captured_at=captured_at, robot=None, ball=None, robot_id=robot_id, fallen=fallen, goal=goal)
+
+    def admitted(row, heading=False):
+        if state.get("calibration_valid") is not True:
+            return None
+        try:
+            return capture_measurement(row, capture, age, heading=heading,
+                                       tracking=state.get("tracking", "tags"))
+        except ValueError:
+            return None
+
+    robots = state.get("robots")
+    r = admitted(robots.get(robot) if isinstance(robots, dict) else None, heading=True)
+    if r is not None:
+        pose = m.Pose(r["x"], r["y"], r["yaw"])
+    b = admitted(state.get("ball"))
+    if b is not None:
+        ball = m.Ball(**b)
     return m.Observation(captured_at=captured_at, robot=pose, ball=ball, robot_id=robot_id, fallen=fallen, goal=goal)

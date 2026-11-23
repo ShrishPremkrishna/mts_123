@@ -13,7 +13,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(controller_manager_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
-rosidl_generate_interfaces(${PROJECT_NAME} "srv/StartMotion.srv")
+rosidl_generate_interfaces(${PROJECT_NAME} "srv/StartMotion.srv" "srv/FcStartMotion.srv")
 rosidl_get_typesupport_target(start_typesupport ${PROJECT_NAME} rosidl_typesupport_cpp)
 
 # Add the executable
@@ -68,6 +68,11 @@ if(BUILD_TESTING)
   target_link_libraries(start_motion_test "${start_typesupport}")
   ament_target_dependencies(start_motion_test
     rclcpp rcl_interfaces sensor_msgs std_msgs controller_manager_msgs)
+  add_test(NAME fc_operator_watchdog COMMAND python3
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/test_fc_operator.py $<TARGET_FILE:estop_controller>)
+  set_tests_properties(fc_operator_watchdog PROPERTIES
+    ENVIRONMENT "ROS_DOMAIN_ID=165;ROS_LOCALHOST_ONLY=1;LD_LIBRARY_PATH=${CMAKE_CURRENT_BINARY_DIR}:$ENV{LD_LIBRARY_PATH};PYTHONPATH=${CMAKE_CURRENT_BINARY_DIR}/rosidl_generator_py:$ENV{PYTHONPATH}"
+    TIMEOUT 25 RUN_SERIAL TRUE)
   add_test(NAME start_motion_transaction COMMAND start_motion_test)
   add_test(NAME start_motion_unknown_owner COMMAND start_motion_test unknown)
   set_tests_properties(start_motion_transaction start_motion_unknown_owner PROPERTIES

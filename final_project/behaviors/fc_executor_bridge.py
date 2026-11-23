@@ -187,6 +187,7 @@ class BridgeCore:
             raise ValueError("required participants must include this bridge's robot")
         self.stopped = False
         self.last_decision = None
+        self.last_match_goal = None  # (epoch, rally) already recorded from the referee directive.
         self.completed_goal_cycle = None  # Immutable (epoch, prior resume seq, first completion time).
 
     def stop(self):
@@ -202,7 +203,8 @@ class BridgeCore:
             raise ValueError("bridge Stop is latched; create a new explicit session")
         now = self.clock()
         if command == "arm":
-            event = {"event": "arm", "epoch": message.get("epoch"), "clock": self.clock_name, "now": now}
+            event = {"event": "arm", "epoch": message.get("epoch"), "clock": self.clock_name, "now": now,
+                     "pitch": message.get("pitch")}
         elif command == "resume":
             event = {"event": "resume", "robot_id": self.robot_id, "frame_seq": message.get("frame_seq"),
                      "epoch": self.executor.epoch, "clock": self.clock_name, "now": now}
@@ -223,7 +225,27 @@ class BridgeCore:
         event = dict(message)
         event["now"] = self.clock()  # NEVER substitute capture, issue or expiry
         result = self.executor.handle(event)
+        if result["accepted"] and event["event"] == "frame":
+            self._record_match_goal(event)
         return {key: result[key] for key in ("accepted", "reason")}
+
+    def _record_match_goal(self, event):
+        """Latch the referee's scored rally once, even if every goal pulse was missed.
+
+        After ball replacement the field process repeats the goal phase with a
+        zero pulse; the rally identity alone still records the original goal.
+        """
+        match = event.get("fc_match")
+        pose = event["robots"].get(self.robot_id)
+        if not (isinstance(match, dict) and match.get("phase") == "goal" and match.get("epoch") == event["epoch"]
+                and isinstance(pose, dict) and "goal" in pose and type(match.get("rally")) is int
+                and match["rally"] > 0 and type(match.get("goal_sign")) is int and match["goal_sign"] in (-1, 1)):
+            return
+        cycle = (event["epoch"], match["rally"])
+        if cycle != self.last_match_goal:
+            controller = self.executor.controllers[self.robot_id]
+            controller.record_goal(match["goal_sign"] * controller.field.attack_sign)
+            self.last_match_goal = cycle
 
     def hold(self, held, reason="external command guard hold"):
         # Detector labels plus guard prefixes can exceed the Executor's token

@@ -12,21 +12,28 @@ RUNNER = "final_project/behaviors/combined_fc_runner.py"
 GUARD = "final_project/behaviors/body_command_guard.py"
 GUARD_ARGS = ("--command-contract", "fc_deadline_v1", "--arena-ball-contact")
 TELEMETRY = "foundation/hardware/fc-walk-kick-topics.json"
+EVENT_TELEMETRY = "foundation/hardware/fc-match-events.json"
 # Local imports required by the field runner and the guarded native path.
 FIELD_FILES = (
-    RUNNER, GUARD, TELEMETRY, "final_project/behaviors/command_deadline.py",
-    "final_project/behaviors/command_path_evidence.py", "final_project/behaviors/fc_executor_bridge.py",
-    "final_project/behaviors/overhead_ingress.py",
+    RUNNER, GUARD, TELEMETRY, EVENT_TELEMETRY, "final_project/behaviors/board_imu.py", "final_project/behaviors/command_deadline.py",
+    "final_project/behaviors/operator_drive.py", "final_project/behaviors/command_path_evidence.py", "final_project/behaviors/fc_executor_bridge.py",
+    "final_project/behaviors/overhead_ingress.py", "final_project/behaviors/live_field_attack.py",
     "final_project/overhead_perception/fieldcam/__init__.py", "final_project/overhead_perception/fieldcam/net.py",
+    "final_project/overhead_perception/fieldcam/observations.py",
+    "final_project/overhead_perception/fieldcam/pitch.py",
     *(f"follow_me_pupper/robot/{name}" for name in
-      ("viser_camera.py", "onboard_ball.py", "pink_ball.py", "fisheye_converter.py", "yolo_seg.py", "perception_safety.py", "camera_params.yaml", "coco.txt")),
+      ("viser_camera.py", "fisheye_converter.py", "yolo_seg.py", "perception_safety.py", "onboard_ball.py", "pink_ball.py", "camera_params.yaml", "coco.txt")),
     *(f"final_project/pupper_fc/{name}.py" for name in
-      ("__init__", "model", "controller", "paw_approach", "integration", "tactics",
+      ("__init__", "model", "controller", "paw_approach", "integration", "tactics", "match_director",
        "obstacles", "kick_handoff", "operator_kick_receipts")),
     "gemini_pupper/robot/fc_walk_kick.py", "gemini_pupper/robot/fc_release_profile.py",
-    "gemini_pupper/robot/controller_coverage.py", "gemini_pupper/robot/session_processes.py",
+    "gemini_pupper/lab/operator_kick.py",
+    *(f"gemini_pupper/robot/{name}.py" for name in (
+        "controller_coverage", "session_processes", "robot_api", "runtime_config", "tricks",
+        "spawn_controllers", "stop_status", "secret_gate")),
     "foundation/hardware/fc_walk_kick_release.py", "foundation/hardware/stage_app.py",
-    "foundation/hardware/software_start.py",
+    "foundation/hardware/software_start.py", "foundation/hardware/fc_session.py", "foundation/hardware/fc_operator.py",
+    "final_project/pupper_fc/arena.json",
     "foundation/hardware/persistent_session.py", "foundation/hardware/floor_stock/shutdown_coordinator.py",
 )
 
@@ -50,11 +57,17 @@ def verify_profile(manifest, root, config):
             or manifest.get("follower", {}).get("mode") != "disabled"):
         raise ValueError("incomplete combined walker/kick selection")
     for path in (*FIELD_FILES, WALK_MODEL, "foundation/hardware/lab6_session.launch.py",
-                 "gemini_pupper/robot/robot_api.py", f"{KICK_DIR}/policy.json", f"{KICK_DIR}/trick.yaml"):
+                 f"{KICK_DIR}/policy.json", f"{KICK_DIR}/trick.yaml"):
         if str((root / path).resolve()) not in manifest["assets"]:
             raise ValueError("missing combined release input: " + path)
     walk = config["gemini_walk"]["ros__parameters"]
     kick = config["trick_leg_kick"]["ros__parameters"]
+    manager = config["controller_manager"]["ros__parameters"]
+    owner = "neural_controller/NeuralController"
+    if manifest.get("fc_imu_recovery", "strict") != "strict":
+        raise ValueError("this candidate supports strict IMU fault handling only")
+    if manager["gemini_walk"]["type"] != owner:
+        raise ValueError("FC actuator owner type differs from the selected board profile")
     if (str(Path(manifest["configuration"]).resolve()) not in manifest["assets"]
             or Path(walk["model_path"]).resolve() != (root / WALK_MODEL).resolve()
             or manifest["assets"].get(str((root / WALK_MODEL).resolve())) != WALK_SHA

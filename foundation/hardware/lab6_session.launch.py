@@ -23,6 +23,7 @@ CONFIG_SHA = "d7542febd4fd382d3c3e71e0c5a3fb8ea7a5b140f87ff1cb12ead1982d3854c0"
 URDF_SHA = "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44"
 
 
+FULL_FEEDBACK = ("joint_state_broadcaster", "imu_sensor_broadcaster")
 STOCK_POLICY_SHA = "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
 
 
@@ -34,6 +35,8 @@ def prepare_session_profile(config_path, urdf):
     selection is configuration, never evidence of course/hardware approval.
     PUPPER_GEMINI_DIR identifies the same checkout the server will execute.
     """
+    if os.environ.get("PUPPER_FC_IMU_RECOVERY", "strict") != "strict":
+        raise ValueError("this candidate supports strict IMU fault handling only")
     repo = Path(os.environ.get("PUPPER_GEMINI_DIR", str(ROOT.parents[1] / "gemini_pupper"))).expanduser().resolve()
     if not (repo / "robot/tricks.py").is_file():
         raise ValueError("PUPPER_GEMINI_DIR must identify the selected Gemini checkout")
@@ -94,9 +97,22 @@ def prepare_session_profile(config_path, urdf):
             combined[trick.walk_controller] = {"ros__parameters": catalog_module.walk_policy_params(trick, base)}
 
     motion_controllers = ["neural_controller_default", "gemini_walk", *controllers]
+    feedback_broadcasters = FULL_FEEDBACK
     if motion_mode == "fc_walk_kick":
         fc_release_profile.select(combined, names, follower.mode)
+        if os.environ.get("PUPPER_FC_OPERATOR_CONTROL") == "1":
+            combined["estop_controller"]["ros__parameters"]["fc_operator_control"] = True
         motion_controllers = list(fc_release_profile.CONTROLLERS)
+        if os.environ.get("PUPPER_FC_RECORDING") == "events":
+            # Native controllers read joint handles directly. The field uses overhead poses.
+            feedback_broadcasters = ("imu_sensor_broadcaster",)
+        plugins = (*motion_controllers, *feedback_broadcasters)
+        used_nodes = ("controller_manager", "estop_controller", "floor_physical_joy", *plugins)
+        combined = {name: combined[name] for name in used_nodes}
+        manager = combined["controller_manager"]["ros__parameters"]
+        for name, value in list(manager.items()):
+            if isinstance(value, dict) and "type" in value and name not in plugins:
+                del manager[name]
 
     validator_path = runtime_config.component_dir("pupper_gait_deploy", "PUPPER_GAIT_DEPLOY_DIR") / "download_policy.py"
     spec = importlib.util.spec_from_file_location("persistent_policy_validator", validator_path)
@@ -117,13 +133,15 @@ def prepare_session_profile(config_path, urdf):
             return True
     config_out.write_text(yaml.dump(combined, Dumper=NoAliasDumper, sort_keys=False))
     assets = [config_path, urdf, Path(__file__), config_out, *models,
-              Path(runtime_config.__file__), Path(catalog_module.__file__), validator_path,
-              *(repo / "robot" / name for name in ("robot_api.py", "server.py", "tool_registry.py")),
-              *sorted((repo / "lab").glob("*.py")), repo / "lab/prompt.md"]
+              Path(runtime_config.__file__), Path(catalog_module.__file__), validator_path]
     if motion_mode == "fc_walk_kick":
         assets.extend(repo.parent / p for p in (*fc_release_profile.FIELD_FILES, fc_release_profile.WALK_MODEL))
         for trick in selected.values():
             assets.extend((trick.path, trick.path.parent / "trick.yaml"))
+    else:
+        assets.extend(repo / "robot" / name for name in ("robot_api.py", "server.py", "tool_registry.py"))
+        assets.extend(sorted((repo / "lab").glob("*.py")))
+        assets.append(repo / "lab/prompt.md")
     if follower.service_dir is not None:
         service = follower.service_dir
         required_follower = [service / name for name in (
@@ -139,6 +157,7 @@ def prepare_session_profile(config_path, urdf):
         assets.extend(sorted(service.glob("*.py")))
         assets.extend(sorted((service.parent / "lab").glob("*.py")))
     manifest = {"schema": runtime_config.SESSION_SCHEMA, "skills": list(names),
+                "feedback_broadcasters": feedback_broadcasters,
                 "follower": runtime_config.follower_identity(follower),
                 "motion_mode": motion_mode,
                 "motion_controllers": motion_controllers,
@@ -147,11 +166,38 @@ def prepare_session_profile(config_path, urdf):
                 "configuration": str(config_out),
                 "hardware_approval": "Not supplied by this profile; selected policies still require applicable approval and supervised readiness."}
     if motion_mode == "fc_walk_kick":
+        # The strict board profile uses the unmodified course description.
+        manifest["fc_imu_recovery"] = "strict"
+        manifest["robot_description"] = str(urdf.resolve())
         fc_release_profile.verify_profile(manifest, repo.parent, combined)
     temporary = manifest_path.with_suffix(manifest_path.suffix + ".tmp")
     temporary.write_text(json.dumps(manifest, indent=2) + "\n")
     temporary.replace(manifest_path)
     return config_out, manifest["motion_controllers"]
+
+
+def launch_profile(config_path, urdf):
+    """Home consumes the exact files pinned by Prepare. Direct launches still prepare their own."""
+    digest = os.environ.get("PUPPER_FC_PREPARED_MANIFEST_SHA256")
+    if digest is None:
+        prepare_session_profile(config_path, urdf)
+        import runtime_config
+        return json.loads(runtime_config.session_manifest_path().read_text())
+
+    repo = Path(os.environ["PUPPER_GEMINI_DIR"]).resolve()
+    sys.path.insert(0, str(repo / "robot"))
+    import runtime_config
+    from tricks import load_tricks
+
+    manifest_path = runtime_config.session_manifest_path()
+    if (runtime_config.REPO != repo or runtime_config.session_motion_mode() != "fc_walk_kick"
+            or hashlib.sha256(manifest_path.read_bytes()).hexdigest() != digest):
+        raise ValueError("Home requires the FC manifest pinned by Prepare")
+    manifest = runtime_config.validate_session_catalog(load_tricks())
+    if (not manifest or manifest["configuration"] != str(manifest_path.parent / "persistent_controllers.yaml")
+            or manifest.get("fc_imu_recovery") != os.environ.get("PUPPER_FC_IMU_RECOVERY", "strict")):
+        raise ValueError("prepared FC configuration or board recovery selection differs")
+    return manifest
 
 
 def generate_launch_description():
@@ -168,9 +214,11 @@ def generate_launch_description():
     for path, expected in ((config_path, CONFIG_SHA), (urdf, URDF_SHA)):
         if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
             raise RuntimeError("Selected Lab 6 input changed: " + str(path))
-    generated_config, motion_controllers = prepare_session_profile(config_path, urdf)
+    manifest = launch_profile(config_path, urdf)
+    generated_config, motion_controllers = manifest["configuration"], manifest["motion_controllers"]
     config = ParameterFile(str(generated_config), allow_substs=True)
-    description = {"robot_description": urdf.read_text()}
+    import runtime_config
+    description = {"robot_description": Path(manifest.get("robot_description", urdf)).read_text()}
     state = Node(package="robot_state_publisher", executable="robot_state_publisher",
                  parameters=[description], output="screen")
     manager = Node(package="controller_manager", executable="ros2_control_node",
@@ -185,7 +233,6 @@ def generate_launch_description():
     # Any required process exit tears down this owned session. No respawn.
     # Camera is owned once by the maintained session starter. This service only
     # subscribes to /camera/image_raw/compressed and never opens the sensor.
-    import runtime_config
     follower = runtime_config.follower_config()
     follower_actions = []
     if follower.mode == "lab5":
@@ -215,7 +262,7 @@ def generate_launch_description():
     common = ["--controller-manager", "/controller_manager",
               "--controller-manager-timeout", "60", "--service-call-timeout", "10"]
     feedback = Node(package="controller_manager", executable="spawner",
-        arguments=["joint_state_broadcaster", "imu_sensor_broadcaster", *common], output="screen")
+        arguments=[*manifest.get("feedback_broadcasters", FULL_FEEDBACK), *common], output="screen")
     motion = Node(package="controller_manager", executable="spawner",
         arguments=[*motion_controllers, "--inactive", "--param-file", str(generated_config), *common], output="screen")
     return LaunchDescription([*guards, *required, feedback, motion, *extra])

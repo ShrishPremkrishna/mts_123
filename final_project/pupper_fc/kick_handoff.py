@@ -11,6 +11,10 @@ import math
 
 from .model import Decision
 
+# The combined runner rechecks kick authority on its 50 Hz output boundary.
+# A job whose authority ends before the next check would be revoked at once.
+KICK_CONTROL_PERIOD_S = 0.020
+
 
 @dataclass(frozen=True)
 class KickRequest:
@@ -53,6 +57,9 @@ class KickHandoff:
         self._cancel_sent = False
         self._restored = False
         self._authority_until = -math.inf
+        # (request, outcome) for the most recently retired job. Outcome is
+        # "kick_complete" only for a confirmed clip with walker restoration.
+        self.last_retired: tuple[KickRequest, str] | None = None
 
     @property
     def clip_confirmed(self):
@@ -120,7 +127,9 @@ class KickHandoff:
             else:
                 self._authority_until = command.expires_at
             if self._restored:
-                self._terminal[current.epoch, current.attempt_id] = self._ending or "kick_complete"
+                outcome = self._ending or "kick_complete"
+                self._terminal[current.epoch, current.attempt_id] = outcome
+                self.last_retired = (current, outcome)
                 self.active = None
             else:
                 cancel = None
@@ -144,6 +153,9 @@ class KickHandoff:
         if not authorized or any((command.vx, command.vy, command.wz)):
             return KickStep(replace(decision, command=stopped, phase="kick_hold",
                                     reason="kick requires a current stationary authorized decision"))
+        if command.expires_at <= now + KICK_CONTROL_PERIOD_S:
+            return KickStep(replace(decision, command=stopped, phase="kick_hold",
+                                    reason="waiting for evidence that lasts past the next kick check"))
         self.active = KickRequest(self.robot_id, epoch, attempt_id, side, now, command.expires_at)
         self.clip_started = False
         self._clip_seen = False

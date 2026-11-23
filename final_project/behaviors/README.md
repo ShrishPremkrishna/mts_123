@@ -1,5 +1,18 @@
 # Shooting behaviors
 
+Current FC execution uses `combined_fc_runner.py` and its shared `RunnerSession`,
+with `board_imu.py`, `operator_drive.py` and `live_field_attack.py`. The selected
+strict profile requires fresh primary IMU and both SPI replies. A health hold ends
+the current match epoch; deliberate resume requires the same board session/Home,
+a new epoch and confirmed sole walker ownership. No automatic Home occurs.
+
+Kick receipts distinguish `engaged`, `clip_started`, `completed` (clip confirmed
+and walker restored), `retired` (walker restored without a successful clip), and
+`aborted` (restoration unconfirmed). None reports observed ball contact. The
+[Phase 4 source evidence](../../foundation/results/fc-phase4-runtime-integration-20261122.json)
+separates software checks from physical qualification. The stock-shot material
+below is retained historical capability, not the selected FC strike path.
+
 Recovered November 16, 2026 from `/home/pi/kick`, then corrected in this checkout.
 [RECOVERY.json](RECOVERY.json) preserves the original hashes; the untouched
 experiment and its archive remain available. [Reconciliation findings](../PI_RECONCILIATION.md)

@@ -13,6 +13,7 @@ from .config import resolve, set_field_size
 from .corner_anchor import FIELD_TOLERANCE_M, anchor_geometry, corner_fit
 from .detect import BallDetector, TagDetector
 from .filters import CVFilter2D, YawFilter, wrap
+from .pitch import Pitch
 from .relative import relative_geometry
 from .tagmeasure import survey_tags, tag_corners
 
@@ -41,6 +42,7 @@ class Perception:
 
         self.cam: CameraModel | None = None
         self.roi_mask: np.ndarray | None = None
+        self.pitch: Pitch | None = None
         self.ball_scale = 1.
         self.ball_radius_px: float | None = None
         self.calib_err_px: float | None = None
@@ -317,9 +319,16 @@ class Perception:
         self.calibration_reason = reason
 
     def _set_field_roi(self) -> None:
-        # Only look for the ball on (and just around) the field.
-        corners = np.array(self.cfg["field"]["corners"], float)
-        grown = corners + 0.25 * np.sign(corners)
+        field = dict(self.cfg["field"], ball_radius=self.cfg["ball"]["radius"])
+        marker_pitch = Pitch.from_field(field, self.cfg["goals"])
+        selected = Pitch.read(self.cfg["pitch"]) if self.cfg.get("pitch") is not None else marker_pitch
+        if selected.marker_bounds != marker_pitch.marker_bounds or selected.ball_radius != marker_pitch.ball_radius:
+            self.invalidate_calibration("selected pitch differs from marker calibration or ball profile")
+            raise ValueError(self.calibration_reason)
+        self.pitch = selected
+        # A goal is not visible to the referee until the entire ball passes its
+        # front. Detection must cover the goal plus the outline, not stop at tags.
+        grown = np.array(self.pitch.ball_search_bounds.corners(), float)
         poly = self.cam.project(np.hstack([grown, np.zeros((4, 1))])).astype(np.int32)
         self.roi_mask = np.zeros((self.size[1], self.size[0]), np.uint8)
         cv2.fillConvexPoly(self.roi_mask, poly, 255)
@@ -328,6 +337,25 @@ class Perception:
         self.ball_scale = min(1., 896 / self.size[0]) if self.cfg.get("field_setup") else 1.
         self.ball_roi = self.roi_mask if self.ball_scale == 1 else cv2.resize(
             self.roi_mask, None, fx=self.ball_scale, fy=self.ball_scale, interpolation=cv2.INTER_NEAREST)
+
+    def select_pitch(self, record):
+        """Deliberate setup operation; preserve camera coordinates and retire old targets.
+
+        The app must end the match before selecting geometry. The changed
+        revision also makes consumers bound to an older selection reject it.
+        """
+        selected = Pitch.read(record)
+        field = dict(self.cfg["field"], ball_radius=self.cfg["ball"]["radius"])
+        expected = Pitch.from_field(field, self.cfg["goals"])
+        if selected.marker_bounds != expected.marker_bounds or selected.ball_radius != expected.ball_radius:
+            raise ValueError("pitch must use the calibrated marker frame and selected ball radius")
+        if self.cfg.get("pitch") == selected.record():
+            return
+        self.cfg["pitch"] = selected.record()
+        self.pitch = selected
+        self.calibration_revision += 1
+        if self.cam is not None:
+            self._set_field_roi()
 
     def _ball_radius_at(self, u: float, v: float, r: float | None = None) -> float | None:
         """How many pixels a ball of radius r (default: the configured one) should span
@@ -381,7 +409,9 @@ class Perception:
             "ball": {"visible": False, "measured_this_frame": False, "measured_at": None},
             "robots": {n: {"visible": False, "measured_this_frame": False, "measured_at": None}
                        for n in cfg["robots"]},
-            "goals": cfg["goals"], "shots": {}, "relative": {},
+            "goals": self.pitch.goals if self.pitch is not None else cfg["goals"],
+            "pitch": self.pitch.record() if self.pitch is not None else None,
+            "shots": {}, "relative": {},
             # Enough for a viewer to draw the scene without the config file.
             "field": {"length": cfg["field"]["length"], "width": cfg["field"]["width"],
                       "ball_radius": cfg["ball"]["radius"], "goal_width": cfg["field"]["goal_width"]},

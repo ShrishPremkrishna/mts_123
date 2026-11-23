@@ -467,3 +467,18 @@ def test_active_explicit_attack_handles_goal_without_ball_or_goal_points():
                                    ball=None, goals={}))
     assert result["accepted"]
     assert result["decisions"]["pupper-1"]["phase"] == "return_home"
+
+
+def test_pitch_changes_only_at_new_arm_and_keeps_epoch_replay_fence():
+    from final_project.pupper_fc.integration import Executor
+    e = Executor()
+    enrolled = e.controllers["pupper-1"].field
+    measured = {"length": 3.2, "width": 2.1}
+    event = dict(event="arm", epoch="custom", clock="rehearsal", now=1, pitch=measured)
+    assert e.handle(event)["accepted"]
+    assert e.controllers["pupper-1"].field.length == e.tactics["pupper-2"].field.length == 3.2
+    e.stop()
+    assert not e.handle(dict(event, pitch={"width": 0, "length": 5}, epoch="invalid"))["accepted"]
+    assert not e.handle(event)["accepted"]
+    assert e.handle(dict(event, epoch="old-size", pitch=None))["accepted"]
+    assert e.controllers["pupper-1"].field == enrolled

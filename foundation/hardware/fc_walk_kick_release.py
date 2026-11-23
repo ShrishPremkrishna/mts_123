@@ -18,7 +18,7 @@ ROOT = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT / "gemini_pupper/robot"))
 from stage_app import checked_path, verify_selected
-from fc_release_profile import CONTROLLERS, FIELD_FILES, GUARD, GUARD_ARGS, KICK_DIR, MODE, TELEMETRY, WALK_MODEL
+from fc_release_profile import CONTROLLERS, EVENT_TELEMETRY, FIELD_FILES, GUARD, GUARD_ARGS, KICK_DIR, MODE, TELEMETRY, WALK_MODEL
 
 LAUNCH = "foundation/hardware/lab6_session.launch.py"
 CONFIG = "foundation/hardware/lab6-session.yaml"
@@ -36,6 +36,14 @@ def file_digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def check_imu_recovery(driver, mode):
+    """The strict board driver must publish the FC_BOARD_HEALTH_V1 receipt read by Connect and the runner."""
+    if mode != "strict":
+        raise ValueError("this candidate supports strict IMU fault handling only")
+    if b"FC_BOARD_HEALTH_V1" not in driver:
+        raise ValueError("build the selected board driver with live match health receipts")
+
+
 def inspect_native(library):
     """Static requirements for a Pi candidate. Runtime ownership and receipts are checked separately."""
     path = Path(library).resolve(strict=True)
@@ -50,20 +58,17 @@ def inspect_native(library):
 
 
 def selected_paths(root):
-    fixed = {*FIELD_FILES, LAUNCH, CONFIG, URDF, WALK_MODEL,
-             "pupper_gait_deploy/download_policy.py",
-             "gemini_pupper/lab/prompt.md",
-             *(f"{KICK_DIR}/{name}" for name in ("artifact_manifest.json", "trick.yaml", "policy.json"))}
-    # Stage the installed robot API and its lab imports as a unit. Tools may be
-    # dynamically registered; optional policies and the web client are excluded.
-    for folder in ("gemini_pupper/robot", "gemini_pupper/lab"):
-        fixed.update(p.relative_to(root).as_posix() for p in (root / folder).glob("*.py"))
-    return sorted(fixed)
+    return sorted({*FIELD_FILES, LAUNCH, CONFIG, URDF, WALK_MODEL,
+                   "pupper_gait_deploy/download_policy.py",
+                   *(f"{KICK_DIR}/{name}" for name in ("artifact_manifest.json", "trick.yaml", "policy.json"))})
 
 
-def validate_selection(root, components, manifest):
+def validate_selection(root, components, manifest, *, recording="full"):
+    if recording not in ("events", "full"):
+        raise ValueError("unknown FC recording selection")
+    telemetry = EVENT_TELEMETRY if recording == "events" else TELEMETRY
     roles = {"launch": LAUNCH, "config": CONFIG, "urdf": URDF, "app_manifest": MANIFEST,
-             "telemetry_topics": TELEMETRY, "helper": "foundation/hardware/persistent_session.py",
+             "telemetry_topics": telemetry, "helper": "foundation/hardware/persistent_session.py",
              "lifecycle": "gemini_pupper/robot/session_processes.py"}
     if any(Path(components[role]["path"]) != root / relative for role, relative in roles.items()):
         raise ValueError("combined session must select its frozen launch, telemetry, helpers and manifest")
@@ -73,16 +78,20 @@ def validate_selection(root, components, manifest):
         raise ValueError("combined release manifest differs from selected profile")
 
 
-def verify_guard(life, tag, root):
+def verify_guard(life, tag, root, gateway=None):
     """Check the selected guard belongs to this native launch before arming."""
     guard = str(root / GUARD)
     expected = ["-B", "-s", guard, *GUARD_ARGS]
-    count = 0
+    count = gateways = 0
     for proc in life.PROC.iterdir():
         if not proc.name.isdigit():
             continue
         try:
             arguments = (proc / "cmdline").read_bytes().split(b"\0")[:-1]
+            if gateway and arguments and Path(os.fsdecode(arguments[0])).name == "estop_controller":
+                if life.capture(int(proc.name), tag)["executable"] != gateway["path"]:
+                    raise ValueError("active Stop gateway differs from the enrolled target binary")
+                gateways += 1
             if os.fsencode(guard) not in arguments:
                 continue
             found = life.capture(int(proc.name), tag, guard)
@@ -91,11 +100,13 @@ def verify_guard(life, tag, root):
         if found["argv"][1:] != expected:
             raise ValueError("selected guard has unexpected arguments")
         count += 1
+    if gateway and gateways != 1:
+        raise ValueError("require one enrolled Stop gateway in this native session")
     if count != 1:
         raise ValueError("require one running guard owned by this native session")
 
 
-def verify_running_session(run_dir, release_root):
+def verify_running_session(run_dir, release_root, *, operator_controls=False):
     """Read the prepared run and verify mapped native/IMU identities on the Pi."""
     import persistent_session
     run = Path(run_dir).resolve(strict=True)
@@ -107,8 +118,11 @@ def verify_running_session(run_dir, release_root):
         raise ValueError("field runner does not own this release and controller set")
     if any(plan["environment"].get(k) != v for k, v in ENV.items()):
         raise ValueError("prepared run has a different FC environment")
+    # load() installs this exact saved environment before ROS is initialized.
+    if operator_controls and plan["environment"].get("ROS_LOCALHOST_ONLY") != "1":
+        raise ValueError("interactive controls require a per-robot localhost-only ROS session and runner")
     record = json.loads((root / MANIFEST).read_text())
-    validate_selection(root, plan["components"], record)
+    validate_selection(root, plan["components"], record, recording=plan["environment"].get("PUPPER_FC_RECORDING","full"))
     if (Path(plan["runtime_manifest"]["path"]) != run / "runtime-manifest.json"
             or Path(plan["generated_config"]["path"]) != run / "persistent_controllers.yaml"):
         raise ValueError("combined profile and configuration must belong to this run")
@@ -118,7 +132,7 @@ def verify_running_session(run_dir, release_root):
             or "server" in receipt["processes"] or "server" in receipt["pending"]):
         raise ValueError("owned manager must be ready with no ordinary API server")
     persistent_session.check_loaded(plan, manager)
-    verify_guard(life, plan["session_id"], root)
+    verify_guard(life, plan["session_id"], root, plan["components"].get("gateway"))
     return json.loads(Path(plan["runtime_manifest"]["path"]).read_text())
 
 
@@ -128,6 +142,7 @@ def check_profile(root):
         env = dict(os.environ, **ENV, PUPPER_GEMINI_DIR=str(root / "gemini_pupper"),
                    PUPPER_GAIT_DEPLOY_DIR=str(root / "pupper_gait_deploy"),
                    PUPPER_SESSION_MANIFEST=str(Path(directory) / "runtime-manifest.json"),
+                   PUPPER_FC_RECORDING="events", PUPPER_FC_IMU_RECOVERY="strict",
                    FOLLOW_USE_COLOR="0", FOLLOW_AVOID_OBSTACLES="0", FOLLOW_ALWAYS_DETECT="0")
         # An absent release module must not be supplied by the builder's checkout.
         env.pop("PYTHONPATH", None)
@@ -149,7 +164,9 @@ def prepare_offline_profile():
     from tricks import load_tricks
     selected = load_tricks()
     manifest = runtime_config.validate_session_catalog(selected)
-    if not manifest or controllers != list(CONTROLLERS) or runtime_config.session_motion_mode() != MODE:
+    if (not manifest or controllers != list(CONTROLLERS) or runtime_config.session_motion_mode() != MODE
+            or manifest.get("feedback_broadcasters") != ["imu_sensor_broadcaster"]
+            or manifest.get("fc_imu_recovery") != os.environ.get("PUPPER_FC_IMU_RECOVERY", "strict")):
         raise ValueError("wrong field release generated")
     # Import and instantiate the real field planner from these staged files.
     sys.path.insert(0, str(ROOT))
@@ -167,10 +184,21 @@ def prepare_offline_profile():
                     "--help"], cwd=ROOT, stdout=subprocess.DEVNULL, check=True, timeout=15)
     return {"controllers": controllers, "motion_mode": MODE, "walker_command_contract": "fc_deadline_v1",
             "guard_arguments": list(GUARD_ARGS), "clip_names": ["kick_left", "kick_right"],
+            "feedback_broadcasters": manifest["feedback_broadcasters"], "imu_recovery": manifest["fc_imu_recovery"],
             "bounds": runtime_config.session_motion_bounds(manifest), "motor_started": False}
 
 
-def git_revision(root, paths):
+def source_revision(root, paths):
+    # A portable archive travels independently of its original Git database.
+    identity = root / "release-source.json"
+    if identity.is_file():
+        record = json.loads(identity.read_text())
+        actual = {path: file_digest(checked_path(root, path)) for path in paths}
+        if actual != record["application_sha256"]:
+            raise ValueError("the extracted Pi application differs from its packaged file digests")
+        return record["source_commit"]
+    if not (root / ".git").exists():
+        return None
     status = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--untracked-files=all", "--", *paths],
                             capture_output=True, text=True)
     if status.returncode or status.stdout:
@@ -201,7 +229,7 @@ def stage(source, destination, expected_commit=None):
     if destination.exists() or destination.is_symlink():
         raise ValueError("destination exists; verify the existing release or choose an unused path")
     paths = selected_paths(source)
-    revision = git_revision(source, paths)
+    revision = source_revision(source, paths)
     if expected_commit is not None and revision != expected_commit:
         raise ValueError("selected source differs from the expected clean commit")
     destination.parent.mkdir(exist_ok=True, parents=True)
@@ -216,7 +244,7 @@ def stage(source, destination, expected_commit=None):
             shutil.copyfile(src, dest)
             entries.append({"path": relative, "sha256": file_digest(dest)})
         verify_selected(source, entries)
-        if expected_commit is not None and git_revision(source, paths) != expected_commit:
+        if expected_commit is not None and source_revision(source, paths) != expected_commit:
             raise ValueError("selected source changed during release assembly")
         profile = check_profile(tree)
         record = {"schema": SCHEMA, "source_commit": revision, "environment": ENV,

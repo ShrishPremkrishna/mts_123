@@ -144,6 +144,7 @@ class Executor:
     def __init__(self, fields=None, limits=Limits(), *, obstacle_config=None,
                  required_participants=(), kick_side=None, paw_forward_m=None):
         fields = fields or {"pupper-1": Field(), "pupper-2": Field(attack_sign=-1)}
+        self.enrolled_fields = dict(fields)
         self.kick_side = kick_side
         self.paw_forward_m = paw_forward_m
         self._kick_owners = {}
@@ -190,17 +191,21 @@ class Executor:
         self.armed = False
         self._clear()
 
-    def arm(self, epoch, clock, now):
+    def arm(self, epoch, clock, now, *, pitch=None):
+        """Start a new epoch. A measured pitch applies to this epoch only; None restores enrollment."""
         epoch, clock = token(epoch, "epoch"), token(clock, "clock")
         now = number(now, "now")
         if epoch in self.used_epochs:
             raise ValueError("arm requires a new epoch; old actions cannot be resumed")
+        fields = self.enrolled_fields if pitch is None else {
+            robot: field.measured_pitch(pitch) for robot, field in self.enrolled_fields.items()}
         self.stop()
         self.epoch, self.clock, self.last_now = epoch, clock, now
         self.used_epochs.add(epoch)
         # A deliberate new session gets fresh referee/controller state too.
-        self.controllers = {r: Controller(c.field, c.limits, kick_side=self.kick_side, paw_forward_m=self.paw_forward_m)
+        self.controllers = {r: Controller(fields[r], c.limits, kick_side=self.kick_side, paw_forward_m=self.paw_forward_m)
                             for r, c in self.controllers.items()}
+        self.tactics = {r: Tactics(c.field, r) for r, c in self.controllers.items()}
         # A new gameplay epoch cannot release an ongoing local physical veto.
         self.external_resume_after = {r: now if (self.external_holds[r] or
                                                self.external_resume_after[r] != -math.inf) else -math.inf
@@ -681,7 +686,7 @@ class Executor:
         kind = event.get("event") if isinstance(event, dict) else None
         if kind == "arm":
             try:
-                self.arm(event.get("epoch"), event.get("clock"), raw_now)
+                self.arm(event.get("epoch"), event.get("clock"), raw_now, pitch=event.get("pitch"))
             except (ValueError, TypeError) as exc:
                 # Rejected operator requests are atomic too: their timestamp
                 # cannot rewind/advance an otherwise valid active session.

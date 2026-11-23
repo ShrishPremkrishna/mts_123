@@ -127,26 +127,36 @@ class Tactics:
             self._changed_at = now
         if self.role == "offense":
             return TacticalDecision(self.role, "attack", None, reason)
-        target = self._guard_pose(ball)
+        target = self.guard_pose(ball)
         if target is None:
             return self._hold(reason + "; no ball-clear goalward guard pose fits inside the field and goal span")
         return TacticalDecision(self.role, "defend", target, reason)
 
-    def _guard_pose(self, ball):
+    def guard_pose(self, ball, own_goal=None):
+        """Ball-facing guard pose in front of the own goal mouth, or None.
+
+        own_goal is a measured {"x", "y_min", "y_max"} line; None uses the
+        nominal centred mouth on this field's end line.
+        """
         f, c = self.field, self.config
         margin = f.robot_radius + c.boundary_clearance
         depth = min(max(c.guard_depth, margin), f.length / 2)
-        x = f.attack_sign * (-f.length / 2 + depth)
-        lateral_limit = min(f.width / 2 - margin, max(0.0, f.goal_width / 2 - f.robot_radius))
-        y = min(max(ball.y, -lateral_limit), lateral_limit)
+        goal = own_goal or {"x": -f.attack_sign * f.length / 2,
+                            "y_min": -f.goal_width / 2, "y_max": f.goal_width / 2}
+        x = goal["x"] + f.attack_sign * depth
+        centre = (goal["y_min"] + goal["y_max"]) / 2
+        lower = max(-f.width / 2 + margin, min(centre, goal["y_min"] + f.robot_radius))
+        upper = min(f.width / 2 - margin, max(centre, goal["y_max"] - f.robot_radius))
+        if lower > upper or abs(x) > f.length / 2 - margin:
+            return None
+        y = min(max(ball.y, lower), upper)
         clearance = defensive_clearance(f)
         if math.hypot(ball.x - x, ball.y - y) < clearance:
             # Preserve the nominal goal-mouth lane; only move goalward until
             # the bumper-inclusive exclusion circle clears that lane.
             goalward = math.sqrt(max(0.0, clearance ** 2 - (ball.y - y) ** 2))
             x = ball.x - f.attack_sign * goalward
-            if (abs(x) > f.length / 2 - margin or abs(y) > lateral_limit
-                    or abs(y) > f.width / 2 - margin):
+            if abs(x) > f.length / 2 - margin:
                 return None
         dx, dy = ball.x - x, ball.y - y
         yaw = math.atan2(dy, dx) if math.hypot(dx, dy) > 1e-9 else math.atan2(0.0, f.attack_sign)

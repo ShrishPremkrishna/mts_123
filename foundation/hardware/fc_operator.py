@@ -1,0 +1,246 @@
+"""Relay fresh browser responses to the Pi gateway. The gateway owns the watchdog."""
+import collections
+import contextlib
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import select
+import sys
+import time
+
+
+def valid_owner(owner):
+    return isinstance(owner, str) and re.fullmatch(r"[0-9a-f]{32}", owner) is not None
+
+
+def board_error(run):
+    """Latest native driver error in this run after its most recent successful board activation."""
+    try:
+        with (Path(run) / "robot.log").open("rb") as log:
+            log.seek(0, 2)
+            log.seek(max(0, log.tell() - 256_000))
+            lines = log.read().decode(errors="replace").splitlines()
+    except OSError:
+        return None
+    for line in reversed(lines):
+        match = re.fullmatch(r"\[ros2_control_node-\d+\] \[(INFO|ERROR|FATAL)\] \[[0-9.]+\] "
+                             r"\[ControlBoardHardwareInterface\]: (.+)", line)
+        if match:
+            level, detail = match.groups()
+            if level in ("ERROR", "FATAL"):
+                return detail.split(" sampled_mono_us=", 1)[0][:350]
+            if detail.startswith("Successfully activated!"):
+                break
+    return None
+
+
+def attached(run, session_id, owner):
+    """An exited SSH relay cannot authorize a match with its old receipt."""
+    if not valid_owner(owner):
+        return False
+    try:
+        with (run / "fc-operator.lock").open("r") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return False
+            except BlockingIOError:
+                receipt = json.loads((run / "fc-operator-standing.json").read_text())
+                ticks = Path("/proc", str(receipt["pid"]), "stat").read_text().rsplit(")", 1)[1].split()[19]
+                return (receipt["owner"] == owner and receipt["session_id"] == session_id
+                        and receipt["start_ticks"] == ticks)
+    except (OSError, KeyError, ValueError, IndexError):
+        return False
+
+
+def serve(run, robot_id, owner):
+    """Called with verified local ROS environment and a homed, owned board."""
+    import signal
+    import rclpy
+    from controller_manager_msgs.srv import ListControllers
+    from joy_utils.srv import FcStartMotion
+    from rclpy.qos import QoSProfile, ReliabilityPolicy
+    from rclpy.signals import SignalHandlerOptions
+    from std_msgs.msg import String
+    from fc_session import read, write_new
+    from software_start import attach, BLOCKED, STATUS_MAX_AGE_S
+
+    if not valid_owner(owner):
+        raise ValueError("invalid browser owner")
+    run = Path(run)
+    session_id = read(run / "selected-session.json")["session_id"]
+    receipt = run / "fc-operator-standing.json"
+    with (run / "fc-operator.lock").open("a+") as lock, contextlib.ExitStack() as restore:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        receipt.unlink(missing_ok=True)
+        # rclpy's own handlers would close the context before Stop can publish.
+        # Interrupt, termination and hangup raise here; an armed relay then
+        # requests Stop on the still-live node. The gateway lease remains the
+        # independent bound if this process is killed outright.
+        def interrupted(signum, frame):
+            raise KeyboardInterrupt
+        handlers = (signal.SIGINT, signal.SIGTERM, signal.SIGHUP)
+        for sig in handlers:
+            restore.callback(signal.signal, sig, signal.signal(sig, interrupted))
+        rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
+        node = rclpy.create_node("fc_laptop_operator", enable_rosout=False, start_parameter_services=False)
+        gateway = attach(node, selected_controller="gemini_walk")
+        heart = node.create_publisher(String, "/estop_controller/fc_operator_heartbeat",
+                                      QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT))
+        start = node.create_client(FcStartMotion, "/estop_controller/fc_start_motion")
+        inventory = node.create_client(ListControllers, "/controller_manager/list_controllers")
+        offers = collections.OrderedDict()
+        echoed = set()
+        pending = inventory_request = None
+        touched = standing = False
+        seen = previous_ready = None
+        buffer = bytearray()
+        started = time.monotonic()
+        ack_deadline = None
+
+        def emit(event, **values):
+            print(json.dumps(dict(event=event, robot_id=robot_id, **values)), flush=True)
+
+        stop_requested = False
+
+        def stop(reason, *, failed=False):
+            nonlocal stop_requested
+            if stop_requested:
+                return
+            stop_requested = True
+            # A repeated interrupt must not abandon the bounded acknowledgement wait.
+            for sig in handlers:
+                signal.signal(sig, signal.SIG_IGN)
+            result = {}
+            try:
+                # Send damping and fence motion before inspecting logs or writing diagnostics.
+                gateway.request_stop(reason)
+                receipt.unlink(missing_ok=True)
+                while rclpy.ok():
+                    rclpy.spin_once(node, timeout_sec=.02)
+                    reply = gateway.poll_stop()
+                    if reply is not None:
+                        result = reply
+                        break
+            finally:
+                confirmed = result.get("confirmed") is True and not result.get("uncertain")
+                fault = board_error(run) if failed or reason == "Pi revoked laptop control" else None
+                if fault:
+                    reason = f"{reason.rstrip('.')}. Board reported: {fault}."
+                terminal = dict(confirmed=confirmed, reason=reason)
+                if failed or fault:
+                    try:
+                        write_new(run / "fc-operator-failure.json", dict(
+                            terminal, robot_id=robot_id, session_id=session_id, monotonic_ns=time.monotonic_ns(),
+                            phase="standing" if standing else "stand", board_error=fault,
+                            gateway_epoch=result.get("gateway_epoch")))
+                    except OSError:
+                        pass  # A failed diagnostic write must still deliver the Stop result.
+                emit("operator_stop", **terminal)
+
+        try:
+            while rclpy.ok():
+                rclpy.spin_once(node, timeout_sec=.01)
+                now = time.monotonic()
+                state = gateway.state
+                fresh = state is not None and gateway.observed_at is not None and 0 <= now-gateway.observed_at < STATUS_MAX_AGE_S
+                if fresh:
+                    if state.get("fc_operator_control") is not True:
+                        raise ValueError("Selected gateway does not support laptop Stop")
+                    challenge = f'{state["instance_id"]} {state["epoch"]} {state["sequence"]}'
+                    if challenge != seen:
+                        seen = challenge
+                        offers[challenge] = now
+                        while len(offers) > 24:
+                            expired, _ = offers.popitem(last=False)
+                            echoed.discard(expired)
+                        emit("operator_challenge", challenge=challenge)
+                elif now - (gateway.observed_at or started) > 4:
+                    raise ValueError("Pi Stop gateway unavailable")
+                ready = bool(fresh and state.get("fc_operator_owner") == owner and state["latched"]
+                             and not any(state[key] for key in BLOCKED) and start.service_is_ready()
+                             and inventory.service_is_ready() and heart.get_subscription_count()
+                             and gateway.stop_publisher.get_subscription_count() and not touched)
+                if ready != previous_ready:
+                    previous_ready = ready
+                    emit("operator_status", ready=ready, standing=standing)
+                if standing and fresh and (state["latched"] or state.get("fc_operator_owner") != owner
+                                           or not state.get("fc_operator_armed")):
+                    stop("Pi revoked laptop control")
+                    return
+                if (pending is not None or inventory_request is not None) and now >= ack_deadline:
+                    raise ValueError("Standing acknowledgement unavailable")
+                if pending is not None and pending.done():
+                    response = pending.result()
+                    pending = None
+                    if not response.success:
+                        raise ValueError("Standing refused: " + response.message)
+                    inventory_request = inventory.call_async(ListControllers.Request())
+                if inventory_request is not None and inventory_request.done() and fresh and state.get("fc_operator_armed"):
+                    rows = {c.name: c.state for c in inventory_request.result().controller}
+                    if rows.get("gemini_walk") != "active" or rows.get("trick_leg_kick") != "inactive" or state.get("fc_operator_owner") != owner:
+                        raise ValueError("Standing unconfirmed. Pi controller states: gemini_walk="
+                                         + str(rows.get("gemini_walk", "missing")) + ", trick_leg_kick="
+                                         + str(rows.get("trick_leg_kick", "missing")) + ". Laptop owner "
+                                         + ("matches" if state.get("fc_operator_owner") == owner else "changed"))
+                    inventory_request = None
+                    standing = True
+                    ticks = Path("/proc/self/stat").read_text().rsplit(")", 1)[1].split()[19]
+                    write_new(receipt, dict(pid=os.getpid(), start_ticks=ticks, owner=owner, session_id=session_id))
+                    (run / "awaiting-standing.json").unlink(missing_ok=True)
+                    emit("operator_standing")
+                if not select.select([sys.stdin], [], [], 0)[0]:
+                    continue
+                chunk = os.read(sys.stdin.fileno(), 4096)
+                if not chunk:
+                    if touched:
+                        stop("Laptop operator disconnected")
+                    return
+                buffer.extend(chunk)
+                if len(buffer) > 8192:
+                    raise ValueError("Invalid operator message size")
+                lines = buffer.split(b"\n")
+                buffer = lines.pop()
+                packets = [json.loads(line) for line in lines]
+                if {"action":"stop"} in packets:
+                    stop("Operator pressed Stop")
+                    return
+                for packet in packets:
+                    action = packet.get("action")
+                    challenge = packet.get("challenge")
+                    is_stand = action == "stand" and packet == {"action":"stand", "challenge":challenge, "supported":True} and packet["supported"] is True
+                    if not is_stand and packet != {"action":"heartbeat", "challenge":challenge}:
+                        raise ValueError("Unknown or unsupported operator input")
+                    issued = offers.get(challenge)
+                    if issued is None or time.monotonic()-issued >= .30:
+                        if is_stand:
+                            raise ValueError("Standing input expired")
+                        continue
+                    if is_stand:
+                        if not ready or touched:
+                            raise ValueError("Standing requires current laptop Stop authority")
+                        instance, epoch, sequence = challenge.split()
+                        request = FcStartMotion.Request(instance_id=instance, epoch=int(epoch), sequence=int(sequence),
+                                                        selected_controller="gemini_walk", owner=owner)
+                        offers.clear()
+                        echoed.clear()
+                        touched = True
+                        ack_deadline = time.monotonic()+4
+                        pending = start.call_async(request)
+                    else:
+                        # A Pi timer or a buffered copy must never manufacture a browser heartbeat.
+                        if challenge not in echoed:
+                            echoed.add(challenge)
+                            heart.publish(String(data=challenge + " " + owner))
+        except BaseException as exc:
+            if touched:
+                try:
+                    stop(str(exc).strip()[:450] or type(exc).__name__, failed=True)
+                except (OSError, ValueError, RuntimeError):
+                    pass
+            raise
+        finally:
+            receipt.unlink(missing_ok=True)
+            node.destroy_node()
+            rclpy.try_shutdown()

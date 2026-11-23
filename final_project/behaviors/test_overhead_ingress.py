@@ -17,10 +17,10 @@ FIELD = {"length": 3.66, "width": 2.44, "goal_width": .6096, "ball_radius": .11,
 CONFIG = {"field": FIELD, "attack_signs": {"pupper-1": 1, "pupper-2": -1}}
 
 
-def core_fixture():
+def core_fixture(pitch=None):
     core = ingress.IngressCore(source_id="camera", source_session="session-1", producer_id="perception",
         epoch="trial-1", boot_id="boot", robot_map={"striker": "pupper-1", "keeper": "pupper-2"},
-        calibration_revision=1, field=FIELD)
+        calibration_revision=1, field=FIELD, pitch=pitch)
     probe = core.make_probe(9.98)
     core.accept_probe({**core.identity(), "protocol": REPLY_PROTOCOL, "nonce": probe["nonce"],
                        "received_mono": 19.985, "sent_mono": 19.986}, 9.992)
@@ -125,6 +125,31 @@ def test_gameplay_does_not_repair_missing_capture_from_display_stamp():
     observation = to_observation(packet)
     assert math.isnan(observation.captured_at)
     assert observation.robot is None and observation.ball is None
+
+
+@pytest.mark.parametrize("change,accepted", [
+    ({}, True),
+    ({"measured_this_frame": False}, False),
+    ({"measured_at": 999.99}, False),
+    ({"age_s": .08}, False),
+    ({"x": float("nan")}, False),
+    ({"vx": float("inf")}, False),
+])
+def test_control_and_referee_share_capture_row_admission(change, accepted):
+    from final_project.overhead_perception.fieldcam.gameplay import to_observation
+    from final_project.pupper_fc.match_director import measured
+    packet = state()
+    packet["ball"] = {**packet["robots"]["striker"], **change}
+    try:
+        control = core_fixture().normalize(packet, 10.04)["ball"]
+    except ValueError:
+        control = None  # Ingress revokes the frame; the referee drops this row.
+    referee = measured(packet["ball"], packet["captured_at"], packet["frame_age_s"])
+    gameplay = to_observation(packet).ball
+    assert (control is not None, referee is not None, gameplay is not None) == (accepted,) * 3
+    if accepted:
+        assert (control["x"], control["y"]) == pytest.approx(referee)
+        assert (gameplay.x, gameplay.y) == pytest.approx(referee)
 
 
 @pytest.mark.parametrize("change", [
@@ -266,3 +291,23 @@ def test_publish_missing_pins_fails_before_ros_import():
     with pytest.raises(SystemExit) as exc:
         ingress.main(["--publish"])
     assert exc.value.code == 2
+
+
+def test_selected_pitch_preserves_marker_coordinates_and_admits_real_goal_fronts():
+    from final_project.overhead_perception.fieldcam.pitch import Pitch
+    goals = {"west": {"x": -2.13, "y_min": -.3048, "y_max": .3048},
+             "east": {"x": 2.13, "y_min": -.2048, "y_max": .4048}}
+    pitch = Pitch.from_field(FIELD, goals).record()
+    packet = state()
+    packet.update(pitch=pitch, goals=goals)
+    row = packet["robots"]["striker"]
+    packet["ball"] = {**row, "x": 2.0, "vx": 0.}
+    event = core_fixture(pitch).normalize(packet, 10.04)
+    assert event["ball"]["x"] == 2.0  # playable strip beyond the marker rectangle
+    assert event["goals"]["right"] == {"x": 2.13, "y": pytest.approx(.1)}
+    changed = deepcopy(packet)
+    changed["pitch"]["goals"]["east"]["y_max"] += .01
+    with pytest.raises(ValueError, match="pitch geometry differs"):
+        core_fixture(pitch).normalize(changed, 10.04)
+    with pytest.raises(ValueError, match="goal geometry differs"):
+        core_fixture().normalize(packet, 10.04)  # legacy peers cannot silently adopt v2

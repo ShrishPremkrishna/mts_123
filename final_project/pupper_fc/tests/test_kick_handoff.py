@@ -77,6 +77,28 @@ def test_cannot_dispatch_from_an_unqualified_decision(kwargs):
     assert refused.request is None and refused.decision.phase == "kick_hold"
     assert refused.decision.command.vx == 0
 
+
+def test_acquisition_requires_authority_past_the_actual_next_runner_tick():
+    from final_project.behaviors.fc_executor_bridge import TICK_S
+
+    handoff = KickHandoff("p1")
+    for i in range(5):
+        now = 1.0 + i * TICK_S
+        # With only 19 ms on a 50 Hz output boundary, the next 20 ms check
+        # would revoke the active job even if a new camera frame arrived.
+        remaining = TICK_S if i % 2 else TICK_S - .001
+        step = tick(handoff, now, ttl=remaining)
+        assert step.request is None and step.cancel is None and handoff.active is None
+        assert step.decision.phase == "kick_hold"
+        assert step.decision.command.expires_at == now + remaining
+    # Same epoch, same attempt, independently renewed authority. The gate
+    # doesn't consume the shot. The asynchronous switch keeps its original deadline.
+    now += TICK_S
+    job = tick(handoff, now, ttl=TICK_S + .005).request
+    assert job is not None and job.start_before == now + TICK_S + .005
+    assert tick(handoff, now + TICK_S, ttl=.09).cancel is None
+
+
 @pytest.mark.parametrize("restored_before_tick", [False, True])
 def test_later_renewal_cannot_bridge_an_unobserved_gap(restored_before_tick):
     handoff = KickHandoff("p1")

@@ -1,0 +1,126 @@
+{
+  "schema": "pupper_fc_source_increment_v1",
+  "recorded_utc": "2026-11-23T07:12:01.080731+00:00",
+  "base_commit": "ecfd97f4559b100ca8d3084cf864c374cd413b4c",
+  "scope": "Strict helper/gateway/runner integration and shared measurement admission. Source increment; frozen checkpoint1 UI remains the usable preview. Changed native driver and candidate UI remain separate active work.",
+  "provider": {
+    "requested_model": "claude-opus-5-5",
+    "observed_models": [
+      "claude-opus-5-5"
+    ],
+    "effort": "high",
+    "elapsed_s": 2381.56,
+    "exit_code": 0,
+    "task_timeout": null,
+    "prompt_sha256": "9c78001451c5842c7e5d85ea2985a122a108f6e7ae44e8902f53064ac59d468d",
+    "errors": [],
+    "result": "The runner now implements the operator protocol the laptop lobby already speaks: ticketed requests, board-health holds and resume, expiring teleop and kick receipts. Autonomy, teleop and the native kick all go through one `CombinedRuntime`. Everything is offline and synthetic; nothing was committed, no hardware, Pi, service or profile was touched, and nothing physical is qualified.\n\n## What changed\n\n**Runner** (`final_project/behaviors/combined_fc_runner.py`)\n- **One owner, shared with fixtures:** the per-tick loop and stdin handling moved out of `run()` into a new `RunnerSession` with no ROS dependency. `run()` just connects ROS and stdin to it, so the UI worker's next rehearsal can drive the real loop instead of writing its own.\n- **Board health is strict-only.** Field play, teleop kickoff, mode changes and resume all require `healthy`. A missing, stale or malformed receipt stays `unknown`. A new hold ends the epoch at once: the executor stops and teleop tickets are cleared. If a native job is running, that becomes a hard stop.\n- **Resume after a hold** needs a fresh, unused epoch, the original board session and Home, a valid ticket, and a fresh check that `gemini_walk` is the sole active leg controller. I removed the donor's native balance-release path because it only exists in the unselected redundant-IMU profile.\n- **Kick receipts are now separate:** `engaged` (job requested), `clip_started` (native reports the clip active), `completed` (clip confirmed and walker restored), `retired` (walker restored without a successful clip) and `aborted` (stopped before restoration was confirmed). Each carries a field saying it observes no ball contact. They are derived from what the handoff actually recorded, not from the decision phase.\n\n**Fixes to donor code**\n- **Deadlock after a failed kick.** In the donor, a failed kick with the walker restored never reported completion. The field process kept resending the retired attempt and the robot stood still forever. It now reports `retired`, and `live_field_attack` moves to the next attempt using a ball measured after that time. A test fails if this is reverted.\n- **Teleop selected but not kicked off** no longer feeds commands. Previously any brief path fault in that state hard-stopped the runner.\n- **Kick reporting** no longer misses a completion when field authority happens to lapse on the restoration tick.\n\n**Other modules**\n- `board_imu.py` (new): the donor's exact 24-word reader, which matches the selected `board_health.hpp` byte for byte. It reads any status 0\u20135 so the runtime worker's helper keeps working, but only status 1 counts as healthy.\n- `operator_drive.py` (new): per-robot tickets every 0.1 s. A drive command expires 0.25 s after its ticket was issued, measured on the robot's clock.\n- `live_field_attack.py` (new): ported from the donor, plus the retired-kick fix.\n- `fc_walk_kick.py`: `tick(manual_command=...)`. A drive command that overlaps field play or a kick is treated as a fault.\n- `model.py` adds `Field.measured_pitch`; `integration.py` applies a measured pitch for one epoch only.\n- Smaller pieces:\n  - `tactics.py`: a guard pose in front of a measured own goal.\n  - `kick_handoff.py`: no dispatch unless authority lasts past the next 20 ms check, and a record of each retired outcome.\n  - `fc_executor_bridge.py`: forwards the pitch and records the referee's goal once per rally.\n  - `body_command_guard.py`: publishes permission changes immediately.\n  - `robot_api.py`, `operator_kick.py`, `part3_follow.py`: no classroom endpoints in a soccer session. `operator_kick` no longer imports `part3_follow`, which isn't in the release file list.\n\n## Tests run\n- `final_project/behaviors` + `final_project/pupper_fc/tests` + `test_fc_session`, `test_fc_operator`, `test_persistent_session`, `test_fc_walk_kick_release`: 1672 passed, 6 skipped, 1 expected failure (the ingress gap below).\n- `gemini_pupper/tests`: 1250 passed. `test_fc_release_closure` + `test_fc_lifecycle_attach`: 17 passed. Perception `test_pipeline.py` in the camera env: 39 passed.\n- New `gemini_pupper/tests/test_runner_session.py` uses lobby-format tickets on the fake-ROS rig, with the real queue kick and a strict board file:\n  - an autonomous approach at a measured pitch, receipts in order, end of match, teleop kickoff and a drive that lapses to zero;\n  - Stop mid-kick reports `aborted` and refuses any re-arm.\n- Copying exactly the release file list to a temp tree and importing from there: the runner, `board_imu`, `operator_drive`, `live_field_attack` and `match_director` all import.\n\n## Gaps for other owners\n- **`overhead_ingress` (perception lane) doesn't forward `fc_match` or a revoke reason.** Until it does, live match mode holds on every frame. `test_selected_ingress_forwards_the_referee_directive` is a strict expected failure and will flip to a failure once fixed; then drop the stand-in `normalize` helper in `test_live_match_play.py`.\n- **`match_director.observe_kick` only releases its kick owner on `completed`.** After a `retired` kick, the referee keeps that attacker and won't track later kicks. Play continues on the Pi, but it should also accept `retired`.\n- **UI worker:** their replay's runner stand-in and `ReplayFieldPlay` duplicate `RunnerSession` and `LiveMatchPlay`. The `Bench` in `test_runner_session.py` shows how to drive the real ones.\n- **Docs I didn't touch:** `behaviors/README.md`, the brief and the checkpoint should mention the receipt states and the strict-only resume. The donor's Linux ROS smoke test (`behaviors/tools/ros_fc_match_smoke.py`) wasn't ported.\n\n## Deliberately deferred\n- **Donor's rolling-ball intercept and lateral-docking controller changes.** They depend on unmeasured speed and braking, and nothing in this runtime needs them. I left out the one donor test that relied on them.\n- **The referee's single global attacker** is still consumed as it is today; independent opponents are a later step.",
+    "process_closed": true
+  },
+  "independent_review": {
+    "changes": [
+      "Ingress forwards producer referee directive after measured frame admission; revoke retains source reason.",
+      "Referee releases a matching restored failed/retired attempt without labeling it successful.",
+      "MatchImu rejects incomplete SPI reply mask independently of receipt healthy status.",
+      "One stdlib capture_measurement is used by ingress, referee and gameplay adapter.",
+      "Canonical optional Pitch v2 distinguishes marker/playable/goal geometry; rendered detector/referee and ingress counterexamples pass. Protocol advertisement remains v1 pending all-consumer integration."
+    ],
+    "checks": [
+      {
+        "tests": [
+          "test_live_match_play.py",
+          "test_board_imu.py",
+          "test_overhead_ingress.py excluding UDP"
+        ],
+        "passed": 95,
+        "deselected": 1
+      },
+      {
+        "tests": [
+          "gemini_pupper/tests/test_runner_session.py",
+          "foundation/hardware/test_fc_release_closure.py",
+          "foundation/hardware/test_fc_lifecycle_attach.py"
+        ],
+        "passed": 19
+      },
+      {
+        "tests": [
+          "overhead_perception/tests/test_pitch.py",
+          "existing surveyed-posts lobby case"
+        ],
+        "passed": 3
+      }
+    ]
+  },
+  "target_evidence": {
+    "baseline_driver": "outputs/pupper-fc-phase4-20261122/runtime/checkpoint1-summary.json",
+    "gateway": "outputs/pupper-fc-phase4-20261122/runtime/gateway-summary.json",
+    "controller": "outputs/pupper-fc-phase4-20261122/runtime/controller-summary.json",
+    "helper": "outputs/pupper-fc-phase4-20261122/runtime/helper-summary.json"
+  },
+  "preservation": "outputs/pupper-fc-phase4-20261122/runtime/recording-preservation.json",
+  "limits": [
+    "No physical capability qualified.",
+    "Current strict driver still under source review; complete inactive paired candidate not yet assembled.",
+    "Shared Pitch v2 consumer adoption, BallEye metric use, independent tactics, production-runner UI rehearsal and recording/experiments remain in progress."
+  ],
+  "source_sha256": {
+    "final_project/README.md": "2eadafd4029d24fc8007f987540009f268e7097f4eed77a2f15d07717f081d32",
+    "final_project/behaviors/README.md": "f6a62797b097a9f0eeafe172805d34173c5e1e11dc5776d123d2b3b89628afc5",
+    "final_project/behaviors/board_imu.py": "1c5dee925add7c62425399b85fd4c379b7815f2556867ae017ec7ba68225d895",
+    "final_project/behaviors/body_command_guard.py": "401f68091bf4e7dbef1c0db4344e52358fc28de7248124929074bc95fec4ca4c",
+    "final_project/behaviors/combined_fc_runner.py": "61be3649783b8ab215f8942c6f3b4a56610b733bbe0da876550c17006fd32494",
+    "final_project/behaviors/fc_executor_bridge.py": "1481e93395465900bf1cff58ddc6753547f00a1a3d3de7e9c00c147101805fee",
+    "final_project/behaviors/live_field_attack.py": "a42e0bb92b5b2b919c911d443f30f2ace19bcf7ffa57e721c36302b9588fc187",
+    "final_project/behaviors/operator_drive.py": "2c8e5392b1e109ebd18d6ec66f8f214c1e3a43fb0034c28dcd9cd4746e13ff47",
+    "final_project/behaviors/overhead_ingress.py": "1ae013afcb1d63789fb71b81e3873e7ad0047fa1b133eead90b11081e9e61d79",
+    "final_project/behaviors/test_board_imu.py": "e6ce04d55b2ad6ff05d5635dfcb3cd706017ddbfa8221ab521fc546bb455556e",
+    "final_project/behaviors/test_body_command_deadline_guard.py": "bf543bbdb1b1cd619fc55eae9d196e115f2b4419f9953ff1016c0c2fbba35cd0",
+    "final_project/behaviors/test_fc_feedback_rates.py": "c7bed065deed0b8b5870aac22e1a139387a07b0b696b9127b150bd0fd7b74215",
+    "final_project/behaviors/test_live_field_attack.py": "e6ab7e13326aea6794b29b6d9df9d3f1bcf45fee3984a923a0bff4fcefbe1149",
+    "final_project/behaviors/test_live_match_play.py": "b73335d1a2dd75268e04c4b25f7e4081d39cd1670b4621ba08c3731da69e14de",
+    "final_project/behaviors/test_operator_drive.py": "66ba0e936db28000b623ef48c56e2d4e12440a60b91bc02f98054967d4bf399a",
+    "final_project/behaviors/test_overhead_ingress.py": "e4fc32cb2285c5f72540e4480b6cd145a839fc3714c64129c200a289804b61c8",
+    "final_project/overhead_perception/fieldcam/gameplay.py": "556571491b8dbe5e6908b388612510a7dfa54697c933ca2b4ebe9e83c6affe7d",
+    "final_project/overhead_perception/fieldcam/observations.py": "a5764f875fa397cff93226da528dfc2225458f70ebdac610553d196fd37c4a98",
+    "final_project/overhead_perception/fieldcam/pipeline.py": "8c3bd6a083fbbbafdab0f9e533ae625f24703599cc8ea100246d5c30b69a9ae5",
+    "final_project/overhead_perception/fieldcam/pitch.py": "ac7a09c33c8c66af23edcafb85a5f7eed62d82276d60ce31ba90f952b03047f4",
+    "final_project/overhead_perception/tests/test_pitch.py": "2848b83903fe115178acdef5af9e50157eff02032e2213d08a91f4a9d1772500",
+    "final_project/pupper_fc/integration.py": "11bd279e4cf816a29f52118a43d7ca6c5286d7b212e0faaea19d33800fd30173",
+    "final_project/pupper_fc/kick_handoff.py": "3541c13dd247406f79745d0e6a052b7ecc82f4437703a56e87b40199724be49d",
+    "final_project/pupper_fc/match_director.py": "903c56ee0fa4a909235449ac58856f47f0a8c377969b899babc829aafa4b5dc8",
+    "final_project/pupper_fc/model.py": "3cbf38a4376bb87691106b6c6981e74157aa25653ac18bf699af126a43c953fa",
+    "final_project/pupper_fc/tactics.py": "3cf85fe68baec1830997a6cab867449792a10b13aa3b3aaed1147db28f71e4dd",
+    "final_project/pupper_fc/tests/test_integration.py": "9836781ef191f9548f140da3ea2a06b1e91c418aa5163cebadcceec0df514adc",
+    "final_project/pupper_fc/tests/test_kick_handoff.py": "c24e31da567bc1f739c3282799e32638d66ecf650e775720871c533628faa10e",
+    "foundation/hardware/fc-match-events.json": "93adcf376f39d266e07e5b26b33d0591794e12c6a2449ed6fd20df9a59447568",
+    "foundation/hardware/fc_operator.py": "0731e690457f04afea3c03c9c6d462149e4d43449db0e05a7bb4e98cdc66e13b",
+    "foundation/hardware/fc_session.py": "46993be04934143a3206591dec787e5bd15bed189ff0c39a01bf82b71fe1334a",
+    "foundation/hardware/fc_walk_kick_release.py": "9f6df50f0a723a532ef21838eb3eca917bc23334b9e47434cb529ecf99c97bb0",
+    "foundation/hardware/lab6-supplied-skills.json": "de65d2e37e8d3f5e4f7a301a93cb270689b6ae0c6fe040a0f536a0717db3d7da",
+    "foundation/hardware/lab6_session.launch.py": "b93f2632eb9d4d3562d588bf3bde2d3a128583dfeede811704f294ca52c104d9",
+    "foundation/hardware/persistent_session.py": "430c8947aa5e52f5fed4fca997bb5f7071e1a0df7187c8b1bf3c64535e6e5ccd",
+    "foundation/hardware/test_fc_lifecycle_attach.py": "a24e554bf63eddaae70cee178cf1235bfc74852a72413217fd535a5f52105560",
+    "foundation/hardware/test_fc_operator.py": "c8b6b3833feb2ca9fe3535aa9fe3cc1ccbe6c783592c84f71f9d4db213098601",
+    "foundation/hardware/test_fc_release_closure.py": "0475fb454daac79583d9ab57135e4bb7b8cb6d2b29e31a27c81b417a8775c2eb",
+    "foundation/hardware/test_fc_session.py": "19696ec1b8ff1b4f3f6f8affab4ff5f9d3e2ecea4e4c16ce0c6fb1605848a84e",
+    "foundation/hardware/test_fc_walk_kick_release.py": "5b8986b5f64cb56ee27f48107ecf95719ad70b9755baf83a30ae31f664a82544",
+    "foundation/hardware/test_lab6_session_profile.py": "570fb46717dd2093a52e25a9704e9812113542ed378140dcfe6b891f95daaf05",
+    "foundation/hardware/test_persistent_session.py": "ab3bf962c4cce2c2e78c837cecb6ee9085b11949ca1b6f78207aec6607503b96",
+    "gemini_pupper/lab/operator_kick.py": "80afdd043430ada0e2cc15440f9891fd956237524208d543e698cc2329857636",
+    "gemini_pupper/lab/part3_follow.py": "75e19e6ab9eb2d3a0d9b25729f89abcc9822f571de7aac5d2d3640f3cae3b932",
+    "gemini_pupper/robot/fc_release_profile.py": "3a179dd75f87464786dec1b15d8abfda8d43099569f2fb0580f759080fd6cfa1",
+    "gemini_pupper/robot/fc_walk_kick.py": "19708a07efab74d801684c06b6dc37c6a666e29181ac0e673145e6d2a3031b86",
+    "gemini_pupper/robot/robot_api.py": "177e5c5865cd905ea25ef0aa9f3641688a98b508f3e81d3713c3d66c6afa974a",
+    "gemini_pupper/robot/session_processes.py": "334793f3cbb4cf47094e15b4ff0018e77b1aef70242bf7bbe98773fb94f4a1e9",
+    "gemini_pupper/tests/test_fc_walk_kick.py": "127721d579424de6db79252044a252361ce1546c2b3bc650e480fb58ebe03a86",
+    "gemini_pupper/tests/test_runner_session.py": "7610c34620a2400b2c93cbedb66889ae0956c9a3f0fe9d25cef5e9fab24f503d",
+    "gemini_pupper/tests/test_teleop_native.py": "78140bc3535a7fd1a40e15a624222289c83ca790fd2d331cd356f4dd6ce94d8c",
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/CMakeLists.txt": "e65930bfd89ce67c0c3310ec2bcfc038c995382ed226c4fefb467c855cc80354",
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/include/joy_utils/stop_arbiter.hpp": "be52bb7690d100755e952c6a5f7e50f76c477ae2770ad14225228daa21378543",
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/package.xml": "920e1e437a57ee52ff82caedcc34cd529f4e2f63f041beba84355dbdcd98abae",
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/src/estop_controller.cpp": "8c9e2806041378c73630b8a0281496ebef5a3d08095facabf5129784c93e2c9e",
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/srv/FcStartMotion.srv": "02389041d4dd4ab82e850a28917360d3b63b0177e00bf87514765c1604603c6e",
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/test/test_fc_operator.py": "2c8d36b3b80965d1e265cceb0b85de8e0030bdcba11a56f1103371dfa94dd088"
+  }
+}

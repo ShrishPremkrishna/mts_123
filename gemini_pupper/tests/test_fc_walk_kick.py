@@ -17,6 +17,7 @@ ROBOT = "pupper-1"
 
 @asynccontextmanager
 async def field_clock_rig(monkeypatch):
+    monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
     async with selected_rig(monkeypatch) as rig:
         # All sleepers, including native-service completion, wake on the same
         # clock as simulated frames. Real task scheduling never advances time.
@@ -27,7 +28,7 @@ async def field_clock_rig(monkeypatch):
             await asyncio.sleep(0)
             return result
         rig.clock.sleep = sleep
-        rig.ts.follow_available = False
+        assert rig.ts.follow_available is False
         yield rig
 
 
@@ -87,6 +88,20 @@ def test_one_runtime_drives_the_walker_then_real_queue_clip_then_walker(monkeypa
             assert any((out[-1].vx, out[-1].vy, out[-1].wz))
             await runtime.close()
             assert out[-1].vx == out[-1].vy == out[-1].wz == 0.
+    asyncio.run(case())
+
+
+def test_soccer_client_only_attaches_match_endpoints(monkeypatch):
+    async def case():
+        async with field_clock_rig(monkeypatch) as rig:
+            robot = rig.ts
+            assert robot.follow_on is robot.follow_off is robot.cmd_pub is robot.ref_pub is None
+            assert "/camera/image_raw/compressed" not in rig.robot.subs
+            assert "/gemini_walk/reference_status" not in rig.robot.subs
+            assert {"/imu_sensor_broadcaster/imu", "/estop_controller/stop_status",
+                    "/emergency_stop", "/trick_leg_kick/clip_status"} <= rig.robot.subs.keys()
+            with pytest.raises(MotionBlockedError, match="guarded field source"):
+                robot.send_speed(.1, 0, 0)
     asyncio.run(case())
 
 

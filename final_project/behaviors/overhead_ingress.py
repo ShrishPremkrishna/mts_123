@@ -29,6 +29,8 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 from final_project.overhead_perception.fieldcam.net import (
     CLOCK_DRIFT, WALL_STEP_S, MAX_DRAIN, STATE_PROTOCOL, PROBE_PROTOCOL, REPLY_PROTOCOL)
+from final_project.overhead_perception.fieldcam.observations import capture_measurement
+from final_project.overhead_perception.fieldcam.pitch import Pitch
 
 EVENT_TOPIC = "/fc/normalized_events"
 MAX_SYNC_WIDTH_S = .020
@@ -60,7 +62,7 @@ class IngressCore:
     """Pure admission. ``now`` always belongs to this Pi's monotonic clock."""
 
     def __init__(self, *, source_id, source_session, producer_id, epoch, boot_id,
-                 robot_map, calibration_revision, field):
+                 robot_map, calibration_revision, field, pitch=None):
         self.source_id = token(source_id, "source_id")
         self.source_session = token(source_session, "source_session")
         self.source_clock = "monotonic:" + self.source_session
@@ -80,6 +82,12 @@ class IngressCore:
         self.field = {k: number(field[k], k) for k in ("length", "width", "goal_width", "ball_radius")}
         if any(v <= 0 for v in self.field.values()):
             raise ValueError("field dimensions must be positive")
+        self.pitch = Pitch.read(pitch) if pitch is not None else None
+        if self.pitch is not None:
+            markers = Pitch.from_field(self.field).marker_bounds
+            if (self.pitch.marker_bounds != markers
+                    or self.pitch.ball_radius != self.field["ball_radius"]):
+                raise ValueError("selected pitch must preserve the calibrated marker frame and ball radius")
         self.pending = None
         self.sync = None
         self.wire_seq = self.source_seq = self.output_seq = -1
@@ -144,6 +152,12 @@ class IngressCore:
         for key in ("length", "width", "ball_radius"):
             if abs(number(incoming.get(key), "field." + key) - self.field[key]) > 1e-6:
                 raise ValueError("field geometry differs from pinned executor configuration")
+        if self.pitch is not None:
+            selected = Pitch.read(state.get("pitch"))
+            if selected != self.pitch or state.get("goals") != selected.goals:
+                raise ValueError("pitch geometry differs from pinned executor configuration")
+            return {name: {"x": goal.center[0], "y": goal.center[1]}
+                    for name, goal in (("left", selected.west), ("right", selected.east))}
         goals = state.get("goals", {})
         if not isinstance(goals, dict):
             raise ValueError("goals must be an object")
@@ -175,7 +189,7 @@ class IngressCore:
         if self.held:
             return None
         self.held = True
-        return self._event(None, {}, None, {})
+        return {**self._event(None, {}, None, {}), "source_reason": self.last_reason}
 
     def expire(self, now):
         try:
@@ -242,33 +256,13 @@ class IngressCore:
         goals = self._geometry(state)
 
         def measured(row, heading=False):
-            if not isinstance(row, dict) or row.get("visible") is not True or row.get("measured_this_frame") is not True:
+            estimate = capture_measurement(row, capture, age, heading=heading,
+                                           tracking=state.get("tracking", "tags"))
+            if estimate is None:
                 return None
-            if number(row.get("measured_at"), "track measurement") != capture:
-                return None  # Never promote a coasting track to this frame.
-            if abs(number(row.get("age_s"), "track age") - age) > 1e-6:
-                raise ValueError("track age disagrees with original measurement")
-            result = {}
-            for axis, velocity in (("x", "vx"), ("y", "vy")):
-                speed = number(row.get(velocity), velocity)
-                result[axis] = number(row.get(axis), axis) - speed * age
-                if not heading:
-                    result[velocity] = speed
             if heading:
-                # Current producers retain capture heading explicitly. Legacy
-                # color pairs already reported capture yaw; only legacy tags
-                # extrapolated it to the publication time.
-                if "yaw_at_capture" in row:
-                    yaw = number(row["yaw_at_capture"], "capture yaw")
-                else:
-                    yaw = number(row.get("yaw"), "yaw")
-                    tracking = state.get("tracking", "tags")
-                    if tracking not in ("tags", "colors"):
-                        raise ValueError("legacy heading convention is unknown")
-                    if tracking == "tags":
-                        yaw -= number(row.get("wz"), "wz") * age
-                result.update(yaw=math.atan2(math.sin(yaw), math.cos(yaw)), captured_at=mapped)
-            return result
+                return {key: estimate[key] for key in ("x", "y", "yaw")} | {"captured_at": mapped}
+            return estimate
 
         source_robots = state.get("robots")
         if not isinstance(source_robots, dict):
@@ -280,6 +274,9 @@ class IngressCore:
                 robots[target] = pose
         ball = measured(state.get("ball"))
         event = self._event(mapped, robots, ball, goals)
+        if "fc_match" in state:
+            # The selected play adapter validates referee epoch/schema/sequence.
+            event["fc_match"] = state["fc_match"]
         event["source"] = {**self.identity(), "seq": seq, "calibration_revision": revision,
                            "clock_uncertainty_s": uncertainty}
         self.last_capture, self.held, self.last_reason = mapped, False, "admitted live frame"

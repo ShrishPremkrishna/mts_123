@@ -42,6 +42,9 @@ def profile(monkeypatch, tmp_path):
     package_module.get_package_share_directory = lambda name: str(share)
     monkeypatch.setitem(sys.modules, "ament_index_python.packages", package_module)
     monkeypatch.setenv("ROS_DOMAIN_ID", "168")
+    for name in ("PUPPER_FC_IMU_RECOVERY", "PUPPER_FC_OPERATOR_CONTROL", "PUPPER_FC_RECORDING",
+                 "PUPPER_FC_PREPARED_MANIFEST_SHA256"):
+        monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("PUPPER_FOLLOWER_MODE", "disabled")
     monkeypatch.delenv("PUPPER_SESSION_MOTION_MODE", raising=False)
     monkeypatch.setenv("PUPPER_GEMINI_DIR", str(ROOT / "gemini_pupper"))
@@ -369,7 +372,12 @@ def test_persistent_follower_choice_is_explicit(profile, monkeypatch):
     assert not runtime_config.session_manifest_path().exists()
 
 
-def test_fc_walk_kick_profile_owns_one_walker_and_a_model_bound_guard(profile, monkeypatch):
+@pytest.mark.parametrize("recording, feedback", [
+    ("events", ["imu_sensor_broadcaster"]),
+    ("full", ["joint_state_broadcaster", "imu_sensor_broadcaster"]),
+])
+def test_fc_walk_kick_profile_owns_one_walker_and_a_model_bound_guard(profile, monkeypatch, recording, feedback):
+    monkeypatch.setenv("PUPPER_FC_RECORDING", recording)
     monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
     monkeypatch.setenv("PUPPER_SESSION_SKILLS", "leg_kick")
     graph = profile.generate_launch_description()
@@ -386,9 +394,70 @@ def test_fc_walk_kick_profile_owns_one_walker_and_a_model_bound_guard(profile, m
     assert guards[0].kwargs["cmd"][-3:] == ["--command-contract", "fc_deadline_v1", "--arena-ball-contact"]
     spawners = [e for e in entities if getattr(e, "kwargs", {}).get("executable") == "spawner"]
     assert spawners[-1].kwargs["arguments"][:3] == ["gemini_walk", "trick_leg_kick", "--inactive"]
+    assert set(config) == {"controller_manager", "estop_controller", "floor_physical_joy",
+                           *manifest["motion_controllers"], *feedback}
+    assert set(config["controller_manager"]["ros__parameters"]) == {
+        "update_rate", *manifest["motion_controllers"], *feedback}
+    assert manifest["feedback_broadcasters"] == feedback
+    assert spawners[0].kwargs["arguments"][:len(feedback)+1] == [*feedback, "--controller-manager"]
+    description_node = next(e for e in entities if getattr(e, "kwargs", {}).get("package") == "robot_state_publisher")
+    assert description_node.kwargs["parameters"][0]["robot_description"] == Path(manifest["robot_description"]).read_text()
 
+
+@pytest.mark.parametrize("mode", ["supported_standby", "supported_rehome", "supported_damping",
+                                  "field_redundant_imu", "always_run"])
+def test_only_the_strict_board_profile_can_be_prepared(profile, monkeypatch, mode):
+    monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
+    monkeypatch.setenv("PUPPER_SESSION_SKILLS", "leg_kick")
+    monkeypatch.setenv("PUPPER_FC_IMU_RECOVERY", mode)
+    with pytest.raises(ValueError, match="strict IMU"):
+        profile.generate_launch_description()
+    assert not runtime_config.session_manifest_path().exists()
+
+
+def test_strict_profile_uses_the_unmodified_course_description(profile, monkeypatch):
+    monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
+    monkeypatch.setenv("PUPPER_SESSION_SKILLS", "leg_kick")
+    description = profile.generate_launch_description()
+    manifest = runtime_config.validate_session_catalog(load_tricks())
+    baseline = profile.ROOT / "floor_stock/baseline-expanded.urdf"
+    assert manifest["fc_imu_recovery"] == "strict"
+    assert Path(manifest["robot_description"]) == baseline.resolve()
+    assert hashlib.sha256(baseline.read_bytes()).hexdigest() == profile.URDF_SHA
+    manager = next(e for e in description.args[0] if getattr(e, "kwargs", {}).get("executable") == "ros2_control_node")
+    assert manager.kwargs["parameters"][1]["robot_description"] == baseline.read_text()
+    config = yaml.safe_load(Path(manifest["configuration"]).read_text())
+    assert config["controller_manager"]["ros__parameters"]["gemini_walk"]["type"] == "neural_controller/NeuralController"
+    assert "fc_operator_control" not in config["estop_controller"]["ros__parameters"]
 
 def test_wrong_fc_skill_fails_before_launch(profile, monkeypatch):
     monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
     with pytest.raises(ValueError, match="requires only leg_kick"):
         profile.generate_launch_description()
+
+
+def test_fc_home_consumes_the_pinned_profile_without_regeneration(profile, monkeypatch):
+    monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
+    monkeypatch.setenv("PUPPER_SESSION_SKILLS", "leg_kick")
+    profile.generate_launch_description()
+    path = runtime_config.session_manifest_path()
+    monkeypatch.setenv("PUPPER_FC_PREPARED_MANIFEST_SHA256", hashlib.sha256(path.read_bytes()).hexdigest())
+    monkeypatch.setattr(profile, "prepare_session_profile", lambda *_: pytest.fail("Home rebuilt its inputs"))
+    profile.generate_launch_description()
+
+    config = Path(json.loads(path.read_text())["configuration"])
+    config.write_text(config.read_text() + "\n")
+    with pytest.raises(ValueError, match="input changed"):
+        profile.generate_launch_description()
+    path.write_text(path.read_text() + "\n")
+    with pytest.raises(ValueError, match="manifest pinned"):
+        profile.generate_launch_description()
+
+
+def test_operator_gateway_enabled_only_in_explicit_field_profile(profile, monkeypatch):
+    monkeypatch.setenv("PUPPER_SESSION_MOTION_MODE", "fc_walk_kick")
+    monkeypatch.setenv("PUPPER_SESSION_SKILLS", "leg_kick")
+    monkeypatch.setenv("PUPPER_FC_OPERATOR_CONTROL", "1")
+    profile.generate_launch_description()
+    config = yaml.safe_load(Path(runtime_config.validate_session_catalog(load_tricks())["configuration"]).read_text())
+    assert config["estop_controller"]["ros__parameters"]["fc_operator_control"] is True

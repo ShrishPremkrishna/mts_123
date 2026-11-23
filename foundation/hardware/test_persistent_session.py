@@ -37,7 +37,7 @@ class Life:
             'pending': {}, 'events': []}
         self.states = {'manager': 'running', 'launch': 'running'}
         self.spawned = []; self.sent = []; self.closed = False
-        self.native_log = 'Finished homing!\n' + READY_SPAWNERS
+        self.native_log = 'Finished homing!\nSuccessfully activated!\n' + READY_SPAWNERS
     def coordinator(self):
         return SimpleNamespace(execution_lock=lambda *a: nullcontext())
     def check_support(self, run): pass
@@ -47,7 +47,9 @@ class Life:
     def require_starting(self, receipt):
         if receipt['status'] != 'starting': raise ValueError('startup canceled')
     def state(self, target, tag): return self.states.get(target['role'], 'exited')
-    def spawn(self, run, role, expected, command):
+    def spawn(self, run, role, expected, command, *, attach_perception=False):
+        if attach_perception:
+            assert self.receipt['status'] == 'running' and self.receipt['perception_deferred']
         self.spawned.append((role, expected, command))
         self.receipt['processes'][role] = {'pid': 30 + len(self.spawned), 'role': role}
         self.states[role] = 'running'
@@ -390,9 +392,9 @@ class SessionTests(unittest.TestCase):
                 log = 'Finished homing!\n[spawner-7] [INFO] [spawner_motion]: Loaded neural_controller_default\n'
             elif clock.waits == 2:
                 # All Loaded lines still do not prove final configuration completed.
-                log = 'Finished homing!\n' + READY_SPAWNERS.rsplit('[INFO] [spawner-7]', 1)[0]
+                log = 'Finished homing!\nSuccessfully activated!\n' + READY_SPAWNERS.rsplit('[INFO] [spawner-7]', 1)[0]
             else:
-                log = 'Finished homing!\n' + READY_SPAWNERS
+                log = 'Finished homing!\nSuccessfully activated!\n' + READY_SPAWNERS
             (self.run / 'robot.log').write_text(log)
         (self.run / 'native-readiness.json').unlink()  # Normally absent before first startup.
         with patch.object(session, 'time', SimpleNamespace(monotonic=lambda: clock.now, sleep=sleep)):
@@ -402,6 +404,117 @@ class SessionTests(unittest.TestCase):
         self.assertTrue(result['controller_spawners_finished'])
         self.assertEqual([r[0] for r in self.life.spawned], ['camera', 'recorder', 'launch'])
         self.assertEqual(self.life.receipt['status'], 'running')
+
+    def test_events_home_waits_only_for_selected_imu_and_motion_spawners(self):
+        self.plan["environment"].update(PUPPER_SESSION_MOTION_MODE="fc_walk_kick", PUPPER_FC_RECORDING="events")
+        self.plan["components"]["detector_model"] = {"path": "/test/selected.hef"}
+        manifest = self.run / "runtime-manifest.json"
+        session.write(manifest, {"feedback_broadcasters": ["imu_sensor_broadcaster"]})
+        self.plan["runtime_manifest"] = {"path": str(manifest)}
+        self.life.native_log = "\n".join(line for line in self.life.native_log.splitlines()
+                                          if "joint_state_broadcaster" not in line)
+        result = session.start_native(self.run, self.plan, self.life)
+        self.assertTrue(result["controller_spawners_finished"])
+        detector = next(command for role, _, command in self.life.spawned if role == "detector")
+        self.assertIn("--fc-headless", detector)
+        self.assertNotIn("--fc-timings", detector)
+        self.assertFalse(session.spawners_ready(self.life.native_log, self.plan["controllers"],
+                                               ["joint_state_broadcaster", "imu_sensor_broadcaster"]))
+        self.assertFalse(session.spawners_ready(self.life.native_log.replace("imu_sensor_broadcaster", "other"),
+                                               self.plan["controllers"], ["imu_sensor_broadcaster"]))
+
+    def test_full_recording_keeps_detector_timings(self):
+        self.plan["environment"]["PUPPER_FC_RECORDING"] = "full"
+        self.plan["components"]["detector_model"] = {"path": "/test/selected.hef"}
+        session.start_native(self.run, self.plan, self.life)
+        detector = next(command for role, _, command in self.life.spawned if role == "detector")
+        self.assertEqual(detector[detector.index("--fc-timings") + 1], str(self.run / "detector-timings.jsonl"))
+
+    def deferred_fc_fixture(self):
+        self.plan['environment'].update(PUPPER_SESSION_MOTION_MODE='fc_walk_kick', PUPPER_FC_RECORDING='events')
+        self.plan['components']['detector_model'] = {'path': '/test/selected.hef'}
+        manifest = self.run / 'runtime-manifest.json'
+        session.write(manifest, {'feedback_broadcasters': ['imu_sensor_broadcaster']})
+        self.plan['runtime_manifest'] = {'path': str(manifest)}
+
+    def test_deferred_camera_requires_same_home_and_exclusive_ownership(self):
+        self.deferred_fc_fixture()
+        foreign = self.life.PROC / '29'
+        foreign.mkdir()
+        (foreign / 'cmdline').write_bytes(b'camera_node\0')
+        session.start_native(self.run, self.plan, self.life, defer_perception=True)
+        with self.assertRaisesRegex(ValueError, 'Existing controller/camera owner'):
+            session.start_perception(self.run, self.plan, self.life)
+        self.assertEqual([r[0] for r in self.life.spawned], ['recorder', 'launch'])
+        (foreign / 'cmdline').unlink()
+        foreign.rmdir()
+        session.start_perception(self.run, self.plan, self.life)
+        session.start_perception(self.run, self.plan, self.life)
+        self.assertEqual([r[0] for r in self.life.spawned], ['recorder', 'launch', 'camera', 'detector'])
+        self.life.states['camera'] = 'exited'
+        with self.assertRaisesRegex(ValueError, 'Previously owned camera has exited'):
+            session.start_perception(self.run, self.plan, self.life)
+
+    def test_mechanical_fault_preserves_session_and_returns_cause(self):
+        (self.run / 'native-readiness.json').unlink()
+        self.life.native_log = ('[ros2_control_node-2] [ERROR] [ControlBoardHardwareInterface]: '
+                                'Mechanical Home stopped: nonfinite encoder feedback; neutral sent')
+        with self.assertRaisesRegex(ValueError, 'nonfinite encoder feedback.*Keep Pupper supported'):
+            session.start_native(self.run, self.plan, self.life)
+        self.assertFalse((self.run / 'native-readiness.json').exists())
+        self.assertNotEqual(self.life.load(self.run)['status'], 'stopped')
+
+    def test_fc_mechanical_refusal_releases_only_owned_setup_without_retry(self):
+        self.deferred_fc_fixture()
+        (self.run / 'native-readiness.json').unlink()
+        self.life.native_log = ('[ros2_control_node-2] [ERROR] [ControlBoardHardwareInterface]: '
+                                'Mechanical Home stopped: return failed first_pending_joint=knee; neutral sent')
+        with (patch.object(self.life, 'state', return_value='exited'),
+              self.assertRaisesRegex(ValueError, 'knee.*Owned setup processes exited.*Inspect the leg')):
+            session.start_native(self.run, self.plan, self.life, defer_perception=True)
+        self.assertTrue(self.life.closed)
+        self.assertFalse((self.run / 'native-readiness.json').exists())
+        self.assertEqual([r[0] for r in self.life.spawned], ['recorder', 'launch'])
+
+    def test_pre_motor_motor_board_refusal(self):
+        log = ('[ros2_control_node-2] [ERROR] [1.2] [ControlBoardHardwareInterface]: '
+               'Home refused before motor enable: missing motor board reply (mask=1)')
+        self.assertEqual(session.pre_motor_fault(log), 'missing motor board reply (mask=1)')
+        self.assertIsNone(session.pre_motor_fault('Homing actuators...\n' + log))
+        self.assertIsNone(session.pre_motor_fault(log.replace('ros2_control_node', 'spawner')))
+
+    def test_pre_motor_fault_cleans_even_if_launch_has_exited(self):
+        self.deferred_fc_fixture()
+        self.life.native_log = ('[ros2_control_node-2] [ERROR] [1795213424.430136802] [ControlBoardHardwareInterface]: '
+            'IMU startup check failed: IMU fault phase=startup reason=stationary startup window timed out '
+            'sampled_mono_us=286480530 quaternion={seq=223 valid=1}\n')
+        (self.run / 'native-readiness.json').unlink()
+        with (patch.object(self.life, 'state', return_value='exited'),
+              patch.object(session.time, 'sleep', side_effect=AssertionError('waited for deadline')),
+              self.assertRaisesRegex(ValueError, 'stationary startup window timed out.*Owned setup processes exited')):
+            session.start_native(self.run, self.plan, self.life, defer_perception=True)
+        self.assertTrue(self.life.closed)
+        self.assertFalse((self.run / 'native-readiness.json').exists())
+        self.assertEqual([r[0] for r in self.life.spawned], ['recorder', 'launch'])
+
+    def test_logged_manager_exit_alone_does_not_imply_pre_motor_shutdown(self):
+        self.deferred_fc_fixture()
+        self.life.native_log = '[ERROR] [ros2_control_node-2]: process has died [pid 42, exit code -6]\n'
+        with self.assertRaisesRegex(ValueError, 'startup failed'):
+            session.start_native(self.run, self.plan, self.life, defer_perception=True)
+        self.assertFalse(self.life.closed)
+
+    def test_cleaned_up_claim_requires_verified_exit(self):
+        self.deferred_fc_fixture()
+        self.life.native_log = ('[ros2_control_node-2] [ERROR] [ControlBoardHardwareInterface]: '
+            'IMU startup check failed: IMU fault phase=startup reason=gyro stale sampled_mono_us=123\n')
+        with (patch.object(self.life, 'state', return_value='exited'),
+              patch.object(self.life, 'cleanup', side_effect=ValueError('foreign process identity')),
+              self.assertRaisesRegex(ValueError, r'Process cleanup unconfirmed.*foreign process identity')):
+            session.start_native(self.run, self.plan, self.life, defer_perception=True)
+        for prefix in ('Homing actuators...', 'Finished homing!'):
+            self.assertIsNone(session.pre_motor_fault(prefix + '\n' + self.life.native_log))
+        self.assertIsNone(session.pre_motor_fault(self.life.native_log.replace('phase=startup', 'phase=read')))
 
     def test_native_start_preserves_one_camera_recorder_and_current_launch(self):
         result = session.start_native(self.run, self.plan, self.life)

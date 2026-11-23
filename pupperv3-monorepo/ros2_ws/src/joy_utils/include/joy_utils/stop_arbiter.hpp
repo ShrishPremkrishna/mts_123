@@ -141,7 +141,7 @@ class StopArbiter {
     if (!shutdown_) latch_stop(false);
   }
 
-  void joy(const std::vector<int32_t> &values) {
+  void joy(const std::vector<int32_t> &values, bool allow_selection = true) {
     std::lock_guard<std::mutex> lock(mutex_);
     if (shutdown_) return;
     const auto pressed = [&](size_t index) { return index < values.size() && values[index] == 1; };
@@ -158,7 +158,7 @@ class StopArbiter {
       if (stop_edge) latch_stop(false);
       return; // stop always wins the entire Joy frame
     }
-    if (fault_) return;
+    if (fault_ || !allow_selection) return;
     if (release_edge) {
       // A fresh deliberate release is required AFTER confirmed deactivation.
       // An early release edge is consumed, never deferred for automatic rearm.

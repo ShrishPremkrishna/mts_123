@@ -3,6 +3,8 @@ import math
 import time
 
 from .controller import MAX_BALL_SPEED
+from final_project.overhead_perception.fieldcam.observations import capture_measurement
+from final_project.overhead_perception.fieldcam.pitch import Bounds, Pitch
 
 FRESH = .30
 ROLE_ADVANTAGE = .12  # metres of distance advantage before the attacker relinquishes the ball
@@ -17,12 +19,11 @@ def number(value):
 
 
 def measured(row, capture, age):
-    if not isinstance(row, dict) or row.get("visible") is not True or row.get("measured_this_frame") is not True:
+    try:
+        estimate = capture_measurement(row, capture, age)
+    except ValueError:
         return None
-    if (row.get("measured_at") != capture or not number(row.get("age_s")) or abs(row["age_s"] - age) > 1e-6
-            or not all(number(row.get(k)) for k in ("x", "y", "vx", "vy"))):
-        return None
-    return (row["x"] - age * row["vx"], row["y"] - age * row["vy"])
+    return (estimate["x"], estimate["y"]) if estimate is not None else None
 
 
 def directive_ok(row, epoch, roster, seq):
@@ -56,7 +57,7 @@ def goal_geometry(goals, length, width, radius):
 
 
 class MatchDirector:
-    def __init__(self, epoch, tracks, attack_signs, *, goal_lines=None, pending_start=False):
+    def __init__(self, epoch, tracks, attack_signs, *, goal_lines=None, pending_start=False, pitch=None):
         if (not isinstance(epoch, str) or not 0 < len(epoch) <= 96 or not isinstance(tracks, dict) or not tracks
                 or len(set(tracks.values())) != len(tracks) or not set(tracks.values()) <= set(attack_signs)
                 or set(attack_signs) != {"pupper-1", "pupper-2"} or set(attack_signs.values()) != {-1, 1}):
@@ -66,7 +67,10 @@ class MatchDirector:
             raise ValueError("pending_start must be boolean")
         self.pending_start, self.pending_capture = pending_start, None
         self.balance_paused = False
-        self.goal_lines = goal_lines
+        self.pitch = Pitch.read(pitch) if pitch is not None else None
+        if self.pitch is not None and goal_lines is not None and goal_lines != self.pitch.goals:
+            raise ValueError("referee goals differ from the selected pitch")
+        self.goal_lines = self.pitch.goals if self.pitch is not None else goal_lines
         self.kick_owner = None
         self.retired_kicks = set()
         self.revision = None
@@ -80,10 +84,13 @@ class MatchDirector:
 
     def _state(self, seq, phase, attacker):
         fenced = self.balance_paused or phase in ("pending", "holding")
-        return {"epoch": self.epoch, "seq": seq, "phase": phase, "attacker": attacker,
+        result = {"epoch": self.epoch, "seq": seq, "phase": phase, "attacker": attacker,
                 "roster": sorted(self.tracks.values()), "tracks": dict(self.tracks), "rally": self.rally, "role_cycle": self.role_cycle,
                 "score": dict(self.score), "goal_sign": 0 if fenced else self.goal_sign,
                 "reset_ready": False if fenced else self.reset_ready}
+        if self.pitch is not None:
+            result["pitch"] = self.pitch.record()
+        return result
 
     def _missing(self):
         self.previous = None
@@ -106,7 +113,7 @@ class MatchDirector:
             self.kick_owner = edge
             self.challenger = self.switch_at = None
             return True
-        if event.get("state") == "completed" and self.kick_owner == edge:
+        if event.get("state") in ("completed", "retired") and self.kick_owner == edge:
             self.retired_kicks.add(edge)
             self.kick_owner = None
             return True
@@ -131,8 +138,9 @@ class MatchDirector:
         return self.owner
 
     def _ball(self, capture, point, goals, radius, width):
-        inside = (goals["west"]["x"] + radius < point[0] < goals["east"]["x"] - radius
-                  and abs(point[1]) < width / 2 - radius)
+        bounds = self.pitch.playable_bounds if self.pitch is not None else Bounds(
+            goals["west"]["x"], goals["east"]["x"], -width / 2, width / 2)
+        inside = bounds.contains(*point, margin=radius + 1e-12)
         if self.goal_sign:
             self.reset_ready = inside
         elif self.previous is not None:
@@ -183,6 +191,13 @@ class MatchDirector:
         phase, attacker = "holding", None
         f, goals = frame.get("field", {}), self.goal_lines or frame.get("goals", {})
         geometry = isinstance(f, dict) and goal_geometry(goals, f.get("length"), f.get("width"), f.get("ball_radius"))
+        if self.pitch is not None:
+            geometry = (isinstance(f, dict) and frame.get("pitch") == self.pitch.record()
+                        and f.get("length") == self.pitch.marker_bounds.length
+                        and f.get("width") == self.pitch.marker_bounds.width
+                        and f.get("ball_radius") == self.pitch.ball_radius)
+            if frame.get("pitch") != self.pitch.record():
+                self.calibration_changed = True
         revision = frame.get("calibration_revision")
         if self.revision is not None and revision != self.revision:
             self.calibration_changed = True
@@ -197,8 +212,10 @@ class MatchDirector:
         poses = {robot: measured(robots.get(track), capture, age) for track, robot in self.tracks.items()} if good else {}
         if self.pending_start:
             phase = "pending"
+            bounds = self.pitch.playable_bounds if self.pitch is not None else (
+                Bounds(-f["length"]/2, f["length"]/2, -f["width"]/2, f["width"]/2) if good else None)
             within = (ball is not None and poses and all(poses.values())
-                      and all(abs(x) <= f["length"]/2 and abs(y) <= f["width"]/2 for x,y in [ball,*poses.values()]))
+                      and all(bounds.contains(x, y) for x,y in [ball,*poses.values()]))
             self.pending_capture = capture if within else None
         elif ball is None:
             self._missing()
@@ -227,7 +244,8 @@ class MatchDirector:
         """A fresh authority starts behind the kickoff fence with the same scoreboard."""
         if not self.balance_paused or self.calibration_changed or self.kick_owner is not None:
             raise ValueError("End the match and check the field or native kick before starting again")
-        director = MatchDirector(epoch, self.tracks, self.signs, goal_lines=self.goal_lines, pending_start=True)
+        director = MatchDirector(epoch, self.tracks, self.signs, goal_lines=self.goal_lines, pending_start=True,
+                                 pitch=self.pitch.record() if self.pitch is not None else None)
         director.score = dict(self.score)
         director.goal_sign, director.rally, director.role_cycle = self.goal_sign, self.rally, self.role_cycle
         director.state = director._state(-1, "pending", None)

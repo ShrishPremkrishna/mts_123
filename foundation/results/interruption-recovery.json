@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "codex/pupper-fc-phase2",
   "mode": "phase4_offline_rebuild",
-  "updated_utc": "2026-11-23T06:35:25.627511+00:00",
+  "updated_utc": "2026-11-23T07:12:01.080731+00:00",
   "current_report": "foundation/results/fc-phase4-checkpoint1-20261122.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -63,7 +63,12 @@
     "tej_phase2_reconciliation": "foundation/results/fc-phase2-reconciliation-20261122.json",
     "adversarial_architecture_nov22": "foundation/results/fc-architecture-review-20261122.json",
     "phase3_rebuild_plan": "foundation/results/fc-phase3-plan-20261122.json",
-    "phase4_checkpoint1": "foundation/results/fc-phase4-checkpoint1-20261122.json"
+    "phase4_checkpoint1": "foundation/results/fc-phase4-checkpoint1-20261122.json",
+    "phase4_orchestration": "foundation/results/fc-phase4-orchestration-20261122.json",
+    "phase4_remote_source_tips": "outputs/pupper-fc-phase4-20261122/integration/remote-source-tips.json",
+    "phase4_runtime_integration": "foundation/results/fc-phase4-runtime-integration-20261122.json",
+    "phase4_reconnect_inventory": "outputs/pupper-fc-phase4-20261122/runtime/inventory-reconnect.json",
+    "phase4_reconnect_profile": "outputs/pupper-fc-phase4-20261122/runtime/selected-profile-reconnect.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -105,7 +110,7 @@
     "compute": "User-approved exact Fable5.2/Opus5.5 source review/labor continues without task wall-clock termination limits. Monitor progress and let work complete. No hardware safety expiry changed.",
     "owners": {
       "physical_robot": "Shrish owns physical setup. Root completed read-only Pi inventory; no owned hardware test or service change. Other robot-process ownership and motor state are not established by that inventory.",
-      "gameplay_integration": "GPT-6 Astra /root/rebuild_lead owns integration, observation/geometry and QA. Exact Opus5.5 high owns selected runner/model/board-reader/FC planner/gemini runtime source edits under its assigned paths; no commits/hardware.",
+      "gameplay_integration": "GPT-6 Astra /root/rebuild_lead owns integration/geometry/QA. First exact Opus5.5 high runner/strict-board/operator implementation completed exit0; reviewed source frozen for intermediate integration commit. Next shared Pitch v2/tactics outcome pending ownership handoff.",
       "movement": "Shrish and project lead own gait readiness, pose/heading, kick approach and defense.",
       "shooting": "Tej owns the leg kick. Shrish and project lead own the transition from field-guided gameplay.",
       "perception": "Ryan owns overhead source/tracking; source integrated. Root owns harness adapter. Mounted geometry, latency and tag coverage remain unqualified.",
@@ -114,9 +119,9 @@
       "runtime_build": "GPT-6 Astra /root/rebuild_runtime is sole Pi read/build/stage owner; maintained native recipe and release helpers. No device/lifecycle operations.",
       "ui": "GPT-6 Astra /root/rebuild_ui owns launcher, teleop/lobby/setup adapters, static UI and replay transport; actual browser validation."
     },
-    "goal_status": "Checkpoint1 complete: launchable five-screen synthetic I/O/lobby shell with rendered perception, source identity and honest native/physical limits. Current next increment integrates strict gateway/helper/runner pair and actual-executor UI rehearsal, then shared geometry/perception, full tactics and complete inactive candidate.",
+    "goal_status": "Checkpoint1 ecfd97f retained. Coherent strict runtime/helper/runner and actual-executor UI outcome in progress. Shared row admission consolidated; Pitchv2 producer/referee structure tested with rendered goal0.3m beyond markers, consumer adoption pending coherent protocol switch. Full local Pi raw preservation complete; Mac footage absent.",
     "pending_archives": [
-      "Three original kickseen4/5/6 MCAP files remain on Pi, hashed and analyzed. Full local copy interrupted; partial archive retained and verified incomplete. See outputs/pupper-fc-reconcile-20261122/recording-preservation.json."
+      "Tej Mac out/overhead_kick raw camera frames/video and exact local run configuration remain unavailable. Full original Pi MCAP preservation is now complete and hash-verified."
     ],
     "processes": {
       "local_practice": {
@@ -152,15 +157,32 @@
           },
           "orchestration_fable": {
             "tool_session": 87830,
-            "status": "running read-only, no task time limit",
+            "status": "completed exact claude-fable-5-2 high, exit0,399.41s; no task time limit",
             "prompt": "outputs/pupper-fc-phase4-20261122/integration/fable-orchestration-task.txt"
+          },
+          "runtime_helpers": {
+            "tool_session": 71815,
+            "status": "completed exact claude-opus-5-5 high, exit0; source reviewed and frozen.133+10 tests plus23 session follow-up tests; final integrated restage pending."
+          },
+          "ui_next": {
+            "tool_session": 8204,
+            "status": "running exact Opus5.5 high with no task time limit; actual executor rehearsal/dedicated Play/operator UI"
+          },
+          "native_fable": {
+            "tool_session": 46849,
+            "status": "running exact Fable5.2 high, no task time limit; read-only native invalid-feedback adjudication",
+            "prompt": "outputs/pupper-fc-phase4-20261122/integration/fable-native-adjudication-task.txt"
           }
         },
         "ui_rehearsal": {
-          "tool_session": 12300,
+          "owner": "/root/rebuild_ui",
+          "tool_session": 52458,
           "url": "http://127.0.0.1:8876",
-          "mode": "synthetic replay",
-          "status": "UI-owned server available; browser left idle with no robot peers connected."
+          "mode": "synthetic replay, frozen checkpoint1",
+          "source_commit": "ecfd97f4559b100ca8d3084cf864c374cd413b4c",
+          "source_root": "/var/folders/7c/__k49cw562d4txf0dslj1wcm0000gn/T/pupper-fc-checkpoint1-w2tshouf",
+          "status": "Running from frozen git archive, all10 UI hashes and release stamp verified; browser field/rendered detections and Offline Check passed. Candidate uses8877.",
+          "receipt": "outputs/pupper-fc-phase4-ui/checkpoint1-preview.json"
         },
         "legacy_runtime_provider": {
           "status": "Old tools-disabled native generator interrupted at600s by pre-override supervisor, exit143; no source tools/edits, result absent. Not complete.",
@@ -172,10 +194,10 @@
     "software_verification": "Frozen checkpoint integrated checks:203 passed and34 subtests, no skips; actual browser one/two participant setup/start/end/Stop/reconnect/settings/mobile checks. Baseline ARM driver build/link58/58 fake tests. Source-specific receipts in current report; physical behavior unqualified."
   },
   "hardware_session": {
-    "status": "Pi reachable through mts, same boot throughout collection. FC profile selects fc-ui-stop-0c07ad63666b. No new robot/sensor/camera service or motion started; posture/torque not tested.",
-    "observed_utc": "2026-11-23T05:13:02.654181+00:00",
+    "status": "Pi read-only access restored on a new boot. Existing selected profile unchanged (field_redundant_imu/events/right); recorded session stopped. Runtime inventory found no native control/test-domain process names; torque/posture not established. No service/device/selection action performed.",
+    "observed_utc": "2026-11-23T07:03:29.121280+00:00",
     "ssh": "mts",
-    "current_boot_id": "6e7fa7d0-a831-4c8b-bf09-37efda90374f",
+    "current_boot_id": "11a2d1d3-bc84-447f-959b-6312369444be",
     "source_checkout": null,
     "selected_candidate": "/home/pi/pupper-fc-releases/fc-ui-stop-0c07ad63666b",
     "platform_environment": null,
@@ -203,7 +225,11 @@
     "verified_front_camera": "Historical qualification remains in older reports; not activated or requalified November22.",
     "thermal_log": "Only point CPU temperature observations this block, approximately64\u201366 C; not an IMU-temperature or drift test.",
     "previous_run": "/home/pi/pupper-fc-runs/fc-walk-kick-3bd1bc9f54db-prepared",
-    "planning_inventory": "outputs/pupper-fc-phase3-20261122/pi-planning-inventory.json"
+    "planning_inventory": "outputs/pupper-fc-phase3-20261122/pi-planning-inventory.json",
+    "latest_access_attempt": "Fresh read-only inventory/profile check succeeded after user requested check now. All old-boot live-process/readiness assumptions are invalid; collected earlier build/test artifacts remain historical software evidence.",
+    "previous_boot_id": "6e7fa7d0-a831-4c8b-bf09-37efda90374f",
+    "phase4_reconnect_inventory": "outputs/pupper-fc-phase4-20261122/runtime/inventory-reconnect.json",
+    "phase4_reconnect_profile": "outputs/pupper-fc-phase4-20261122/runtime/selected-profile-reconnect.json"
   },
   "preservation": {
     "movement_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
@@ -232,7 +258,8 @@
     "phase2_tej_20261122": {
       "directory": "outputs/pupper-fc-reconcile-20261122",
       "verification": "outputs/pupper-fc-reconcile-20261122/local-preservation-verification.json",
-      "raw_recordings": "Hash-identified originals remain on Pi; full local archive pending."
+      "raw_recordings": "Complete local copies: outputs/pupper-fc-reconcile-20261122/raw-recordings; all3MCAP SHA256/size match historical Pi records (1,267,442,408bytes), plus kickseen4 metadata.",
+      "raw_recording_receipt": "outputs/pupper-fc-phase4-20261122/runtime/recording-preservation.json"
     },
     "phase2_architecture_20261122": {
       "directory": "outputs/pupper-fc-architecture-20261122",
@@ -259,8 +286,8 @@
       "action": "P1-P6 remain later user-run tests. Prepare operations/recordings through UI; no physical actions during offline work."
     },
     {
-      "id": "preserve_raw_recordings",
-      "action": "Runtime owner may preserve hash-identified kickseen4/5/6 originals via resumable transfer; incomplete prior local tar is not a complete archive."
+      "id": "target_candidate",
+      "action": "Runtime owner resumes isolated target build on newboot after final strict driver source freeze, then verifies complete inactive paired candidate. No activation/profile/device actions."
     }
   ],
   "recorded_open_items": {

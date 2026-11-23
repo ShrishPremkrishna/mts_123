@@ -24,7 +24,7 @@ from stage_app import sha, verify_selected, checked_path, entries_by_path
 
 ENV_KEYS = ('PATH', 'PYTHONPATH', 'AMENT_PREFIX_PATH', 'CMAKE_PREFIX_PATH',
             'LD_LIBRARY_PATH', 'ROS_DISTRO', 'ROS_DOMAIN_ID', 'ROS_LOCALHOST_ONLY', 'RMW_IMPLEMENTATION',
-            'PUPPER_MONOREPO_DIR', 'PUPPER_GAIT_DEPLOY_DIR', 'FOLLOW_ME_DIR',
+            'PUPPER_FC_DETECTOR_MODEL', 'PUPPER_FC_IMU_RECOVERY', 'PUPPER_FC_OPERATOR_CONTROL', 'PUPPER_FC_GATEWAY', 'PUPPER_FC_GATEWAY_SHA256', 'PUPPER_FC_RECORDING', 'PUPPER_MONOREPO_DIR', 'PUPPER_GAIT_DEPLOY_DIR', 'FOLLOW_ME_DIR',
             'PUPPER_ONBOARD_BOOTSTRAP_DIR', 'GEMINI_KEY_FILE',
             'PUPPER_FOLLOWER_MODE', 'PUPPER_SESSION_MOTION_MODE', 'FOLLOW_USE_COLOR', 'FOLLOW_AVOID_OBSTACLES', 'FOLLOW_ALWAYS_DETECT')
 
@@ -92,8 +92,17 @@ def prepare(args):
             len(set(topics)) != len(topics)):
         raise ValueError('Telemetry JSON must list distinct absolute topics')
     if os.environ.get('PUPPER_SESSION_MOTION_MODE') == 'fc_walk_kick':
-        from fc_walk_kick_release import inspect_native, validate_selection
-        validate_selection(root, components, app)
+        from fc_walk_kick_release import check_imu_recovery, inspect_native, validate_selection
+        validate_selection(root, components, app, recording=os.environ.get("PUPPER_FC_RECORDING","full"))
+        if gateway := os.environ.get('PUPPER_FC_GATEWAY'):
+            components['gateway'] = pinned(Path(gateway), os.environ['PUPPER_FC_GATEWAY_SHA256'])
+        recovery = os.environ.get("PUPPER_FC_IMU_RECOVERY", "strict")
+        check_imu_recovery(args.imu_library.read_bytes(), recovery)
+        if model := os.environ.get('PUPPER_FC_DETECTOR_MODEL'):
+            # Refuse a mismatched HEF at preparation, before any motor activity.
+            sys.path.insert(0, str(root))
+            from final_project.behaviors.body_command_guard import ARENA_DETECTOR_IDENTITY
+            components['detector_model'] = pinned(Path(model), ARENA_DETECTOR_IDENTITY['model_sha256'])
         if inspect_native(args.native_library)['sha256'] != components['native']['sha256']:
             raise ValueError('Native controller changed during preparation')
     elif not {'/joint_states', '/llm_cmd_vel'} <= set(topics):
@@ -106,6 +115,7 @@ def prepare(args):
     env.setdefault('PUPPER_SESSION_MOTION_MODE', 'walking')
     if env['PUPPER_SESSION_MOTION_MODE'] == 'fc_walk_kick':
         env.update(PUPPER_GAIT_DEPLOY_DIR=str(root / 'pupper_gait_deploy'),
+                   PUPPER_FC_BOARD_HEALTH_PATH=str(run / 'fc-board-health.bin'),
                    FOLLOW_USE_COLOR='0', FOLLOW_AVOID_OBSTACLES='0', FOLLOW_ALWAYS_DETECT='0')
     env.update(PUPPER_GEMINI_DIR=str(root / 'gemini_pupper'),
                PUPPER_STAGED_GEMINI_DIR=str(root / 'gemini_pupper'),
@@ -126,6 +136,8 @@ def prepare(args):
     config, controllers = profile.prepare_session_profile(args.config.resolve(), args.urdf.resolve())
     plan.update(prepared=True, runtime_manifest=pinned(run / 'runtime-manifest.json'),
                 generated_config=pinned(Path(config)), controllers=controllers)
+    if env['PUPPER_SESSION_MOTION_MODE'] == 'fc_walk_kick':
+        env['PUPPER_FC_PREPARED_MANIFEST_SHA256'] = plan['runtime_manifest']['sha256']
     write(run / 'selected-session.json', plan)
     return {'prepared': True, 'motor_launch': False, 'run_dir': str(run),
             'components': components, 'rollback_app': plan['rollback_app']}
@@ -279,7 +291,7 @@ def load(run, verify=True):
             raise ValueError('Prepared runtime manifest has no pinned assets')
         for path, digest in runtime['assets'].items():
             pinned(Path(path), digest)
-    for name in (*ENV_KEYS, 'PUPPER_IMU_STARTUP_TRACE'):
+    for name in (*ENV_KEYS, 'PUPPER_FC_BOARD_HEALTH_PATH', 'PUPPER_IMU_STARTUP_TRACE', 'PUPPER_FC_PREPARED_MANIFEST_SHA256'):
         os.environ.pop(name, None)
     os.environ.update(plan['environment'])
     life = module(Path(plan['components']['lifecycle']['path']), 'selected_lifecycle')
@@ -338,7 +350,7 @@ def check_loaded(plan, manager, *, allow_pending=False):
     return not missing
 
 
-def spawners_ready(log, controllers):
+def spawners_ready(log, controllers, feedback):
     """Current-run spawner completion, not just homing or a Loaded message.
 
     The selected launch configures motion controllers with --inactive. Each
@@ -355,7 +367,7 @@ def spawners_ready(log, controllers):
     if not controllers:
         raise ValueError('Prepared profile has no selected motion controllers')
     return (all(loaded.get(name) in finished for name in controllers) and
-            all(active.get(name) in finished for name in ('joint_state_broadcaster', 'imu_sensor_broadcaster')))
+            all(active.get(name) in finished for name in feedback))
 
 
 def receipt_for(life, run, plan):
@@ -365,41 +377,112 @@ def receipt_for(life, run, plan):
     return receipt
 
 
-def start_native(run, plan, life):
+def require_free_processes(life, forbidden):
+    for proc in life.PROC.iterdir():
+        if proc.name.isdigit():
+            try:
+                # exe is ptrace-protected for unrelated system processes
+                # (including PID1); cmdline is the readable global inventory.
+                # Only vanished processes are skipped. Permission failures
+                # remain visible before any receipt/spawn or potential homing.
+                arguments = (proc / 'cmdline').read_bytes().split(b'\0')
+                names = {Path(os.fsdecode(arg)).name for arg in arguments if arg}
+                if names & forbidden:
+                    raise ValueError('Existing controller/camera owner; do not launch another')
+            except (FileNotFoundError, ProcessLookupError): pass
+
+
+def perception_commands(run, plan):
+    camera = ['ros2', 'run', 'camera_ros', 'camera_node', '--ros-args', '-r', '__node:=camera',
+              '-p', 'format:=RGB888', '-p', 'width:=1400', '-p', 'height:=1050',
+              '-p', 'AwbEnable:=false', '-p', 'ColourGains:=[1.4,3.3]',
+              '-p', 'FrameDurationLimits:=[100000,100000]']
+    commands = {'camera': ('camera_node', camera)}
+    if 'detector_model' in plan['components']:
+        detector = str(Path(plan['app_root']) / 'follow_me_pupper/robot/viser_camera.py')
+        command = [sys.executable, '-B', '-s', detector, '--source', 'ros', '--detect',
+                   '--publish-detections', '--fc-headless', '--model', plan['components']['detector_model']['path']]
+        if plan['environment'].get('PUPPER_FC_RECORDING', 'full') == 'full':
+            command.extend(['--fc-timings', str(run / 'detector-timings.jsonl')])
+        commands['detector'] = (detector, command)
+    return commands
+
+
+def start_perception(run, plan, life):
+    with lock(life, run):
+        receipt = receipt_for(life, run, plan)
+        ready = json.loads((run / 'native-readiness.json').read_text())
+        if (plan['environment'].get('PUPPER_SESSION_MOTION_MODE') != 'fc_walk_kick'
+                or receipt['status'] != 'running' or ready.get('homing_finished') is not True
+                or ready.get('session_id') != plan['session_id']
+                or life.state(receipt['processes']['manager'], plan['session_id']) != 'running'):
+            raise ValueError('A verified running FC Home is required for camera attachment')
+        for role, command in perception_commands(run, plan).items():
+            if role in receipt['processes']:
+                if life.state(receipt['processes'][role], plan['session_id']) != 'running':
+                    raise ValueError('Previously owned ' + role + ' has exited; inspect the session')
+                continue
+            if not receipt.get('perception_deferred') or role in receipt['pending']:
+                raise ValueError('Camera attachment ownership is incomplete; inspect the session')
+            if role == 'camera':
+                require_free_processes(life, {'camera_node'})
+            life.spawn(run, role, *command, attach_perception=True)
+            receipt = receipt_for(life, run, plan)
+        receipt['perception_deferred'] = False
+        life.save(run, receipt)
+        return {'session_id': plan['session_id'], 'perception_started': True}
+
+
+def pre_motor_fault(log):
+    """Match a board startup diagnostic in the fresh, single-manager launch log."""
+    clean = re.sub(r'\x1b\[[0-9;]*m', '', log)
+    if any(stage in clean for stage in ('Homing actuators...', 'Homed actuator', 'Finished homing!')):
+        return None
+    fault = re.search(r'^\[ros2_control_node-\d+\][^\n]*?\[ControlBoardHardwareInterface\]: '
+                      r'IMU startup check failed: IMU fault phase=startup reason=([^\r\n]{1,160}?) '
+                      r'sampled_mono_us=\d+\b', clean, re.MULTILINE)
+    if fault:
+        return fault.group(1)
+    board = re.search(r'^\[ros2_control_node-\d+\][^\n]*?\[ControlBoardHardwareInterface\]: '
+                      r'Home refused before motor enable: (missing motor board reply \(mask=[0-3]\))$',
+                      clean, re.MULTILINE)
+    return board.group(1) if board else None
+
+
+def start_native(run, plan, life, *, defer_perception=False):
+    if defer_perception and (plan['environment'].get('PUPPER_SESSION_MOTION_MODE') != 'fc_walk_kick'
+                             or plan['environment'].get('PUPPER_FC_RECORDING') != 'events'):
+        raise ValueError('Only FC event recording supports deferred perception')
     with lock(life, run):
         life.check_support(run)
         if (run / 'owned_session.json').exists():
             raise ValueError('Session already started; inspect receipt, never retry initialization automatically')
         if any((run / name).exists() for name in ('robot.log', 'camera.log', 'recorder.log', 'telemetry')):
             raise ValueError('Startup output already exists; refuse stale readiness/reused recording')
-        port_free(int(plan['environment']['PORT']))  # Before any potential homing.
-        for proc in life.PROC.iterdir():
-            if proc.name.isdigit():
-                try:
-                    # exe is ptrace-protected for unrelated system processes
-                    # (including PID1); cmdline is the readable global inventory.
-                    # Only vanished processes are skipped. Permission failures
-                    # remain visible before any receipt/spawn or potential homing.
-                    arguments = (proc / 'cmdline').read_bytes().split(b'\0')
-                    names = {Path(os.fsdecode(arg)).name for arg in arguments if arg}
-                    if names & {'ros2_control_node', 'camera_node'}:
-                        raise ValueError('Existing controller/camera owner; do not launch another')
-                except (FileNotFoundError, ProcessLookupError): pass
+        feedback = ('joint_state_broadcaster', 'imu_sensor_broadcaster')
+        if plan['environment'].get('PUPPER_SESSION_MOTION_MODE') == 'fc_walk_kick':
+            manifest = json.loads(Path(plan['runtime_manifest']['path']).read_text())
+            feedback = manifest.get('feedback_broadcasters', feedback)
+        else:
+            port_free(int(plan['environment']['PORT']))  # FC has no ordinary HTTP server.
+        require_free_processes(life, {'ros2_control_node'} if defer_perception else {'ros2_control_node', 'camera_node'})
         receipt = dict(schema=life.SCHEMA, uid=os.getuid(), root=str(life.HERE),
                        boot_id=life.boot_id(), session_id=plan['session_id'], status='starting',
                        ros='created', kiosk=False, gui_stopped=False, processes={}, pending={}, events=[])
+        if defer_perception:
+            receipt['perception_deferred'] = True
         life.save(run, receipt)
         launch = plan['components']['launch']['path']
         # The selected follower subscribes this existing camera; no second camera
         # or velocity mux is created by the helper.
-        camera = ['ros2', 'run', 'camera_ros', 'camera_node', '--ros-args', '-r', '__node:=camera',
-                  '-p', 'format:=RGB888', '-p', 'width:=1400', '-p', 'height:=1050',
-                  '-p', 'AwbEnable:=false', '-p', 'ColourGains:=[1.4,3.3]',
-                  '-p', 'FrameDurationLimits:=[100000,100000]']
+        perception = perception_commands(run, plan)
         topics = json.loads(Path(plan['components']['telemetry_topics']['path']).read_text())
-        life.spawn(run, 'camera', 'camera_node', camera)
+        if not defer_perception:
+            life.spawn(run, 'camera', *perception['camera'])
         life.spawn(run, 'recorder', 'bag', ['ros2', 'bag', 'record', '-s', 'mcap',
                                           '-o', str(run / 'telemetry'), *topics])
+        if not defer_perception and 'detector' in perception:
+            life.spawn(run, 'detector', *perception['detector'])
         life.spawn(run, 'launch', launch, ['ros2', 'launch', launch])
     deadline = time.monotonic() + 90
     while time.monotonic() < deadline:
@@ -407,14 +490,46 @@ def start_native(run, plan, life):
             receipt = receipt_for(life, run, plan); life.require_starting(receipt)
             life.refresh(run, receipt)
             target = receipt['processes']['launch']
+            log = (run / 'robot.log').read_text(errors='replace')
+            # Only this first-activation board diagnostic is emitted before the
+            # motor-enable loop. A generic process exit cannot prove that phase.
+            reason = pre_motor_fault(log)
+            mechanical = re.search(r'^\[ros2_control_node-\d+\][^\n]*?\[ControlBoardHardwareInterface\]: '
+                                   r'Mechanical Home stopped: ([^\r\n]+)', log, re.MULTILINE)
+            if mechanical:
+                stopped = 'Mechanical Home stopped. ' + mechanical.group(1) + '. Keep Pupper supported.'
+            elif reason:
+                stopped = 'Home stopped before motor enable (' + reason + ').'
+            if (reason or mechanical) and plan['environment'].get('PUPPER_SESSION_MOTION_MODE') == 'fc_walk_kick':
+                print(json.dumps(dict(event='home_startup_fault', reason=reason or mechanical.group(1),
+                                      message=stopped + ' Releasing owned setup processes.')),
+                      file=sys.stderr, flush=True)
+                try:
+                    # Allow the driver's failure trace to finish writing before cleanup.
+                    manager = receipt['processes'].get('manager')
+                    grace = time.monotonic() + 2
+                    while manager and time.monotonic() < grace and life.state(manager, receipt['session_id']) == 'running':
+                        time.sleep(.05)
+                    life.cleanup(run)
+                except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                    raise ValueError(stopped + ' Process cleanup unconfirmed. Inspect the owned session: ' + str(exc)) from exc
+                instruction = (' Inspect the leg and its clearance before selecting Prepare and requesting Home again.'
+                               if mechanical else ' Select Prepare, then request supported Home again.')
+                raise ValueError(stopped + ' Owned setup processes exited.' + instruction)
+            if mechanical:
+                raise ValueError(stopped + ' Inspect and shut down this session before retrying.')
             if life.state(target, receipt['session_id']) != 'running':
                 raise ValueError('Launch exited before homing completed; receipt retained')
-            log = (run / 'robot.log').read_text(errors='replace')
             if 'IMU startup check failed:' in log or 'process has died' in log:
                 raise ValueError('Native startup failed; inspect robot.log and owned receipt')
-            if 'Finished homing!' in log and 'manager' in receipt['processes']:
+            manager = receipt['processes'].get('manager')
+            if manager and life.state(manager, receipt['session_id']) != 'running':
+                raise ValueError('Controller manager exited before native readiness; inspect robot.log and owned receipt')
+            completed = ('Successfully activated!' if plan['environment'].get('PUPPER_SESSION_MOTION_MODE') == 'fc_walk_kick'
+                         else 'Finished homing!')
+            if completed in log and 'manager' in receipt['processes']:
                 mapped = check_loaded(plan, receipt['processes']['manager'], allow_pending=True)
-                if not mapped or not spawners_ready(log, plan['controllers']):
+                if not mapped or not spawners_ready(log, plan['controllers'], feedback):
                     # Homing precedes asynchronous motion-controller plugin loading.
                     # Missing maps/completion is pending within the same deadline;
                     # genuine identity, mapping conflicts and I/O errors still fail.
@@ -522,7 +637,8 @@ def stop_api(run, plan, life):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['prepare', 'start-native', 'start-api', 'stop-api', 'shutdown', 'status'])
+    parser.add_argument('action', choices=['prepare', 'start-native', 'start-perception', 'start-api', 'stop-api', 'shutdown', 'status'])
+    parser.add_argument('--defer-perception', action='store_true')
     parser.add_argument('--run-dir', type=Path, required=True)
     parser.add_argument('--app-manifest', type=Path)
     parser.add_argument('--app-manifest-sha256')
@@ -536,6 +652,8 @@ def main():
     parser.add_argument('--telemetry-topics', type=Path)
     parser.add_argument('--port', type=int, default=18090)
     args = parser.parse_args(); os.umask(0o077)
+    if args.defer_perception and args.action != 'start-native':
+        parser.error('--defer-perception belongs to start-native')
     if args.action not in ('prepare', 'start-api') and (args.app_manifest or args.app_manifest_sha256):
         parser.error('app manifest selection is only supported for prepare or explicit start-api')
     if args.action == 'prepare':
@@ -543,8 +661,9 @@ def main():
             parser.error('prepare requires pinned app manifest, both native/IMU libraries and telemetry topics JSON')
         result = prepare(args)
     else:
-        run = args.run_dir.resolve(); plan, life = load(run, verify=args.action in ('start-native', 'start-api', 'status'))
-        if args.action == 'start-native': result = start_native(run, plan, life)
+        run = args.run_dir.resolve(); plan, life = load(run, verify=args.action in ('start-native', 'start-perception', 'start-api', 'status'))
+        if args.action == 'start-native': result = start_native(run, plan, life, defer_perception=args.defer_perception)
+        elif args.action == 'start-perception': result = start_perception(run, plan, life)
         elif args.action == 'start-api': result = start_api(run, plan, life,
             app_manifest=args.app_manifest, app_manifest_sha256=args.app_manifest_sha256)
         elif args.action == 'stop-api': result = stop_api(run, plan, life)
