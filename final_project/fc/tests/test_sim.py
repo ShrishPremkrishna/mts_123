@@ -106,3 +106,17 @@ def test_far_tags_drop_more():
         for k in robots:
             seen[k] += 1
     assert seen["blue"] > seen["red"]
+
+
+def test_ball_rattling_in_corner_counts_as_trapped():
+    s = Sim(F, ROBOTS, {**OFF, "sim_trap_s": 2.0}, 0)
+    s.reset("kickoff", robots=["blue"])
+    b = s.bots["blue"]
+    cx, cy = -F.length / 2 + F.ball_radius, F.width / 2 - F.ball_radius
+    b.x, b.y = cx + 0.2, cy - 0.2
+    for i in range(90):  # 3 s of the ball jiggling 7 cm back and forth next to the robot
+        s.ball = [cx + (0.07 if i % 2 else 0.0), cy, 0.0, 0.0]
+        drive(s, {}, 1 / 30)
+        if any(e["type"] == "trapped" for e in s.events):
+            break
+    assert any(e["type"] == "trapped" for e in s.events)

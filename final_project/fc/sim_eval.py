@@ -1,10 +1,16 @@
-"""Batch validation of brain + sim. Run from final_project/:  python -m fc.sim_eval [--seeds N] [--quick]
+"""Batch validation of brain + sim. Run from final_project/:
+    python -m fc.sim_eval [--seeds N] [--quick] [--off] [--set key=value ...]
 
 Prints one compact table per error setting (errors ON = measured model, OFF = ideal).
+`--set` overrides params.json for this run (e.g. to try a value before committing it).
+1v1 smoothness: "fast wz rev" = turn reversals (|wz| > 0.25 one way, then the other) less
+than 1 s apart; "side flips" = changes of the way round the ball while orbiting. Both per
+robot-minute.
 """
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import statistics
 import time
@@ -19,12 +25,12 @@ DT = 1.0 / 30
 def _loop(sim: Sim, brains: dict, params: dict, seconds: float, on_tick=None) -> None:
     for _ in range(int(seconds / DT)):
         w = sim.observe()
-        cmds = {}
+        cmds, dbgs = {}, {}
         for k, b in brains.items():
             if k in sim.bots:
-                cmds[k] = b.decide(w, params)[0]
+                cmds[k], dbgs[k] = b.decide(w, params)
         sim.step(cmds, DT)
-        if on_tick and on_tick(cmds):
+        if on_tick and on_tick(cmds, dbgs):
             return
 
 
@@ -38,7 +44,7 @@ def solo(field, robots, params, seed, mode, limit=40.0):
     sim.reset("attack_solo")
     me = robots[0]
     brains = {me.id: Brain(me, field)}
-    _loop(sim, brains, p, limit, lambda c: bool(_goals(sim)))
+    _loop(sim, brains, p, limit, lambda c, d: bool(_goals(sim)))
     ev = _goals(sim)[0] if _goals(sim) else None
     return (ev["t"] if ev and ev["team"] == me.team else None), bool(ev and ev["team"] != me.team)
 
@@ -49,7 +55,7 @@ def goalie(field, robots, params, seed, style, empty=False):
     sim.reset("shot_on_goal", **({"robots": [], "team": robots[0].team} if empty else {}))
     me = robots[0]
     brains = {me.id: Brain(me, field)}
-    _loop(sim, brains, p, 6.0, lambda c: bool(_goals(sim)) or math.hypot(sim.ball[2], sim.ball[3]) < 0.02)
+    _loop(sim, brains, p, 6.0, lambda c, d: bool(_goals(sim)) or math.hypot(sim.ball[2], sim.ball[3]) < 0.02)
     return not _goals(sim)
 
 
@@ -58,12 +64,16 @@ def match(field, robots, params, seed, minutes=3.0):
     sim = Sim(field, robots, p, seed)
     sim.reset("kickoff")
     brains = {r.id: Brain(r, field) for r in robots}
-    st = {"flips": 0, "roles": {}, "wz": {}, "flipwz": 0, "jerk": [], "last": {}, "stall": 0,
-          "anchor": (0.0, 0.0, 0.0)}
+    st = {"flips": 0, "roles": {}, "wz": {}, "flipwz": 0, "fastwz": 0, "lastrev": {}, "jerk": [], "last": {},
+          "stall": 0, "anchor": (0.0, 0.0, 0.0), "side": {}, "sideflip": 0}
 
-    def tick(cmds):
-        w = sim.observe()
+    def tick(cmds, dbgs):
         for k, b in brains.items():
+            side = b.orbit_side
+            if side and st["side"].get(k) and side != st["side"][k] and dbgs.get(k, {}).get("phase", "").endswith("route"):
+                st["sideflip"] += 1
+            if side:
+                st["side"][k] = side
             r = b.role
             if st["roles"].get(k) not in (None, r):
                 st["flips"] += 1
@@ -75,6 +85,9 @@ def match(field, robots, params, seed, minutes=3.0):
                     sg = 1 if c.wz > 0 else -1
                     if st["wz"].get(k, sg) != sg:
                         st["flipwz"] += 1
+                        if sim.t - st["lastrev"].get(k, -9.0) < 1.0:
+                            st["fastwz"] += 1
+                        st["lastrev"][k] = sim.t
                     st["wz"][k] = sg
                 st["jerk"].append(abs(c.vx - prev.vx) / DT + abs(c.wz - prev.wz) / DT * 0.3)
             if c:
@@ -91,14 +104,15 @@ def match(field, robots, params, seed, minutes=3.0):
     _loop(sim, brains, p, minutes * 60, tick)
     n = len(robots)
     return {"goals": dict(sim.score), "flips_pm": st["flips"] / minutes / n,
-            "wzflip_pm": st["flipwz"] / minutes / n, "stalls": st["stall"],
+            "wzflip_pm": st["flipwz"] / minutes / n, "fastwz_pm": st["fastwz"] / minutes / n,
+            "side_pm": st["sideflip"] / minutes / n, "stalls": st["stall"],
             "jerk": statistics.mean(st["jerk"]) if st["jerk"] else 0.0,
             "traps": sum(e["type"] == "trapped" for e in sim.events)}
 
 
-def run(seeds: int, errors: bool, minutes: float, matches: int) -> list[str]:
+def run(seeds: int, errors: bool, minutes: float, matches: int, overrides: dict | None = None) -> list[str]:
     field, robots, params = load_field(), load_robots(), load_params()
-    params = {**params, "sim_errors": int(errors)}
+    params = {**params, **(overrides or {}), "sim_errors": int(errors)}
     out = []
     for mode in ("push", "headbutt"):
         res = [solo(field, robots, params, s, mode) for s in range(seeds)]
@@ -117,8 +131,10 @@ def run(seeds: int, errors: bool, minutes: float, matches: int) -> list[str]:
     gr = sum(m["goals"]["red"] for m in ms) / matches
     out.append(f"1v1 auto ({matches}x{minutes:g}min) goals/3min blue {gb * 3 / minutes:4.1f} red {gr * 3 / minutes:4.1f}  "
                f"role flips/min {statistics.mean(m['flips_pm'] for m in ms):4.1f}  "
-               f"stalls {sum(m['stalls'] for m in ms)} traps {sum(m['traps'] for m in ms)}  wz reversals/min {statistics.mean(m['wzflip_pm'] for m in ms):4.1f}  "
-               f"jerk {statistics.mean(m['jerk'] for m in ms):4.2f}")
+               f"stalls {sum(m['stalls'] for m in ms)} traps {sum(m['traps'] for m in ms)}")
+    out.append(f"1v1 smoothness /robot-min: wz reversals {statistics.mean(m['wzflip_pm'] for m in ms):4.1f}  "
+               f"fast wz rev (<1 s) {statistics.mean(m['fastwz_pm'] for m in ms):4.1f}  "
+               f"side flips {statistics.mean(m['side_pm'] for m in ms):4.1f}  jerk {statistics.mean(m['jerk'] for m in ms):4.2f}")
     return out
 
 
@@ -129,13 +145,23 @@ def main() -> None:
     ap.add_argument("--minutes", type=float, default=3.0)
     ap.add_argument("--quick", action="store_true", help="10 seeds, 2 matches")
     ap.add_argument("--off", action="store_true", help="also run with errors OFF")
+    ap.add_argument("--set", nargs="*", default=[], metavar="KEY=VALUE", help="override params.json (JSON values)")
     a = ap.parse_args()
+    over = {}
+    for kv in a.set:
+        k, _, v = kv.partition("=")
+        try:
+            over[k] = json.loads(v)
+        except json.JSONDecodeError:
+            over[k] = v
+    if over:
+        print("overrides:", over)
     if a.quick:
         a.seeds, a.matches = 10, 2
     t0 = time.time()
     for errors in ((True, False) if a.off else (True,)):
         print(f"== errors {'ON ' if errors else 'OFF'} ==")
-        for line in run(a.seeds, errors, a.minutes, a.matches):
+        for line in run(a.seeds, errors, a.minutes, a.matches, over):
             print(line)
     print(f"({time.time() - t0:.0f}s)")
 

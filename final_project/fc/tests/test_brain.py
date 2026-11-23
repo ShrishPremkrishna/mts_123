@@ -1,7 +1,7 @@
 """Brain unit tests: geometry, roles, safety, shaping. Run from final_project/: pytest fc/tests -q"""
 import math
 
-from fc.brain import Brain, DEFAULTS, seg_dist, to_body, unit
+from fc.brain import Brain, DEFAULTS, seg_dist, shape, to_body, unit
 from fc.core import Ball, Cmd, Field, Pose, RobotCfg, RobotObs, World
 
 F = Field(length=2.63, width=1.93, goal_width=0.61, goal_depth=0.30, ball_radius=0.09, robot_radius=0.18)
@@ -159,3 +159,77 @@ def test_opponent_repulsion_steers_away():
     b = Brain(BLUE, F)
     rx, ry = b._repel(Pose(0, 0, 0), [Pose(0.3, 0.0, 0.0)], P)
     assert rx < 0  # pushed away from an opponent ahead
+
+
+def test_shape_rate_limits_and_stops_at_once():
+    q = {**P, "accel_vx": 0.6, "accel_wz": 2.0, "max_vx": 0.3}
+    c = shape(Cmd(1.0, 0.0, 1.0, "go"), Cmd(), 0.1, q)
+    assert abs(c.vx - 0.06) < 1e-9 and abs(c.wz - 0.2) < 1e-9 and c.tag == "go"
+    c = shape(Cmd(1.0, 0.0, 0.0), Cmd(0.29, 0.0, 0.0), 1.0, q)
+    assert abs(c.vx - 0.3) < 1e-9  # clamped to max_vx
+    assert shape(Cmd.stop("stale"), Cmd(0.3, 0.1, 0.8), 1 / 30, q) == Cmd.stop("stale")
+    assert shape(Cmd(0.2, 0, 0), Cmd(), 0.1, {}).vx > 0  # missing keys fall back to DEFAULTS
+
+
+def test_sent_resets_the_ramp():
+    b = Brain(BLUE, F)
+    run(b, lambda t: world(t, (-0.6, 0.0, 0.0), (0.0, 0.0)), 60)
+    assert b.out.vx > 0.2
+    b.sent(Cmd.stop("stale"))
+    cmd, _ = b.decide(world(2.1, (-0.6, 0.0, 0.0), (0.0, 0.0)), P)
+    assert cmd.vx <= P["accel_vx"] * 0.25 + 1e-9  # ramps up from the stop, no step back to speed
+
+
+def test_orbit_side_is_held_near_wall():
+    b = Brain(BLUE, F)
+    B = (0.3, F.width / 2 - 0.25)  # ball near the north wall, robot in front of it (wrong side)
+    sides = set()
+    for i in range(45):  # 1.5 s < orbit_hold_s: no flip-flop even when the waypoint grazes the margin
+        t = i / 30
+        b.decide(world(t, (0.62, B[1] + 0.02 * (-1) ** i, math.pi), B), P)
+        sides.add(b.orbit_side)
+    assert len(sides) == 1
+
+
+def test_route_waypoint_clamped_inside_field():
+    b = Brain(BLUE, F)
+    B = (0.2, F.width / 2 - 0.12)
+    _, d = b.decide(world(0.0, (0.5, F.width / 2 - 0.2, math.pi), B), P)
+    assert d["phase"] == "route"
+    assert abs(d["target"][1]) <= F.width / 2 - P["field_margin"] + 1e-6
+
+
+def test_goto_mode_reaches_then_turns_then_stops():
+    b = Brain(BLUE, F)
+    q = {**P, "role_mode": "goto", "goto_x": 0.5, "goto_y": 0.2, "goto_yaw": math.pi / 2}
+    cmd, d = b.decide(world(0.0, (0.0, 0.0, 0.0), ball=None), q)  # works without a ball
+    assert d["role"] == "goto" and d["phase"] == "goto" and not d["done"] and cmd.vx > 0
+    _, d = b.decide(world(0.1, (0.5, 0.2, 0.0), ball=None), q)
+    assert d["phase"] == "goto_turn"
+    cmd, d = b.decide(world(0.2, (0.5, 0.21, math.pi / 2), ball=None), q)
+    assert d["done"] and cmd == Cmd.stop("goto_done")
+    _, d = b.decide(world(0.3, (0.5, 0.21, 0.0), ball=None), {**q, "goto_yaw": None})
+    assert d["done"]  # no heading requested
+
+
+def test_yaw_learn_off_by_default_and_bounded():
+    assert DEFAULTS["yaw_learn"] == 0 and DEFAULTS["yaw_learn_rate"] == 0.02
+    b = Brain(BLUE, F)
+    b.yaw_off, b.yaw_bias = math.radians(30), [math.radians(30)] * 8
+    assert abs(b._bias_at(0.3, math.radians(DEFAULTS["yaw_learn_max_deg"]))) <= math.radians(20) + 1e-9
+    b.reset(forget_yaw=True)
+    assert b.yaw_off == 0.0 and not any(b.yaw_bias)
+
+
+def test_yaw_learn_skips_push_and_learns_clean_walk():
+    q = {**P, "yaw_learn": 1, "yaw_learn_rate": 0.05, "predict_self": 0}
+    bias = math.radians(10)
+    # pushing the ball: never learns
+    b = Brain(BLUE, F)
+    run(b, lambda t: world(t, (-0.3 + 0.27 * t, 0.0, bias), (0.0 + 0.27 * t, 0.0)), 90, q)
+    assert b.yaw_off == 0.0 and not any(b.yaw_bias)
+    # clean straight walk east (ball far away, nobody close), tag reads 10 deg left: learns toward -10
+    c = Brain(BLUE, F)
+    q2 = {**q, "role_mode": "goto", "goto_x": 1.2, "goto_y": 2.2 * math.tan(bias)}  # straight ahead by the tag
+    run(c, lambda t: world(t, (-1.0 + 0.25 * t, 0.0, bias), (0.9, 0.8)), 90, q2)
+    assert -math.radians(20) <= c._bias_at(bias) < -math.radians(1)

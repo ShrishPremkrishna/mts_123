@@ -21,7 +21,8 @@ Knobs (params.json; DEFAULTS below apply when a key is missing):
   ball_stale_s  ball older than this -> ball_lost (hold = stop, search = turn at search_wz)
   ball_lead_max_s  cap on extrapolating the ball by its velocity to "now"
   predict_self, act_lag_s  roll own pose forward by the commands not yet visible to the camera
-  yaw_learn, yaw_learn_rate  learn the tag heading bias per facing from straight walking
+  yaw_learn, yaw_learn_rate, yaw_learn_max_deg  learn the tag heading bias per facing from
+                clean straight walking (off by default; total correction clamped to +-max)
   k_turn        heading P gain (rad/s per rad)    k_vy  lateral P gain (m/s per m)
   k_curve       approach curvature: staging distance behind the ball per metre of |l|
   behind_cone_deg  |phi| above this counts as "behind" (else orbit around the ball)
@@ -38,8 +39,12 @@ Knobs (params.json; DEFAULTS below apply when a key is missing):
   avoid_radius, avoid_gain  opponent repulsion (centre distance, strength)
   stuck_s, stuck_dist, unstick_s, unstick_vx  forward command but < stuck_dist progress
                 for stuck_s -> reverse at unstick_vx for unstick_s
+  orbit_hold_s  keep the chosen way round the ball at least this long
+  orbit_slack   orbit waypoints up to this far outside the margin are clamped in, not rejected
   field_margin  keep walking targets this far inside the field edges
-  accel_vy      lateral rate limit (accel_vx / accel_wz already in params.json)
+  accel_vx/vy/wz  rate limits (see shape())
+  role_mode goto: walk to (goto_x, goto_y) and, if goto_yaw is a number, face it. Per-call
+                params, not knobs; done within goto_tol_m and goto_yaw_tol_deg (dbg["done"]).
 """
 from __future__ import annotations
 
@@ -50,13 +55,13 @@ from .core import Cmd, Field, Pose, RobotCfg, World, wrap
 DEFAULTS = {
     "loop_hz": 30, "role_mode": "auto", "contact_mode": "push",
     "max_vx": 0.30, "max_vy": 0.15, "max_wz": 1.0,
-    "accel_vx": 0.6, "accel_vy": 0.5, "accel_wz": 3.0,
+    "accel_vx": 0.6, "accel_vy": 0.5, "accel_wz": 2.0,
     "pose_stale_s": 0.6, "ball_stale_s": 1.0, "other_stale_s": 1.5,
     "ball_lost": "hold", "search_wz": 0.5, "ball_lead_max_s": 0.4,
-    "predict_self": 1, "act_lag_s": 0.15, "yaw_learn": 1, "yaw_learn_rate": 0.08,
+    "predict_self": 1, "act_lag_s": 0.15, "yaw_learn": 0, "yaw_learn_rate": 0.02, "yaw_learn_max_deg": 20,
     "role_hold_s": 2.5, "role_hyst_s": 1.0, "role_tau_s": 0.5,
-    "k_turn": 2.5, "k_vy": 1.5, "k_curve": 1.2,
-    "behind_cone_deg": 120, "clear_margin": 0.06,
+    "k_turn": 1.5, "k_vy": 1.5, "k_curve": 1.2,
+    "behind_cone_deg": 120, "clear_margin": 0.06, "orbit_hold_s": 2.0, "orbit_slack": 0.10,
     "push_vx": 0.30, "push_ahead": 0.4, "push_turn_scale": 0.6, "push_lat_tol": 0.09, "aim_y_frac": 0.5,
     "hb_standoff": 0.12, "hb_square_r": 0.2, "hb_lat_tol": 0.06, "hb_align_deg": 15, "hb_charge_vx": 0.30,
     "hb_charge_dist": 0.50, "hb_accel": 1.2, "hb_backoff_vx": 0.15, "hb_backoff_s": 0.8,
@@ -65,6 +70,7 @@ DEFAULTS = {
     "clear_depth": 0.55, "clear_width_extra": 0.25, "clear_max_speed": 0.25,
     "stuck_s": 2.5, "stuck_dist": 0.06, "unstick_s": 1.0, "unstick_vx": 0.15,
     "avoid_radius": 0.55, "avoid_gain": 1.0, "field_margin": 0.12,
+    "goto_tol_m": 0.08, "goto_yaw_tol_deg": 8,
 }
 
 
@@ -90,6 +96,25 @@ def to_body(pose: Pose, wx: float, wy: float) -> tuple[float, float]:
     return c * wx + s * wy, -s * wx + c * wy
 
 
+def shape(cmd: Cmd, prev: Cmd, dt: float, params: dict, accel_vx: float | None = None) -> Cmd:
+    """The one output shaper: clamp to max_vx/vy/wz, then rate-limit each axis from `prev`
+    (accel_vx/vy/wz per second). An all-zero command is a stop and passes through at once.
+    The caller keeps the returned Cmd as the next `prev`; missing keys fall back to DEFAULTS."""
+    if cmd.vx == 0.0 and cmd.vy == 0.0 and cmd.wz == 0.0:
+        return cmd
+    q = lambda k: params.get(k, DEFAULTS[k])  # noqa: E731
+    dt = clamp(dt, 0.0, 0.25)
+    ax, ay, aw = (accel_vx or q("accel_vx")) * dt, q("accel_vy") * dt, q("accel_wz") * dt
+    vx = clamp(cmd.vx, -q("max_vx"), q("max_vx"))
+    vy = clamp(cmd.vy, -q("max_vy"), q("max_vy"))
+    wz = clamp(cmd.wz, -q("max_wz"), q("max_wz"))
+    return Cmd(prev.vx + clamp(vx - prev.vx, -ax, ax), prev.vy + clamp(vy - prev.vy, -ay, ay),
+               prev.wz + clamp(wz - prev.wz, -aw, aw), cmd.tag)
+
+
+UNCLEAN_TAGS = ("push", "charge", "backoff", "unstick", "line_up", "ball_lost")  # never yaw_learn from these
+
+
 class Brain:
     def __init__(self, cfg: RobotCfg, field: Field):
         self.cfg, self.f = cfg, field
@@ -97,20 +122,23 @@ class Brain:
         self.att_x = field.goal_center(cfg.team, own=False)[0]
         self.reset()
 
-    def reset(self) -> None:
+    def reset(self, forget_yaw: bool = False) -> None:
         self.role: str | None = None
         self.role_t = -1e9
         self.gap: float | None = None  # filtered (my - opponent) travel-time gap, s
         self.role_cost_t = 0.0
         self.out = Cmd()
         self.last_t: float | None = None
-        self.hist: list[tuple[float, float, float, float]] = []
+        self.hist: list[tuple[float, float, float, float, bool]] = []  # (t, vx, vy, wz, clean)
         self.track: list[tuple[float, float, float, float]] = []  # own (t, x, y, tag yaw) observations
-        if not hasattr(self, "yaw_bias"):
+        if forget_yaw or not hasattr(self, "yaw_bias"):
             self.yaw_off = 0.0
             self.yaw_bias = [0.0] * 8  # learned tag-heading correction per 45-deg facing bin (kept across resets)
+        self.clean = False  # this tick's command is a yaw_learn candidate (no contact, nobody close)
         self.behind = False
         self.orbit_side = 0.0
+        self.side_until = -1e9
+        self.goto_done = False
         self.pushing = False
         self.hb: dict | None = None
         self.returning = False
@@ -130,18 +158,27 @@ class Brain:
             self.hist.clear()
             return self.out, {"role": "idle", "phase": "pose_stale", "target": None}
         pose = self._predict(self._unbias(me.pose, me.t, p), me.t, t, p)
+        others = [o.pose for k, o in world.robots.items()
+                  if k != self.cfg.id and t - o.t < p["other_stale_s"]]
         ball = world.ball
+        f = self.f
+        near_r = f.ball_radius + f.robot_radius + 0.08
+        self.clean = not any(math.hypot(o.x - pose.x, o.y - pose.y) < 2 * f.robot_radius + 0.15 for o in others)
+        if p["role_mode"] == "goto":
+            self.role, self.hb, self.pushing = "goto", None, False
+            want, dbg = self._goto_test(pose, others, p)
+            cmd = self._smooth(want, dt, p, t)
+            dbg.update(role="goto", pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)])
+            return cmd, dbg
         if ball is None or t - ball.t > p["ball_stale_s"]:
             self.hb, self.pushing = None, False
             want = Cmd(0.0, 0.0, p["search_wz"] if p["ball_lost"] == "search" else 0.0, "ball_lost")
             cmd = self._smooth(want, dt, p, t)
             return cmd, {"role": self.role or "idle", "phase": "ball_lost_" + p["ball_lost"], "target": None}
         h = clamp(t - ball.t, 0.0, p["ball_lead_max_s"])
-        f = self.f
         B = (clamp(ball.x + ball.vx * h, -f.length / 2, f.length / 2),
              clamp(ball.y + ball.vy * h, -f.width / 2, f.width / 2))
-        others = [o.pose for k, o in world.robots.items()
-                  if k != self.cfg.id and t - o.t < p["other_stale_s"]]
+        self.clean = self.clean and math.hypot(pose.x - B[0], pose.y - B[1]) > near_r
         role, costs = self._role(pose, B, others, t, p)
         if role == "attack":
             self.returning = self.clearing = False
@@ -152,44 +189,74 @@ class Brain:
         cmd = self._smooth(want, dt, p, t, accel_vx=p["hb_accel"] if dbg["phase"] in ("charge", "backoff") else None)
         dbg.update(role=role, pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)],
                    ball=[round(B[0], 3), round(B[1], 3)], **costs)
+        if p["yaw_learn"]:
+            dbg["yaw_corr_deg"] = round(math.degrees(self._bias_at(pose.yaw, math.radians(p["yaw_learn_max_deg"]))), 1)
         return cmd, dbg
 
+    def sent(self, cmd: Cmd) -> None:
+        """Tell the brain what actually went to the robot when the caller overrode it (stale stop,
+        teleop, shaping): the next ramp starts from there and pose prediction uses it."""
+        self.out = cmd
+        if self.hist:
+            t0, *_rest = self.hist[-1]
+            self.hist[-1] = (t0, cmd.vx, cmd.vy, cmd.wz, False)
+
+    def _goto_test(self, pose: Pose, others, p: dict):
+        """role_mode goto: walk to (goto_x, goto_y) with the play controller, then face goto_yaw."""
+        tgt = (float(p.get("goto_x", 0.0)), float(p.get("goto_y", 0.0)))
+        yaw = p.get("goto_yaw")
+        yaw = float(yaw) if isinstance(yaw, (int, float)) and math.isfinite(yaw) else None
+        d = math.hypot(tgt[0] - pose.x, tgt[1] - pose.y)
+        tol = p["goto_tol_m"]
+        self.goto_done = d < (2 * tol if self.goto_done else tol)
+        dbg = {"phase": "goto", "target": [round(tgt[0], 3), round(tgt[1], 3)], "dist": round(d, 3), "done": False}
+        if not self.goto_done:
+            return self._goto(pose, tgt, p, p["max_vx"], others, slow_r=0.3, allow_back=True, tag="goto"), dbg
+        err = 0.0 if yaw is None else wrap(yaw - pose.yaw)
+        if abs(err) > math.radians(p["goto_yaw_tol_deg"]):
+            dbg["phase"] = "goto_turn"
+            return Cmd(0.0, 0.0, p["k_turn"] * err, "goto_turn"), dbg
+        dbg.update(phase="goto_done", done=True)
+        return Cmd.stop("goto_done"), dbg
+
     # ------------------------------------------------------------------ state estimation
-    def _bias_at(self, yaw: float) -> float:
+    def _bias_at(self, yaw: float, lim: float = math.radians(20)) -> float:
         x = (yaw % (2 * math.pi)) / (math.pi / 4)
         i = int(x) % 8
         w = x - int(x)
-        return self.yaw_off + (1 - w) * self.yaw_bias[i] + w * self.yaw_bias[(i + 1) % 8]
+        return clamp(self.yaw_off + (1 - w) * self.yaw_bias[i] + w * self.yaw_bias[(i + 1) % 8], -lim, lim)
 
     def _unbias(self, pose: Pose, t_obs: float, p: dict) -> Pose:
-        """Learn the overhead tag's heading bias from straight forward walking: positions are
-        unbiased, so the direction of travel is the true heading when vy ~ 0 and wz ~ 0."""
+        """Learn the overhead tag's heading bias from clean straight walking: positions are
+        unbiased, so the direction of travel is the true heading. Only 0.6 s windows where every
+        command was forward, straight (wz ~ 0, vy ~ 0) and clean (no ball/robot contact, no
+        push/charge/unstick) count. The total correction is clamped to +-yaw_learn_max_deg."""
         if not p["yaw_learn"]:
             return pose
+        lim = math.radians(p["yaw_learn_max_deg"])
         if not self.track or t_obs > self.track[-1][0]:
             self.track.append((t_obs, pose.x, pose.y, pose.yaw))
             self.track = [o for o in self.track if o[0] > t_obs - 1.0]
             old = next((o for o in self.track if o[0] <= t_obs - 0.6), None)
             cmds = [h for h in self.hist if old and old[0] - p["act_lag_s"] <= h[0] <= t_obs - p["act_lag_s"]]
             n = len(cmds)
-            mvx = sum(h[1] for h in cmds) / n if n else 0.0
-            mvy = sum(h[2] for h in cmds) / n if n else 0.0
-            mwz = sum(h[3] for h in cmds) / n if n else 0.0
-            if old and n and mvx > 0.1 and min(h[1] for h in cmds) > 0.05 and abs(mwz) < 0.4 and abs(mvy) < 0.06:
+            if (old and n >= 5 and all(h[4] for h in cmds) and min(h[1] for h in cmds) > 0.08
+                    and max(abs(h[3]) for h in cmds) < 0.25 and max(abs(h[2]) for h in cmds) < 0.03):
                 dx, dy = pose.x - old[1], pose.y - old[2]
-                if 0.07 < math.hypot(dx, dy) < 0.35:  # moved, but no teleport (sim reset / tag swap)
+                mvx = sum(h[1] for h in cmds) / n
+                expect = mvx * (t_obs - old[0])
+                if 0.07 < math.hypot(dx, dy) < 0.35 and math.hypot(dx, dy) > 0.5 * expect:  # moved freely, no teleport
                     tag = math.atan2(math.sin(pose.yaw) + math.sin(old[3]), math.cos(pose.yaw) + math.cos(old[3]))
-                    slip = math.atan2(0.75 * mvy, mvx)  # expected travel angle from commanded lateral motion
-                    err = wrap(math.atan2(dy, dx) - slip - tag)
+                    err = wrap(math.atan2(dy, dx) - tag)
                     if abs(err) < math.radians(35):
-                        r, lim = p["yaw_learn_rate"], math.radians(25)
-                        resid = err - self._bias_at(tag)
+                        r = p["yaw_learn_rate"]
+                        resid = err - self._bias_at(tag, lim)
                         self.yaw_off = clamp(self.yaw_off + 0.5 * r * resid, -lim, lim)  # common offset
                         x = (tag % (2 * math.pi)) / (math.pi / 4)
                         i, w = int(x) % 8, x - int(x)
                         for j, wj in ((i, 1 - w), ((i + 1) % 8, w)):  # facing-dependent part
                             self.yaw_bias[j] = clamp(self.yaw_bias[j] + r * wj * resid, -lim, lim)
-        return Pose(pose.x, pose.y, wrap(pose.yaw + self._bias_at(pose.yaw)))
+        return Pose(pose.x, pose.y, wrap(pose.yaw + self._bias_at(pose.yaw, lim)))
 
     def _predict(self, pose: Pose, t_obs: float, t: float, p: dict) -> Pose:
         """Roll the observed pose forward by commands executed after the camera saw it."""
@@ -199,7 +266,7 @@ class Brain:
             return pose
         x, y, yaw = pose.x, pose.y, pose.yaw
         lo, hi = t_obs - lag, t - lag
-        for i, (ti, vx, vy, wz) in enumerate(self.hist):
+        for i, (ti, vx, vy, wz, _clean) in enumerate(self.hist):
             tj = self.hist[i + 1][0] if i + 1 < len(self.hist) else t
             seg = min(tj, hi) - max(ti, lo)
             if seg <= 0:
@@ -340,7 +407,7 @@ class Brain:
         self.hb = None
         if not self.behind:
             self.pushing = False
-            tgt = self._route(pose, B, u, n, phi, clear, p)
+            tgt = self._route(pose, B, u, n, phi, clear, p, t)
             return self._goto(pose, tgt, p, p["max_vx"], others, tag="route"), \
                 {"phase": "route", "target": [round(tgt[0], 3), round(tgt[1], 3)], "lat": round(l, 3)}
         tol = p["push_lat_tol"]
@@ -361,27 +428,36 @@ class Brain:
                       cmd.wz * p["push_turn_scale"], phase)
         return cmd, {"phase": phase, "target": [round(tgt[0], 3), round(tgt[1], 3)], "lat": round(l, 3)}
 
-    def _route(self, pose: Pose, B, u, n, phi: float, clear: float, p: dict):
-        """Next waypoint around the ball toward the stage behind it."""
+    def _route(self, pose: Pose, B, u, n, phi: float, clear: float, p: dict, t: float):
+        """Next waypoint around the ball toward the stage behind it. The way round is kept for
+        orbit_hold_s; a waypoint slightly outside the field margin is clamped in, not rejected
+        (rejecting it used to flip the side every tick next to a wall)."""
         rr = clear * 1.15
         S = self._clamp_field((B[0] - u[0] * rr, B[1] - u[1] * rr), p)
         R = (pose.x, pose.y)
         if math.hypot(R[0] - B[0], R[1] - B[1]) > clear and seg_dist(R, S, B) >= clear:
             return S
-        if abs(phi) > 0.35 or not self.orbit_side:
-            side = math.copysign(1.0, phi) if abs(phi) > 0.35 else (-1.0 if B[1] * n[1] + B[0] * n[0] > 0 else 1.0)
-            self.orbit_side = side
-        side, step = self.orbit_side, math.radians(70)
-        f, m = self.f, p["field_margin"]
-        for s in (side, -side):
+        f, m, step = self.f, p["field_margin"], math.radians(70)
+
+        def wp(s):
             pw = phi + s * step
             pw = clamp(pw, -math.pi, math.pi) if s * phi >= 0 else pw
-            W = (B[0] + rr * (math.cos(pw) * u[0] + math.sin(pw) * n[0]),
-                 B[1] + rr * (math.cos(pw) * u[1] + math.sin(pw) * n[1]))
-            if abs(W[0]) <= f.length / 2 - m and abs(W[1]) <= f.width / 2 - m:
-                self.orbit_side = s
-                return W
-        return self._clamp_field(W, p)
+            return (B[0] + rr * (math.cos(pw) * u[0] + math.sin(pw) * n[0]),
+                    B[1] + rr * (math.cos(pw) * u[1] + math.sin(pw) * n[1]))
+
+        def inside(W, slack):
+            return abs(W[0]) <= f.length / 2 - m + slack and abs(W[1]) <= f.width / 2 - m + slack
+
+        if not self.orbit_side or t >= self.side_until:
+            if abs(phi) > 0.35:
+                pref = math.copysign(1.0, phi)
+            else:
+                pref = self.orbit_side or (-1.0 if B[1] * n[1] + B[0] * n[0] > 0 else 1.0)
+            side = pref if inside(wp(pref), p["orbit_slack"]) or not inside(wp(-pref), 0.0) else -pref
+            if side != self.orbit_side:
+                self.side_until = t + p["orbit_hold_s"]
+            self.orbit_side = side
+        return self._clamp_field(wp(self.orbit_side), p)
 
     def _headbutt(self, pose, B, u, n, a, l, phi, clear, others, p, t):
         f = self.f
@@ -402,7 +478,7 @@ class Brain:
                 return Cmd(-p["hb_backoff_vx"], 0.0, 0.0, "backoff"), {"phase": "backoff", "target": None, "lat": round(l, 3)}
             hb["stage"] = "line"
         if not self.behind:
-            tgt = self._route(pose, B, u, n, phi, clear, p)
+            tgt = self._route(pose, B, u, n, phi, clear, p, t)
             return self._goto(pose, tgt, p, p["max_vx"], others, tag="route"), \
                 {"phase": "route", "target": [round(tgt[0], 3), round(tgt[1], 3)], "lat": round(l, 3)}
         sd = c + p["hb_standoff"]
@@ -475,14 +551,7 @@ class Brain:
 
     # ------------------------------------------------------------------ output shaping
     def _smooth(self, want: Cmd, dt: float, p: dict, t: float, accel_vx: float | None = None) -> Cmd:
-        ax = accel_vx or p["accel_vx"]
-        vx = clamp(want.vx, -p["max_vx"], p["max_vx"])
-        vy = clamp(want.vy, -p["max_vy"], p["max_vy"])
-        wz = clamp(want.wz, -p["max_wz"], p["max_wz"])
-        o = self.out
-        vx = o.vx + clamp(vx - o.vx, -ax * dt, ax * dt)
-        vy = o.vy + clamp(vy - o.vy, -p["accel_vy"] * dt, p["accel_vy"] * dt)
-        wz = o.wz + clamp(wz - o.wz, -p["accel_wz"] * dt, p["accel_wz"] * dt)
-        self.out = Cmd(vx, vy, wz, want.tag)
-        self.hist.append((t, vx, vy, wz))
+        self.out = shape(want, self.out, dt, p, accel_vx)
+        clean = self.clean and not want.tag.startswith(UNCLEAN_TAGS)
+        self.hist.append((t, self.out.vx, self.out.vy, self.out.wz, clean))
         return self.out

@@ -18,7 +18,7 @@ Error knobs (params.json, `sim_*`; `sim_errors: 0` turns every error off):
 Physics knobs (always on): sim_ball_decel (m/s^2), sim_ball_e_robot, sim_ball_e_wall,
   sim_goal_pause_s, sim_walls (1 = ball bounces off every edge except goal mouths,
   0 = ball leaving the field is an "out" event and a kickoff reset), sim_trap_s (a ball
-  near a wall that moves < 5 cm for this long is a "trapped" event: the referee nudges it
+  near a wall that stays within 10 cm for this long is a "trapped" event: the referee nudges it
   0.35 m inward, like the accepted manual ball replacement).
 """
 from __future__ import annotations
@@ -236,7 +236,7 @@ class Sim:
             return
         self.ball = [bx, by, vx, vy]
         tt, tx, ty = self.trap_ref
-        if math.hypot(bx - tx, by - ty) > 0.05:
+        if math.hypot(bx - tx, by - ty) > 0.10:  # a ball rattling inside 10 cm is still trapped
             self.trap_ref = (self.t, bx, by)
         elif (self.t - tt > p["sim_trap_s"] and (abs(bx) > hl - 0.25 or abs(by) > hw - 0.25)
               and any(math.hypot(bx - b.x, by - b.y) < br + rr + 0.03 for b in self.bots.values())):
