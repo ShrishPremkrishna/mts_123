@@ -16,18 +16,77 @@ PUPPER_FC_PYTHON=/Users/shrish/.codex/worktrees/fc-teleop/cs123/.venv-fc/bin/pyt
 and never installs into that environment. Without it, the launcher uses its managed
 `.venv-fc` as before. Add `--no-open` to print the local address.
 
-Replay is a **synthetic I/O rehearsal**, not playback of a real recording. Home,
-Field, Robot, Settings and Play use the same lobby routes with isolated synthetic
-robot/field transports. The overhead image uses the maintained rendered scene and
-perception pipeline. No camera device, robot discovery, SSH, Home or network field
-publisher is opened. Connect one or two synthetic teams, open the field, start the
-rehearsal, then End or Stop. After Stop, explicitly disconnect and reconnect a team
-before another browser rehearsal. These acknowledgments do not test the native
-executor, physical standing, kicks, contact or Stop. The selected native pair and
-physical qualification remain pending. The Settings identity comes from the source
-selection manifest plus the actual checkout revision; source selection is not a
-deployment receipt. Live remains the default launch mode and never falls back to
-replay.
+Replay is a **synthetic rehearsal of the selected match and runner code**, not playback
+of a real recording. Only external I/O is substituted; nothing in replay opens a camera
+device, robot discovery, SSH, Home or a network field publisher. Robot-process
+links use local socket pairs only.
+
+- **Field.** The rendered scene and perception pipeline produce each referee frame. The
+  real fieldcam `StatePublisher` encodes it and delivers it in memory.
+- **Field producer** (stand-in for `fc_session.py field`, one per autonomous team). The
+  selected `IngressCore` admits each datagram (measured clock probes, capture age,
+  calibration revision). The selected `LiveMatchPlay` then turns the referee directive
+  into that robot's frame and attack, defend or reset lease, and tracks the runner's kick
+  receipts.
+- **Robot** (`replay_robot.py`, one child interpreter per connected team, in place of
+  `fc_session.py match --runner-only`). It speaks the same stdin/stdout protocol and runs
+  the selected `RunnerSession`, `OperatorDrive`, `GuardedPath`, `CombinedRuntime`,
+  `BridgeCore`/`Executor`, `MatchImu`/`BoardReceipt`, the `software_start` Stop caller,
+  `robot_api.Robot` and `kick_in_place`. Only that process substitutes ROS and what lies
+  beyond it: the controller manager, leg_kick clip playback, Stop gateway latch, guard and
+  native-authority reports, board record, IMU, and a walker that forwards each command it
+  would execute. A per-team socket pair stands in for the Pi's ROS topics: normalized
+  events in, kick receipts and walker commands out.
+- **Plant.** A kinematic model moves the rendered robots exactly as commanded and rolls
+  the ball. A kick moves the ball only if the synthetic clip reaches contact with the
+  ball in a fixed reach. There is no gait, contact, latency or braking model.
+
+This is an **ideal-capture timing comparison**: the selected camera's 0.12 s delay
+is not applied. It does not qualify the selected camera/native-entry timing
+contract. That timing work remains pending; freshness limits are unchanged.
+
+Tickets, operator deadlines, mode changes, board holds, kick receipts, goal reset, Resume,
+End and Stop are therefore the production rules. Stop is terminal: the robot process
+reports its synthetic gateway latch (`stop_result`, labelled synthetic) and exits. A team
+then needs an explicit reconnect, which starts a new runner. End match returns the runner
+to standby and leaves it connected.
+
+**Kickoff readiness** (live and replay) includes what every field play refuses: the ball
+and each connected robot must be measured inside the field. Start fails at once with that
+reason rather than waiting at "Connecting the field". In replay, **Place ball at centre**
+is the operator's hand: it is available between matches, at a goal reset, or whenever the
+ball has left the field, and never happens automatically.
+
+The Play screen shows:
+
+- which lease the field play chose for each robot;
+- the executor's decision, and its own reset check while it waits for Resume;
+- each kick receipt by source: the runner's request versus simulated native receipts.
+
+Replay skips Home, standing and the laptop Stop link: the stand-in starts with the
+walker active. None of this tests native code, the body-command guard, physical
+standing, kicks, contact or Stop.
+
+The Settings identity comes from the source selection manifest plus the actual checkout
+revision; source selection is not a deployment receipt. Live remains the default launch
+mode and never falls back to replay. The robot child imports the robot release sources
+(`gemini_pupper`, `follow_me_pupper`, `foundation`); the laptop ZIP carries that closure.
+
+## Screens
+
+- **Home**: the three connection actions (Blue, Red, field camera), Settings and a
+  one-line kickoff checklist. The header always shows Live or Replay and Stop (Esc).
+- **Field**: camera source, calibration, snapshot, corner check and goalposts. Finish
+  returns Home.
+- **Robot**: each robot's ordered steps: Connect, Home on the stand, Stand with laptop
+  Stop, Match controls.
+- **Settings**: per-robot autonomous/teleop and onboard ball mode, app and build
+  identity, selection limits and the offline software check.
+- **Play**: overhead feed, one onboard panel per participant, score, actions, and per
+  robot the planner phase and reason, overhead pose and heading, target and error,
+  command, input age, admitted frames, field-play lease and kick receipts. Onboard panels state that no
+  onboard stream is available; the selected robot software has no preview contract yet.
+  Robots whose runner reports no executor telemetry say so instead of showing values.
 
 ## Camera and teams
 
@@ -35,7 +94,9 @@ Open camera settings to select the overhead camera, camera source, field dimensi
 
 For live team controls, a separately enrolled Pi must already run the matching Pupper FC session helper at `/home/pi/pupper-fc/bin/fc_session.py` and accept SSH from the laptop with a trusted host key. This ZIP installs the laptop component only. Connect checks the selected team and match-pitch protocol version 1 with a read-only profile request. An incompatible or missing helper leaves the team offline. Hardware testing of Home, standing, physical Stop and Wi-Fi-loss recovery belongs to the matching Pi release.
 
-Use team setup for a trusted SSH alias or use Wi-Fi discovery. Select autonomous play or keyboard teleop per team. Home moves all twelve joints and requires physical support. This lobby's standing flow requires the Pi's Stop gamepad and a fresh standing cue. In a match, Escape requests Stop through the connected sessions. Physical Stop is independent of the browser.
+Use the Robot screen for a trusted SSH alias or Wi-Fi discovery, and Settings to select autonomous play or keyboard teleop per robot before kickoff. Home moves all twelve joints and requires physical support.
+
+On a Pi whose gateway reports `fc_operator_control`, Home finishes on the stand and this window becomes the robot's laptop Stop (`fc_session.py operator --owner`). The window echoes each fresh gateway challenge; the Pi rejects echoes older than 0.30 s and owns the watchdog. **Enable standing** sends the displayed challenge once with `supported: true` after the operator confirms support again. Match controls then attach with the standing owner (`--operator-owner`), which the Pi rechecks. Stop, Esc, hiding or closing the window, or a silent link requests Stop on both the operator link and match controls. A standing receipt reports controller state, not observed posture. Pis without that gateway keep the earlier gamepad standing cue. Physical Stop is independent of the browser.
 
 ## Developer checks and packaging
 

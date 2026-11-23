@@ -6,6 +6,7 @@ from itertools import chain
 import json
 import os
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -53,14 +54,25 @@ def laptop_files():
     paths = [Path("Pupper FC.command"), Path("pupper-fc"), FC / "requirements.txt", LOCK, FC / "arena.json"]
     paths.extend(FC / (name + ".py") for name in (
         "__init__", "teleop", "setup_session", "lobby", "discovery", "field_transport", "arena_camera",
-        "match_director", "balance_match", "controller", "model", "self_test"))
-    paths.extend(FC / "static" / name for name in ("controls.html", "controls.css", "controls.mjs", "drive.mjs", "arena.webp"))
+        "match_director", "balance_match", "controller", "model", "self_test",
+        "operator_link", "replay_transport", "replay_robot"))
+    paths.append(FC / "release_selection.json")
+    paths.extend(FC / "static" / name for name in ("controls.html", "controls.css", "controls.mjs", "drive.mjs", "kick_view.mjs", "arena.webp"))
     paths.extend(VISION / "config" / name for name in ("field.yaml", "sim_field.yaml"))
     paths.append(VISION / "scripts/run_perception.py")
     paths.extend(VISION / "fieldcam" / (name + ".py") for name in (
         "__init__", "appearance", "camera_model", "capture", "clickcal", "colorpick",
         "config", "corner_anchor", "patch_plane", "team_colors", "detect", "filters", "net", "pipeline", "planner", "probe", "relative",
         "sim", "tagmeasure", "topdown"))
+    # Rehearsal runs the selected robot machinery in an isolated child. Keep its
+    # source closure aligned with the maintained robot release, rather than
+    # carrying a second dependency list for the laptop's synthetic I/O boundary.
+    profile = runpy.run_path(str(ROOT / "gemini_pupper/robot/fc_release_profile.py"))
+    paths.extend(Path(name) for name in profile["FIELD_FILES"])
+    paths.append(Path(profile["WALK_MODEL"]))
+    paths.append(Path("foundation/hardware/lab6-session.yaml"))
+    paths.extend(Path(profile["KICK_DIR"]) / name for name in
+                 ("artifact_manifest.json", "policy.json", "trick.yaml"))
     return {**{p.as_posix(): ROOT / p for p in paths}, "READ-ME.md": DOC}
 
 

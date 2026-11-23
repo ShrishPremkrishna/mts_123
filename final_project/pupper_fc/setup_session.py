@@ -79,13 +79,20 @@ async def run_setup(ws, host, robot, launch):
             return
         if code or receipt is None:
             raise ValueError(diagnostic or "The Pi closed setup without confirming this team's action")
+        # Receipts report the Pi's controller state, never an observed physical posture.
         message = ("Session prepared." if action == "prepare" else
-                   "Homed on stand." if home_only else "Walker active. Ready to connect for play.")
+                   "Pi reports Home complete on the stand." if home_only else
+                   "Pi reports the walker active. Ready to connect for play.")
         mode = receipt.get("imu_recovery", "strict")
-        if action == "home" and not home_only and mode == "supported_damping":
-            message = "Bench damping enabled. Keep Pupper supported."
-        events.put_nowait(dict(stage="complete", run=receipt["run"], message=message,
-                               imu_recovery=mode, match_capable=mode in ("strict", "supported_rehome", "field_redundant_imu")))
+        fault = receipt.get("previous_fault")
+        fault = fault[:300] if isinstance(fault, str) and fault else None
+        if fault:
+            # The Pi released a terminal session before this action; say why it ended.
+            message += " The previous session ended: " + fault + ". Inspect Pupper before standing."
+        events.put_nowait(dict(stage="complete", run=receipt["run"], message=message, previous_fault=fault,
+                               imu_recovery=mode, match_capable=mode == "strict",
+                               fc_operator_control=receipt.get("fc_operator_control") is True,
+                               homed=receipt.get("homed") is True))
 
     async def send_events():
         await ws.send_json(dict(event="setup", stage="running", robot_id=robot, action=action,

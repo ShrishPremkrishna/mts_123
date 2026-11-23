@@ -363,3 +363,23 @@ def test_incompatible_pi_receives_only_a_read_only_profile_request(monkeypatch, 
         else:
             asyncio.run(open_setup("blue", "pupper-1", action, True))
     assert commands == [f"python3 {SESSION} describe --robot-id pupper-1"]
+
+
+@pytest.mark.parametrize("identity", [{}, {"robot_id": "pupper-2"}])
+def test_a_kick_receipt_without_this_teams_identity_ends_the_session(identity):
+    """Runner kick receipts reach the referee only when they name this robot."""
+    runners = []
+
+    async def connect(host, robot_id):
+        runners.append(Runner(robot_id))
+        runners[-1].reply({"event": "kick", "state": "engaged", "attempt_id": "r1-p0-k1", "epoch": "e", **identity})
+        return runners[-1]
+
+    app = create_app({"blue": "left-host"}, connect)
+    headers = {"origin": "http://localhost", "host": "localhost"}
+    with TestClient(app, base_url="http://localhost") as client:
+        with client.websocket_connect("/play/blue", headers=headers) as blue:
+            while (event := blue.receive_json()).get("event") != "error":
+                pass
+            assert "wrong robot identity" in event["reason"]
+        assert runners[0].closed

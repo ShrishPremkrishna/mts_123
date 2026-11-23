@@ -18,14 +18,23 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .field_transport import finish_runner, remote_argv, require_session, ssh_host
 from .lobby import Lobby, Peer
+from .operator_link import OperatorLink, open_operator
 from .setup_session import open_setup, run_setup
 
 STATIC = Path(__file__).with_name("static")
 ROOT = Path(__file__).resolve().parents[2]
 ROBOTS = {"blue": "pupper-1", "red": "pupper-2"}
 MODES = ("live", "replay")
-REPLAY_NOTE = ("Replay · synthetic transport and field. No robot moves; board health and Stop "
-               "acknowledgments are simulated and never physical.")
+REPLAY_NOTE = ("Replay · synthetic transport, field and robot I/O. The selected field play, runner and executor "
+               "decide; robot motion, kick clips, board health, guard and Stop gateway are simulated and never physical.")
+REPLAY_EXECUTOR = dict(
+    planner="behaviors.live_field_attack.LiveMatchPlay leases; combined_fc_runner.RunnerSession with OperatorDrive, "
+            "fc_walk_kick.CombinedRuntime and integration.Executor through fc_executor_bridge.BridgeCore",
+    ingress="behaviors.overhead_ingress.IngressCore admits fieldcam StatePublisher encodings in memory",
+    substituted="ROS transport, controller manager, kick clip playback, guard and native authority reports, board "
+                "record, Stop gateway latch, walker plant, onboard camera",
+    limits="No gait, contact, latency or braking model. Home and standing are not rehearsed. "
+           "Executed decisions are software behavior only.")
 
 
 def source_identity(root=ROOT):
@@ -62,14 +71,18 @@ def app_identity(mode, source):
     return dict(selection=selection, mode=mode, synthetic=mode == "replay", hardware_qualified=False, source=source,
                 # The lead integrates the canonical release manifest later. Never guess one.
                 native_candidate=dict(status="pending", detail="No verified native candidate is recorded for this app"),
+                executor=REPLAY_EXECUTOR if mode == "replay" else None,
+                onboard_feed=dict(status="unavailable", detail="No onboard preview stream contract is selected"),
                 limitation=REPLAY_NOTE if mode == "replay" else
                 "Live · commands reach enrolled robots. Software checks here do not qualify hardware.")
 
 
-async def open_runner(host, robot_id):
+async def open_runner(host, robot_id, operator_owner=None):
+    """Match controls. A standing operator attaches its lease by owner; the Pi rechecks it."""
     await require_session(host, robot_id)
+    owner_args = ["--operator-owner", operator_owner.replace("-", "")] if operator_owner else []
     return await asyncio.create_subprocess_exec(
-        *remote_argv(host, "match", "--runner-only", "--connect", "--robot-id", robot_id),
+        *remote_argv(host, "match", "--runner-only", "--connect", "--robot-id", robot_id, *owner_args),
         stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
 
 
@@ -104,7 +117,8 @@ def operator_message(data, robot_id):
     raise ValueError("Invalid operator control")
 
 
-def create_app(hosts=None, connect=None, *, lobby=None, scan=None, setup=None, mode="live", identity=None):
+def create_app(hosts=None, connect=None, *, lobby=None, scan=None, setup=None, operator=None, mode="live",
+               identity=None):
     if mode not in MODES:
         raise ValueError("Choose live or replay mode")
     replay = mode == "replay"
@@ -114,15 +128,19 @@ def create_app(hosts=None, connect=None, *, lobby=None, scan=None, setup=None, m
         raise ValueError("Blue and Red must have different SSH hosts")
     if replay:
         # Server-side boundary: replay owns every endpoint. Nothing reaches SSH, discovery or Home.
-        if hosts or connect is not None or scan is not None or setup is not None:
+        if hosts or connect is not None or scan is not None or setup is not None or operator is not None:
             raise ValueError("Replay mode uses its own synthetic transport and never accepts SSH hosts")
-        from .replay_transport import REPLAY_HOSTS, open_replay_runner, replay_lobby
+        from .replay_transport import REPLAY_HOSTS, replay_lobby
         lobby = lobby or replay_lobby()
-        connect = open_replay_runner
+        network = getattr(lobby, "replay_network", None)
+        connect = network.open_runner if network is not None else None
     else:
         connect, setup, lobby = connect or open_runner, setup or open_setup, lobby or Lobby()
+        operator = operator or open_operator
     if lobby.mode != mode:
         raise ValueError(f"The {mode} app requires a {mode} lobby")
+    if replay and connect is None:
+        raise ValueError("Replay requires the replay network's own endpoints")
     identity = app_identity(mode, identity or source_identity())
     configured = dict(hosts)
     selected_by = {}
@@ -138,6 +156,7 @@ def create_app(hosts=None, connect=None, *, lobby=None, scan=None, setup=None, m
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1"])
     owners = set()
     setting_up = set()
+    operators = {}
 
     @app.get("/")
     async def home():
@@ -155,7 +174,11 @@ def create_app(hosts=None, connect=None, *, lobby=None, scan=None, setup=None, m
 
     @app.get("/api/state")
     async def arena_state():
-        return dict(lobby.state(), app=identity)
+        state = dict(lobby.state(), app=identity,
+                     operators={slot: link.summary() for slot, link in operators.items()})
+        if replay:
+            state["replay"] = lobby.replay_network.summary(lobby)
+        return state
 
     @app.get("/api/frame.jpg")
     async def frame():
@@ -182,6 +205,13 @@ def create_app(hosts=None, connect=None, *, lobby=None, scan=None, setup=None, m
                 return await lobby.end(token)
             if action == "match/resume":
                 return await lobby.resume(token)
+            if action == "replay/place-ball":
+                # The operator's manual ball replacement, on the synthetic plant only. Never automatic.
+                if not replay:
+                    raise ValueError("Place the real ball by hand in live mode")
+                lobby.check_owner(token)
+                lobby.replay_network.place_ball(lobby)
+                return lobby.state()
             data = await request.json()
             if not isinstance(data, dict):
                 raise ValueError("Invalid settings")
@@ -207,7 +237,7 @@ def create_app(hosts=None, connect=None, *, lobby=None, scan=None, setup=None, m
                     raise ValueError("Choose Blue or Red")
                 def can_select():
                     lobby.check_owner(token)
-                    if lobby.phase != "idle" or slot in owners:
+                    if lobby.phase != "idle" or slot in owners or slot in operators:
                         raise ValueError("Disconnect this team and end the match before changing its connection")
                 can_select()
                 if replay:
@@ -250,12 +280,53 @@ def create_app(hosts=None, connect=None, *, lobby=None, scan=None, setup=None, m
     def available(ws, slot):
         origin = urlsplit(ws.headers.get("origin", ""))
         return (slot in hosts and slot not in owners
-                and (slot not in selected_by or selected_by[slot] == ws.query_params.get("owner")) and origin.scheme == "http"
+                and (slot not in selected_by or selected_by[slot] == ws.query_params.get("owner"))
+                and (slot not in operators or operators[slot].owner == ws.query_params.get("owner")) and origin.scheme == "http"
                 and origin.netloc == ws.headers.get("host") and origin.hostname in ("localhost", "127.0.0.1"))
+
+    @app.websocket("/operator/{slot}")
+    async def supervise(ws: WebSocket, slot: str):
+        """One window's laptop Stop link and deliberate Stand, relayed to the Pi gateway."""
+        if not available(ws, slot) or slot in operators or lobby.phase != "idle":
+            await ws.close(code=1008)
+            return
+        if replay:
+            await ws.accept()
+            await ws.send_json(dict(event="error", robot_id=ROBOTS[slot], synthetic=True,
+                                    reason="Replay has no Pi Stop gateway. Standing is not rehearsed here."))
+            await ws.close()
+            return
+        try:
+            owner = str(uuid.UUID(ws.query_params.get("owner", "")))
+            lobby.check_owner(owner)
+        except ValueError:
+            await ws.close(code=1008)
+            return
+        link = operators[slot] = OperatorLink(owner, ROBOTS[slot])
+        try:
+            await ws.accept()
+            proc = await operator(hosts[slot], link.robot, owner)
+            await link.run(ws, proc)
+        except (WebSocketDisconnect, BrokenPipeError, ConnectionResetError):
+            pass
+        except (OSError, ValueError, RuntimeError, TimeoutError) as exc:
+            with suppress(RuntimeError, WebSocketDisconnect):
+                await ws.send_json(dict(event="error", robot_id=link.robot, reason=str(exc) or "Pi operator connection lost"))
+        finally:
+            with CancelScope(shield=True):
+                operators.pop(slot, None)
+                # Losing laptop Stop authority ends this window's match controls too.
+                peer = lobby.peers.get(link.robot)
+                if peer and peer.owner == owner and peer.operator_link is link:
+                    lobby.stop_requested(peer)
+                    with suppress(OSError, ValueError, RuntimeError, asyncio.TimeoutError):
+                        await peer.send({"command": "stop"})
+                with suppress(RuntimeError, WebSocketDisconnect):
+                    await ws.close()
 
     @app.websocket("/setup/{slot}")
     async def setup_robot(ws: WebSocket, slot: str):
-        if not available(ws, slot):
+        if not available(ws, slot) or slot in operators:
             await ws.close(code=1008)
             return
         if replay:
@@ -298,8 +369,17 @@ def create_app(hosts=None, connect=None, *, lobby=None, scan=None, setup=None, m
                 raise ValueError("End the current match before adding a team")
             owner = ws.query_params.get("owner")
             owner = str(uuid.UUID(owner)) if owner else uuid.uuid4().hex
-            proc = await connect(hosts[slot], robot_id)
-            peer = Peer(robot_id, hosts[slot], owner, proc)
+            link = operators.get(slot)
+            if ws.query_params.get("lease") == "1":
+                # Match controls attach to this window's standing operator. The Pi checks again.
+                if replay or not link or link.owner != owner or not link.current():
+                    raise ValueError("Reconnect and confirm supported standing in this window")
+                proc = await connect(hosts[slot], robot_id, owner)
+            else:
+                if link:
+                    raise ValueError("Finish supported standing before opening match controls")
+                proc = await connect(hosts[slot], robot_id)
+            peer = Peer(robot_id, hosts[slot], owner, proc, operator_link=link)
             lobby.peers[robot_id] = peer
 
             async def from_robot():
@@ -332,6 +412,9 @@ def create_app(hosts=None, connect=None, *, lobby=None, scan=None, setup=None, m
                             raise ValueError("Prepared Pi belongs to the other team")
                         await ws.send_json(event)
                         return
+                    if event.get("event") == "kick" and event.get("robot_id") != robot_id:
+                        # Every runner kick receipt names its robot; the referee never sees another's.
+                        raise ValueError("Connected runner returned the wrong robot identity")
                     peer.observe(event)
                     if event.get("event") in ("imu", "controls"):
                         lobby.observe_controls(peer)

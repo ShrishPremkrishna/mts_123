@@ -18,15 +18,50 @@ TRACKS = {"pupper-1": "striker", "pupper-2": "keeper"}
 PROFILE = Path(__file__).with_name("arena.json")
 
 
+TELEMETRY_KEYS = ("source", "session", "armed", "epoch", "stopped", "mode", "planner", "observed", "ingress",
+                  "output_error", "kick", "native", "implementation", "labels", "phase", "reason", "synthetic", "physical")
+FIELD_KEYS = ("reason", "kind", "paired", "ready_to_arm", "target")
+
+
+def _bounded(value, depth=0):
+    """Copy runner telemetry as plain JSON with finite numbers and bounded strings."""
+    if depth > 4:
+        return None
+    if isinstance(value, bool) or value is None:
+        return value
+    if isinstance(value, (int, float)):
+        return value if math.isfinite(value) else None
+    if isinstance(value, str):
+        return value[:240]
+    if isinstance(value, list):
+        return [_bounded(v, depth + 1) for v in value[:12]]
+    if isinstance(value, dict):
+        return {str(k)[:40]: _bounded(v, depth + 1) for k, v in list(value.items())[:24]}
+    return None
+
+
 class Peer:
-    def __init__(self, robot, host, owner, proc):
+    def __init__(self, robot, host, owner, proc, *, operator_link=None):
         self.robot, self.host, self.owner, self.proc = robot, host, owner, proc
+        self.operator_link = operator_link
         self.offer = {}
         self.field_info = None
         self.received = 0.
         self.changed = asyncio.Event()
         self.answers = {}
         self.closed = False
+        self.telemetry, self.telemetry_at = None, None
+        self.kick = None
+
+    def public(self):
+        """What the operator may see about this team. Absent telemetry stays absent."""
+        now = time.monotonic()
+        link = self.operator_link
+        return dict(robot_id=self.robot, mode=self.offer.get("mode"), ready=self.offer.get("ready"),
+                    offer_age_s=round(now - self.received, 3) if self.offer else None,
+                    synthetic=getattr(self.proc, "synthetic", False) is True,
+                    telemetry=self.telemetry, telemetry_age_s=None if self.telemetry_at is None else round(now - self.telemetry_at, 3),
+                    kick=self.kick, operator=link.summary() if link else None)
 
     def observe(self, event):
         if event.get("event") == "profile":
@@ -44,6 +79,16 @@ class Peer:
                 raise ValueError("Runner returned invalid board health")
             # Immediate fault edge, independent of the periodic control ticket.
             self.offer = dict(self.offer, imu=event["imu"])
+        elif event.get("event") in ("fc_status", "phase") and event.get("robot_id", self.robot) == self.robot:
+            # Executor telemetry from the runner. A bare live phase event carries less; as an
+            # edge it updates the phase of an earlier full report rather than discarding it.
+            row = {k: _bounded(event[k]) for k in TELEMETRY_KEYS if k in event}
+            planner = (self.telemetry or {}).get("planner")
+            if event["event"] == "phase" and isinstance(planner, dict):
+                row = dict(self.telemetry, planner=dict(planner, phase=row.get("phase"), reason=row.get("reason")))
+            self.telemetry, self.telemetry_at = row, time.monotonic()
+        elif event.get("event") == "kick" and event.get("robot_id") == self.robot:
+            self.kick = {k: _bounded(event.get(k)) for k in ("state", "attempt_id", "outcome", "epoch", "synthetic")}
         elif event.get("event") == "operator":
             key = (event.get("command"), event.get("ticket"))
             future = self.answers.get(key)
@@ -169,8 +214,18 @@ class Lobby:
                 message = "Play held · waiting for current field measurements or the attacker handover"
         balance = self.balance_state() if self.balance else None
         score = self.referee.state.get("score") if self.referee else self.last_score
-        return dict(phase=self.phase, message=message, source=self.source, appearance=self.appearance,
-                    score=score, mode=self.mode, synthetic=self.mode == "replay",
+        teams = {robot: peer.public() for robot, peer in self.peers.items() if hasattr(peer, "public")}
+        for robot, feed in self.feeds.items():
+            latest = (getattr(feed, "status", None) or {}).get("latest")
+            if robot in teams and isinstance(latest, dict):
+                # The robot's field producer reports which lease the match play chose.
+                teams[robot]["field"] = {key: _bounded(latest.get(key)) for key in FIELD_KEYS}
+        frame = (camera or {}).get("frame")
+        kickoff = dict(field=self.field_problems(frame, list(self.peers.values())) if frame else [])
+        return dict(phase=self.phase, epoch=self.epoch, message=message, source=self.source, appearance=self.appearance,
+                    score=score, mode=self.mode, synthetic=self.mode == "replay", kickoff=kickoff,
+                    teams=teams,
+                    players=[p.robot for p in self.players],
                     balance=balance,
                     resume_ready=self.phase == "playing" and bool(camera and (camera.get("match") or {}).get("reset_ready"))
                     and all(p.offer.get("resume_ready") for p in self.autonomous),
@@ -260,7 +315,33 @@ class Lobby:
         visible = snap["visible"]
         if not visible.get("ball") or any(not visible["robots"].get(TRACKS[p.robot]) for p in players):
             raise ValueError("Place the ball and each connected robot in view")
+        problems = self.field_problems(f, players)
+        if problems:
+            raise ValueError("Before kickoff: " + "; ".join(problems))
         return snap, f
+
+    def field_problems(self, frame, players):
+        """What every robot's field play refuses at kickoff: a measured ball and robots inside the field.
+
+        Robot centres keep the enrolled body radius from the wall, as LiveMatchPlay requires.
+        """
+        # The same geometry kickoff uses: the camera's calibrated field, else the enrolled profile.
+        field, robots = frame.get("field") or self.profile["field"], frame.get("robots") or {}
+        if not all(type(field.get(k)) in (int, float) for k in ("length", "width")):
+            return ["field geometry is not calibrated"]
+        def outside(point, margin):
+            return (isinstance(point, dict) and type(point.get("x")) in (int, float) and type(point.get("y")) in (int, float)
+                    and (abs(point["x"]) > field["length"] / 2 - margin or abs(point["y"]) > field["width"] / 2 - margin))
+        problems = []
+        ball = frame.get("ball")
+        if outside(ball, 0.):
+            problems.append(f"the ball is outside the field (x {ball['x']:.2f} m, y {ball['y']:.2f} m)")
+        for peer in players:
+            config = (getattr(peer, "field_info", None) or {}).get("field_config") or {}
+            margin = (config.get("field") or {}).get("robot_radius", 0.)
+            if outside(robots.get(TRACKS[peer.robot]), margin if type(margin) in (int, float) else 0.):
+                problems.append(f"{peer.robot} is too close to or outside the field boundary")
+        return problems
 
     async def await_camera(self, players, *, before_commit=None, binding=None):
         end = time.monotonic() + 2
@@ -378,6 +459,9 @@ class Lobby:
 
     def _check_boards(self, players, epoch=None):
         for peer in players:
+            link = getattr(peer, "operator_link", None)
+            if link and not link.current():
+                raise ValueError(f"{peer.robot}: laptop Stop connection expired")
             reason = play_problem(peer, self.board_anchors, epoch)
             if reason:
                 raise ValueError(f"{peer.robot}: {reason}")
@@ -491,6 +575,10 @@ class Lobby:
                 await self.end(self.owner, problem)
                 return
             for p in self.players:
+                link = getattr(p, "operator_link", None)
+                if link and not link.current():
+                    self.stop_requested(p)
+                    return
                 self.observe_controls(p)
 
     async def _close_fields(self, *, require_closed=False):

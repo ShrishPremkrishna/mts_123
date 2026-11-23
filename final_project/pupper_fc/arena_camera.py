@@ -167,7 +167,10 @@ class ArenaCamera:
         with self.lock:
             if not self.director:
                 raise ValueError("No active match")
-            return self.director.resume()
+            state = self.director.resume()
+            # Publish the consumed reset now; a stale reset_ready must not invite a second Resume.
+            self.state["match"] = dict(state)
+            return state
 
     def pause_balance(self):
         with self.lock:
@@ -182,6 +185,11 @@ class ArenaCamera:
     def commit_start(self):
         with self.lock:
             self.director.commit_start()
+
+    def _sim_source(self, cfg, size):
+        """The rendered field preview. Replay substitutes a scene driven by its synthetic plant."""
+        from final_project.overhead_perception.scripts.run_perception import SimSource
+        return SimSource(cfg, size)
 
     def _run(self):
         source = None
@@ -213,8 +221,7 @@ class ArenaCamera:
                 set_field_size(cfg, setup["length"], setup["width"])
                 cfg["tags"]["field"] = {setup["tag_id"]: anchor_geometry(setup).mean(axis=0)}
             if simulation:
-                from final_project.overhead_perception.scripts.run_perception import SimSource
-                source = SimSource(cfg, (1280, 800))
+                source = self._sim_source(cfg, (1280, 800))
                 if setup["mode"] == "corner":
                     source.robots["striker"][:2] = [-.30 * setup["length"], -.18 * setup["width"]]
                     source.robots["keeper"][:2] = [.30 * setup["length"], .18 * setup["width"]]

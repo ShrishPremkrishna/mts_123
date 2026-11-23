@@ -22,6 +22,7 @@ PYTHON = Path(EXTERNAL_PYTHON).expanduser() if EXTERNAL_PYTHON else ENV / "bin/p
 PACKAGE = ROOT / "final_project/pupper_fc"
 TESTS = [
     "final_project/pupper_fc/tests/test_teleop_console.py",
+    "final_project/pupper_fc/tests/test_operator_link.py",
     "final_project/pupper_fc/tests/test_match_lobby.py",
     "final_project/pupper_fc/tests/test_replay_lobby.py",
     "final_project/pupper_fc/tests/test_balance_lobby.py",
