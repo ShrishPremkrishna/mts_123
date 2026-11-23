@@ -48,6 +48,14 @@
   #hint { font-size:12px; color:var(--mute); }
   #msg { font-size:12px; min-height:16px; }
   #msg.err { color:var(--red); }
+  header .pill.preset { background:#4c1d95; }
+  header .pill.bad { background:var(--bad); }
+  .presetbar { background:#f5f3ff; border:1px solid #c4b5fd; border-radius:8px; padding:6px 8px; margin-bottom:8px; }
+  .presetbar b { font-size:13px; }
+  .presetbar select { font:inherit; font-weight:600; }
+  .result { font-weight:700; } .pass { color:var(--ok); } .fail { color:var(--bad); }
+  .warnline { color:var(--warn); font-size:12px; }
+  input.num { width:58px; }
 </style>
 </head>
 <body>
@@ -55,7 +63,8 @@
   <h1>Pupper FC v1</h1>
   <span class="pill" id="src">-</span>
   <span class="pill" id="mode">idle</span>
-  <span class="pill" id="impl">-</span>
+  <span class="pill preset" id="presetPill" title="active params preset (* = edited since loading)">preset: base</span>
+  <span class="pill bad" id="imuPill" style="display:none"></span>
   <span class="score"><span style="color:#93c5fd" id="sb">0</span> : <span style="color:#fca5a5" id="sr">0</span></span>
   <span class="spacer"></span>
   <span class="mute" id="loop" style="color:#9ca3af;font-size:12px"></span>
@@ -80,11 +89,24 @@
       <div class="row" id="testBtns">
         <button data-test="drive" title="WASD move, QE turn, space stop">Drive (WASD/QE)</button>
         <button data-test="goto" title="then click a point on the field">Goto (click field)</button>
+        <button data-test="deadman" title="walk at vx, then the app goes silent; camera measures time to rest">Deadman</button>
+        vx <input id="dmVx" class="num" type="number" step="0.01" placeholder="0.10">
         <button data-test="push_ball">Push ball</button>
         <button data-test="goalie">Goalie</button>
         <button data-test="match">Match 1v1</button>
         <button data-test="sim_eval">Sim eval</button>
         <input id="evalArgs" value="--quick" size="10" title="sim_eval arguments">
+      </div>
+      <div class="row" id="stepRow" title="open-loop command for N s, overhead pose before/after">
+        <b>Step</b>
+        vx <input id="stVx" class="num" type="number" step="0.05" value="0.2">
+        vy <input id="stVy" class="num" type="number" step="0.05" value="0">
+        wz <input id="stWz" class="num" type="number" step="0.1" value="0">
+        s <input id="stS" class="num" type="number" step="0.5" value="2">
+        <button data-step="custom">Run step</button>
+        <span class="mute">quick:</span>
+        <button data-step="0.1,0,0">fwd 0.1</button><button data-step="0.2,0,0">fwd 0.2</button><button data-step="0.3,0,0">fwd 0.3</button>
+        <button data-step="0,0.1,0">left 0.1</button><button data-step="0,0,0.5">turn +0.5</button><button data-step="0,0,-0.5">turn -0.5</button>
       </div>
       <div id="msg"></div>
       <div id="testInfo" class="kv"></div>
@@ -98,9 +120,11 @@
   <section>
     <div class="card">
       <h2>Params</h2>
-      <div class="row">
-        <select id="presetSel"></select><button id="presetLoad">Load</button>
-        <input id="presetName" placeholder="name" size="10"><button id="presetSave">Save</button>
+      <div class="presetbar">
+        <div class="row"><b>Preset</b> <select id="presetSel"></select><button id="presetLoad" class="on">Load preset</button>
+          <button id="presetBase" title="params.json + defaults, no preset">Base</button></div>
+        <div class="row mute" id="presetInfo">active: base</div>
+        <div class="row"><input id="presetName" placeholder="save as name" size="12"><button id="presetSave">Save current</button></div>
       </div>
       <div id="params"></div>
     </div>
@@ -156,7 +180,16 @@ document.querySelectorAll("[data-test]").forEach((b) => b.onclick = () => {
   if (test === "goto") { gotoArmed = true; say("Click a point on the field for " + robot); return; }
   const body = { action: "test", test, robot, scenario };
   if (test === "sim_eval") body.args = $("evalArgs").value;
+  if (test === "deadman" && $("dmVx").value !== "") body.vx = Number($("dmVx").value);
   post("/action", body).then((j) => j.ok && say("started " + test));
+});
+document.querySelectorAll("[data-step]").forEach((b) => b.onclick = () => {
+  const robot = $("robotSel").value, scenario = $("scenario").value.trim() || undefined;
+  let [vx, vy, wz] = b.dataset.step === "custom" ? [$("stVx").value, $("stVy").value, $("stWz").value].map(Number)
+                                                 : b.dataset.step.split(",").map(Number);
+  const seconds = Number($("stS").value) || undefined;
+  post("/action", { action: "test", test: "step", robot, scenario, vx, vy, wz, seconds })
+    .then((j) => j.ok && say(`step vx ${vx} vy ${vy} wz ${wz} for ${seconds || "step_s"} s`));
 });
 document.querySelectorAll("[data-a]").forEach((b) => b.onclick = () =>
   post("/action", { action: b.dataset.a, scenario: $("scenario").value.trim() || "kickoff" }));
@@ -258,17 +291,34 @@ function renderRobots() {
         <h3><span class="dot" id="dot-${esc(r.id)}"></span><span style="color:${TEAM[r.team] || "#555"}">${esc(r.id)}</span>
             <span class="mute">tag ${esc(r.tag)} · ${esc(r.host || "no host")} · ${esc(r.profile)}</span></h3>
         <div class="kv" id="kv-${esc(r.id)}"></div>
+        <div class="warnline" id="warn-${esc(r.id)}"></div>
         <div class="row">
-          ${["status", "start", "stop", "bridge_start", "bridge_stop", "imu_test", "stage"].map(op =>
-            `<button data-op="${op}" data-r="${esc(r.id)}" class="${op === "start" ? "danger" : ""}">${op.replace("_", " ")}</button>`).join("")}
+          ${["status", "stop", "bridge_start", "bridge_stop", "stage"].map(op =>
+            `<button data-op="${op}" data-r="${esc(r.id)}">${op.replace("_", " ")}</button>`).join("")}
+        </div>
+        <div class="row">
+          <button data-op="start" data-r="${esc(r.id)}" class="danger">start</button>
+          profile <select id="prof-${esc(r.id)}" data-prof="${esc(r.id)}"></select>
+        </div>
+        <div class="row">
+          <button data-op="imu_test" data-r="${esc(r.id)}">imu test</button>
+          s <input id="imuS-${esc(r.id)}" class="num" type="number" value="600" title="1-900 s">
+          <select id="imuM-${esc(r.id)}">${options(["bno", "ros", "auto"])}</select>
+          <input id="imuC-${esc(r.id)}" size="10" value="unpowered" title="condition label: a-z 0-9 _">
         </div>
         <pre id="op-${esc(r.id)}" style="display:none"></pre>
       </div>`).join("");
     box.querySelectorAll("[data-op]").forEach(b => b.onclick = () => {
       const body = { robot: b.dataset.r, op: b.dataset.op };
       if (body.op === "start") {
-        if (!confirm(`Start ${body.robot}? This may HOME THE LEGS. Robot on the stand / clear area?`)) return;
+        body.profile = $("prof-" + body.robot).value;
+        if (!confirm(`Start ${body.robot} with profile ${body.profile}? This may HOME THE LEGS. Robot on the stand / clear area?`)) return;
         body.confirm = true;
+      }
+      if (body.op === "imu_test") {
+        body.seconds = Math.round(Number($("imuS-" + body.robot).value));
+        body.mode = $("imuM-" + body.robot).value;
+        body.condition = $("imuC-" + body.robot).value.trim();
       }
       post("/robot", body);
     });
@@ -277,19 +327,36 @@ function renderRobots() {
     const L = (S.link || {})[r.id], c = S.cmds[r.id], w = S.world && S.world.robots[r.id], d = S.debug[r.id] || {};
     const imu = (L && L.imu) || (S.robot_status[r.id] || {}).imu || null;
     const active = S.active.includes(r.id);
+    const running = (L && L.profile) || (S.robot_status[r.id] || {}).profile || null;
+    const sel = $("prof-" + r.id);
+    const want = S.preset.profile || r.profile;
+    if (sel.dataset.list !== S.profiles.join() + "|" + want) {
+      sel.dataset.list = S.profiles.join() + "|" + want;
+      sel.innerHTML = options(S.profiles); sel.value = want;
+    }
     const rows = [
       ["active", active ? "yes" : "no"],
       ["link", L ? (L.connected ? "connected" : (L.error || "no acks")) : (S.source === "sim" ? "sim" : "-")],
+      ["udp to", L ? `${L.addr || "?"} (${L.via === "udp_host" ? "udp_host" : "ssh alias " + (L.host || "")})` : "-"],
       ["auth", L ? (L.auth === "missing_key" ? "missing_key (python -m fc.robot.keygen)" : L.auth) : "-"],
-      ["ack age / rtt", L ? `${f2(L.ack_age)} s / ${f2(L.rtt_ms, 0)} ms` : "-"],
-      ["profile", (L && L.profile) || (S.robot_status[r.id] || {}).profile || "-"],
-      ["imu", imu ? `${imu.level || "?"} · tilt ${f2(imu.tilt_deg, 1)}° · pulse ${f2(imu.pulse_density)}` : "-"],
+      ["ack age / rtt", L ? `${f2(L.ack_age)} s / ${f2(L.rtt_ms, 0)} ms · p95 ${f2(L.rtt_p95_ms, 0)} ms · loss ${L.loss === null ? "-" : f2(L.loss * 100, 1) + "%"}` : "-"],
+      ["profile", (running || "-") + (S.preset.profile && running && S.preset.profile !== running ? ` (preset wants ${S.preset.profile}: stop + start)` : "")],
+      ["imu", imu ? `${imu.level || "?"} · tilt ${f2(imu.tilt_deg, 1)}° · pulse ${f2(imu.pulse_density)}` + ((imu.reasons || []).length ? " · " + imu.reasons.join(", ") : "") : "-"],
+      ["hold / imu_hold / mux_ok", L ? [L.hold || "none", L.imu_hold, L.mux_ok].map(v => v === null || v === undefined ? "-" : String(v)).join(" / ") : "-"],
+      ["fcctl status", (() => { const st = S.robot_status[r.id]; return st ? `profile ${st.profile || st.active || "-"} · mux_alive ${st.mux_alive ?? "-"} · mux_ok ${st.mux_ok ?? "-"} · Pi ${st.temp_c ?? "-"} °C` : "- (press status)"; })()],
       ["seen", w ? `(${f2(w.x)}, ${f2(w.y)}) ${f2(w.yaw * 57.3, 0)}° · age ${f2(w.age)}s` : "not seen"],
       ["role/phase", d.role ? `${d.role} / ${d.phase}` : "-"],
       ["cmd", c ? `vx ${f2(c.vx)} vy ${f2(c.vy)} wz ${f2(c.wz)} ${c.tag}` : "-"],
     ];
     $("kv-" + r.id).innerHTML = kvHtml(rows);
-    $("dot-" + r.id).className = "dot " + (L ? (L.connected ? levelClass(imu && imu.level) || "ok" : "bad") : (w ? "ok" : ""));
+    const warns = [];
+    if (L && L.tailscale) warns.push(`control packets go over Tailscale (${L.addr}); set "udp_host" (Pi LAN IP) in robots.json or --udp-host ${r.id}=IP`);
+    if (L && L.rtt_p95_ms > 20) warns.push(`RTT p95 ${f2(L.rtt_p95_ms, 0)} ms > 20 ms`);
+    if (S.imu_bad.includes(r.id)) warns.push("IMU BAD: app sends zero; R3 if the robot misbehaves");
+    if (S.mux_lost.includes(r.id)) warns.push("MUX LOST: app sends zero; walker may keep its last command - R3 if walking; wait ~20 s before restarting the profile");
+    if (L && L.hold) warns.push("bridge holding zero: " + L.hold);
+    $("warn-" + r.id).textContent = warns.join(" · ");
+    $("dot-" + r.id).className = "dot " + (L ? (L.connected && !L.hold && L.mux_ok !== false ? levelClass(imu && imu.level) || "ok" : "bad") : (w ? "ok" : ""));
     const op = S.ops[r.id], pre = $("op-" + r.id);
     if (op) { pre.style.display = "block"; pre.textContent = `[${op.t}] ${op.op} ${op.running ? "running..." : "rc " + op.rc}\n$ ${op.cmd}\n${op.out}`; }
   }
@@ -300,8 +367,15 @@ function renderTest() {
   $("go").classList.toggle("on", !!t && t.name === "play");
   const rows = [];
   if (t) { rows.push(["running", `${t.name}${t.robot ? " · " + t.robot : ""} · ${f2(t.elapsed, 1)} s`], ["run", S.run_dir]); }
-  if (ls) rows.push(["last", Object.entries(ls).filter(([k]) => k !== "output_tail")
+  if (t && t.phase) rows.push(["phase", t.phase]);
+  if (ls) {
+    rows.push(["last result", `${ls.result}${ls.pass !== undefined && ls.pass !== null ? "  pass=" + JSON.stringify(ls.pass) : ""}  (${ls.run || ""})`]);
+    rows.push(["last summary", Object.entries(ls).filter(([k]) => !["output_tail", "metrics", "run", "result", "pass"].includes(k))
                                  .map(([k, v]) => `${k}=${typeof v === "object" ? JSON.stringify(v) : v}`).join("  ")]);
+    const m = ls.metrics;
+    if (m) for (const [rid, x] of Object.entries(m.robots || {}))
+      rows.push([`metrics ${rid}`, `path ${f2(x.path_m)} m · seen ${f2(x.seen_frac * 100, 0)}% · stale ${x.stale_stops} · fast rev ${x.fast_reversals} · spin ${f2(x.spin_frac * 100, 0)}% · imu ${x.imu_worst || "-"} · loss ${x.loss === null ? "-" : f2(x.loss * 100, 1) + "%"} · rtt p95 ${f2(x.rtt_p95_ms, 0)} ms`]);
+  }
   $("testInfo").innerHTML = kvHtml(rows);
   const out = (t && t.output) || (!t && ls && ls.output_tail) || "";
   $("testOut").style.display = out ? "block" : "none"; $("testOut").textContent = out;
@@ -341,13 +415,21 @@ function renderParams() {
   if (p !== presetsSeen) { presetsSeen = p; $("presetSel").innerHTML = options(S.presets); }
 }
 $("presetSave").onclick = () => post("/preset", { op: "save", name: $("presetName").value.trim() }).then(j => j.ok && say("preset saved"));
-$("presetLoad").onclick = () => post("/preset", { op: "load", name: $("presetSel").value }).then(j => j.ok && say("preset loaded"));
+$("presetLoad").onclick = () => post("/preset", { op: "load", name: $("presetSel").value })
+  .then(j => j.ok && say(`preset ${$("presetSel").value} loaded (${j.applied} keys)` + (j.errors.length ? " - rejected: " + j.errors.join("; ") : ""), j.errors.length > 0));
+$("presetBase").onclick = () => post("/preset", { op: "base" }).then(j => j.ok && say("params back to base"));
 
 function render() {
   $("src").textContent = S.source + (S.dry_run_ops ? " · ops dry-run" : "");
   $("mode").textContent = S.mode + (S.test && S.test.robot ? " · " + S.test.robot : "");
   $("mode").className = "pill" + (S.mode !== "idle" ? " live" : "");
-  $("impl").textContent = S.impl;
+  const pr = S.preset;
+  $("presetPill").textContent = "preset: " + (pr.name ? pr.name + (pr.modified.length ? "*" : "") : "base") + (pr.profile ? " · " + pr.profile : "");
+  $("presetInfo").textContent = "active: " + (pr.name || "base") + (pr.profile ? ` · robot profile ${pr.profile}` : "")
+    + (pr.modified.length ? ` · edited: ${pr.modified.join(", ")}` : "") + (pr.note ? ` · ${pr.note}` : "");
+  const halts = S.imu_bad.map(r => "IMU BAD " + r).concat(S.mux_lost.map(r => "MUX LOST " + r));
+  $("imuPill").style.display = halts.length ? "" : "none";
+  $("imuPill").textContent = halts.join(" · ");
   $("sb").textContent = S.score.blue; $("sr").textContent = S.score.red;
   $("loop").textContent = `loop ${f2(S.loop.hz, 0)} Hz · ${f2(S.loop.tick_ms, 1)} ms · overruns ${S.loop.overruns}`;
   $("fieldinfo").textContent = `${S.field.length} × ${S.field.width} m` + (S.eye ? ` · eye: ${S.eye.message || ""}` : "");
@@ -368,7 +450,10 @@ async function pollRuns() {
     const runs = await (await fetch("/runs")).json();
     $("runs").innerHTML = runs.map(r => {
       const s = r.summary;
-      const txt = s ? `${s.result} · ${s.duration_s}s` + (s.pos_err_m !== undefined ? ` · err ${s.pos_err_m} m` : "")
+      const txt = s ? `${s.result} · ${s.duration_s}s` + (s.preset ? ` · ${s.preset}` : "") + (s.pos_err_m !== undefined ? ` · err ${s.pos_err_m} m` : "")
+                    + (s.gain_lin !== undefined ? ` · gain ${s.gain_lin}` : "") + (s.gain_wz !== undefined ? ` · gain_wz ${s.gain_wz}` : "")
+                    + (s.latency_s !== undefined ? ` · lag ${s.latency_s}s` : "") + (s.heading_bias_deg !== undefined && s.heading_bias_deg !== null ? ` · bias ${s.heading_bias_deg}°` : "")
+                    + (s.stop_time_s !== undefined ? ` · stop ${s.stop_time_s}s` : "")
                     + (s.score ? ` · ${s.score.blue}-${s.score.red}` : "") + (s.time_s !== undefined ? ` · t ${s.time_s}s` : "")
                     : "running / no summary";
       return `<div><a href="/runs/${esc(encodeURIComponent(r.name))}/summary.json" target="_blank" rel="noopener">${esc(r.name)}</a> <span class="mute">${esc(txt)}</span></div>`;

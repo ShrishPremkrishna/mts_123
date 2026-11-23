@@ -212,3 +212,66 @@ def test_unknown_sender_ignored(key_file):
         assert link.handle_ack(b'{"nope": 1}', "10.9.9.9", time.monotonic()) is None
     finally:
         link.close()
+
+
+def test_udp_host_overrides_ssh_host_and_status_fields(key_file):
+    """udp_host (LAN) wins over the ssh alias; RTT p95, loss and new ack fields reach status."""
+    echo = FakeBridge(forge=False)
+    resolved = []
+
+    def resolve(h):
+        resolved.append(h)
+        return "127.0.0.1" if h == "lan-pi" else "100.102.191.86"
+
+    link = Link([RobotCfg("blue", "blue", 10, "mts", "stock")], {}, port=echo.port, resolve=resolve,
+                key_file=key_file, udp_hosts={"blue": "lan-pi"})
+    try:
+        assert _wait(lambda: link.status()["blue"]["addr"] == "127.0.0.1")
+        st = link.status()["blue"]
+        assert resolved == ["lan-pi"] and st["via"] == "udp_host" and st["host"] == "lan-pi" and not st["tailscale"]
+        for _ in range(12):
+            link.send({"blue": Cmd(0.1, 0, 0)})
+        assert _wait(lambda: link.status()["blue"]["acks"] >= 12)
+        time.sleep(0.6)                                   # past LOSS_AFTER_S
+        st = link.status()["blue"]
+        assert st["rtt_p95_ms"] is not None and st["loss"] == 0.0
+        good = db.sign(KEY, {"v": 2, "robot": "blue", "sid": link.sid, "ack": 999, "ok": True,
+                             "hold": "imu", "imu_hold": True, "mux_ok": False})
+        assert link.handle_ack(good, "127.0.0.1", time.monotonic()) == "blue"
+        st = link.status()["blue"]
+        assert st["imu_hold"] is True and st["mux_ok"] is False and st["hold"] == "imu" and st["extra"]["imu_hold"]
+    finally:
+        link.close()
+        echo.close()
+
+
+def test_ssh_host_used_without_udp_host_and_tailscale_flagged(key_file):
+    link = Link([RobotCfg("blue", "blue", 10, "mts", "stock")], {}, resolve=lambda h: "100.102.191.86",
+                key_file=key_file)
+    try:
+        assert _wait(lambda: link.status()["blue"]["addr"] == "100.102.191.86")
+        st = link.status()["blue"]
+        assert st["via"] == "ssh" and st["tailscale"] and st["loss"] is None
+    finally:
+        link.close()
+
+
+def test_loss_counts_unacked_packets(key_file):
+    link = Link([RobotCfg("blue", "blue", 10, "10.9.9.9", "stock")], {}, port=9, resolve=lambda h: "127.0.0.1",
+                key_file=key_file)
+    try:
+        assert _wait(lambda: link.status()["blue"]["addr"] == "127.0.0.1")
+        for _ in range(10):
+            link.send({"blue": Cmd()})
+        time.sleep(0.6)
+        assert link.status()["blue"]["loss"] == 1.0
+    finally:
+        link.close()
+
+
+def test_load_udp_hosts(tmp_path):
+    from fc.link import load_udp_hosts
+    p = tmp_path / "robots.json"
+    p.write_text(json.dumps([{"id": "blue", "udp_host": "192.168.1.5"}, {"id": "red"}]))
+    assert load_udp_hosts(p) == {"blue": "192.168.1.5", "red": ""}
+    assert load_udp_hosts(tmp_path / "nope.json") == {}

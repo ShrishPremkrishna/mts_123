@@ -1,0 +1,11 @@
+{
+ "_profile": "tej_u6",
+ "_note": "A/B: Tej u6 stack, heading hold on",
+ "max_vx": 0.3,
+ "max_vy": 0.15,
+ "max_wz": 1.0,
+ "push_vx": 0.3,
+ "k_turn": 1.5,
+ "accel_wz": 2.0,
+ "yaw_learn": 0
+}

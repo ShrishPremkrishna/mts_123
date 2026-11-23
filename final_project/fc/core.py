@@ -78,6 +78,7 @@ class RobotCfg:
     tag: int           # overhead AprilTag id
     host: str          # ssh host / IP of the Pi ("" = sim only)
     profile: str       # robot software profile name
+    udp_host: str = ""  # LAN address for control packets ("" = resolve ssh host)
 
 
 def load_field(path: Path = CONFIG / "field.json") -> Field:

@@ -7,6 +7,7 @@ Packets and acks are HMAC-signed with the shared key in config/link.key
 """
 from __future__ import annotations
 
+import ipaddress
 import json
 import math
 import secrets
@@ -14,6 +15,7 @@ import socket
 import subprocess
 import threading
 import time
+from collections import deque
 
 from .core import CONFIG, Cmd, RobotCfg
 from .robot.drive_bridge import VERSION, KeyFileError, load_key, sign, verify
@@ -23,6 +25,16 @@ CEIL = {"vx": 0.5, "vy": 0.3, "wz": 2.0}   # never exceeded, whatever params say
 TTL_RANGE = (0.05, 0.5)   # drive_bridge MAX_TTL is 0.5 s (mux timeout)
 CONNECTED_AGE_S = 1.0                     # ack younger than this counts as connected
 KEY_FILE = CONFIG / "link.key"
+TAILSCALE_NET = ipaddress.ip_network("100.64.0.0/10")   # CGNAT range Tailscale uses
+LOSS_AFTER_S = 0.5                        # a packet not acked this long after sending counts as lost
+ACK_CORE = {"v", "robot", "sid", "ack", "mac", "ok", "imu", "profile", "bridge"}
+
+
+def is_tailscale(addr: str | None) -> bool:
+    try:
+        return addr is not None and ipaddress.ip_address(addr) in TAILSCALE_NET
+    except ValueError:
+        return False
 
 
 def resolve_host(host: str) -> str | None:
@@ -80,17 +92,22 @@ def load_link_key(path=KEY_FILE) -> tuple[bytes | None, str | None]:
 
 class Link:
     def __init__(self, robots: list[RobotCfg], params: dict, port: int = PORT, resolve=resolve_host,
-                 key_file=KEY_FILE):
+                 key_file=KEY_FILE, udp_hosts: dict[str, str] | None = None):
+        """`udp_hosts` (robots.json "udp_host"): optional per-robot address for control packets,
+        e.g. the Pi's LAN IP, so UDP does not ride Tailscale when the ssh alias resolves there."""
         self.params, self.port = params, port
         self.robots = {r.id: r for r in robots}
+        self.udp_hosts = {k: v for k, v in (udp_hosts or {}).items() if v}
         self.key, self.key_error = load_link_key(key_file)
         self.sid = secrets.token_hex(8)   # new sender session per process; the bridge resumes on it
         self._lock = threading.Lock()
-        self._st = {r.id: {"host": r.host, "addr": None, "error": None if r.host else "no host",
+        self._st = {r.id: {"host": self.udp_hosts.get(r.id) or r.host, "via": "udp_host" if r.id in self.udp_hosts else "ssh",
+                           "addr": None, "error": None if (r.host or r.id in self.udp_hosts) else "no host", "extra": {},
+                           "rtts": deque(maxlen=200),
                            "seq": 0, "sent": 0, "acks": 0, "last_ack_t": None, "rtt_ms": None, "last_ack_seq": 0,
                            "bad_acks": 0, "bad_ack_t": None,
                            "imu": None, "profile": None, "bridge_ok": None, "bridge": None, "last_cmd": [0.0, 0.0, 0.0]} for r in robots}
-        self._sent_t: dict[str, dict[int, float]] = {r.id: {} for r in robots}
+        self._sent_t: dict[str, dict[int, list]] = {r.id: {} for r in robots}   # seq -> [t_sent, acked]
         self._by_addr: dict[str, str] = {}
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("0.0.0.0", 0))
@@ -102,12 +119,13 @@ class Link:
 
     def _resolve_all(self, resolve) -> None:
         for rid, r in self.robots.items():
-            if not r.host:
+            host = self.udp_hosts.get(rid) or r.host
+            if not host:
                 continue
-            ip = resolve(r.host)
+            ip = resolve(host)
             with self._lock:
                 st = self._st[rid]
-                st["addr"], st["error"] = ip, None if ip else f"cannot resolve {r.host}"
+                st["addr"], st["error"] = ip, None if ip else f"cannot resolve {host}"
                 if ip:
                     self._by_addr[ip] = rid
 
@@ -124,9 +142,9 @@ class Link:
                 st["seq"] += 1
                 seq = st["seq"]
                 sent = self._sent_t[rid]
-                sent[seq] = now
-                if len(sent) > 128:
-                    for k in sorted(sent)[:-64]:
+                sent[seq] = [now, False]
+                if len(sent) > 256:
+                    for k in sorted(sent)[:-128]:
                         del sent[k]
             data = packet(self.key, rid, self.sid, seq, cmd, self.params, wall)
             try:
@@ -176,9 +194,11 @@ class Link:
             st["last_ack_seq"] = seq
             st["acks"] += 1
             st["last_ack_t"] = now
-            t0 = self._sent_t[rid].get(seq)
-            if t0 is not None:
-                st["rtt_ms"] = round((now - t0) * 1000, 1)
+            rec = self._sent_t[rid].get(seq)
+            if rec is not None:
+                rec[1] = True
+                st["rtt_ms"] = round((now - rec[0]) * 1000, 1)
+                st["rtts"].append(st["rtt_ms"])
             if isinstance(msg.get("imu"), dict):
                 st["imu"] = msg["imu"]
             if msg.get("profile"):
@@ -186,6 +206,8 @@ class Link:
             st["bridge_ok"] = msg.get("ok")
             if isinstance(msg.get("bridge"), dict):
                 st["bridge"] = msg["bridge"]
+            # Fields newer bridges add (imu_hold, mux, ...) are kept as-is for the UI and run log.
+            st["extra"] = {k: v for k, v in msg.items() if k not in ACK_CORE}
             self.ack_log.append({"r": rid, "ack": seq, "rtt": st["rtt_ms"]})
             if len(self.ack_log) > 1000:
                 del self.ack_log[:500]
@@ -208,7 +230,17 @@ class Link:
                     auth = "bad_ack"
                 else:
                     auth = "ok"
-                out[rid] = {"host": st["host"], "addr": st["addr"], "error": st["error"],
+                rtts = sorted(st["rtts"])
+                window = [a for t, a in self._sent_t[rid].values() if now - t > LOSS_AFTER_S]
+                bridge = st["bridge"] if isinstance(st["bridge"], dict) else {}
+                extra = st["extra"]
+                out[rid] = {"host": st["host"], "via": st["via"], "addr": st["addr"], "error": st["error"],
+                            "tailscale": is_tailscale(st["addr"]),
+                            "rtt_p95_ms": rtts[min(len(rtts) - 1, int(0.95 * len(rtts)))] if rtts else None,
+                            "loss": round(1 - sum(window) / len(window), 3) if len(window) >= 10 else None,
+                            "hold": extra.get("hold", bridge.get("hold")),           # why the bridge sends zero
+                            "imu_hold": extra.get("imu_hold", bridge.get("imu_hold")),
+                            "mux_ok": extra.get("mux_ok"), "extra": extra,
                             "auth": auth, "auth_error": self.key_error, "bad_acks": st["bad_acks"],
                             "connected": age is not None and age < CONNECTED_AGE_S,
                             "ack_age": age, "rtt_ms": st["rtt_ms"], "imu": st["imu"],
@@ -222,3 +254,11 @@ class Link:
             self.sock.close()
         except OSError:
             pass
+
+
+def load_udp_hosts(path=CONFIG / "robots.json") -> dict[str, str]:
+    """Optional per-robot "udp_host" from robots.json (LAN address for control packets)."""
+    try:
+        return {str(r["id"]): str(r.get("udp_host") or "") for r in json.loads(path.read_text())}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}

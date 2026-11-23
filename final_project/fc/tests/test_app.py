@@ -132,9 +132,13 @@ def test_drive_teleop_and_deadman(server):
     post(base, "/action", {"action": "teleop", "robot": "blue", "vx": 1, "wz": -1})
     time.sleep(0.1)
     c = state(base)["cmds"]["blue"]
-    assert c["vx"] == pytest.approx(app.params["max_vx"]) and c["wz"] == pytest.approx(-app.params["max_wz"])
+    assert 0 < c["vx"] < app.params["max_vx"]                    # rate-limited like the brain (accel_vx)
+    keep = lambda: post(base, "/action", {"action": "teleop", "robot": "blue", "vx": 1, "wz": -1})  # noqa: E731
+    assert wait(lambda: keep() and state(base)["cmds"]["blue"]["vx"] == pytest.approx(app.params["max_vx"]), 2)
+    c = state(base)["cmds"]["blue"]
+    assert c["wz"] == pytest.approx(-app.params["max_wz"])
     assert state(base)["cmds"]["red"]["vx"] == 0
-    time.sleep(app.params["teleop_timeout_s"] + 0.2)             # no key updates -> zero
+    time.sleep(app.params["teleop_timeout_s"] + 0.2)             # no key updates -> zero at once
     assert state(base)["cmds"]["blue"]["vx"] == 0
     post(base, "/action", {"action": "stop"})
 
@@ -216,7 +220,7 @@ def test_bad_robot_op_args_never_spawn(live_ops):
     for bad in ("stock; reboot", "$(reboot)", "../stock", "nope", "stock ", 7):
         r = app.robot_op({"robot": "blue", "op": "start", "confirm": True, "profile": bad})
         assert not r["ok"], bad
-    for bad in ("5; reboot", 0, 31, 2.5, True, "5"):
+    for bad in ("5; reboot", 0, 901, 2.5, True, "5"):
         assert not app.robot_op({"robot": "blue", "op": "imu_test", "seconds": bad})["ok"], bad
     assert not app.robot_op({"robot": "blue", "op": "rm -rf"})["ok"]
     assert not app.robot_op({"robot": "blue", "op": "status", "host": "evil"})["cmd"].count("evil")
@@ -236,3 +240,295 @@ def test_robot_op_remote_args_are_quoted(live_ops):
     assert wait(lambda: calls, 2)
     assert calls[0][-3:] == ["--", "mts", "bash ~/fc-v1/robot/fcctl.sh imu-test 7"]
     assert not calls[1:]
+
+
+# ---- 2026-11-23 review fixes ------------------------------------------------------------
+import math  # noqa: E402
+from dataclasses import replace  # noqa: E402
+
+import fc.app as fcapp  # noqa: E402
+from fc.app import analyze_deadman, analyze_step, load_robot_config  # noqa: E402
+from fc.runlog import Metrics  # noqa: E402
+
+
+def test_no_stub_fallback():
+    """A broken brain/sim import must stop the app, never fall back to a stand-in."""
+    assert not hasattr(fcapp, "_StubBrain") and not hasattr(fcapp, "_StubSim") and not hasattr(fcapp, "_go_to")
+    assert fcapp.shape.__module__ == "fc.brain"
+
+
+def test_stop_never_refused_and_start_timeout(live_ops, monkeypatch):
+    app, calls = live_ops
+    seen = []
+    monkeypatch.setattr(app, "_run_op", lambda rid, state, cmd, timeout: seen.append((state["op"], timeout)))
+    assert app.robot_op({"robot": "blue", "op": "start", "confirm": True})["ok"]
+    assert app.ops["blue"]["running"]                                        # start still running (fake never ends)
+    assert not app.robot_op({"robot": "blue", "op": "status"})["ok"]          # others wait
+    assert app.robot_op({"robot": "blue", "op": "stop"})["ok"]                # stop always goes
+    assert app.robot_op({"robot": "blue", "op": "stop"})["ok"]                # even over another stop
+    assert seen[0] == ("start", 180) and seen[1][0] == "stop"
+
+
+def test_imu_test_options_quoted(live_ops):
+    app, calls = live_ops
+    assert app.robot_op({"robot": "blue", "op": "imu_test", "seconds": 600, "mode": "bno", "condition": "unpowered"})["ok"]
+    assert wait(lambda: calls, 2)
+    assert calls[0][-1] == "bash ~/fc-v1/robot/fcctl.sh imu-test 600 --mode bno --condition unpowered"
+    assert not app.robot_op({"robot": "blue", "op": "imu_test", "seconds": 5, "mode": "x; reboot"})["ok"]
+    assert not app.robot_op({"robot": "blue", "op": "imu_test", "seconds": 5, "condition": "a b"})["ok"]
+
+
+class FakeLink:
+    """Stand-in Link for a sim-source App: only status/acks matter (sim mode never sends)."""
+
+    def __init__(self):
+        self.st = {"blue": {"imu": {"level": "ok"}, "sent": 0, "acks": 0, "profile": "stock", "imu_hold": False,
+                            "hold": None, "mux_ok": True, "auth": "ok"}}
+        self.stops = 0
+
+    def status(self):
+        return {k: dict(v) for k, v in self.st.items()}
+
+    def drain_acks(self):
+        return [{"r": "blue", "ack": 1, "rtt": 9.0}]
+
+    def stop_all(self):
+        self.stops += 1
+
+    def send(self, cmds):
+        pass
+
+    def close(self):
+        pass
+
+
+def test_imu_bad_stops_robot_and_ends_test(server):
+    app, base = server
+    fake = app.link = FakeLink()
+    code, r = post(base, "/action", {"action": "test", "test": "push_ball", "robot": "blue"})
+    assert code == 200
+    run = app.runs_root / r["run"].split("/")[-1]
+    time.sleep(0.8)
+    fake.st["blue"]["imu"] = {"level": "bad", "reasons": ["tilt 12.0 deg at zero command"]}
+    assert wait(lambda: state(base)["mode"] == "idle", 2)
+    s = state(base)
+    assert s["last_summary"]["result"] == "imu_bad" and s["imu_bad"] == ["blue"] and fake.stops >= 1
+    assert s["cmds"]["blue"]["vx"] == 0 and s["cmds"]["blue"]["tag"] in ("imu_bad", "idle")
+    assert post(base, "/action", {"action": "test", "test": "drive", "robot": "blue"})[0] == 400   # refused while bad
+    assert wait(lambda: (run / "summary.json").exists(), 6)
+    lines = [json.loads(x) for x in (run / "events.jsonl").read_text().splitlines()]
+    assert any("IMU BAD" in str(x.get("ev", "")) for x in lines)
+    lk = [x["lk"]["blue"] for x in lines if "lk" in x]
+    assert lk and lk[0]["imu_hold"] is False and lk[0]["mux_ok"] is True and lk[0]["profile"] == "stock"
+    summ = json.loads((run / "summary.json").read_text())
+    assert summ["result"] == "imu_bad" and summ["metrics"]["robots"]["blue"]["imu_worst"] == "bad"
+    fake.st["blue"]["imu"] = {"level": "ok"}
+    assert wait(lambda: state(base)["imu_bad"] == [], 1)
+
+
+def test_mux_lost_stops_robot_and_ends_test(server):
+    app, base = server
+    fake = app.link = FakeLink()
+    assert post(base, "/action", {"action": "go"})[0] == 200
+    time.sleep(0.3)
+    fake.st["blue"].update(mux_ok=False, hold="no_cmd_vel_publisher")
+    assert wait(lambda: state(base)["mode"] == "idle", 2)
+    s = state(base)
+    assert s["last_summary"]["result"] == "mux_lost" and s["mux_lost"] == ["blue"]
+    assert s["last_summary"]["hold"] == {"blue": "no_cmd_vel_publisher"} and s["cmds"]["blue"]["vx"] == 0
+    assert post(base, "/action", {"action": "test", "test": "step", "robot": "blue", "vx": 0.1})[0] == 400
+    assert post(base, "/action", {"action": "test", "test": "step", "robot": "red", "vx": 0.1})[0] == 200
+    post(base, "/action", {"action": "stop"})
+    fake.st["blue"].update(mux_ok=True, hold=None)
+    assert wait(lambda: state(base)["mux_lost"] == [], 1)
+
+
+def test_step_pipeline_in_sim(server):
+    app, base = server
+    code, r = post(base, "/action", {"action": "test", "test": "step", "robot": "blue", "vx": 0.2, "seconds": 1.5})
+    assert code == 200
+    assert wait(lambda: state(base)["mode"] == "idle", 8)
+    ls = state(base)["last_summary"]
+    assert ls["result"] == "done", ls
+    assert ls["cmd"] == [0.2, 0.0, 0.0] and 0.15 < ls["cmd_dist_m"] < 0.35
+    assert 0.5 < ls["gain_lin"] < 1.5 and ls["latency_s"] is not None and abs(ls["heading_bias_deg"]) < 20
+    m = ls["metrics"]
+    assert m["time_s"] > 3 and m["robots"]["blue"]["path_m"] > 0.1 and "fast_reversals" in m["robots"]["blue"]
+    assert post(base, "/action", {"action": "test", "test": "step", "robot": "blue"})[0] == 400        # all zero
+    assert post(base, "/action", {"action": "test", "test": "step", "robot": "blue", "vx": "x"})[0] == 400
+
+
+def test_deadman_pipeline_in_sim(server):
+    app, base = server
+    code, _ = post(base, "/action", {"action": "test", "test": "deadman", "robot": "blue", "vx": 0.15, "mute_s": 1.5})
+    assert code == 200
+    assert wait(lambda: state(base)["test"] and state(base)["test"].get("phase") == "mute", 4)
+    assert wait(lambda: state(base)["mode"] == "idle", 4)
+    ls = state(base)["last_summary"]
+    assert ls["result"] == "stopped" and ls["emulated"], ls
+    assert 0.1 <= ls["stop_time_s"] <= 1.0 and ls["speed_before"] > 0.05
+
+
+def test_goto_uses_brain_goto_mode(server):
+    app, base = server
+    p = state(base)["world"]["robots"]["blue"]
+    post(base, "/action", {"action": "test", "test": "goto", "robot": "blue", "target": [p["x"] + 0.3, p["y"]]})
+    assert wait(lambda: (state(base)["debug"].get("blue") or {}).get("role") == "goto", 2)
+    post(base, "/action", {"action": "stop"})
+
+
+def test_presets_load_on_base_and_are_recorded(server, tmp_path):
+    app, base = server
+    app.presets_dir.mkdir(parents=True, exist_ok=True)
+    (app.presets_dir / "slowx.json").write_text(json.dumps({"_note": "n", "max_vx": 0.15}))
+    (app.presets_dir / "turny.json").write_text(json.dumps({"_profile": "stock", "max_wz": 0.5}))
+    assert post(base, "/preset", {"op": "load", "name": "slowx"})[0] == 200
+    assert post(base, "/preset", {"op": "load", "name": "turny"})[0] == 200
+    s = state(base)
+    assert s["params"]["max_wz"] == 0.5 and s["params"]["max_vx"] == app.base_params["max_vx"]   # no stacking
+    assert s["preset"] == {"name": "turny", "modified": [], "profile": "stock", "note": ""}
+    post(base, "/params", {"max_vy": 0.1})
+    assert state(base)["preset"]["modified"] == ["max_vy"]
+    code, r = post(base, "/action", {"action": "test", "test": "push_ball", "robot": "blue"})
+    meta = json.loads((app.runs_root / r["run"].split("/")[-1] / "params.json").read_text())
+    assert meta["preset"] == "turny" and meta["preset_modified"] == ["max_vy"] and meta["preset_profile"] == "stock"
+    post(base, "/action", {"action": "stop"})
+    post(base, "/preset", {"op": "save", "name": "mine"})
+    saved = json.loads((app.presets_dir / "mine.json").read_text())
+    assert saved == {"_profile": "stock", "max_vy": 0.1, "max_wz": 0.5}                         # only changed keys
+    assert post(base, "/preset", {"op": "base"})[0] == 200
+    assert state(base)["preset"]["name"] is None and app.params == app.base_params
+
+
+def test_shipped_presets_validate():
+    from fc.brain import DEFAULTS
+    from fc.core import load_params
+    base = {**fcapp.PARAM_FALLBACKS, **DEFAULTS, **load_params()}
+    names = sorted(p.stem for p in fcapp.PRESETS.glob("*.json"))
+    assert {"slow", "fast", "stock-hh-on", "stock-hh-off", "u6-hh-on", "push", "headbutt"} <= set(names)
+    for n in names:
+        data = json.loads((fcapp.PRESETS / f"{n}.json").read_text())
+        ok, err = fcapp.validate_params(base, {k: v for k, v in data.items() if not k.startswith("_")})
+        assert not err, (n, err)
+
+
+def test_robot_config_allows_udp_host(tmp_path):
+    p = tmp_path / "robots.json"
+    p.write_text(json.dumps([{"id": "blue", "team": "blue", "tag": 10, "host": "mts", "profile": "stock",
+                              "udp_host": "192.168.1.42"}]))
+    robots, udp = load_robot_config(p)
+    assert robots[0].host == "mts" and udp == {"blue": "192.168.1.42"}
+
+
+# ---- pure analysis ----------------------------------------------------------------------
+def _walk(gain=0.8, lag=0.25, v=0.2, t_on=1.0, t_off=3.0, yaw=0.3, walk_dir=0.3, fps=30, t_end=4.5):
+    """Synthetic step: commands at 30 Hz from t=0; the robot follows gain*cmd delayed by lag,
+    walking along walk_dir while its tag reads yaw."""
+    sent = [(i / 30, v if t_on <= i / 30 < t_off else 0.0, 0.0, 0.0) for i in range(int(t_end * 30))]
+    obs, s = [], 0.0
+    for i in range(int(t_end * fps)):
+        t = i / fps
+        s = gain * v * max(0.0, min(t - lag, t_off) - t_on) if t - lag > t_on else 0.0
+        obs.append((t, 1.0 + s * math.cos(walk_dir), 0.5 + s * math.sin(walk_dir), yaw))
+    return obs, sent
+
+
+def test_analyze_step_recovers_gain_lag_and_bias():
+    obs, sent = _walk(walk_dir=0.3 + math.radians(7))
+    r = analyze_step(obs, [c for c in sent if c[0] >= 1.0], 1.0, 3.0, [0.2, 0.0, 0.0])
+    assert r["result"] == "done"
+    assert r["gain_lin"] == pytest.approx(0.8, abs=0.03) and r["latency_s"] == pytest.approx(0.25, abs=0.04)
+    assert r["heading_bias_deg"] == pytest.approx(7.0, abs=0.5) and r["pass"]["bias"] is False
+    assert r["onset_s"] == pytest.approx(0.35, abs=0.1)
+    still, sent2 = _walk(gain=0.0)
+    assert analyze_step(still, [c for c in sent2 if c[0] >= 1.0], 1.0, 3.0, [0.2, 0, 0])["result"] == "no_motion"
+
+
+def test_analyze_step_turn():
+    sent = [(i / 30, 0.0, 0.0, 0.5 if 1.0 <= i / 30 < 3.0 else 0.0) for i in range(135)]
+    obs = []
+    for i in range(135):
+        t = i / 30
+        a = 0.9 * 0.5 * max(0.0, min(t - 0.3, 3.0) - 1.0) if t - 0.3 > 1.0 else 0.0
+        obs.append((t, 0.0, 0.0, math.atan2(math.sin(3.0 + a), math.cos(3.0 + a))))   # wraps through pi
+    r = analyze_step(obs, [c for c in sent if c[0] >= 1.0], 1.0, 3.0, [0, 0, 0.5])
+    assert r["gain_wz"] == pytest.approx(0.9, abs=0.03) and r["latency_s"] == pytest.approx(0.3, abs=0.04)
+
+
+def test_analyze_deadman():
+    obs = []
+    for i in range(120):                      # 0.1 m/s until 2.3 s, then rest (mute at 2.0 s)
+        t = i / 30
+        obs.append((t, 0.1 * min(t, 2.3), 0.0, 0.0))
+    r = analyze_deadman(obs, 2.0)
+    assert r["result"] == "stopped" and r["stop_time_s"] == pytest.approx(0.3, abs=0.12) and r["pass"]
+    assert r["coast_m"] == pytest.approx(0.03, abs=0.005) and r["speed_before"] == pytest.approx(0.1, abs=0.005)
+    import random
+    rnd = random.Random(1)
+    noisy = [(t, x + rnd.gauss(0, 0.01), y + rnd.gauss(0, 0.01), 0.0) for t, x, y, _ in obs]   # sim-like 1 cm noise
+    assert analyze_deadman(noisy, 2.0)["stop_time_s"] == pytest.approx(0.3, abs=0.12)
+    moving = [(i / 30, 0.1 * i / 30, 0.0, 0.0) for i in range(120)]
+    assert analyze_deadman(moving, 2.0)["result"] == "still_moving"
+    assert analyze_deadman([(i / 30, 0.0, 0.0, 0.0) for i in range(120)], 2.0)["result"] == "never_moved"
+
+
+def test_metrics_counts():
+    from fc.core import Pose, RobotObs, World
+    m = Metrics(["blue"], 0.0, 0, {"blue": {"sent": 10, "acks": 10}})
+    for i in range(60):
+        t = i / 30
+        w = World(t, None, {"blue": RobotObs("blue", Pose(0.01 * i, 0, 0), t)})
+        wz = 0.5 if (i // 10) % 2 == 0 else -0.5                      # reversal every 1/3 s
+        m.tick(t, w, {"blue": (0.0 if i > 50 else 0.2, 0, wz if i < 40 else 1.0, "stale" if 20 <= i < 25 else "x")}, 0.5,
+               {"blue": {"imu": {"level": "warn" if i == 7 else "ok"}}}, [{"r": "blue", "rtt": float(i)}])
+    s = m.summary(2.0, 3, {"blue": {"sent": 70, "acks": 67}})["robots"]["blue"]
+    assert s["path_m"] == pytest.approx(0.59, abs=1e-6) and s["stale_stops"] == 1 and s["wz_reversals"] == 4
+    assert s["fast_reversals"] == 3 and s["imu_worst"] == "warn" and s["loss"] == pytest.approx(0.05)
+    assert s["rtt_p95_ms"] == 57.0 and s["spin_frac"] == pytest.approx(9 / 60, abs=1e-3)
+
+
+def test_eye_reads_mount_knobs_live():
+    """eye_* edits apply on the next frame: no restart. Needs OpenCV (.venv-fc); skipped otherwise."""
+    pytest.importorskip("cv2")
+    np = pytest.importorskip("numpy")
+    from fc.core import load_field
+    from fc.eye import Eye
+    robots, _ = load_robot_config()
+    params = {**fcapp.PARAM_FALLBACKS}
+    eye = Eye(load_field(), robots, params, source="recorded.mov")   # not started: no camera opened
+    c = np.array([[0.1, 0.6], [0.1, 0.4], [-0.1, 0.4], [-0.1, 0.6]])  # tag top edge points +x
+    x, y, yaw = eye.tag_pose(c, eye.mount())
+    assert yaw == pytest.approx(0.0) and x == pytest.approx(-0.065) and y == pytest.approx(0.5)
+    params["eye_yaw_offset_deg"] = -180.0
+    params["eye_tag_offset_x"] = 0.0
+    x, y, yaw = eye.tag_pose(c, eye.mount())
+    assert abs(yaw) == pytest.approx(math.pi) and x == pytest.approx(0.0)
+
+    class P:
+        reasons = []
+
+        def invalidate_calibration(self, why):
+            self.reasons.append(why)
+
+    eye.perc = P()
+    eye._apply_floor_size(eye.mount()["floor_size"])
+    assert not eye.perc.reasons
+    params["eye_floor_size"] = 0.17
+    eye._apply_floor_size(eye.mount()["floor_size"])
+    assert eye.cfg["tags"]["floor_size"] == 0.17 and eye.perc.reasons == ["eye_floor_size changed"]
+
+
+def test_loop_error_ends_test(server, monkeypatch):
+    app, base = server
+    post(base, "/action", {"action": "go"})
+    monkeypatch.setattr(app, "_check_test", lambda w, n: 1 / 0)
+    assert wait(lambda: state(base)["mode"] == "idle", 2)
+    assert state(base)["last_summary"]["result"] == "loop_error"
+
+
+def test_step_edge_abort_reports(server):
+    app, base = server
+    app.field = replace(app.field, length=0.2, width=0.2)      # every pose is "outside" -> edge abort
+    post(base, "/action", {"action": "test", "test": "step", "robot": "blue", "vx": 0.2, "seconds": 1})
+    assert wait(lambda: state(base)["mode"] == "idle", 4)
+    assert state(base)["last_summary"]["result"] == "edge"

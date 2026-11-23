@@ -38,3 +38,5 @@ Offline camera rehearsal: add `--video synthetic --no-link --dry-run-ops`. Detai
 3. Add app test knobs (`test_timeout_s`, `match_s`, `goalie_shot_s`, `goto_*`, `stale_stop_s`, `teleop_timeout_s`) to params.json so presets are complete.
 4. robots.json: red has no host; set it before 2-robot floor tests.
 5. `config/presets/` will be created by the UI; decide whether presets are committed.
+
+_Update (review fixes): the stub brain/sim fallbacks were removed; an import failure now stops the app._

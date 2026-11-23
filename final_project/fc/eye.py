@@ -166,17 +166,17 @@ class Eye:
         self.field, self.robots, self.params = field, robots, params
         self.source_name = str(source)
         cfg = load_config(None)
-        synthetic = self.source_name == "synthetic"
-        cfg["tags"]["floor_size"] = 0.15 if synthetic else params.get("eye_floor_size", 0.15875)
+        self.synthetic = self.source_name == "synthetic"
         cfg["ball"]["radius"] = field.ball_radius
         cfg["field"]["goal_width"] = field.goal_width
         cfg.pop("field_setup", None)
         set_field_size(cfg, field.length, field.width)
+        mount = self.mount()
+        cfg["tags"]["floor_size"] = mount["floor_size"]
         cfg["robots"] = {r.id: {
             "tag_id": r.tag, "attacks": "east" if r.team == "blue" else "west",
-            "tag_height": 0.18 if synthetic else params.get("eye_tag_height", 0.24),
-            "tag_offset": np.array([0.0 if synthetic else params.get("eye_tag_offset_x", 0.065), 0.0]),
-            "yaw_offset": 0.0 if synthetic else math.radians(params.get("eye_yaw_offset_deg", 0.0)),
+            "tag_height": mount["tag_height"], "tag_offset": np.array([mount["tag_offset_x"], 0.0]),
+            "yaw_offset": mount["yaw_offset"],
         } for r in robots}
         self.cfg = cfg
         self._lock = threading.Lock()
@@ -194,6 +194,23 @@ class Eye:
         self.src_size = (width, height)
 
     # ---- setup -------------------------------------------------------------------
+    def mount(self) -> dict:
+        """Tag mount knobs, read from the live params dict on every frame so UI edits apply at
+        once. The synthetic renderer has its own fixed geometry."""
+        if self.synthetic:
+            return {"floor_size": 0.15, "tag_height": 0.18, "tag_offset_x": 0.0, "yaw_offset": 0.0}
+        p = self.params
+        return {"floor_size": float(p.get("eye_floor_size", 0.15875)), "tag_height": float(p.get("eye_tag_height", 0.24)),
+                "tag_offset_x": float(p.get("eye_tag_offset_x", 0.065)),
+                "yaw_offset": math.radians(float(p.get("eye_yaw_offset_deg", 0.0)))}
+
+    def _apply_floor_size(self, size: float) -> None:
+        """A changed corner-tag size changes the whole calibration: recalibrate."""
+        if self.perc is not None and abs(self.cfg["tags"]["floor_size"] - size) > 1e-6:
+            self.cfg["tags"]["floor_size"] = size   # perc.cfg is this same dict
+            self.perc.invalidate_calibration("eye_floor_size changed")
+            self._next_cal = 0.0
+
     def _open_source(self):
         s, (w, h) = self.source_name, self.src_size
         if s == "synthetic":
@@ -322,6 +339,8 @@ class Eye:
     def process(self, frame, t_recv: float) -> World | None:
         np, perc = self.np, self.perc
         now = time.monotonic()
+        mount = self.mount()
+        self._apply_floor_size(mount["floor_size"])
         t_cap = t_recv - (self.params.get("eye_latency_s", 0.12) if self.src.latency else 0.0)
         if not perc.calibration_valid and now >= self._next_cal:
             self._next_cal = now + 0.5
@@ -344,13 +363,8 @@ class Eye:
             tag = tags.get(rc["tag_id"])
             if tag is None:
                 continue
-            c = cam.pixel_to_plane(tag, rc["tag_height"])  # TL, TR, BR, BL
-            fwd = (c[0] + c[1]) / 2 - (c[3] + c[2]) / 2
-            yaw = wrap(math.atan2(fwd[1], fwd[0]) + rc["yaw_offset"])
-            cy, sy = math.cos(yaw), math.sin(yaw)
-            ctr, (ox, oy) = c.mean(axis=0), rc["tag_offset"]
-            x, y = ctr[0] - (cy * ox - sy * oy), ctr[1] - (sy * ox + cy * oy)
-            self._last[rid] = RobotObs(rid, Pose(float(x), float(y), yaw), t_cap)
+            x, y, yaw = self.tag_pose(cam.pixel_to_plane(tag, mount["tag_height"]), mount)
+            self._last[rid] = RobotObs(rid, Pose(x, y, yaw), t_cap)
         robots = {k: v for k, v in self._last.items() if t_cap - v.t < KEEP_ROBOT_S}
         ball = None
         px = perc.debug.get("ball_px")
@@ -370,6 +384,15 @@ class Eye:
                     vy = float((ts * np.array([b[2] for b in self._balls])).sum() / d)
             ball = Ball(bx, by, vx, vy, t)
         return World(now, ball, robots)
+
+    @staticmethod
+    def tag_pose(c, mount: dict) -> tuple[float, float, float]:
+        """Robot body pose from the tag's floor-plane corners (TL, TR, BR, BL at tag height):
+        tag top edge = nose direction + yaw_offset; body centre tag_offset_x behind the tag."""
+        fwd = (c[0] + c[1]) / 2 - (c[3] + c[2]) / 2
+        yaw = wrap(math.atan2(fwd[1], fwd[0]) + mount["yaw_offset"])
+        ctr, ox = c.mean(axis=0), mount["tag_offset_x"]
+        return float(ctr[0] - math.cos(yaw) * ox), float(ctr[1] - math.sin(yaw) * ox), yaw
 
     def _annotate(self, frame, world: World | None) -> bytes | None:
         cv2 = self.cv2
@@ -435,6 +458,7 @@ class Eye:
         return {"source": self.source_name, "message": self.message, "frames": self.frames,
                 "fps": round(self.fps, 1), "calibrated": bool(self.perc and self.perc.calibration_valid),
                 "hfov_deg": self.hfov, "calib_err_px": self.perc.calib_err_px if self.perc else None,
+                "mount": self.mount(),
                 "robots_age": {k: round(now - v.t, 3) for k, v in (w.robots.items() if w else [])},
                 "ball_age": round(now - w.ball.t, 3) if w and w.ball else None}
 
@@ -448,13 +472,14 @@ def main(argv=None) -> None:
     """Offline check: run the Eye on a source and print what it sees (and the error vs truth
     for the synthetic source)."""
     import argparse
-    from .core import load_field, load_params, load_robots
+    from .app import PARAM_FALLBACKS, load_robot_config
+    from .core import load_field, load_params
     ap = argparse.ArgumentParser()
     ap.add_argument("--source", default="synthetic", help="synthetic | video file | image folder | camera name")
     ap.add_argument("--seconds", type=float, default=8.0)
     ap.add_argument("--save", default=None, help="write the last annotated frame here (jpg)")
     a = ap.parse_args(argv)
-    eye = Eye(load_field(), load_robots(), load_params(), source=a.source).start()
+    eye = Eye(load_field(), load_robot_config()[0], {**PARAM_FALLBACKS, **load_params()}, source=a.source).start()
     t_end, errs = time.monotonic() + a.seconds, []
     while time.monotonic() < t_end:
         time.sleep(0.5)
