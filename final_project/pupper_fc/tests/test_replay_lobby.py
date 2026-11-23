@@ -529,7 +529,13 @@ def test_source_identity_reports_release_stamp_git_head_or_unknown(tmp_path):
     bare = tmp_path / "bare"
     bare.mkdir()
     assert source_identity(bare)["kind"] == "unknown"
-    root = Path(teleop.__file__).resolve().parents[2]
+    # Git identity is tested in its own repository so this check also works in
+    # an installed archive, whose correct identity is its release stamp.
+    root = tmp_path / "git-source"
+    subprocess.run(["git", "init", "--quiet", "--template=", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "-c", "user.name=FC test", "-c", "user.email=fc-test@example.invalid",
+                    "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", "commit", "--quiet",
+                    "--allow-empty", "-m", "Source identity fixture"], check=True)
     head = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
     current = source_identity(root)
     assert current["kind"] == "git" and current["commit"] == head and type(current["dirty"]) is bool
