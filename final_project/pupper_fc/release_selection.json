@@ -13,15 +13,17 @@
     "stop": "pupperv3-monorepo/ros2_ws/src/joy_utils",
     "overhead": "final_project/overhead_perception/fieldcam",
     "local_ball": "Recovered u6 Ball Eye geometry; integration pending",
-    "planner": "FC continuous approach with selected Tej aim calculations; integration pending",
+    "planner": "final_project/behaviors/live_field_attack.py -> shared FC Executor; Pitch v2 and independent tactics preserved separately, not integrated",
     "laptop": "pupper-fc -> final_project.pupper_fc.teleop:create_app",
     "build_recipe": "foundation/hardware/build_native_candidate.sh",
-    "release_assembler": "foundation/hardware/fc_walk_kick_release.py"
+    "release_assembler": "foundation/hardware/fc_walk_kick_release.py",
+    "runner": "final_project/behaviors/combined_fc_runner.py:RunnerSession -> gemini_pupper.robot.fc_walk_kick.CombinedRuntime",
+    "candidate_native_profile": "strict (not selected on live Pi)"
   },
   "qualification": {
-    "software": "in_progress",
+    "software": "software_checkpoint2_ideal_capture_rehearsal_only",
     "physical": "unqualified",
-    "target_build": "baseline_driver_passed_full_pair_pending",
+    "target_build": "baseline_gateway_controller_passed; strict_candidate_functional_checks_passed_but_unaccepted_for_release",
     "selected_live_pi_release_changed": false
   },
   "excluded_live_owners": [
@@ -38,8 +40,8 @@
     "Source selection is not a built or deployed release identity.",
     "Match and Tej branches remain preserved; changes are selected individually.",
     "Model hashes and target library identities belong to the final staged manifest.",
-    "Missing Mac footage and incomplete local raw Pi archive remain outstanding.",
-    "Current laptop match helper/gateway contract still needs a coherent selected source closure; baseline driver build does not establish complete pair compatibility."
+    "Original Pi recordings are locally complete and hash-verified; missing Mac footage remains outstanding.",
+    "Strict helper/gateway/runner sources integrated at36ad531; complete inactive staged pair and final target chain remain pending. Strict driver candidate is preserved separately with functional evidence and non-green lint."
   ],
   "selected_models": {
     "walker": {
@@ -49,6 +51,13 @@
     "leg_kick": {
       "path": "gemini_pupper/tricks/operator/leg_kick/policy.json",
       "sha256": "9c841f2680d0747cb4fd484bd99218e2f661ac5e4257076f0a8027a76e22fc81"
+    },
+    "local_ball": {
+      "recovered_path": "outputs/pupper-fc-reconcile-20261122/pi/.config/gemini-pupper/ball_eye.onnx",
+      "sha256": "ae3a4592a59b3b30957f5a42b6e1f87495e61c7e2efd9b963670abcd590a827c",
+      "bytes": 12647163,
+      "training_provenance": "unrecovered",
+      "target_compatibility": "CPU load and saved synthetic inference passed; final adapter and physical accuracy unqualified"
     }
   },
   "baseline_driver_build": {
@@ -57,5 +66,12 @@
     "architecture": "aarch64",
     "receipt": "outputs/pupper-fc-phase4-20261122/runtime/checkpoint1-summary.json",
     "result": "build/link and 58 device-free fixture tests passed; inactive private prefix"
+  },
+  "target_evidence": {
+    "gateway": "outputs/pupper-fc-phase4-20261122/runtime/gateway-summary.json",
+    "controller": "outputs/pupper-fc-phase4-20261122/runtime/controller-summary.json",
+    "source_integration": "foundation/results/fc-phase4-runtime-integration-20261122.json",
+    "local_ball_model": "outputs/pupper-fc-phase4-20261122/runtime/ball-eye-compat/receipt.json",
+    "strict_driver_candidate": "foundation/results/fc-phase4-preserved-candidates-20261123.json"
   }
 }

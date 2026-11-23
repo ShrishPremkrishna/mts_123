@@ -1,0 +1,196 @@
+{
+  "schema": "pupper_fc_software_checkpoint_v1",
+  "as_of": "2026-11-23",
+  "status": "accepted software checkpoint; user requested closure; full offline rebuild incomplete",
+  "source_commit": "c58ff09a75acebc8cccd7788f2340bd5759f5a80",
+  "accepted_branch": "codex/pupper-fc-phase2",
+  "unaccepted_branch": "codex/pupper-fc-phase4-unaccepted-20261123",
+  "unaccepted_commit": "05fd01422a9a082dd2babc1c5c065ed3b9460618",
+  "publication_remote": "https://github.com/ShrishPremkrishna/mts_123.git",
+  "ui": {
+    "schema": "pupper_fc_browser_review_v1",
+    "recorded_utc": "2026-11-23T09:04:05.762182+00:00",
+    "accepted_checkpoint": true,
+    "acceptance_scope": "Usable synthetic shared-runner checkpoint; complete product and physical capability not accepted",
+    "source_commit": "c58ff09a75acebc8cccd7788f2340bd5759f5a80",
+    "root": "/private/var/folders/7c/__k49cw562d4txf0dslj1wcm0000gn/T/pupper-fc-checkpoint2-final-xi_44e3p",
+    "archive_sha256": "706e32c4a241ae3a7aa86fbcc87a682095e7eee8fc50dfb765b5a59ccbeec133",
+    "mode": "replay",
+    "physical_qualified": false,
+    "browser": "Chrome via CUA",
+    "viewports": [
+      "default desktop",
+      "390x844 then reset"
+    ],
+    "observed": [
+      "Exact c58ff09 release identity and explicit synthetic/physical-unqualified labels",
+      "Home/Field/Robot/Settings/Play navigation; rendered six-tag field and measured ball/robot overlays",
+      "Actual shared runner Blue goal1\u20130, returnhome, explicit Placeball, Resume-ready, Resume, secondgoal2\u20130",
+      "End with outside ball disables Start; explicit recenter restores kickoff",
+      "Teleop restart with500ms W, idle zero output,400ms S re-engagement and continued connection",
+      "Two real synthetic runner participants, dedicated two-feed-unavailable layout, goal1\u20130, both terminalStop",
+      "New epoch visibly dates previous kick receipts",
+      "Finalc58 snapshot End shows Standby when explicitly nonterminal; Start remainsavailable",
+      "End during syntheticnativekick requests terminalStop and explains native-action interruption; explicitreconnectworks",
+      "Finalc58 mobile Stop visible and effective, Home/Play fit390px width",
+      "Settings offline check passes visibly and exposes ideal-capture timing limitation",
+      "Saved live-shaped kick edge displays through same archived UI adapter without rich telemetry; separately labeled fixture, not physicalreceipt",
+      "No browser consoleerrors/warnings; deliveredapp idle withnoteams"
+    ],
+    "checks": {
+      "development_after_expiry_fix": "77Python+4Nodepassed uncapped",
+      "immutable_68bd548": "76Python+4Nodepassed; one source-identity test incorrectly assumed Git checkout",
+      "final_c58ff09": "IsolatedGitfixture identitytest1passed;4Node+syntaxpassed; finalbrowserEnd/Stop/source/mobilechecks passed",
+      "changes_after_68bd548": [
+        "final_project/pupper_fc/static/controls.mjs",
+        "final_project/pupper_fc/tests/test_replay_lobby.py"
+      ],
+      "task_kill_timeouts": false,
+      "logs": [
+        "checkpoint2-immutable-tests.log",
+        "checkpoint2-final-checks.json",
+        "checkpoint2-final-identity.log",
+        "checkpoint2-final-node.log"
+      ]
+    },
+    "screenshots": {
+      "checkpoint2-final-home.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-final-home.jpg",
+        "sha256": "7bc76537a1fc4d63dbdc48778c397d9a35c1deb05b80a82dfc6fea5c862a13b1",
+        "source_commit": "c58ff09a75acebc8cccd7788f2340bd5759f5a80",
+        "fixture": false
+      },
+      "checkpoint2-final-mobile-home.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-final-mobile-home.jpg",
+        "sha256": "16545235bf5eb69661092c92a9415f656f4e782dabb49c06a6e2b13f15685232",
+        "source_commit": "c58ff09a75acebc8cccd7788f2340bd5759f5a80",
+        "fixture": false
+      },
+      "checkpoint2-final-mobile-play.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-final-mobile-play.jpg",
+        "sha256": "71cc8b9f58b51275a1a1f0344888bf87facf01ff5c4d46de451a7335046fe28f",
+        "source_commit": "c58ff09a75acebc8cccd7788f2340bd5759f5a80",
+        "fixture": false
+      },
+      "checkpoint2-final-settings.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-final-settings.jpg",
+        "sha256": "b5ea0407724ce28e76660d593f35cbd93f1d2430059ee15b0d7fb92202c0c734",
+        "source_commit": "c58ff09a75acebc8cccd7788f2340bd5759f5a80",
+        "fixture": false
+      },
+      "checkpoint2-final-standby.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-final-standby.jpg",
+        "sha256": "c4485761f5585252e753f0282e1fe92dd32560033b0f53492d2959e268e05586",
+        "source_commit": "c58ff09a75acebc8cccd7788f2340bd5759f5a80",
+        "fixture": false
+      },
+      "checkpoint2-frozen-field.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-frozen-field.jpg",
+        "sha256": "65f043f493fd2a43f87eb62537c472114ae3da63e253dc334d97274ce903219c",
+        "source_commit": "68bd548c0376c9027bf75f7f90ea64c7e5b35fd0",
+        "fixture": false
+      },
+      "checkpoint2-frozen-goal.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-frozen-goal.jpg",
+        "sha256": "49484f5d2bc6b57c610a856ae3bbe81fc12f898c419b60aa0ce948e8422ce7b2",
+        "source_commit": "68bd548c0376c9027bf75f7f90ea64c7e5b35fd0",
+        "fixture": false
+      },
+      "checkpoint2-frozen-home.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-frozen-home.jpg",
+        "sha256": "e88e4eb24c474df0a66ec5e6ef951df69e585849fdae9948b2c1d34e4c1bd887",
+        "source_commit": "68bd548c0376c9027bf75f7f90ea64c7e5b35fd0",
+        "fixture": false
+      },
+      "checkpoint2-frozen-resume-ready.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-frozen-resume-ready.jpg",
+        "sha256": "cd8c760257428cfb5dcdbfb4ce16a91919e60e7881dd4f72ddae1cfdd2d210df",
+        "source_commit": "68bd548c0376c9027bf75f7f90ea64c7e5b35fd0",
+        "fixture": false
+      },
+      "checkpoint2-frozen-second-goal.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-frozen-second-goal.jpg",
+        "sha256": "5b130b42ff2ceec9fa23d01e1b9c963d603d698f8b6392d5182b5dbb670641d9",
+        "source_commit": "68bd548c0376c9027bf75f7f90ea64c7e5b35fd0",
+        "fixture": false
+      },
+      "checkpoint2-frozen-stop.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-frozen-stop.jpg",
+        "sha256": "cd8a8ba6718b968fc7aae797a463348c887cbf5d2afa49ea1799a7a1fc671c84",
+        "source_commit": "68bd548c0376c9027bf75f7f90ea64c7e5b35fd0",
+        "fixture": false
+      },
+      "checkpoint2-frozen-two-teams.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-frozen-two-teams.jpg",
+        "sha256": "516e526a0222d3283f05ac5024839e9a51d338affb164aaa619a3a4b368bae48",
+        "source_commit": "68bd548c0376c9027bf75f7f90ea64c7e5b35fd0",
+        "fixture": false
+      },
+      "checkpoint2-live-edge-fixture.jpg": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint2-live-edge-fixture.jpg",
+        "sha256": "14dd12a4384ea0aedec891609861242171be38810dd3341c1bc0d419d5ba1060",
+        "source_commit": "c58ff09a75acebc8cccd7788f2340bd5759f5a80",
+        "fixture": true
+      }
+    },
+    "asset_sha256": {
+      "final_project/pupper_fc/static/index.html": "b4642ba3bd3d48225b6b622c675dd5787305eb77ea0609cc87abf258bdd40b4e",
+      "final_project/pupper_fc/static/drive.mjs": "dd6ea0ad506c0fbf87b83fa15033ef4726d1ee86e5b7016cf4ba8a0c15b27282",
+      "final_project/pupper_fc/static/controls.mjs": "e8f562cf697eb84f52325c7ad5ae6a383be07ad9bce86d715a9cf7a481a0fa45",
+      "final_project/pupper_fc/static/controls.css": "49e37774ab7ab9b147508534800ed1547e28c4c6426bcca16b3196fb24cf75cd",
+      "final_project/pupper_fc/static/arena.webp": "851c0547572e4b6c84213167827749e3c96224b9ebf031b9f4960f72d97b6035",
+      "final_project/pupper_fc/static/style.css": "332037d29f3ed0e35c96b1bbc8eee53c26153866e7755eb7e630688c902c93ee",
+      "final_project/pupper_fc/static/kick_view.mjs": "560e097e762a50b95f5a7bbb6e9ee04384c4f4705f9d08e7c093b06bbdb9f12d",
+      "final_project/pupper_fc/static/controls.html": "3b97eec40891dc42005a36630a97299615df62263025b9b12dc2aa3e57ad33ea",
+      "final_project/pupper_fc/static/app.js": "bfb132297aea339ea20db64c5acd26696917cc84668d5b4de1f64b21aefac5c1"
+    },
+    "processes": {
+      "delivered_app": {
+        "url": "http://127.0.0.1:8877",
+        "launcher_pid": 83697,
+        "server_pid": 83707,
+        "exec_session": 79666,
+        "command": "PUPPER_FC_PYTHON=/Users/shrish/.codex/worktrees/fc-teleop/cs123/.venv-fc/bin/python ./pupper-fc --mode replay --no-open --port 8877",
+        "cwd": "/private/var/folders/7c/__k49cw562d4txf0dslj1wcm0000gn/T/pupper-fc-checkpoint2-final-xi_44e3p"
+      },
+      "closed": [
+        {
+          "purpose": "checkpoint1preview8876",
+          "launcher_pid": 46990,
+          "server_pid": 47000,
+          "exec_session": 52458,
+          "exit": 130
+        },
+        {
+          "purpose": "initialcandidate8877",
+          "launcher_pid": 80741,
+          "exec_session": 9359,
+          "exit": 130
+        },
+        {
+          "purpose": "savedliveedgefixture8878",
+          "pid": 84081,
+          "exec_session": 4780,
+          "exit": 0
+        }
+      ],
+      "replay_robot_children": [],
+      "provider_sessions": "All UI Claude jobs completed naturally; no queued job launched",
+      "browser_tabs": "Only delivered8877 tab retained; old8876 andfixture8878 tabs closed"
+    },
+    "known_limits": [
+      "Ideal-capture timing comparison omits selected0.12s camera delay; timing/native/physical qualification pending",
+      "Home order, Settings position and kitart pending; generated kitasset notused",
+      "Onboardfeeds unavailable placeholders; transport/recording/experiments pending",
+      "Geometryv2 and independentopponent changes remain separately unaccepted",
+      "Synthetic board/guard/ROS/native/playback/walker I/O; Home/standing skipped; receipts donotobservecontact"
+    ]
+  },
+  "preserved_candidates": "foundation/results/fc-phase4-preserved-candidates-20261123.json",
+  "handoff": "final_project/REBUILD_HANDOFF_20261123.md",
+  "physical_qualified": false,
+  "selected_live_pi_release_changed": false,
+  "timing": "Actual fixture activation exceeded claimed start_before by11\u201346ms; no end-to-end repair accepted; Fable reference patch unapplied",
+  "process_state": "All implementation/provider jobs closed or explicitly paused. Only immutable8877 app retained idle with no participants; no automatic queued continuation.",
+  "evidence_policy": "Raw archives/provider logs remain local under outputs; compact identities and results published. Simulation/mocks do not complete physical milestones."
+}

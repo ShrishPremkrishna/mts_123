@@ -1,12 +1,27 @@
 # PupperFC rebuild plan — Phase 4 execution
 
-Updated November 22, 2026. Phase 4 implementation is authorized and underway in usable checkpoints. Offline work, including isolated no-device work on the powered Pi, comes first. Physical tests are separated below; their batching and scheduling are deferred. The packages below define acceptance, not completed implementation or hardware qualification. The [architecture review](../foundation/results/fc-architecture-review-20261122.md) explains the changes; the [brief](README.md) owns the product vision and the [checkpoint](../foundation/results/interruption-recovery.json) owns current activity.
+Updated November 23, 2026. Phase 4 is paused after a usable software checkpoint at the user's request; future implementation requires a resumed task. Offline work, including isolated no-device work on the powered Pi, comes first. Physical tests are separated below; their batching and scheduling are deferred. The packages below define acceptance, not completed implementation or hardware qualification. The [architecture review](../foundation/results/fc-architecture-review-20261122.md) explains the changes; the [brief](README.md) owns the product vision and the [checkpoint](../foundation/results/interruption-recovery.json) owns current activity.
 
 ## Intended result
 
 One command launches the complete Mac app. Home/Field/Robot/Settings/Play, calibration, per-robot teleop, experiments, recordings and recovery use the same maintained operations. A compatible Pi candidate runs one continuous execution path per robot with the existing finite foot kick and independent native Stop. Field and onboard observations retain their actual meaning; persistent calibration does not change during play. Both opponents can choose offense or standing defense independently.
 
 At the end of offline work, this system is integrated, tested through the actual UI, built for the actual Pi and staged without activation. Simulated behavior and device-free native checks are labeled as such. Physical accuracy, stable standing, contact and real matches remain unqualified until the separate tests pass.
+
+## Delivery status
+
+**Delivered software checkpoint:** source `c58ff09` is the frozen production-runner rehearsal with dedicated Play, rendered overhead perception, goal/reset/Resume, teleop and terminal Stop/reconnect. It is an ideal-capture synthetic comparison, not acceptance of the selected camera-delay/native-entry contract or physical behavior. The [closing handoff](REBUILD_HANDOFF_20261123.md) and [checkpoint evidence](../foundation/results/fc-phase4-checkpoint2-20261123.json) identify the exact verified scope.
+
+**Preserved shared-primitive work, no longer active:** canonical Pitch/goal geometry, independent tactics and motion-qualified prediction, Ball Eye metric admission, native fault handling and the selected native-chain harness are preserved on `codex/pupper-fc-phase4-unaccepted-20261123` at `05fd01422a9a082dd2babc1c5c065ed3b9460618`. Their [manifest](../foundation/results/fc-phase4-preserved-candidates-20261123.json) separates source from acceptance. Native Pi functional and C++/Python wire checks passed, but lint is non-green and final target-chain/pair acceptance remains pending. Timing measurements showed actual native activation after the claimed deadline; no end-to-end correction is accepted. All provider work is finished or explicitly paused, and queued implementation must not auto-resume.
+
+**Still required offline:** none of the following is dropped by the backend work:
+
+- Finish the coherent Pitch v2 setup/producer/ingress/planner/referee switch, measured goal-front and nominal-mouth display, variable field/marker setup, and Field Finish returning Home. Complete near-ball comparison and the actual optional local consumer while keeping unmeasured live budgets disabled.
+- Finish Home's Blue/Field/Red connection flow, upper-right Settings, soccer presentation, dedicated Play with the overhead image and each participant's onboard feed, readable pose/target/age and real kick/Stop receipts. Validate saved/synthetic images through the same read-only feed adapter; absent live cameras must remain visibly absent.
+- Add recording and export through shared app operations, including original observation/event timing, source/model/profile identity, raw and processed images, drop/flush/completeness receipts and credential exclusion. Then expose calibration, lifecycle, teleop, stationary/changing-ball kick, loss/reacquisition, rolling interception, one-robot standing-defense and second-robot experiment controls through the UI.
+- Complete independent two-opponent attack/defense, clearance, held/lost-peer and goal/reset/resume scenarios using the production executor. Freeze a standalone Mac package and complete inactive Pi source/model/native pair, verify selected executable/message/policy and health-wire boundaries, close evidence, and run the final frozen app's browser and affected regression checks. Robot two's absence does not block its offline software path.
+
+**Physical-only qualification:** P1–P6 below still require the user's setup and observations: actual geometry/latency/error, Home/Stand/jitter diagnosis, movement/braking and interruption bounds, contact/recovery, rolling defense and a second physical robot. Preparing their UI operations and recording flows is required offline; performing them is not authorized in this block. Missing Mac footage is recorded as a gap, while the original Pi recordings are locally complete and hash-verified.
 
 ## What “offline, including the Pi” means
 

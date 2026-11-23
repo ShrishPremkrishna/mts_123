@@ -1,0 +1,304 @@
+{
+  "status": "unaccepted source preservation, not release or physical qualification",
+  "base_commit": "c58ff09a75acebc8cccd7788f2340bd5759f5a80",
+  "branch": "codex/pupper-fc-phase4-unaccepted-20261123",
+  "files_sha256": {
+    "final_project/behaviors/combined_fc_runner.py": "2d2caff40d7a2861f48973b9bb5b07c9d7de2c696f4cba6bc0eacf85f6becb2b",
+    "final_project/behaviors/live_field_attack.py": "55d0df6258ba52b948b4b5bea92a8bf6e062fa5550cea3b9a7a70b1ccad7f6ac",
+    "final_project/behaviors/overhead_ingress.py": "fe858687eb8c93a20b8d2701214d86ad12a2f29d6c71d5a9ee2497fc12edc066",
+    "final_project/behaviors/test_independent_match.py": "a3bc8e861528f61d26b95ff9cfa07fde28e6c5a8aceb7646fb6caa3067647c95",
+    "final_project/behaviors/tools/walk_kick_wire/client.py": "0e7b7a8ea951deca646b631b54343fb1adcf837db1e39740108def01876d0eda",
+    "final_project/behaviors/tools/walk_kick_wire/controllers.cpp": "6566ad36fda3c70ead3bf4ab9cdfb44d6278e5ea52c174da0242deaa23853f72",
+    "final_project/behaviors/tools/walk_kick_wire/run.py": "438c1dcf0052ed20c5d7416d15b08d7ac74364eeab75f991fe00f403dd5708a5",
+    "final_project/behaviors/tools/walk_kick_wire/test_walk_kick_wire.py": "d1112b81884c390249aef98d9b16d447d3ff3377943d3c6ddaf5d38a91a7e41e",
+    "final_project/overhead_perception/fieldcam/pitch.py": "778954615d71a4dc3747df22a35ef83b0f4690bfb85e4a114ac2dbf19d63de9d",
+    "final_project/overhead_perception/tests/test_pitch.py": "fd045cedf351683b6b681ec39f6d1577b0026d6efcccf61932bd1c718cf01cf0",
+    "final_project/perception/README.md": "c6b0f7f4f5c2c12c9da08738582d0a3a9a392259bad7c6abffe90d29a92055c1",
+    "final_project/perception/compare_onboard_ball.py": "52b955d27aa748c58ac80120edcbf6880d237680de4278a21b940c80cfe06dd0",
+    "final_project/perception/rehearse_local_docking_seam.py": "611b7497c9eb5c4879d6c71ff8c12a51372902151c8c99e4f438fca3786b6445",
+    "final_project/perception/synthetic_ball.py": "ebf53b2c4e46470be0996d3815d005dfa72702f8acf6b9b9b321657e1bc7176d",
+    "final_project/pupper_fc/controller.py": "e2e1f6ebf505cc6124724ab278af94f723c3f11bbeaf376fae3637f55f8cc6c8",
+    "final_project/pupper_fc/integration.py": "1323befdcca808feb6b5690eb530350e424483214c7f5265fb4aa315509b764b",
+    "final_project/pupper_fc/local_ball.py": "2ac298fb6c0022b0a5c41ec8d5b0491ef459720397b2bc86e56715e3646ea87d",
+    "final_project/pupper_fc/match_director.py": "09230009fa9ad5eff9c54d5a9cd37daa92a28835315ff3dd920174093eb5fc96",
+    "final_project/pupper_fc/model.py": "cd9d4c4f26fd9a60d737e3dffb2e1b8bf6ff04e9ca8460a81313a552d4027e18",
+    "final_project/pupper_fc/simulation.py": "4142f4371856120a68d5dd4f80305d59e36978d7e6ce46368fa391069380a46f",
+    "final_project/pupper_fc/tactics.py": "a7e81cee0c6cb3a3ab32dcba704f26f9e94c0ba605b8278bc246ac827519562b",
+    "final_project/pupper_fc/tests/test_external_hold.py": "9737048ee93d7562205c3765948eec242ff02d07487e0321efbb177fa7b44087",
+    "final_project/pupper_fc/tests/test_local_ball.py": "6005a41eb1b54756d9207868d0056961059d08534c7b3b479c5698edaad4cfc5",
+    "final_project/pupper_fc/tests/test_pitch_tactics.py": "a4f7ab6dbed9188b4dd539e7b6eb98dbfb348bf85a2664a2dc5c2c8c6abb7df6",
+    "final_project/pupper_fc/tests/test_prediction.py": "6bcb0a3d016f318383f5a825b199768aa3eb90294bec3c105de7eb11526e94e4",
+    "follow_me_pupper/robot/ball_eye.py": "c560ff1e9b20c786e4ccd4d8548428a113172f8ab70afe3688d2a3a085f4f242",
+    "follow_me_pupper/robot/ball_eye_profile.json": "3da4af18a09e346e1d2bb8c2a0931830a77b76c953eb2fc47f23c6497d97a6f7",
+    "follow_me_pupper/robot/onboard_ball.py": "d6af4ee293fc7e1fed5ad7ddf747da453dd1554580a137b97cba892acfd8c13b",
+    "follow_me_pupper/robot/pink_ball.py": "294d3cb038080ed3528a75a30dc76505774e44558c7f17b7e43c7439a16706b1",
+    "follow_me_pupper/robot/viser_camera.py": "b84c0a28e6fd239f31da99bddf9fa6c7841efbe6f04008ce38a9803c28d52914",
+    "foundation/tests/test_ball_eye.py": "85d96d2765a1c46d1e1602813f8a84bab8e71101c8696d681d06537fd34d5998",
+    "foundation/tests/test_onboard_ball.py": "3b7bf84d67dbefd292abea9322b76dbf08cac33cf640e6180e05e164a40cfc9e",
+    "gemini_pupper/tests/test_runner_session.py": "3370cc85b2f133ae2162a7a01e960889277a409558b27406b39ae144c2df7ee6",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/CMakeLists.txt": "22ef4096760865fbae3aa0dffb465649562a8aef3f1b1bbb6a43b3b4608ec1f1",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/README.md": "cf243b6b0f94f864b3add95982dbc34c1127164a23635554452e5e4e32980d87",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/control_board_hardware_interface/board_health.hpp": "eb6b37f6e353c6c8f0cfa818017d27a52dd74379d19b81ddbb1cdca955e19a45",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/control_board_hardware_interface/control_board_hardware_interface.hpp": "c32073d3bdf91875627807f7ac14f60b1e0be1d8e4a3105ec0879fb89be6e884",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/rt/rt_spi.h": "75154ed29684d5be774937565f725266710a55b4f2abe31a0e194987d623ab85",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp": "fb8f04ad4a69d58c0192d92cd78f1d1a20cd195dfe8175c0d76c217d391ccf78",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/imu_manager.cpp": "c51f5d7d25422721677030f11f81f77070752349a0d18dbdbbd3ab2f8594aca5",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/rt/rt_bno055.cpp": "6c6ba4c8a3f23f8bfb77e09a37af34cb6e372b683e75aeffe9dedda4cff945ad",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/rt/rt_spi.cpp": "7de31d927ec7de9820a21ef042fec53e04f9e249a57327cf276197b0e0b2b6e0",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_board_health.cpp": "075dfb25d672301dd26a428f54791b29ee319ccfc4dcfd29536696407eac8def",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_driver_neutral_deactivate.cpp": "ad081e6645ad7e1b18b1a04312e2ce4e8b55ddd8e6bf3863f22cf8b9f626d30b",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_imu_health_guard.cpp": "d2dc315ab781530dab30b2a8b3c13a3f12524f577cd00a4ef438e53499b23105",
+    "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_spi_reply_status.cpp": "3ba68fe4ca4e5d58db54065870e019892ece7243e94e5f9e19c6ba9b1d83ba20"
+  },
+  "reasons": [
+    "Geometry review paused at user closure; nested Fable5.1 mismatch; v2 adapters not integrated",
+    "BallEye consumer/provenance/calibration and release closure unaccepted",
+    "Native functional evidence exists; lint non-green, final target chain and complete inactive pair pending",
+    "Timing reference proposal remains unapplied, no native-entry deadline repair accepted"
+  ],
+  "commit": "05fd01422a9a082dd2babc1c5c065ed3b9460618",
+  "remote": "origin",
+  "publication_ref": "refs/heads/codex/pupper-fc-phase4-unaccepted-20261123",
+  "native_source_freeze": {
+    "release_acceptance": "unaccepted native candidate and diagnostic harness, preserve separately from accepted UI checkpoint",
+    "files_sha256": {
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/.clang-format": "476b752a2f474c39c7960c41bfe7fce08376e2975ee3f17d5386b519aff9fd6c",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/.gitignore": "c5ef1695fa8cc4f00adddd98b24900405acc42d42ac89691b7f5052f82f94dd8",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/.vscode/settings.json": "bb9f7deb4b15e04790d37e3f42620ae07ea044b7761c6491419a0aab326b3505",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/CMakeLists.txt": "22ef4096760865fbae3aa0dffb465649562a8aef3f1b1bbb6a43b3b4608ec1f1",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/LICENSE": "ea6e4090299f08cbb0df581133299735fff677d41738ee207da71dbde09238d4",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/README.md": "cf243b6b0f94f864b3add95982dbc34c1127164a23635554452e5e4e32980d87",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/control_board_hardware_interface.xml": "1076c108bc41be2edb885499fc69c9faaaef86cf73396455707a4e656c3c10c9",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/control_board_hardware_interface/board_health.hpp": "eb6b37f6e353c6c8f0cfa818017d27a52dd74379d19b81ddbb1cdca955e19a45",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/control_board_hardware_interface/control_board_hardware_interface.hpp": "c32073d3bdf91875627807f7ac14f60b1e0be1d8e4a3105ec0879fb89be6e884",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/control_board_hardware_interface/imu_health.hpp": "05aaf42b3d61cdac50498080820ad7daf6b7dbf712ee9e383f7c2904e8d52724",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/control_board_hardware_interface/imu_manager.hpp": "81c80bae724eb29c08eadabfb6f625d14c400b2a38783010f2f22994a677bd1a",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/control_board_hardware_interface/imu_startup_trace.hpp": "2762691a071154aa33e1fc57623f3cd78da60bb32f3069673b2f41f03e94fd12",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/rt/bno_protocol.hpp": "07e1a8479e7dd3ae15e4f0e5073da91348e308b61cb3b37813930eac09a2e573",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/rt/rt_bno055.h": "2044d35214714762b17448b97516fea254ce58c7554a16a0eac37e419209e753",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/include/rt/rt_spi.h": "75154ed29684d5be774937565f725266710a55b4f2abe31a0e194987d623ab85",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/package.xml": "102a5ae92546d8fbd9aed608e000fa479b81668e411ee0b0584dfe13f6a5d1d6",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/control_board_hardware_interface.cpp": "fb8f04ad4a69d58c0192d92cd78f1d1a20cd195dfe8175c0d76c217d391ccf78",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/imu_manager.cpp": "c51f5d7d25422721677030f11f81f77070752349a0d18dbdbbd3ab2f8594aca5",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/rt/rt_bno055.cpp": "6c6ba4c8a3f23f8bfb77e09a37af34cb6e372b683e75aeffe9dedda4cff945ad",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/src/rt/rt_spi.cpp": "7de31d927ec7de9820a21ef042fec53e04f9e249a57327cf276197b0e0b2b6e0",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/imu_to_tf_broadcaster.py": "4a5bcea51e53589b92a09fb6156b0fc266cbfff647616bfb3ed359aa4f9c4c0e",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_bno_cache.cpp": "93a7111cb7d4c9fe1f8c781abe81ef993e3101e6dc8512edd70c3f855317c973",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_bno_protocol.cpp": "eb873a1278a1e6c40f00f3c5e5532baafcffa5266db5d2339d16286b16340010",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_bno_raw_fixtures.hpp": "78158408a138a5a812a035a63d8abe6d1a09951ad81446c4263b1beabf150000",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_board_health.cpp": "075dfb25d672301dd26a428f54791b29ee319ccfc4dcfd29536696407eac8def",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_driver_neutral_deactivate.cpp": "ad081e6645ad7e1b18b1a04312e2ce4e8b55ddd8e6bf3863f22cf8b9f626d30b",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_imu_health_guard.cpp": "d2dc315ab781530dab30b2a8b3c13a3f12524f577cd00a4ef438e53499b23105",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_imu_manager_lifecycle.cpp": "e088cf0468e3067d062aab6a2ba89203a8957843347cd278b3575f7edf76cfa6",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_spi_reply_status.cpp": "3ba68fe4ca4e5d58db54065870e019892ece7243e94e5f9e19c6ba9b1d83ba20",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_spi_zero_encoding.cpp": "9644ae42f5f6e7b01fad347cbdacccd31c47a431e16835e8d1e1841c65a6a3ca",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_state_publisher.launch.py": "1a92ee53bd10f3bc71639f3406a1b7040ab0bbe60843372cb275f5d442fe1273",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_state_publisher.urdf.xacro": "1be2e1fb68ff381463ee0274f88fec5291dc5a47be33821f74eb0e0863da27c7",
+      "pupperv3-monorepo/ros2_ws/src/control_board_hardware_interface/test/test_state_publisher.yaml": "07eeb4b1f633e23c6b74b1cd07fe0a25d970750e83300c66c5ace9320b59513c",
+      "final_project/behaviors/tools/walk_kick_wire/run.py": "438c1dcf0052ed20c5d7416d15b08d7ac74364eeab75f991fe00f403dd5708a5",
+      "final_project/behaviors/tools/walk_kick_wire/client.py": "0e7b7a8ea951deca646b631b54343fb1adcf837db1e39740108def01876d0eda",
+      "final_project/behaviors/tools/walk_kick_wire/controllers.cpp": "6566ad36fda3c70ead3bf4ab9cdfb44d6278e5ea52c174da0242deaa23853f72",
+      "final_project/behaviors/tools/walk_kick_wire/test_walk_kick_wire.py": "d1112b81884c390249aef98d9b16d447d3ff3377943d3c6ddaf5d38a91a7e41e"
+    },
+    "native_manifest_sha256": "63a3690469e843843e75bd9c60d3a7be28c307f4e916dbb7eafaf109df1f88fe",
+    "native_manifest_mismatches": [],
+    "evidence": [
+      "driver-strict-summary.json",
+      "driver-command-gate/findings.json",
+      "native-chain-timing/summary.json",
+      "driver-wire-check/decoder-result.json",
+      "ball-eye-compat/receipt.json",
+      "recording-preservation.json"
+    ],
+    "no_deployment": true
+  },
+  "providers": {
+    "opus-geometry-tactics": {
+      "requested_model": "claude-opus-5-5",
+      "observed_models": [
+        "claude-fable-5-1",
+        "claude-opus-5-5"
+      ],
+      "effort": "high",
+      "elapsed_s": 6313.9,
+      "exit_code": 0,
+      "task_timeout": null,
+      "prompt_sha256": "334bf661c790e453ad533e1a7eacdc570c57fa73628d77ede833f8f2f0e3232b",
+      "errors": [
+        "[ede_diagnostic] result_type=user last_content_type=n/a stop_reason=tool_use"
+      ],
+      "process_closed": true,
+      "status": "gracefully paused under user closing authorization; OS exit0 with null result is not completed review"
+    },
+    "opus-ball-eye": {
+      "requested_model": "claude-opus-5-5",
+      "observed_models": [
+        "claude-opus-5-5"
+      ],
+      "effort": "high",
+      "elapsed_s": 5198.92,
+      "exit_code": 0,
+      "task_timeout": null,
+      "prompt_sha256": "57ab5e33b1a020bdffa61ede185907c03fe96e2d6ab15c6ad6d345eac5b313ae",
+      "errors": [],
+      "process_closed": true,
+      "status": "implementation complete, source preserved unaccepted"
+    },
+    "fable-timing-contract": {
+      "requested_model": "claude-fable-5-2",
+      "observed_models": [
+        "claude-fable-5-2"
+      ],
+      "effort": "high",
+      "elapsed_s": 2193.43,
+      "exit_code": 0,
+      "task_timeout": null,
+      "prompt_sha256": "9599ee42e7c617d702ee039fc0c6d93b6d933907d509339f9e9a10fe3251d8cb",
+      "errors": [],
+      "process_closed": true,
+      "status": "review complete; reference patch unapplied/unaccepted"
+    }
+  },
+  "native_evidence": {
+    "status": "closing validation complete; candidate unaccepted-for-release",
+    "target": {
+      "source_commit": "eeda8dff5e96ac76ab27ca07b59a614480f50979",
+      "source_kind": "frozen workingtree candidate, including uncommitted owned native changes",
+      "manifest_sha256": "0e7091542e22d5c7195fb903c1bfe34e45b0b8271f4b95a1aa01c7d148fa4d34",
+      "files": 33,
+      "archive_sha256": "09d100148a258c9ba7a5f1d84581c038242a1266af615bd37a0df70a4a5af801",
+      "recipe_sha256": "4ab408599ca9181f3f63cd0793d11495100efed61c0506532ae76a37f83fba87",
+      "remote_output": "/home/pi/pupper-fc-source/phase4-20261122-runtime/driver-strict-selected",
+      "local_validation": "final full suite and mutations in progress separately; acceptance requires both"
+    },
+    "target_tests": {
+      "name": "(empty)",
+      "tests": "78",
+      "failures": "0",
+      "disabled": "0",
+      "skipped": "0",
+      "hostname": "mts",
+      "time": "191",
+      "timestamp": "2026-11-23T00:32:49"
+    },
+    "target_exit": 0,
+    "target_library_sha256": "d4d2fcba9cbf2371aab05d7f95d3d7e34418856e9fddf48d516deb66658ba99b",
+    "archive": {
+      "path": "driver-strict-selected-evidence.tar.gz",
+      "bytes": 2029951,
+      "sha256": "f499341bb0e60b233032ce2d31c2e8c9bb0389821beff18367d8528586e525bb",
+      "verified_local": true,
+      "scope": "Collected prefix, configuration/source/environment receipts, logs/syscall traces and Testing output; full build objects remain private on Pi. Immutable source input archive is separate."
+    },
+    "later_source_delta": {
+      "test/test_board_health.cpp": {
+        "target": "370373822606ba56f87765ddbadbbd59b10b37543b5717767867877e6226ebe7",
+        "current": "075dfb25d672301dd26a428f54791b29ee319ccfc4dcfd29536696407eac8def"
+      }
+    },
+    "later_fixture_check": {
+      "collection": "complete",
+      "files_sha256": {
+        "request.json": "4313e5f234440b9a0cfcefc870ee4c913da67dcd9c6be0843287e574011451fb",
+        "ssh-ros-env-exit": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+        "result.json": "75dcfd7536c2bd2233069fac399f64109c7568798e56c0265d2e6ca6e46c1767",
+        "ssh-exit": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
+        "test_board_health.cpp": "075dfb25d672301dd26a428f54791b29ee319ccfc4dcfd29536696407eac8def",
+        "test.log": "ef980eb07f73a289549e82fef2623c6500b27146f464e3e07ab932ccae8e8f3c",
+        "syscalls.64356": "29d50c6fb633dc49972d8ca854afcecf7e4bb5f479cb870f89ccdf6ff854bf31",
+        "test_board_health": "abb71f7496694953f335d8b518eb786f32371df9dbb3f06b771578d0ee7efbfe",
+        "syscalls.64357": "29d50c6fb633dc49972d8ca854afcecf7e4bb5f479cb870f89ccdf6ff854bf31",
+        "compile.log": "400a6099654ee99d5285ad698fa86f5e4096f4e29dbd5608fd399652d5ce5e96",
+        "syscalls.64349": "44af6638dbbe1d30b8151436aba0e6d5fd0b3857fbc67b4da6cec5dff2b30ac3",
+        "remote-ros-env.log": "931ba69c4c6404ebb04c2b72b967de3ddbb7194aca22bfd391228ff9f6a1ecf6",
+        "remote.log": "7421a7bc09660cd4fdd93b44fdcd36a1887289b6f5e846f83e81ce9960c45adc",
+        "link-ros-env.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "test_board_health.cpp.o": "bd440d38e12d23fe1656182696d4380b96dafcab227f491f93c96fa553f39882",
+        "syscalls.64355": "29d50c6fb633dc49972d8ca854afcecf7e4bb5f479cb870f89ccdf6ff854bf31",
+        "link.log": "af8cbd10291d90a1938a57edf9fdaceb0b6d9cf448085b9f32d72efdef991e08"
+      },
+      "device_paths": [
+        "/dev/shm/lttng-ust-wait-8",
+        "/dev/shm/lttng-ust-wait-8-1000"
+      ],
+      "source_delta": "Only test_board_health.cpp cleanup behavior differs from full target build; production objects reused unchanged.",
+      "result": {
+        "exit_code": 0,
+        "initial_link_exit": 1,
+        "initial_link_issue": "Verification command omitted ROS underlay environment; preserved failed log. Retried same link command after sourcing only /opt/ros/jazzy.",
+        "test_sha256": "075dfb25d672301dd26a428f54791b29ee319ccfc4dcfd29536696407eac8def",
+        "binary_sha256": "abb71f7496694953f335d8b518eb786f32371df9dbb3f06b771578d0ee7efbfe",
+        "reused_object_hashes": {
+          "/home/pi/pupper-fc-source/phase4-20261122-runtime/driver-strict-selected/build/CMakeFiles/test_board_health.dir/src/control_board_hardware_interface.cpp.o": "a6cddfa7612c48698363f14da975cf28b6fcc3035b5c25a5ac6cef42411f5eed",
+          "/home/pi/pupper-fc-source/phase4-20261122-runtime/driver-strict-selected/build/CMakeFiles/test_board_health.dir/src/imu_manager.cpp.o": "44d251116ca5d64dd0b0cef4656954f2406db9fcfd3bc12cb3082333806abd03"
+        },
+        "base_source_closure": "0e7091542e22d5c7195fb903c1bfe34e45b0b8271f4b95a1aa01c7d148fa4d34",
+        "task_time_limit": null
+      },
+      "allowed_shared_memory_paths": [
+        "/dev/shm/lttng-ust-wait-8",
+        "/dev/shm/lttng-ust-wait-8-1000"
+      ],
+      "unexpected_device_paths": []
+    },
+    "wire_check": "driver-wire-check/decoder-result.json",
+    "software_outcome": {
+      "command_gate": "NaN and +/-Inf raw position/velocity/effort/kp/kd, and nonfinite float-encoded staged values rejected before bad command transmission. Existing clamps retained. Home staging failure propagates to activation ERROR.",
+      "feedback_gate": "Active invalid SPI mask or nonfinite joint position/velocity faults before invalid feedback is copied; exchange may already have sent preceding valid command before invalid reply known. Inactive invalid replies never copied, remain neutral.",
+      "fake_io_observed": "All-zero neutral packet and terminal receipt on fault/deactivate; subsequent read/write remain neutral; valid reply alone does not recover Home. Explicit new Home only in fake test cases.",
+      "home_report": "One-time first valid postHome command/rest/measured residual, assessment=none; no physical pose completion claim."
+    },
+    "limitations": [
+      "No physical motor, sensor, camera or supported Home qualification; no jitter-cure claim.",
+      "Actual neutral delivery, firmware watchdog, stale-valid reply replay and mechanical Home travel remain unverified.",
+      "Target full walk/kick/restore/Stop chain not run; container chain uses fixture manager and synthetic observations/receipts.",
+      "Native kick activation was observed after the request gate deadline in fixture timing; activation authority redesign remains open, no deadline widened.",
+      "Final app/native staged pair not assembled or activated.",
+      "Separate lint run has 4 failures of6: flake8, lint_cmake, uncrustify style and xmllint external schema unavailable.",
+      "Earlier exploratory chain output directories were removed by provider; original parser-failure full outputs unavailable. Later selected results and provider stream preserved.",
+      "Early invalid unbounded Home mutation was deliberately interrupted137 after source-proven nontermination; not counted as detected. Counterexample preserved separately."
+    ],
+    "release_acceptance": "unaccepted candidate; closing preservation only",
+    "pi_process_check": "pi-closing-process-check.json",
+    "command_gate_provider": {
+      "requested_model": "claude-opus-5-5",
+      "effort": "high",
+      "exit_code": 0,
+      "elapsed_s": 4411.31,
+      "task_time_limit": null,
+      "nested_model_force": "claude-opus-5-5",
+      "actual_models": [
+        "claude-opus-5-5"
+      ]
+    },
+    "final_local_validation": {
+      "source_manifest_sha256": "63a3690469e843843e75bd9c60d3a7be28c307f4e916dbb7eafaf109df1f88fe",
+      "functional_tests": {
+        "name": "(empty)",
+        "tests": "78",
+        "failures": "0",
+        "disabled": "0",
+        "skipped": "0",
+        "hostname": "f51092a66a7d",
+        "time": "189",
+        "timestamp": "2026-11-23T08:39:02"
+      },
+      "functional_exit": "full_exit=0",
+      "mutation_exit": "mutation_exit=0",
+      "mutants_detected": 12,
+      "mutants_total": 12,
+      "findings": "driver-command-gate/findings.json",
+      "lint_exit": 8,
+      "lint_failures": 4,
+      "lint_tests": 6
+    },
+    "process_cleanup": "native-closing-processes.json"
+  },
+  "artifact_locations": {
+    "geometry_transcript": "outputs/pupper-fc-phase4-20261122/integration/opus-geometry-tactics-stream.jsonl",
+    "geometry_pause": "outputs/pupper-fc-phase4-20261122/integration/geometry-closing-pause.json",
+    "ball_eye_result": "outputs/pupper-fc-phase4-20261122/integration/opus-ball-eye-result.json",
+    "timing_proposal": "outputs/pupper-fc-phase4-20261122/integration/timing-contract",
+    "native_closing_archive": "outputs/pupper-fc-phase4-20261122/runtime/native-closing-evidence.tar.gz"
+  }
+}

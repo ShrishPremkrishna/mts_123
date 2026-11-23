@@ -3,9 +3,9 @@
   "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej\u2019s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "codex/pupper-fc-phase2",
-  "mode": "phase4_offline_rebuild",
-  "updated_utc": "2026-11-23T07:12:01.080731+00:00",
-  "current_report": "foundation/results/fc-phase4-checkpoint1-20261122.json",
+  "mode": "phase4_paused_after_software_checkpoint",
+  "updated_utc": "2026-11-23T09:05:29.949046+00:00",
+  "current_report": "foundation/results/fc-phase4-checkpoint2-20261123.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -68,7 +68,10 @@
     "phase4_remote_source_tips": "outputs/pupper-fc-phase4-20261122/integration/remote-source-tips.json",
     "phase4_runtime_integration": "foundation/results/fc-phase4-runtime-integration-20261122.json",
     "phase4_reconnect_inventory": "outputs/pupper-fc-phase4-20261122/runtime/inventory-reconnect.json",
-    "phase4_reconnect_profile": "outputs/pupper-fc-phase4-20261122/runtime/selected-profile-reconnect.json"
+    "phase4_reconnect_profile": "outputs/pupper-fc-phase4-20261122/runtime/selected-profile-reconnect.json",
+    "phase4_native_adjudication": "foundation/results/fc-phase4-native-adjudication-20261122.json",
+    "phase4_ball_eye_target_compatibility": "outputs/pupper-fc-phase4-20261122/runtime/ball-eye-compat/receipt.json",
+    "phase4_observation_orchestration": "foundation/results/fc-phase4-observation-orchestration-20261122.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -78,7 +81,7 @@
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
     "laptop_python": "/Users/shrish/.codex/worktrees/fc-teleop/cs123/.venv-fc/bin/python"
   },
-  "authorization": "User began Phase4: implement the offline-first plan with GPT-6 Astra integration, exact Fable5.2 high review and Opus5.5 high labor. Local commits and isolated no-device Pi builds/staging authorized. No active profile selection, services, sensors, cameras, hardware initialization or motion. Latest user override: do not impose task/provider/build wall-clock termination limits; allow completion while monitoring. Robot command expiry/Stop/safety deadlines remain unchanged.",
+  "authorization": "Latest user instruction: close at this usable software checkpoint, all agents/providers finish or gracefully pause with handoffs, save all work and publish to GitHub. This session chooses separate accepted and explicitly unaccepted codex branches, without force or main merge. Do not auto-resume queued implementation. No active profile selection, services, sensors, cameras, hardware initialization or motion. No task/provider/build wall-clock kill limits; application expiry/cleanup and safety contracts remain valid.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
@@ -107,19 +110,19 @@
   },
   "activity": {
     "automation": "No automation controls the physical session.",
-    "compute": "User-approved exact Fable5.2/Opus5.5 source review/labor continues without task wall-clock termination limits. Monitor progress and let work complete. No hardware safety expiry changed.",
+    "compute": "No active implementation/provider compute. Completed exact-model receipts and explicitly paused geometry review are preserved; future resumed work retains user no task wall-clock kill-limit preference.",
     "owners": {
       "physical_robot": "Shrish owns physical setup. Root completed read-only Pi inventory; no owned hardware test or service change. Other robot-process ownership and motor state are not established by that inventory.",
-      "gameplay_integration": "GPT-6 Astra /root/rebuild_lead owns integration/geometry/QA. First exact Opus5.5 high runner/strict-board/operator implementation completed exit0; reviewed source frozen for intermediate integration commit. Next shared Pitch v2/tactics outcome pending ownership handoff.",
-      "movement": "Shrish and project lead own gait readiness, pose/heading, kick approach and defense.",
-      "shooting": "Tej owns the leg kick. Shrish and project lead own the transition from field-guided gameplay.",
-      "perception": "Ryan owns overhead source/tracking; source integrated. Root owns harness adapter. Mounted geometry, latency and tag coverage remain unqualified.",
+      "gameplay_integration": "No active editing. Accepted source c58ff09; geometry/BallEye/native experiments preserved separately05fd014. Geometry review paused, all provider processes closed.",
+      "movement": "Shrish/project lead future physical readiness and gameplay; no active offline lane.",
+      "shooting": "Tej physical kick owner; no physical work in this block.",
+      "perception": "Ryan historical overhead ownership; no active editing. Experimental geometry/BallEye preserved separately.",
       "arena": "Shrish",
-      "project_lead": "GPT-6 Astra /root/rebuild_lead owns source integration, current docs/checkpoint, QA and local commits. Root orchestrates only.",
-      "runtime_build": "GPT-6 Astra /root/rebuild_runtime is sole Pi read/build/stage owner; maintained native recipe and release helpers. No device/lifecycle operations.",
-      "ui": "GPT-6 Astra /root/rebuild_ui owns launcher, teleop/lobby/setup adapters, static UI and replay transport; actual browser validation."
+      "project_lead": "Integration and handoff complete; final publication verification only, then idle. No automatic continuation.",
+      "runtime_build": "/root/rebuild_runtime finished and idle; all owned jobs closed.",
+      "ui": "/root/rebuild_ui finished and idle; immutable8877 preview deliberately retained; no edits/jobs."
     },
-    "goal_status": "Checkpoint1 ecfd97f retained. Coherent strict runtime/helper/runner and actual-executor UI outcome in progress. Shared row admission consolidated; Pitchv2 producer/referee structure tested with rendered goal0.3m beyond markers, consumer adoption pending coherent protocol switch. Full local Pi raw preservation complete; Mac footage absent.",
+    "goal_status": "Paused at user-requested closing boundary. Accepted synthetic shared-runner software source c58ff09, full product/offline rebuild incomplete. Experimental source preserved separately05fd014, not accepted. All provider jobs closed; geometry review gracefully paused/incomplete. Only documented8877 preview remains idle.",
     "pending_archives": [
       "Tej Mac out/overhead_kick raw camera frames/video and exact local run configuration remain unavailable. Full original Pi MCAP preservation is now complete and hash-verified."
     ],
@@ -147,51 +150,97 @@
         "evidence": "foundation/results/fc-phase3-plan-20261122.json"
       },
       "phase4_rebuild": {
-        "status": "Integration, runtime and UI agents active. Exact Fable5.2 high review completed exit0 in128.9s; exact UI Opus5.5 high labor completed exit0. Runtime worker owns Pi build/reviewer processes. User removed task/provider/build wall-clock limits; runtime notified to remove any safely removable active supervisor timers and report those that cannot be changed.",
-        "source_selection": "final_project/pupper_fc/release_selection.json",
+        "status": "closed_or_explicitly_paused; no active implementation/provider work",
+        "software_source_commit": "c58ff09a75acebc8cccd7788f2340bd5759f5a80",
+        "unaccepted_source_commit": "05fd01422a9a082dd2babc1c5c065ed3b9460618",
+        "unaccepted_branch": "codex/pupper-fc-phase4-unaccepted-20261123",
+        "handoff": "final_project/REBUILD_HANDOFF_20261123.md",
+        "evidence": "foundation/results/fc-phase4-checkpoint2-20261123.json",
         "providers": {
-          "integration_opus": {
-            "tool_session": 78103,
-            "status": "running, no task time limit",
-            "prompt": "outputs/pupper-fc-phase4-20261122/integration/opus-integration-task.txt"
+          "opus-geometry-tactics": {
+            "requested_model": "claude-opus-5-5",
+            "observed_models": [
+              "claude-fable-5-1",
+              "claude-opus-5-5"
+            ],
+            "effort": "high",
+            "elapsed_s": 6313.9,
+            "exit_code": 0,
+            "task_timeout": null,
+            "prompt_sha256": "334bf661c790e453ad533e1a7eacdc570c57fa73628d77ede833f8f2f0e3232b",
+            "errors": [
+              "[ede_diagnostic] result_type=user last_content_type=n/a stop_reason=tool_use"
+            ],
+            "process_closed": true,
+            "status": "gracefully paused under user closing authorization; OS exit0 with null result is not completed review"
           },
-          "orchestration_fable": {
-            "tool_session": 87830,
-            "status": "completed exact claude-fable-5-2 high, exit0,399.41s; no task time limit",
-            "prompt": "outputs/pupper-fc-phase4-20261122/integration/fable-orchestration-task.txt"
+          "opus-ball-eye": {
+            "requested_model": "claude-opus-5-5",
+            "observed_models": [
+              "claude-opus-5-5"
+            ],
+            "effort": "high",
+            "elapsed_s": 5198.92,
+            "exit_code": 0,
+            "task_timeout": null,
+            "prompt_sha256": "57ab5e33b1a020bdffa61ede185907c03fe96e2d6ab15c6ad6d345eac5b313ae",
+            "errors": [],
+            "process_closed": true,
+            "status": "implementation complete, source preserved unaccepted"
           },
-          "runtime_helpers": {
-            "tool_session": 71815,
-            "status": "completed exact claude-opus-5-5 high, exit0; source reviewed and frozen.133+10 tests plus23 session follow-up tests; final integrated restage pending."
-          },
-          "ui_next": {
-            "tool_session": 8204,
-            "status": "running exact Opus5.5 high with no task time limit; actual executor rehearsal/dedicated Play/operator UI"
-          },
-          "native_fable": {
-            "tool_session": 46849,
-            "status": "running exact Fable5.2 high, no task time limit; read-only native invalid-feedback adjudication",
-            "prompt": "outputs/pupper-fc-phase4-20261122/integration/fable-native-adjudication-task.txt"
+          "fable-timing-contract": {
+            "requested_model": "claude-fable-5-2",
+            "observed_models": [
+              "claude-fable-5-2"
+            ],
+            "effort": "high",
+            "elapsed_s": 2193.43,
+            "exit_code": 0,
+            "task_timeout": null,
+            "prompt_sha256": "9599ee42e7c617d702ee039fc0c6d93b6d933907d509339f9e9a10fe3251d8cb",
+            "errors": [],
+            "process_closed": true,
+            "status": "review complete; reference patch unapplied/unaccepted"
           }
         },
         "ui_rehearsal": {
-          "owner": "/root/rebuild_ui",
-          "tool_session": 52458,
-          "url": "http://127.0.0.1:8876",
-          "mode": "synthetic replay, frozen checkpoint1",
-          "source_commit": "ecfd97f4559b100ca8d3084cf864c374cd413b4c",
-          "source_root": "/var/folders/7c/__k49cw562d4txf0dslj1wcm0000gn/T/pupper-fc-checkpoint1-w2tshouf",
-          "status": "Running from frozen git archive, all10 UI hashes and release stamp verified; browser field/rendered detections and Offline Check passed. Candidate uses8877.",
-          "receipt": "outputs/pupper-fc-phase4-ui/checkpoint1-preview.json"
+          "url": "http://127.0.0.1:8877",
+          "launcher_pid": 83697,
+          "server_pid": 83707,
+          "exec_session": 79666,
+          "command": "PUPPER_FC_PYTHON=/Users/shrish/.codex/worktrees/fc-teleop/cs123/.venv-fc/bin/python ./pupper-fc --mode replay --no-open --port 8877",
+          "cwd": "/private/var/folders/7c/__k49cw562d4txf0dslj1wcm0000gn/T/pupper-fc-checkpoint2-final-xi_44e3p"
         },
-        "legacy_runtime_provider": {
-          "status": "Old tools-disabled native generator interrupted at600s by pre-override supervisor, exit143; no source tools/edits, result absent. Not complete.",
-          "receipt": "outputs/pupper-fc-phase4-20261122/runtime/opus-driver-result.json",
-          "continuation": "Same outcome now active in uncapped repo-enabled runtime-owned provider, session59389; helper provider71815 also active. No task timer on new work."
-        }
+        "ui_closed_processes": [
+          {
+            "purpose": "checkpoint1preview8876",
+            "launcher_pid": 46990,
+            "server_pid": 47000,
+            "exec_session": 52458,
+            "exit": 130
+          },
+          {
+            "purpose": "initialcandidate8877",
+            "launcher_pid": 80741,
+            "exec_session": 9359,
+            "exit": 130
+          },
+          {
+            "purpose": "savedliveedgefixture8878",
+            "pid": 84081,
+            "exec_session": 4780,
+            "exit": 0
+          }
+        ],
+        "native_processes": "outputs/pupper-fc-phase4-20261122/runtime/native-closing-processes.json",
+        "geometry_pause": "outputs/pupper-fc-phase4-20261122/integration/geometry-closing-pause.json",
+        "native_candidate": "foundation/results/fc-phase4-preserved-candidates-20261123.json",
+        "queued_implementation": "not launched; do not auto-resume",
+        "preview_qualification": "synthetic ideal-capture comparison, physical unqualified; app idle with no replay children",
+        "timing": "No end-to-end deadline correction accepted; measured actual activation past gate deadline. Reference patch unapplied."
       }
     },
-    "software_verification": "Frozen checkpoint integrated checks:203 passed and34 subtests, no skips; actual browser one/two participant setup/start/end/Stop/reconnect/settings/mobile checks. Baseline ARM driver build/link58/58 fake tests. Source-specific receipts in current report; physical behavior unqualified."
+    "software_verification": "Accepted UI:77 development Python+4Node; immutable68bd76Python+4Node, finalc58 changed identity fixture1pass plus4Node/syntax and browser checks. Native candidate unaccepted:78 local andPi functional,12 command mutants, final fixture-only targetcheck and actualC++\u2192Python wirecheck;4/6lintfail. Container selected chain/Stop passed with explicit substitutions; target fullchain/pair pending. No physical qualification."
   },
   "hardware_session": {
     "status": "Pi read-only access restored on a new boot. Existing selected profile unchanged (field_redundant_imu/events/right); recorded session stopped. Runtime inventory found no native control/test-domain process names; torque/posture not established. No service/device/selection action performed.",
@@ -274,20 +323,16 @@
   },
   "next": [
     {
-      "id": "coherent_runtime_and_executor_rehearsal",
-      "action": "Complete selected strict native/gateway/helper/runner closure and UI approach/kick/recovery/Stop using actual shared executor with explicitly synthetic native I/O. Dedicated Play/Home/operator UX continues in UI lane."
+      "id": "read_handoff_on_resumption",
+      "action": "No automatic work. When user resumes, read handoff, checkpoint and preserved source/evidence; independently choose architecture and next product outcome."
     },
     {
-      "id": "offline_increments",
-      "action": "Continue observation/geometry and lifecycle/teleop, continuous one-robot slice, independent opponent tactics, complete inactive paired candidate and final validation per PLAN.md."
+      "id": "remaining_offline",
+      "action": "Timing/native admission, geometry/local perception integration, full Field/Home/feed/recording/experiment UI, independent opponents, complete Mac/inactivePi pair and final acceptance remain open. Recommendations are in handoff, not commands to resume queued prompts."
     },
     {
-      "id": "physical_test_groups",
-      "action": "P1-P6 remain later user-run tests. Prepare operations/recordings through UI; no physical actions during offline work."
-    },
-    {
-      "id": "target_candidate",
-      "action": "Runtime owner resumes isolated target build on newboot after final strict driver source freeze, then verifies complete inactive paired candidate. No activation/profile/device actions."
+      "id": "physical_qualification",
+      "action": "P1\u2013P6 require later explicit user setup and observations; do not select profiles or initialize hardware from this handoff."
     }
   ],
   "recorded_open_items": {
@@ -323,5 +368,12 @@
     "combined_physics": "From repo root using the numerical Python: PYTHONPATH=pupper-mjlab/src python foundation/scripts/verify_fc_policy_cycle.py --staged-release <frozen-release> --output <report.json>",
     "combined_native": "python3 final_project/behaviors/tools/walk_kick_wire/run.py",
     "combined_release": "python3 foundation/hardware/fc_walk_kick_release.py stage --expected-commit <full-source-SHA> --destination <unused-absolute-directory>"
+  },
+  "delivery_status": {
+    "delivered": "Accepted c58ff09 immutable shared-runner software rehearsal on8877; source branch codex/pupper-fc-phase2. Not final product or physical milestone.",
+    "active": "No implementation/provider jobs. Only delivered idle preview retained.",
+    "preserved_unaccepted": "codex/pupper-fc-phase4-unaccepted-20261123 at05fd01422a9a082dd2babc1c5c065ed3b9460618;46 experimental source paths, exact manifest.",
+    "still_required_offline": "See PLAN.md Delivery status and handoff: timing/native entry, geometry/local perception, complete setup/presentation/feed/recording/experiment UI, independent opponents, complete paired release.",
+    "physical_only": "P1\u2013P6 unqualified; no physical actions performed."
   }
 }
