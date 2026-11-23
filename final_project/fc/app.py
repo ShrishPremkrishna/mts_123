@@ -728,7 +728,7 @@ class App:
                 return {"ok": False, "error": f"seconds must be an integer in [{lo}, {hi}]"}
             args = ["imu-test", str(secs)]
         else:
-            args = {"status": ["status"], "stop": ["stop"], "bridge_start": ["bridge", "start"],
+            args = {"status": ["status"], "stop": ["stop"], "bridge_start": ["bridge", "start", "--robot-id", rid],
                     "bridge_stop": ["bridge", "stop"], "stage": []}[op]
         if op == "stage":
             cmd = ["bash", str(HERE / "robot" / "stage.sh"), host]  # local script, no shell

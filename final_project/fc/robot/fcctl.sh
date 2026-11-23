@@ -3,7 +3,9 @@
 #   status                      one JSON line
 #   start <profile> --confirm   start a robot stack (HOMES THE LEGS: robot on the stand)
 #   stop                        stop what fcctl started (bridge, walker, stack) and only that
-#   bridge start [--profile P] | bridge stop
+#   bridge start [--profile P] [--robot-id ID] [--allow-from IP[,IP]] | bridge stop
+#                               (robot id defaults to ~/fc-v1/robot/robot_id, written by stage.sh;
+#                                key: ~/fc-v1/robot/link.key, 0600)
 #   imu-test <seconds>          delegates to imu_test.py (IMU lane) if present
 #   walk | rest                 activate / deactivate the profile's walker controller (optional;
 #                               the gamepad X / R3 do the same)
@@ -226,29 +228,40 @@ cmd__starter() {  # internal: runs detached so an ssh drop cannot interrupt homi
 }
 
 cmd_bridge() {
-  local sub=${1:-} prof=""
+  local sub=${1:-} prof="" rid="" allow=""
   shift || true
-  [ "${1:-}" = "--profile" ] && prof=${2:-}
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --profile) prof=${2:-}; shift 2 || shift ;;
+      --robot-id) rid=${2:-}; shift 2 || shift ;;
+      --allow-from) allow=${2:-}; shift 2 || shift ;;
+      *) die "unknown bridge option '$1'" ;;
+    esac
+  done
   case "$sub" in
     start)
       lock
       fc_alive bridge && die "bridge already running (pid $(fc_pid bridge))"
       [ -n "$prof" ] || prof=$(active_profile || true)
       [ -n "$prof" ] || die "no running profile; use 'bridge start --profile <name>'"
+      [ -n "$rid" ] || rid=$(sed -n 1p "$HERE/robot_id" 2>/dev/null || true)
+      [[ "$rid" =~ ^[A-Za-z0-9_.-]{1,32}$ ]] || die "no robot id: re-run stage.sh or pass --robot-id <id>"
+      [[ "$allow" =~ ^[0-9.,]*$ ]] || die "bad --allow-from '$allow'"
       load_profile "$prof"
       profile_env
       [ -n "${FC_ROS_DOMAIN_ID:-}" ] && export ROS_DOMAIN_ID=$FC_ROS_DOMAIN_ID
       fc_spawn bridge "$FC_LOGS/bridge.log" python3 -u "$HERE/drive_bridge.py" --profile "$prof" \
-        --topic "$PROFILE_CMD_TOPIC" --imu-topic "$PROFILE_IMU_TOPIC" --port "${FC_BRIDGE_PORT:-9870}"
+        --topic "$PROFILE_CMD_TOPIC" --imu-topic "$PROFILE_IMU_TOPIC" --port "${FC_BRIDGE_PORT:-9870}" \
+        --robot-id "$rid" --key-file "$HERE/link.key" ${allow:+--allow-from "$allow"}
       sleep 1.5
-      fc_alive bridge || die "bridge exited; see $FC_LOGS/bridge.log"
-      printf '{"ok":true,"bridge_pid":%s,"profile":"%s","topic":"%s","domain":%s}\n' "$(fc_pid bridge)" "$prof" "$PROFILE_CMD_TOPIC" "$ROS_DOMAIN_ID"
+      fc_alive bridge || die "bridge exited (missing/loose link.key?); see $FC_LOGS/bridge.log"
+      printf '{"ok":true,"bridge_pid":%s,"profile":"%s","robot_id":"%s","topic":"%s","domain":%s}\n' "$(fc_pid bridge)" "$prof" "$rid" "$PROFILE_CMD_TOPIC" "$ROS_DOMAIN_ID"
       ;;
     stop)
       fc_signal_group bridge INT 5 || die "bridge did not stop"
       echo '{"ok":true,"bridge":"stopped"}'
       ;;
-    *) die "usage: bridge start [--profile P] | bridge stop" ;;
+    *) die "usage: bridge start [--profile P] [--robot-id ID] [--allow-from IP[,IP]] | bridge stop" ;;
   esac
 }
 
@@ -302,5 +315,5 @@ case "${1:-}" in
   bridge) shift; cmd_bridge "$@" ;;
   walk|rest) cmd_walk "$1" ;;
   imu-test) shift; cmd_imu_test "$@" ;;
-  *) sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

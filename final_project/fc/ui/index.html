@@ -280,6 +280,7 @@ function renderRobots() {
     const rows = [
       ["active", active ? "yes" : "no"],
       ["link", L ? (L.connected ? "connected" : (L.error || "no acks")) : (S.source === "sim" ? "sim" : "-")],
+      ["auth", L ? (L.auth === "missing_key" ? "missing_key (python -m fc.robot.keygen)" : L.auth) : "-"],
       ["ack age / rtt", L ? `${f2(L.ack_age)} s / ${f2(L.rtt_ms, 0)} ms` : "-"],
       ["profile", (L && L.profile) || (S.robot_status[r.id] || {}).profile || "-"],
       ["imu", imu ? `${imu.level || "?"} · tilt ${f2(imu.tilt_deg, 1)}° · pulse ${f2(imu.pulse_density)}` : "-"],

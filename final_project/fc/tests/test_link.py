@@ -1,19 +1,38 @@
-"""Link: packet format, ttl, hard ceilings, ack parsing against a local UDP echo."""
+"""Link: signed packet format, ttl, hard ceilings, ack auth against a local UDP bridge."""
 import json
 import math
 import socket
 import threading
 import time
 
+import pytest
+
 from fc.core import Cmd, RobotCfg
 from fc.link import CEIL, Link, clamp_cmd, packet
+from fc.robot import drive_bridge as db
+from fc.robot.keygen import write_key
+
+KEY = bytes(range(32))
+
+
+@pytest.fixture
+def key_file(tmp_path):
+    path = tmp_path / "link.key"
+    path.write_text(KEY.hex() + "\n")
+    path.chmod(0o600)
+    return path
 
 
 def test_packet_format_and_ttl():
-    msg = json.loads(packet(7, Cmd(0.1, -0.05, 0.3), {"max_vx": 0.3, "max_vy": 0.15, "max_wz": 1.0, "ttl_s": 0.4}, t=12.5))
-    assert msg == {"v": 1, "seq": 7, "t": 12.5, "vx": 0.1, "vy": -0.05, "wz": 0.3, "ttl": 0.4}
-    assert json.loads(packet(1, Cmd(), {"ttl_s": 99}))["ttl"] == 0.5      # ttl clamped
-    assert json.loads(packet(1, Cmd(), {"ttl_s": 0.0}))["ttl"] == 0.25    # missing/zero -> default
+    raw = packet(KEY, "blue", "abc", 7, Cmd(0.1, -0.05, 0.3), {"max_vx": 0.3, "max_vy": 0.15, "max_wz": 1.0, "ttl_s": 0.4}, t=12.5)
+    msg = json.loads(raw)
+    mac = msg.pop("mac")
+    assert msg == {"v": 2, "robot": "blue", "sid": "abc", "seq": 7, "t": 12.5, "vx": 0.1, "vy": -0.05, "wz": 0.3, "ttl": 0.4}
+    assert db.verify(KEY, {**msg, "mac": mac})
+    assert db.parse_packet(raw, KEY).seq == 7                               # the bridge accepts it as-is
+    assert json.loads(packet(KEY, "b", "s", 1, Cmd(), {"ttl_s": 99}))["ttl"] == 0.5      # ttl clamped
+    assert json.loads(packet(KEY, "b", "s", 1, Cmd(), {"ttl_s": 0.0}))["ttl"] == 0.25    # missing/zero -> default
+    assert abs(json.loads(packet(KEY, "b", "s", 1, Cmd(), {}))["t"] - time.time()) < 5   # laptop wall clock
 
 
 def test_hard_ceilings_override_params():
@@ -24,27 +43,33 @@ def test_hard_ceilings_override_params():
     assert clamp_cmd(Cmd(0.2, 0, 0), {"max_vx": 0.0})[0] == 0.0
 
 
-class Echo:
-    """Fake Pi bridge: records packets, acks each one."""
+class FakeBridge:
+    """Pi stand-in running the real BridgeCore admission: acks only accepted packets,
+    then sends garbage and a forged (unsigned) ack that must both be ignored."""
 
-    def __init__(self):
+    def __init__(self, robot_id="blue", key=KEY, forge=True):
+        self.core = db.BridgeCore(key, robot_id)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.sock.bind(("127.0.0.1", 0))
         self.sock.settimeout(0.2)
-        self.port, self.got, self.run = self.sock.getsockname()[1], [], True
+        self.port, self.got, self.run, self.forge = self.sock.getsockname()[1], [], True, forge
         threading.Thread(target=self._loop, daemon=True).start()
 
     def _loop(self):
         while self.run:
             try:
                 data, addr = self.sock.recvfrom(4096)
-            except socket.timeout:
+            except (socket.timeout, OSError):
                 continue
-            msg = json.loads(data)
-            self.got.append(msg)
-            reply = {"v": 1, "ack": msg["seq"], "imu": {"level": "ok", "tilt_deg": 1.5, "pulse_density": 0.1}, "profile": "stock"}
-            self.sock.sendto(json.dumps(reply).encode(), addr)
+            ok, seq, _err = self.core.on_packet(data, time.monotonic(), addr[0])
+            if not ok:
+                continue
+            self.got.append(json.loads(data))
+            imu = {"level": "ok", "tilt_deg": 1.5, "pulse_density": 0.1}
+            self.sock.sendto(self.core.make_ack(seq, "stock", imu, self.core.snapshot(time.monotonic())), addr)
             self.sock.sendto(b"not json", addr)  # garbage must be ignored
+            if self.forge:
+                self.sock.sendto(json.dumps({"v": 2, "ack": seq + 1000, "profile": "evil"}).encode(), addr)
 
     def close(self):
         self.run = False
@@ -60,11 +85,11 @@ def _wait(cond, timeout=2.0):
     return False
 
 
-def test_send_ack_status_and_stop_all():
-    echo = Echo()
+def test_send_ack_status_and_stop_all(key_file):
+    echo = FakeBridge(forge=False)
     robots = [RobotCfg("blue", "blue", 10, "127.0.0.1", "stock"), RobotCfg("red", "red", 11, "", "stock")]
     params = {"max_vx": 0.3, "max_vy": 0.15, "max_wz": 1.0, "ttl_s": 0.25}
-    link = Link(robots, params, port=echo.port, resolve=lambda h: h)
+    link = Link(robots, params, port=echo.port, resolve=lambda h: h, key_file=key_file)
     try:
         assert _wait(lambda: link.status()["blue"]["addr"] == "127.0.0.1")
         for _ in range(3):
@@ -72,7 +97,7 @@ def test_send_ack_status_and_stop_all():
         assert _wait(lambda: link.status()["blue"]["acks"] >= 3)
         st = link.status()
         b = st["blue"]
-        assert b["connected"] and b["profile"] == "stock" and b["imu"]["level"] == "ok"
+        assert b["connected"] and b["profile"] == "stock" and b["imu"]["level"] == "ok" and b["auth"] == "ok"
         assert b["rtt_ms"] is not None and b["rtt_ms"] < 500 and b["ack_age"] < 1.0
         assert [m["seq"] for m in echo.got[:3]] == [1, 2, 3]
         assert echo.got[0]["vx"] == 0.3            # params cap applied at the link
@@ -88,8 +113,100 @@ def test_send_ack_status_and_stop_all():
         echo.close()
 
 
-def test_unknown_sender_ignored():
-    link = Link([RobotCfg("blue", "blue", 10, "10.9.9.9", "stock")], {}, resolve=lambda h: h)
+def test_forged_ack_flags_bad_ack_and_good_ack_clears_it(key_file):
+    echo = FakeBridge(forge=True)
+    link = Link([RobotCfg("blue", "blue", 10, "127.0.0.1", "stock")], {}, port=echo.port, resolve=lambda h: h,
+                key_file=key_file)
+    try:
+        assert _wait(lambda: link.status()["blue"]["addr"] == "127.0.0.1")
+        link.send({"blue": Cmd(0.1, 0, 0)})
+        assert _wait(lambda: link.status()["blue"]["bad_acks"] >= 1)
+        st = link.status()["blue"]
+        assert st["auth"] == "bad_ack" and st["acks"] == 1 and st["profile"] == "stock"  # forged "evil" ignored
+        # A newer genuine ack clears the flag.
+        now = time.monotonic() + 1
+        good = echo.core.make_ack(2, "stock", None, {})
+        assert link.handle_ack(good, "127.0.0.1", now) == "blue" and link.status()["blue"]["auth"] == "ok"
+        # Replaying that ack gives no liveness credit.
+        assert link.handle_ack(good, "127.0.0.1", now + 1) is None and link.status()["blue"]["acks"] == 2
+    finally:
+        link.close()
+        echo.close()
+
+
+def test_ack_for_other_session_or_robot_rejected(key_file):
+    link = Link([RobotCfg("blue", "blue", 10, "10.9.9.9", "stock")], {}, resolve=lambda h: h, key_file=key_file)
+    try:
+        assert _wait(lambda: link.status()["blue"]["addr"] == "10.9.9.9")
+        base = {"v": 2, "robot": "blue", "sid": link.sid, "ack": 1, "ok": True}
+        assert link.handle_ack(db.sign(KEY, {**base, "sid": "oldsession"}), "10.9.9.9", 1.0) is None
+        assert link.handle_ack(db.sign(KEY, {**base, "robot": "red"}), "10.9.9.9", 1.0) is None
+        assert link.handle_ack(db.sign(b"w" * 32, base), "10.9.9.9", 1.0) is None
+        assert link.status()["blue"]["bad_acks"] == 3 and link.status()["blue"]["auth"] == "bad_ack"
+        assert link.handle_ack(db.sign(KEY, base), "10.9.9.9", 2.0) == "blue"
+    finally:
+        link.close()
+
+
+def test_wrong_robot_and_old_session_not_acked(key_file):
+    """End to end: a link addressed to 'blue' gets nothing from a bridge configured as 'red';
+    a restarted link (new sid) resumes on the same bridge."""
+    red = FakeBridge(robot_id="red", forge=False)
+    cfg = [RobotCfg("blue", "blue", 10, "127.0.0.1", "stock")]
+    link = Link(cfg, {}, port=red.port, resolve=lambda h: h, key_file=key_file)
+    try:
+        assert _wait(lambda: link.status()["blue"]["addr"] == "127.0.0.1")
+        link.send({"blue": Cmd(0.1, 0, 0)})
+        assert _wait(lambda: red.core.stats["robot"] >= 1)
+        time.sleep(0.1)
+        assert link.status()["blue"]["acks"] == 0 and not red.got
+    finally:
+        link.close()
+        red.close()
+    blue = FakeBridge(robot_id="blue", forge=False)
+    try:
+        first = Link(cfg, {}, port=blue.port, resolve=lambda h: h, key_file=key_file)
+        assert _wait(lambda: first.status()["blue"]["addr"] == "127.0.0.1")
+        first.send({"blue": Cmd(0.1, 0, 0)})
+        assert _wait(lambda: first.status()["blue"]["acks"] == 1)
+        first.close()
+        second = Link(cfg, {}, port=blue.port, resolve=lambda h: h, key_file=key_file)   # laptop restart
+        assert _wait(lambda: second.status()["blue"]["addr"] == "127.0.0.1")
+        second.send({"blue": Cmd(0.2, 0, 0)})
+        assert _wait(lambda: second.status()["blue"]["acks"] == 1)
+        assert blue.core.sid == second.sid != first.sid and blue.core.stats["sessions"] == 2
+        second.close()
+    finally:
+        blue.close()
+
+
+def test_missing_key_sends_nothing(tmp_path):
+    echo = FakeBridge(forge=False)
+    link = Link([RobotCfg("blue", "blue", 10, "127.0.0.1", "stock")], {}, port=echo.port, resolve=lambda h: h,
+                key_file=tmp_path / "nope.key")
+    try:
+        assert _wait(lambda: link.status()["blue"]["addr"] == "127.0.0.1")
+        link.send({"blue": Cmd(0.1, 0, 0)})
+        st = link.status()["blue"]
+        assert st["auth"] == "missing_key" and "missing" in st["auth_error"] and st["sent"] == 0
+        assert echo.core.stats["rx"] == 0
+    finally:
+        link.close()
+        echo.close()
+
+
+def test_keygen_writes_0600_and_refuses_overwrite(tmp_path):
+    path = write_key(tmp_path / "cfg" / "link.key")
+    assert (path.stat().st_mode & 0o777) == 0o600 and len(db.load_key(str(path))) == 32
+    with pytest.raises(FileExistsError):
+        write_key(path)
+    old = path.read_text()
+    write_key(path, force=True)
+    assert path.read_text() != old and (path.stat().st_mode & 0o777) == 0o600
+
+
+def test_unknown_sender_ignored(key_file):
+    link = Link([RobotCfg("blue", "blue", 10, "10.9.9.9", "stock")], {}, resolve=lambda h: h, key_file=key_file)
     try:
         assert link.handle_ack(b'{"ack": 1}', "127.0.0.2", time.monotonic()) is None
         assert link.handle_ack(b'{"nope": 1}', "10.9.9.9", time.monotonic()) is None

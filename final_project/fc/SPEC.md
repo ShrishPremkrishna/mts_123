@@ -50,17 +50,31 @@ One laptop process (`python -m fc.app`) owns the loop at 30 Hz and serves the UI
 
 ## Wire protocol (laptop → Pi), UDP port 9870, JSON per datagram
 
-`{"v":1,"seq":int,"t":float,"vx":m/s,"vy":m/s,"wz":rad/s,"ttl":s}`
+`{"v":2,"robot":id,"sid":hex,"seq":int,"t":float,"vx":m/s,"vy":m/s,"wz":rad/s,"ttl":s,"mac":hex}`
 
-The Pi publishes a Twist at 50 Hz while the latest packet is younger than `ttl`
-(default 0.25 s), then publishes zero once and goes silent. Reply datagram to the
-sender: `{"v":1,"ack":seq,"imu":{...health...},"profile":name}`.
+`mac` = HMAC-SHA256 with the shared key over the canonical JSON of all other fields
+(sorted keys, `,`/`:` separators). Key: laptop `fc/config/link.key` (gitignored; made
+by `python -m fc.robot.keygen`), Pi `~/fc-v1/robot/link.key` (0600; placed by `stage.sh`,
+the bridge refuses to start without it). `sid` is random per laptop process; `seq`
+counts from 1 per robot within it; `t` is laptop wall time.
+
+The bridge (`--robot-id`, optional `--allow-from`) drops, counts and never acks: bad
+MAC, other `robot`, `seq` ≤ last accepted in the session, a retired `sid`, or `t` more
+than 2 s behind the newest accepted `t` (Pi and laptop clocks are never compared). A
+new `sid` with a valid MAC starts a new session (laptop restart). It publishes a Twist
+at 50 Hz while the latest packet is younger than `ttl` (default 0.25 s), then zero once
+and silence. Signed reply to accepted packets:
+`{"v":2,"robot":id,"sid":..,"ack":seq,"ok":true,"imu":{...},"profile":name,"bridge":{stats},"mac":..}`;
+the laptop ignores acks with a bad MAC, other robot/sid, or old seq and shows `auth`
+(`ok|missing_key|bad_ack`) per robot. Residual risk: a bridge restart forgets retired
+sessions, so a recorded session could be replayed until the laptop sends again.
 
 ## Safety (never relaxed)
 
 Gamepad has mux priority; mux 500 ms timeout; bridge ttl dead-man; UI Stop and
 keyboard space stop all robots; speed caps in params with hard ceilings in
-`link.py`; joint/current limits untouched.
+`link.py`; bridge accepts only authenticated packets for its own robot id;
+joint/current limits untouched.
 
 ## Runs
 
@@ -85,5 +99,5 @@ Each run writes `fc/runs/<UTC timestamp>-<test>/` (gitignored): `params.json`,
   `tilt_deg, pulse_density, bias_x, stale_ms, level` (ok|warn|bad).
 - Pi control (run by the app over ssh): `~/fc-v1/robot/fcctl.sh` with
   `status` (prints one JSON line), `start <profile> --confirm` (may home the legs),
-  `stop`, `bridge start|stop`, `imu-test <seconds>`. Staged by
-  `fc/robot/stage.sh <host>` (rsync into `~/fc-v1/` only).
+  `stop`, `bridge start [--robot-id ID]|stop`, `imu-test <seconds>`. Staged by
+  `fc/robot/stage.sh <host>` (rsync into `~/fc-v1/` only, plus `link.key` and `robot_id`).
