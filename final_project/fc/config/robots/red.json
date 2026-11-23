@@ -1,0 +1,10 @@
+{
+  "_note": "red: UNMEASURED, runs on params.json (blue's mount) until measured. After measuring per PROVISION.md 'Per-robot calibration', move each measured key out of _to_measure to the top level (no _ prefix) and fill _measured with date + who.",
+  "_measured": "",
+  "_to_measure": {
+    "eye_tag_height": 0.24,
+    "eye_tag_offset_x": 0.065,
+    "eye_yaw_offset_deg": -180.0,
+    "act_lag_s": 0.15
+  }
+}

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -91,3 +92,51 @@ def load_params(path: Path = CONFIG / "params.json") -> dict:
 
 def load_robots(path: Path = CONFIG / "robots.json") -> list[RobotCfg]:
     return [RobotCfg(**r) for r in json.loads(path.read_text())]
+
+
+# ---- per-robot overrides (calibration of one physical robot) -------------------------------------
+ROBOTS_DIR = CONFIG / "robots"
+ROBOT_ID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,32}$")   # same rule as robot/stage.sh
+
+
+def _kind(v) -> str:
+    if isinstance(v, bool):
+        return "bool"
+    if isinstance(v, (int, float)):
+        return "number"
+    return type(v).__name__
+
+
+def load_robot_overrides(robot_id: str, root: Path = ROBOTS_DIR, known: dict | None = None) -> dict:
+    """Keys from `<root>/<robot_id>.json` that override the shared params for that one robot.
+
+    No file -> {} (a robot without calibration runs on the shared params). Keys starting with "_"
+    are notes (e.g. `_note`, `_measured`) and are dropped. With `known` (the params dict the
+    overrides apply to), every key must already exist there with the same kind of value
+    (number / str / bool), so a typo or a wrong type fails loudly instead of being ignored.
+    Raises ValueError with the file and key on any problem."""
+    if not ROBOT_ID_RE.match(robot_id or ""):
+        raise ValueError(f"bad robot id {robot_id!r}")
+    path = Path(root) / f"{robot_id}.json"
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text())
+    except json.JSONDecodeError as e:
+        raise ValueError(f"{path}: not valid JSON ({e})") from e
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: expected a JSON object")
+    out = {k: v for k, v in data.items() if not k.startswith("_")}
+    if known is not None:
+        for k, v in out.items():
+            if k not in known:
+                raise ValueError(f"{path}: unknown param {k!r}")
+            if _kind(v) != _kind(known[k]):
+                raise ValueError(f"{path}: {k!r} is {_kind(v)}, expected {_kind(known[k])}")
+    return out
+
+
+def robot_params(base: dict, robot_id: str, root: Path = ROBOTS_DIR) -> dict:
+    """The params one robot runs with: `base` (shared params, presets applied) + its overrides.
+    Overrides describe the hardware, so they win over a preset. `base` is not modified."""
+    return {**base, **load_robot_overrides(robot_id, root, known=base)}
