@@ -2,6 +2,8 @@
 
 Reviewed November 22, 2026. This is an investigation and work/test register, not an implementation or a new hardware qualification. Product source and the Pi's selected profile, services, sensor settings and motor state were not changed. The handoff's commands were inspected as evidence, not executed.
 
+Follow-up: the [adversarial architecture review](fc-architecture-review-20261122.md) groups these findings into core problems and direct structural remedies. It supersedes treating F1–F12 as independent patches to every execution path; the evidence and physical tests below remain applicable.
+
 The useful result is a narrower diagnosis: there are confirmed observation-age, detector-geometry, cancellation and calibration-learning defects; there are separate startup failures; and there is recorded late-session deterioration whose physical cause is still unresolved. Tej's working approach and Ball Eye geometry should be retained, while their execution and measurement assumptions need reconciliation with the FC application.
 
 ## Evidence and changed conclusions

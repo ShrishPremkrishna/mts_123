@@ -3,9 +3,9 @@
   "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej\u2019s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "codex/pupper-fc-phase2",
-  "mode": "phase2_reconciliation",
-  "updated_utc": "2026-11-23T05:15:53.052800+00:00",
-  "current_report": "foundation/results/fc-phase2-reconciliation-20261122.json",
+  "mode": "phase2_architecture_review",
+  "updated_utc": "2026-11-23T05:41:42.112093+00:00",
+  "current_report": "foundation/results/fc-architecture-review-20261122.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -60,7 +60,8 @@
     "untagged_curve_rehearsal": "foundation/results/untagged-curve-rehearsal-20261119.json",
     "guarded_body_arc": "foundation/results/guarded-body-arc-20261120.json",
     "mounted_phone": "foundation/results/field-camera-live-20261120.json",
-    "tej_phase2_reconciliation": "foundation/results/fc-phase2-reconciliation-20261122.json"
+    "tej_phase2_reconciliation": "foundation/results/fc-phase2-reconciliation-20261122.json",
+    "adversarial_architecture_nov22": "foundation/results/fc-architecture-review-20261122.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -69,7 +70,7 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "User requests continued Phase 2 investigation, source/log reconciliation and physical-test planning. Read-only Pi inspection and offline checks authorized. No motion, sensor-mode changes, deployments or service changes in this block; coordinate physical readiness for any future test.",
+  "authorization": "User requests continued Phase 2 adversarial root-cause investigation with exact Fable 5.2 and high reasoning. Source/evidence review, provider consultation and documentation only this block; no implementation, deployment, robot service/camera/sensor changes or motion.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
@@ -98,7 +99,7 @@
   },
   "activity": {
     "automation": "No automation controls the physical session.",
-    "compute": "Completed source reviews, 21 existing software tests, mocked defect reproductions, and read-only analysis of three existing Pi recordings. No new training/build/deploy.",
+    "compute": "Current block: two exact Fable 5.2 high-effort adversarial passes, two exact Opus 5.5 high-effort source labor reviews, root source checks and isolated synthetic color-heading reproduction. No product tests/build/training/deployment.",
     "owners": {
       "physical_robot": "Shrish handles physical setup. Root completed read-only collection; no active motion test, no controller/camera process observed. Physical posture/torque not inspected.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
@@ -106,9 +107,9 @@
       "shooting": "Tej owns the leg kick. Shrish and project lead own the transition from field-guided gameplay.",
       "perception": "Ryan owns overhead source/tracking; source integrated. Root owns harness adapter. Mounted geometry, latency and tag coverage remain unqualified.",
       "arena": "Shrish",
-      "project_lead": "Root on codex/pupper-fc-phase2 in /Users/shrish/workspace/cs123. Four audit agents completed; no ongoing work scheduled."
+      "project_lead": "Root on codex/pupper-fc-phase2 in /Users/shrish/workspace/cs123. All source/reviewer agents completed; no ongoing work scheduled."
     },
-    "goal_status": "Phase 2 reconciliation complete for supplied Tej report; remain in Phase 2 for further user evidence. Fixes and physical tests are proposed, not executed.",
+    "goal_status": "Phase 2 architectural RCA complete for current evidence. Six core issues and direct remedies proposed; physical cause of jitter and startup predicate still unresolved. Implementation has not begun.",
     "pending_archives": [
       "Three original kickseen4/5/6 MCAP files remain on Pi, hashed and analyzed. Full local copy interrupted; partial archive retained and verified incomplete. See outputs/pupper-fc-reconcile-20261122/recording-preservation.json."
     ],
@@ -126,9 +127,13 @@
       "phase2_reconciliation": {
         "status": "All owned reviewer/read-only analysis processes closed. Interrupted archive tar24583/gzip24585 were verified by command/start identity, terminated, and confirmed absent. No robot service changed.",
         "evidence": "outputs/pupper-fc-reconcile-20261122/archive-copy-cleanup.json"
+      },
+      "phase2_architecture_review": {
+        "status": "All owned provider review processes exited successfully; no robot access or services used in this block.",
+        "evidence": "foundation/results/fc-architecture-review-20261122.json"
       }
     },
-    "software_verification": "Current block: 21 original bridge software tests pass, additional mocked freshness/deadline/calibration/health defects reproduced; 207 collected manifest entries hash-verified. No physical success inferred."
+    "software_verification": "Current block: source verification and exact ingress-function synthetic reproduction of color-heading time-convention error. Earlier 21 bridge tests/reproductions remain in reconciliation; no physical success inferred."
   },
   "hardware_session": {
     "status": "Pi reachable through mts, same boot throughout collection. FC profile selects fc-ui-stop-0c07ad63666b. No new robot/sensor/camera service or motion started; posture/torque not tested.",
@@ -191,20 +196,25 @@
       "directory": "outputs/pupper-fc-reconcile-20261122",
       "verification": "outputs/pupper-fc-reconcile-20261122/local-preservation-verification.json",
       "raw_recordings": "Hash-identified originals remain on Pi; full local archive pending."
+    },
+    "phase2_architecture_20261122": {
+      "directory": "outputs/pupper-fc-architecture-20261122",
+      "manifest": "outputs/pupper-fc-architecture-20261122/manifest.json",
+      "count": 16
     }
   },
   "next": [
     {
-      "id": "phase2_more_evidence",
-      "action": "Remain in Phase 2. Reconcile further user information; Tej Mac logs/images/video are absent from all23fetched remote branch tips."
+      "id": "phase2_architecture_discussion",
+      "action": "Remain Phase 2. Use the architecture review as the core diagnosis; resolve further user evidence before Phase 3. Do not treat F1-F12 as independent patches to all launch paths."
     },
     {
-      "id": "software_fix_register",
-      "action": "Use F1\u2013F12 in the reconciliation for the later build plan. Prioritize fresh observations, Stop/deadlines, truthful health, protected learning and specific startup diagnostics; no fixes deployed yet."
+      "id": "proposed_structural_direction",
+      "action": "Proposed: one compatible release/session, existing continuous executor and exclusive native kick, honest observations, frozen persistent calibration, complete UI experiments. Retire bridge motion ownership only after replacement physical acceptance."
     },
     {
-      "id": "physical_test_register",
-      "action": "Use T1\u2013T9. Begin with small stationary geometry/near-ball/tag captures, then externally referenced IMU comparison and instrumented Home/Stand before powered approaches."
+      "id": "physical_discriminators",
+      "action": "Pending T1-T9 remain; start with small stationary capture comparisons and external-reference body diagnostics. Instrument and name Home/Stand failure before changing admission. Mac raw run evidence remains absent from23fetched branch tips."
     },
     {
       "id": "preserve_raw_recordings",
@@ -224,7 +234,7 @@
   "alignment": {
     "confirmed": "Current user vision: one-command launch, complete Home/Field/Robot/Settings/Play UI and all operator tests through it; variable field, adjustable2ftgoals, pink ball, nose-aligned tag heading previously demonstrated, foot strike required, one robot offense, two opponents may independently share roles, standing defense/retreat, all four requested data comparisons. Video deadlineDec2. No secondrobot available yet.",
     "open": "Physical causes of late IMU/joint deterioration and first-claim failures; measured mount/geometry, close-ball accuracy, distant-tag visibility, timing, contact repeatability and second-robot qualification.",
-    "next_discussion": "Stay in Phase2 and reconcile more user evidence. Current fixes/test register is ready; no move to building assumed.",
+    "next_discussion": "Review six core problems and direct remedies in Phase 2. Later Phase 3 should set a bounded engineering/cutover decision based on actual supervised sessions; no automatic bridge fallback or implementation assumed.",
     "owner_steering_2026_11_17": "Onboard front-camera stop/hold/resume is sufficient; hybrid/all-around human coverage and detouring are not required. Ryan pose unavailable for several sessions. Build independent state/execution/harness/gait evaluation work now. Pink ball contact deferred. Owner likes architecture and requests context-blind adversarial audits.",
     "owner_steering_2026_11_19": "Goals available; intended ball and second Pupper outstanding; field setup planned soon. Minimum demo: 1\u20132 minutes, two opponents, useful goal-directed shots, automatic role switching and smooth responsive execution. Latest reply requests camera-free endpoint repeatability first, with same marked starts; precision and accuracy recorded separately.",
     "owner_steering_2026_11_19_kick": "Prioritize the improved walk\u2013kick\u2013walk transition on the test block and use the trained leg policy as the demo shot. Discuss closed-loop approach, contact timing and field heading before resuming tests.",
