@@ -1,0 +1,189 @@
+{
+  "schema": "pupper_fc_phase4_checkpoint_v1",
+  "checkpoint": 1,
+  "status": "complete_usable_offline_shell",
+  "baseline_commit": "1ff46708c52ff37e423879e88ba81dc7d930581b",
+  "source_selection": "final_project/pupper_fc/release_selection.json",
+  "native_baseline": {
+    "checkpoint": "phase4-native-baseline-driver",
+    "selected_parent_commit": "1ff46708c52ff37e423879e88ba81dc7d930581b",
+    "source_manifest_sha256": "b2d0b5b14966a48a07a9affd19cf43db57353355a50c25dc45b506d02fcf6787",
+    "source_files": 30,
+    "target": {
+      "host": "mts",
+      "arch": "aarch64",
+      "boot_id": "6e7fa7d0-a831-4c8b-bf09-37efda90374f",
+      "python": "3.11.2"
+    },
+    "remote_output": "/home/pi/pupper-fc-source/phase4-20261122-runtime/driver-baseline",
+    "build_exit": 0,
+    "ssh_exit": 0,
+    "tests": {
+      "selected": 58,
+      "executed": 58,
+      "failed": 0,
+      "skipped": 0,
+      "scope": "Fake BNO/SPI or in-memory fixtures. Traced file syscalls contain no unexpected /dev paths. Post-test reserved-domain/process check passed."
+    },
+    "artifacts": {
+      "driver-baseline-evidence.tar.gz": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-20261122/runtime/driver-baseline-evidence.tar.gz",
+        "sha256": "2499af87cc1fc091dc1a90d4a9990611fd2369e0bb0b7386f7c82d2af4ac9270"
+      },
+      "driver-baseline/source-closure.json": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-20261122/runtime/driver-baseline/source-closure.json",
+        "sha256": "b2d0b5b14966a48a07a9affd19cf43db57353355a50c25dc45b506d02fcf6787"
+      },
+      "driver-baseline/environment.json": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-20261122/runtime/driver-baseline/environment.json",
+        "sha256": "081b808552c36140f206f1edae8eb0297995e5b42db0f9ec9cda916abfa24533"
+      },
+      "driver-baseline/installed-files.json": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-20261122/runtime/driver-baseline/installed-files.json",
+        "sha256": "6fe8fc177668b47714b5340cede5cf4a4460bb76c186f728f0294e6d7090b806"
+      },
+      "driver-baseline/resolved-dependencies.json": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-20261122/runtime/driver-baseline/resolved-dependencies.json",
+        "sha256": "7d14c1a58d45316495523e52a69268b5e46b743d291bd9cbae710ef1de8f8ab7"
+      },
+      "driver-baseline/recipe.sha256": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-20261122/runtime/driver-baseline/recipe.sha256",
+        "sha256": "a97dade6ae09e3310a7018f4bee04404515ff983bf89808ddd451a5699344d77"
+      },
+      "driver-baseline/tests.xml": {
+        "path": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-20261122/runtime/driver-baseline/tests.xml",
+        "sha256": "763445708e32b26c210ff78699cc838e17ae2da783a2ea2e6a4bab901ce0c6cf"
+      }
+    },
+    "limits": [
+      "Native baseline driver build only, not complete selected Mac/Pi pair.",
+      "No physical Home, standing, motors, camera/sensor read or active-profile change.",
+      "Process-name inventory does not establish torque or posture."
+    ],
+    "locally_reverified_artifacts": {
+      "driver-baseline-evidence.tar.gz": true,
+      "driver-baseline/source-closure.json": true,
+      "driver-baseline/environment.json": true,
+      "driver-baseline/installed-files.json": true,
+      "driver-baseline/resolved-dependencies.json": true,
+      "driver-baseline/recipe.sha256": true,
+      "driver-baseline/tests.xml": true
+    },
+    "recipe_change_after_build": "Maintained recipe additionally checks reserved domain165/optional FcStartMotion bindings and removes task wall-clock cutoffs per latest user instruction. Baseline archive preserves exact tested recipe. Current recipe passes syntax review; selected gateway build uses the extended contract."
+  },
+  "observation_checks": {
+    "ingress": "Final focused ingress suite: 42 passed including real localhost UDP",
+    "focused_final": "53 passed, 39 deselected; rendered tag/color, camera-health and adapters; UDP excluded from this combined rerun",
+    "scope": "Software measurement semantics, not physical camera/heading accuracy"
+  },
+  "fable_review": {
+    "requested_model": "claude-fable-5-2",
+    "effort": "high",
+    "observed_models": [
+      "claude-fable-5-2"
+    ],
+    "elapsed_s": 128.9,
+    "exit_code": 0,
+    "timed_out": false,
+    "errors": [],
+    "owned_processes_closed": true
+  },
+  "fable_adjudication": {
+    "accepted": [
+      "Launch-selected replay backend with source labels and physical/network fences",
+      "Checkpoint1 synthetic I/O rehearsal is not controller or native qualification",
+      "Preserve main changes during source-selected match integration",
+      "Prove capture-position round trip before adding extra metadata",
+      "Unknown legacy heading modes cannot silently subtract angular rate",
+      "Shared geometry/admission boundary remains next increment"
+    ],
+    "challenged": [
+      "Blanket rejection of replay match/start assumes only playback of a real recording; explicitly synthetic I/O rehearsal can start without claiming native/executor behavior.",
+      "Position error was conditional, not reproduced. Rendered accepted-measurement filter test verifies linear prediction round trip with nonzero velocity and age."
+    ],
+    "pending": [
+      "Complete common observation/geometry boundary",
+      "Exact paired match helper/gateway/runner source closure",
+      "Full actual-executor UI replay",
+      "Physical P1-P6 qualification"
+    ]
+  },
+  "ui_acceptance": {
+    "recorded_utc": "2026-11-23T06:32:12.051800+00:00",
+    "scope": "Checkpoint1 synthetic I/O/lobby rehearsal; no robot executor, native controller or physical qualification",
+    "source_sha256": {
+      "pupper-fc": "eff56dfc174cf8a1474f69401745503d227b2e92ecf3ed241ee430b35c9c039b",
+      "final_project/pupper_fc/LAPTOP.md": "7b4b9d3ad9d38459a8f0c7462797329e3515e701a07fef5e087476e0285bcceb",
+      "final_project/pupper_fc/arena_camera.py": "93d682abb89cb21f427ed918badde8fb081674fe137feef46a17a9bf69e2ef80",
+      "final_project/pupper_fc/lobby.py": "55fe14852450aeb7d298dcbedb1a4df7bdfa6e4176a4dd888b3fc7b93e97d89f",
+      "final_project/pupper_fc/teleop.py": "9647f1e83315948c36338fd7c882a4230c92469caa7b84c11344c9880dffb816",
+      "final_project/pupper_fc/replay_transport.py": "5bc5fe5efd1fb79476a33eb53b0d2c0ec2d04318dff2242976a53f6d2aed5016",
+      "final_project/pupper_fc/static/controls.html": "3ce329ad9cb85daee80bc01bc087c3470dbceea990cd274c97ce7ad678131d8a",
+      "final_project/pupper_fc/static/controls.css": "8571ecaa33b834614f3d8fe52bfb794a1c4f0131616f4a843103306e82e5e899",
+      "final_project/pupper_fc/static/controls.mjs": "3e31632e7c5eb3b1405c57ce5fe77d104c944110fadfa9890737abf2e78595a5",
+      "final_project/pupper_fc/tests/test_replay_lobby.py": "e1c062178a4b34eec50fbb23bd8b74de84f2dca92d8dde4446d2f120663838fb"
+    },
+    "provider": {
+      "models": [
+        "claude-opus-5-5"
+      ],
+      "effort": "high",
+      "returncode": 0,
+      "elapsed": 540.74
+    },
+    "tests": {
+      "focused_final": "56 passed, 1 deprecation warning; no skips",
+      "log": "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/checkpoint1-focused-final.log",
+      "js_syntax": "passed",
+      "diff_whitespace": "passed"
+    },
+    "launch": "PUPPER_FC_PYTHON=/Users/shrish/.codex/worktrees/fc-teleop/cs123/.venv-fc/bin/python ./pupper-fc --mode replay --no-open --port 8876",
+    "browser": {
+      "url": "http://127.0.0.1:8876",
+      "browser": "Chrome via CUA",
+      "observed": [
+        "Home/Field/Robot/Settings/Play navigation",
+        "Rendered synthetic six-tag field plus ball and both robot detections",
+        "Field snapshot and return to synthetic view",
+        "One-participant start/end through lobby",
+        "Two-participant start/end with per-team teleop selection",
+        "Stop receipt explicitly synthetic; stopped label, Start disabled, deliberate disconnect/reconnect then restart",
+        "Settings Offline software check passed with hardware unqualified wording",
+        "390x844 mobile layout: corrected clipped Stop; verified visible afterward",
+        "Viewport reset to default; final Field page idle with no robot peers connected"
+      ],
+      "screenshots": [
+        "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/field.jpg",
+        "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/stop.jpg",
+        "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/settings-validation.jpg",
+        "/Users/shrish/workspace/cs123/outputs/pupper-fc-phase4-ui/mobile-home.jpg"
+      ],
+      "last_text_polish": "Native build wording changed after screenshots; underlying status unchanged"
+    },
+    "limits": [
+      "No physical camera or Pi access",
+      "Replay runner substitutes external I/O only and does not execute selected planner/native chain",
+      "Physical Home/Stand disabled in replay",
+      "Goal survey remains disabled in synthetic mode",
+      "Dedicated Play feeds/telemetry, experiments, recording, selected operator contract and final packaging are later increments"
+    ]
+  },
+  "physical_effects": false,
+  "active_pi_release_changed": false,
+  "completed_utc": "2026-11-23T06:35:25.626739+00:00",
+  "integrated_check": {
+    "command": "/Users/shrish/.codex/worktrees/fc-teleop/cs123/.venv-fc/bin/python -m pytest -q final_project/pupper_fc/tests/test_replay_lobby.py final_project/pupper_fc/tests/test_teleop_console.py final_project/pupper_fc/tests/test_match_lobby.py final_project/pupper_fc/tests/test_balance_lobby.py final_project/overhead_perception/tests final_project/behaviors/test_overhead_ingress.py",
+    "passed": 203,
+    "subtests_passed": 34,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_s": 64.29,
+    "warning": "Existing Starlette/httpx deprecation; no dependency change required."
+  },
+  "limits": [
+    "Usable synthetic I/O/lobby shell, not complete final operator product.",
+    "Replay acknowledgments do not qualify the selected executor or native controllers.",
+    "Baseline native driver compatibility is verified; full strict gateway/helper/runner pair is a subsequent source closure.",
+    "Physical P1-P6 acceptance, missing Mac footage and complete local raw Pi archive remain open."
+  ]
+}

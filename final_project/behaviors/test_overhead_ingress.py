@@ -87,6 +87,46 @@ def test_missing_and_coasting_tracks_never_get_new_capture():
     assert set(frame["robots"]) == {"pupper-1"} and frame["ball"] is None
 
 
+@pytest.mark.parametrize("tracking", ["tags", "colors"])
+@pytest.mark.parametrize("capture_yaw", [.5, math.pi - .02, -math.pi + .02])
+def test_capture_heading_agrees_across_both_control_adapters(tracking, capture_yaw):
+    from final_project.overhead_perception.fieldcam.gameplay import to_observation
+    packet = state()
+    packet["tracking"] = tracking
+    row = packet["robots"]["striker"]
+    row.update(yaw_at_capture=capture_yaw, wz=5.)
+    # Display heading is deliberately different; capture heading must survive
+    # delay, wrap and reacquisition without subtracting angular speed twice.
+    row["yaw"] = capture_yaw if tracking == "colors" else capture_yaw + row["wz"] * row["age_s"]
+    normalized = core_fixture().normalize(packet, 10.04)
+    observation = to_observation(packet)
+    assert normalized["robots"]["pupper-1"]["yaw"] == pytest.approx(capture_yaw)
+    assert observation.robot.yaw == pytest.approx(capture_yaw)
+    assert observation.captured_at == packet["captured_at"]
+    # Frozen pre-upgrade streams retain their actual color/tag convention.
+    del row["yaw_at_capture"]
+    assert core_fixture().normalize(packet, 10.04)["robots"]["pupper-1"]["yaw"] == pytest.approx(capture_yaw)
+    assert to_observation(packet).robot.yaw == pytest.approx(capture_yaw)
+
+
+def test_invalid_explicit_capture_heading_is_not_repaired_from_display():
+    from final_project.overhead_perception.fieldcam.gameplay import to_observation
+    packet = state()
+    packet["robots"]["striker"]["yaw_at_capture"] = None
+    with pytest.raises(ValueError, match="capture yaw"):
+        core_fixture().normalize(packet, 10.04)
+    assert to_observation(packet).robot is None
+
+
+def test_gameplay_does_not_repair_missing_capture_from_display_stamp():
+    from final_project.overhead_perception.fieldcam.gameplay import to_observation
+    packet = state()
+    del packet["captured_at"]
+    observation = to_observation(packet)
+    assert math.isnan(observation.captured_at)
+    assert observation.robot is None and observation.ball is None
+
+
 @pytest.mark.parametrize("change", [
     {"source_id": "wrong"}, {"source_session": "restarted"}, {"clock_id": "other"},
     {"live": False}, {"clock_valid": False}, {"pair_span_s": .1},

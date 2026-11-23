@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Open the local Pupper FC lobby, or run its hardware-free acceptance checks."""
+"""Open the local Pupper FC lobby (live by default, or --mode replay), or run its hardware-free checks."""
 import argparse
 import fcntl
 import hashlib
@@ -17,11 +17,13 @@ import webbrowser
 
 ROOT = Path(__file__).resolve().parent
 ENV = ROOT / ".venv-fc"
-PYTHON = ENV / "bin/python"
+EXTERNAL_PYTHON = os.environ.get("PUPPER_FC_PYTHON")
+PYTHON = Path(EXTERNAL_PYTHON).expanduser() if EXTERNAL_PYTHON else ENV / "bin/python"
 PACKAGE = ROOT / "final_project/pupper_fc"
 TESTS = [
     "final_project/pupper_fc/tests/test_teleop_console.py",
     "final_project/pupper_fc/tests/test_match_lobby.py",
+    "final_project/pupper_fc/tests/test_replay_lobby.py",
     "final_project/pupper_fc/tests/test_balance_lobby.py",
     "final_project/overhead_perception/tests",
 ]
@@ -38,6 +40,8 @@ def installation_id():
 def prepare(check):
     wheels = ROOT / "wheels"
     if not PYTHON.is_file():
+        if EXTERNAL_PYTHON:
+            raise RuntimeError("PUPPER_FC_PYTHON must name an existing Python executable.")
         source = shutil.which("python3.12")
         if not source and not wheels.exists():
             source = sys.executable if sys.version_info >= (3, 12) else shutil.which("python3.13")
@@ -60,22 +64,30 @@ for pinned in sys.argv[1:]:
     pins = [line.split()[0] for path in manifests for line in path.read_text().splitlines()
             if line.strip() and not line.lstrip().startswith("#")]
     if subprocess.run([str(PYTHON), "-I", "-c", probe, *pins]).returncode:
+        if EXTERNAL_PYTHON:
+            raise RuntimeError("The selected PUPPER_FC_PYTHON does not match the pinned laptop dependencies. It was not modified.")
         print("Installing Pupper FC dependencies…", flush=True)
         options = [item for path in manifests for item in ["-r", str(path)]]
         if wheels.is_dir():
             options.extend(["--no-index", "--find-links", str(wheels), "--require-hashes", "--only-binary=:all:"])
         subprocess.run([str(PYTHON), "-m", "pip", "install", "--disable-pip-version-check",
                         "--no-input", "-q", *options], check=True)
+    subprocess.run([str(PYTHON), "-I", "-c", "import fastapi, uvicorn, websockets, numpy, cv2, yaml, zeroconf"],
+                   check=True)
 
 
-def lobby_at(port):
+def lobby_at(port, mode="live"):
     """Distinguish unused ports from other software without following redirects."""
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=.7)
     try:
         conn.request("GET", "/health")
         reply = conn.getresponse()
-        if reply.status == 200 and json.loads(reply.read(4096)).get("app") == "pupper-fc-lobby":
-            return "lobby" if reply.getheader("X-Pupper-FC-Installation") == installation_id() else "other lobby"
+        health = json.loads(reply.read(4096)) if reply.status == 200 else {}
+        if health.get("app") == "pupper-fc-lobby":
+            if reply.getheader("X-Pupper-FC-Installation") != installation_id():
+                return "other lobby"
+            # Lobbies from before --mode existed were always live.
+            return "lobby" if health.get("mode", "live") == mode else "other mode"
     except ConnectionRefusedError:
         return "free"
     except (ValueError, AttributeError, TimeoutError, ConnectionError, http.client.HTTPException):
@@ -85,8 +97,9 @@ def lobby_at(port):
     return "occupied"
 
 
-def show(url, open_browser):
-    print(f"Pupper FC is ready at {url}", flush=True)
+def show(url, open_browser, mode="live"):
+    label = " in replay mode (synthetic, never physical)" if mode == "replay" else ""
+    print(f"Pupper FC is ready at {url}{label}", flush=True)
     if open_browser:
         webbrowser.open(url)
 
@@ -94,6 +107,8 @@ def show(url, open_browser):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=8766)
+    parser.add_argument("--mode", choices=("live", "replay"), default="live",
+                        help="live controls enrolled robots (default); replay uses only synthetic, never physical, endpoints")
     parser.add_argument("--blue", metavar="SSH_HOST")
     parser.add_argument("--red", metavar="SSH_HOST")
     parser.add_argument("--no-open", action="store_true", help="print the address without opening a browser")
@@ -106,6 +121,10 @@ def main():
         parser.error("run ./pupper-fc-check in the source checkout, or use --self-test in the ZIP")
     if not 1 <= args.port <= 65535:
         parser.error("choose a port from 1 to 65535")
+    if args.mode == "replay" and (args.blue or args.red):
+        parser.error("replay mode never uses SSH hosts; remove --blue/--red")
+    if args.mode == "replay" and (args.check or args.self_test):
+        parser.error("--mode applies to the lobby; run checks without it")
     url = f"http://127.0.0.1:{args.port}"
     launch_lobby = not (args.check or args.self_test)
     child = None
@@ -114,11 +133,14 @@ def main():
         with (ENV / ".launch-lock").open("a") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX)
             if launch_lobby:
-                status = lobby_at(args.port)
+                status = lobby_at(args.port, args.mode)
+                if status == "other mode":
+                    raise RuntimeError(f"A Pupper FC lobby in a different mode is open on port {args.port}. "
+                                       "Close its terminal or choose a different --port.")
                 if status == "lobby":
                     if args.blue or args.red:
                         raise RuntimeError("A lobby is already open. Stop it before changing its SSH hosts.")
-                    show(url, not args.no_open)
+                    show(url, not args.no_open, args.mode)
                     return 0
                 if status == "other lobby":
                     raise RuntimeError("Another Pupper FC installation is open. Close its terminal or choose a different --port.")
@@ -126,7 +148,8 @@ def main():
                     raise RuntimeError(f"Another service uses port {args.port}. Choose a different --port.")
             prepare(args.check)
             if launch_lobby:
-                command = [str(PYTHON), "-m", "final_project.pupper_fc.teleop", "--port", str(args.port)]
+                command = [str(PYTHON), "-m", "final_project.pupper_fc.teleop", "--port", str(args.port),
+                           "--mode", args.mode]
                 for slot in ("blue", "red"):
                     if getattr(args, slot):
                         command.extend(["--" + slot, getattr(args, slot)])
@@ -136,7 +159,7 @@ def main():
                 while time.monotonic() < until:
                     if child.poll() is not None:
                         raise RuntimeError(f"The lobby exited during startup with status {child.returncode}.")
-                    if lobby_at(args.port) == "lobby":
+                    if lobby_at(args.port, args.mode) == "lobby":
                         break
                     time.sleep(.08)
                 else:
@@ -146,7 +169,7 @@ def main():
         if args.check:
             print("Running offline Pupper FC acceptance checks…", flush=True)
             return subprocess.call([str(PYTHON), "-m", "pytest", "-q", "-p", "no:cacheprovider", *TESTS], cwd=ROOT)
-        show(url, not args.no_open)
+        show(url, not args.no_open, args.mode)
         return child.wait()
     finally:
         if child is not None and child.poll() is None:

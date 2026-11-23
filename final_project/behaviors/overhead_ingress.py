@@ -255,7 +255,18 @@ class IngressCore:
                 if not heading:
                     result[velocity] = speed
             if heading:
-                yaw = number(row.get("yaw"), "yaw") - number(row.get("wz"), "wz") * age
+                # Current producers retain capture heading explicitly. Legacy
+                # color pairs already reported capture yaw; only legacy tags
+                # extrapolated it to the publication time.
+                if "yaw_at_capture" in row:
+                    yaw = number(row["yaw_at_capture"], "capture yaw")
+                else:
+                    yaw = number(row.get("yaw"), "yaw")
+                    tracking = state.get("tracking", "tags")
+                    if tracking not in ("tags", "colors"):
+                        raise ValueError("legacy heading convention is unknown")
+                    if tracking == "tags":
+                        yaw -= number(row.get("wz"), "wz") * age
                 result.update(yaw=math.atan2(math.sin(yaw), math.cos(yaw)), captured_at=mapped)
             return result
 

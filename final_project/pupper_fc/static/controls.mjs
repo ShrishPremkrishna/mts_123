@@ -31,6 +31,42 @@ $('field-mode').onchange = $('robot-tracking').onchange = cameraForm;
 
 const message = text => { lastError = text; $('error').textContent = text; };
 
+let appInfo = null;
+const replay = () => (appInfo?.mode || state.mode) === 'replay';
+const REPLAY_NOTE = 'Replay · synthetic rehearsal. No robot moves; physical health is unknown.';
+function renderApp() {
+  const mode = appInfo?.mode || state.mode;
+  if (!mode) return;
+  document.body.dataset.mode = mode;
+  $('mode-badge').textContent = mode === 'replay' ? 'REPLAY · synthetic, never physical' : 'LIVE · physical robots';
+  $('app-mode-label').textContent = mode === 'replay' ? 'Replay mode' : 'Live mode';
+  if (!appInfo) return;
+  const src = appInfo.source || {};
+  $('app-limitation').textContent = appInfo.limitation || '';
+  $('app-source').textContent = src.commit ? src.kind + ' ' + src.commit.slice(0, 12) + (src.dirty ? ' + local changes' : '') : (src.detail || 'Unknown');
+  $('app-hardware').textContent = appInfo.hardware_qualified === true ? 'Verified' : 'Unqualified';
+  const build = appInfo.selection?.qualification?.target_build || 'pending';
+  $('app-native').textContent = build === 'baseline_driver_passed_full_pair_pending'
+    ? 'Baseline driver build passed; full robot build pending'
+    : 'Build: ' + build.replaceAll('_',' ') + ' · paired release pending';
+  if (mode === 'replay') {
+    for (const option of $('camera-source').options) option.disabled = option.value !== 'sim';
+    $('camera-source').value = 'sim';
+  }
+}
+function setView(view) {
+  if (!['home','field','robot','settings','play'].includes(view)) view = 'home';
+  document.querySelector('main').dataset.view = view;
+  for (const el of document.querySelectorAll('[data-views]')) el.classList.toggle('off-view', !el.dataset.views.split(' ').includes(view));
+  for (const button of document.querySelectorAll('[data-view-target]')) {
+    if (button.dataset.viewTarget === view) button.setAttribute('aria-current', 'page');
+    else button.removeAttribute('aria-current');
+  }
+  if (view === 'field' || view === 'settings') panel(true);
+  if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
+}
+for (const button of document.querySelectorAll('[data-view-target]')) button.onclick = () => setView(button.dataset.viewTarget);
+
 async function post(path, data = {}) {
   const response = await fetch('/api/' + path, {method:'POST', headers:{'content-type':'application/json','X-Pupper-FC':owner}, body:JSON.stringify(data)});
   const result = await response.json();
@@ -47,12 +83,15 @@ function render() {
   lastDriveEpoch=match?.epoch;
   $('score-blue').textContent = (match?.score || state.score)?.['pupper-1'] ?? 0;
   $('score-red').textContent = (match?.score || state.score)?.['pupper-2'] ?? 0;
-  $('camera-status').textContent = cam ? ((state.source === 'sim' ? 'Simulated · ' : '') + cam.status) : 'Disconnected';
-  $('camera-connect').textContent = cam?.frame ? 'View field' : 'Connect camera';
+  renderApp();
+  $('camera-status').textContent = cam ? ((cam.synthetic ? 'Replay synthetic · ' : state.source === 'sim' ? 'Simulated · ' : '') + cam.status) : 'Disconnected';
+  $('camera-connect').textContent = cam?.frame ? 'View field' : replay() ? 'Open synthetic field' : 'Connect camera';
+  $('start-match').innerHTML = replay() ? 'Start replay match &nbsp; ▸' : 'Start match &nbsp; ▸';
+  $('preview-wait').textContent = replay() ? 'Waiting for the rendered synthetic field' : 'Waiting for a camera frame';
   $('start-match').hidden = ['playing','balance_hold','balance_resuming','stopping'].includes(state.phase);
   const unverified = live.find(t => t.imu?.state !== 'healthy' || !t.imu?.board_session ||
     !Number.isInteger(t.imu?.generation) || t.imu.generation < 1 || !Number.isInteger(t.imu.incident) || t.imu.incident < 0);
-  const visible = cam?.visible || {}, canStart = !unverified && cam?.live && cam?.frame?.calibration_valid && visible.ball &&
+  const visible = cam?.visible || {}, canStart = !unverified && !live.some(t => t.stopping) && cam?.live && cam?.frame?.calibration_valid && visible.ball &&
         live.length && live.every(t => visible.robots?.[t.slot === 'blue' ? 'striker' : 'keeper']);
   $('start-match').disabled = pending || state.phase !== 'idle' || !canStart ||
     Object.values(teams).some(t => t.setup.busy);
@@ -65,10 +104,10 @@ function render() {
   loadCameraForm();
   if (frozen && (frozen.source_session !== cam?.source_session || frozen.revision !== cam?.frame?.calibration_revision)) clearSnapshot();
   $('reset-goals').hidden = !(state.goal_lines && cam?.live && state.phase === 'idle');
-  $('survey').disabled = !cam?.live || !cam?.frame?.calibration_valid || state.phase !== 'idle';
+  $('survey').disabled = !cam?.live || !cam?.frame?.calibration_valid || state.phase !== 'idle' || Boolean(cam?.synthetic);
   $('apply-camera').disabled = pending || state.phase !== 'idle';
   $('field-snapshot').disabled = !cam?.frame || state.phase !== 'idle';
-  $('field-snapshot').textContent = frozen ? 'Return to live view' : 'Take snapshot';
+  $('field-snapshot').textContent = frozen ? (replay() ? 'Return to synthetic view' : 'Return to live view') : 'Take snapshot';
   $('far-corner').hidden = !(frozen?.mode === 'corner' && frozen.ids.includes(state.camera_settings?.anchor?.tag_id) && state.phase === 'idle');
   $('field-confirm').hidden = !(frozen?.fit_valid && cam?.needs_confirm && state.phase === 'idle');
   const geometry = frozen || cam?.geometry;
@@ -84,6 +123,9 @@ function render() {
   $('layout-help').textContent = geometry?.mode === 'layout' ? geometry.layout_guide : '';
   $('goal-source').textContent = geometry ? 'Goal lines and mouth: ' + geometry.goal_source + '.' : '';
   for (const t of Object.values(teams)) {
+    t.replayNote.hidden = !replay();
+    t.replayNote.textContent = REPLAY_NOTE;
+    if (t.online) t.connection.textContent = t.stopping ? 'Stopped' : t.ready ? (replay() ? 'Replay ready' : 'Ready') : 'Connected';
     t.modeEl.disabled = !t.online || state.phase !== 'idle';
     t.ballMode.disabled = !t.online;
     if (t.ball) {
@@ -109,9 +151,11 @@ function render() {
   } else if (state.phase === 'idle' && !lastError && unverified) {
     const name = unverified.slot === 'blue' ? 'Blue' : 'Red';
     $('error').textContent = name + ' · ' + (unverified.imu?.reason || 'Current board IMU feedback required. Check the Pi release and team setup.');
+  } else if (live.some(t => t.stopping)) {
+    $('error').textContent = 'Stopped. Disconnect and reconnect each stopped team before a new match.';
   } else if (!lastError) $('error').textContent = state.phase === 'playing' && match?.phase === 'goal' ?
     (match.reset_ready ? (state.resume_ready ? 'Ball in place. Ready to resume.' : 'Ball in place. Waiting for robots to reach home.') : 'Goal! Return the ball to the field.') : (state.message ||
-    (state.source === 'sim' && cam ? 'Field preview is running. Select a live camera to start a match.' :
+    (state.source === 'sim' && cam && !replay() ? 'Field preview is running. Select a live camera to start a match.' :
       canStart ? 'Field ready for kickoff.' : live.length && cam?.live ? 'Place the ball and connected teams in camera view.' : 'Connect a team and the field camera to play.'));
   if (!$('fieldpanel').hidden && cam?.frame && !frozen) {
     const key = cam.source_session + '/' + cam.frame.seq;
@@ -136,7 +180,7 @@ function addressKey(slot) { return 'pupper-fc-address-' + slot; }
 function savedAddress(slot) {
   try { return localStorage.getItem(addressKey(slot)) || ''; } catch { return ''; }
 }
-const discoverTeam = slot => post('discover', {slot, host:savedAddress(slot)});
+const discoverTeam = slot => post('discover', replay() ? {slot} : {slot, host:savedAddress(slot)});
 
 function showSetup(t) {
   if (setupTeam !== t) {
@@ -178,6 +222,10 @@ function renderSetup() {
       : 'Click Enable standing after Home. Keep the Stop gamepad connected.';
   }
   if (t.matchCapable === false) $('setup-hint').textContent = 'Bench damping profile · keep Pupper supported throughout. Match play is disabled.';
+  if (replay()) {
+    $('setup-address').disabled = $('save-address').disabled = $('setup-prepare').disabled = $('setup-home').disabled = true;
+    $('setup-hint').textContent = 'Replay mode skips Prepare and Home. It never contacts a robot.';
+  }
   if ($('setup-status').textContent !== setup.message) $('setup-status').textContent = setup.message;
 }
 
@@ -301,7 +349,7 @@ function addTeam(slot, config) {
   const pane = $('team').content.firstElementChild.cloneNode(true);
   const el = key => pane.querySelector('.' + key);
   const t = {slot,id:config.robot_id,connect:el('connect'),modeEl:el('mode'),feedback:el('feedback'),
-             ballMode:el('ball-mode'),ballReading:el('ball-reading'),setup:{message:''},options:el('options'),connection:el('connection'),online:false,connecting:false,ready:false,mode:null,requested:null,socket:null,stopping:false};
+             ballMode:el('ball-mode'),ballReading:el('ball-reading'),replayNote:el('replay-note'),setup:{message:''},options:el('options'),connection:el('connection'),online:false,connecting:false,ready:false,mode:null,requested:null,socket:null,stopping:false};
   teams[slot] = t;
   pane.classList.add(slot);
   el('team-label').textContent = slot === 'blue' ? 'HOME' : 'AWAY';
@@ -355,7 +403,8 @@ function addTeam(slot, config) {
           return;
         }
         if (event.event === 'stop_result') {
-          t.feedback.textContent = event.confirmed ? 'Robot acknowledged Stop.' : 'Stop was not confirmed.';
+          t.feedback.textContent = event.synthetic ? 'Replay Stop recorded · synthetic, no physical Stop.' :
+            event.confirmed ? 'Robot acknowledged Stop.' : 'Stop was not confirmed.';
           return;
         }
         if (event.event !== 'controls') {
@@ -372,7 +421,7 @@ function addTeam(slot, config) {
           settings.id = slot + '-settings'; options.setAttribute('aria-controls', settings.id);
         }
         pane.dataset.online='true'; t.connect.disabled=false; options.disabled=false;
-        el('connection').textContent=event.ready?'Ready':'Connected';
+        el('connection').textContent=event.ready?(replay()?'Replay ready':'Ready'):'Connected';
         t.connect.textContent='Connected'; t.modeEl.value=t.mode;
         el('guide').hidden=t.mode!=='teleop';
         let command=null;
@@ -429,7 +478,7 @@ function stopAll() {
       t.connect.closest('.team').querySelector('.connection').textContent='Offline';
     }
     if (t.socket?.readyState===WebSocket.OPEN) {
-      t.stopping=true; t.feedback.textContent='Stop requested…';
+      t.stopping=true; t.ready=false; t.connection.textContent='Stopped'; t.feedback.textContent='Stop requested…';
       t.socket.send(JSON.stringify({command:'stop',robot_id:t.id}));
     } else if (t.socket) t.socket.close();
   }
@@ -506,7 +555,7 @@ $('self-test').onclick = async () => {
   result.textContent = 'Checking the lobby with a simulated field…';
   try {
     const report = await post('self-test');
-    result.textContent = report.ok ? report.summary : (report.summary || 'Offline check failed.');
+    result.textContent = 'Software-only · ' + (report.ok ? report.summary : (report.summary || 'Offline check failed.')) + ' Hardware not qualified.';
   } catch (e) { result.textContent = e.message; }
   finally { button.disabled = false; }
 };
@@ -546,6 +595,11 @@ async function refresh(){
   } catch(e){message(e.message);}
   setTimeout(refresh,280);
 }
+setView(location.hash.slice(1));
+try{
+  const info=await fetch('/api/app',{cache:'no-store'});
+  if(info.ok){appInfo=await info.json();renderApp();}
+}catch{}
 try{
   const resp=await fetch('/slots');
   if(!resp.ok)throw new Error('The local match server is unavailable');

@@ -361,8 +361,9 @@ class Perception:
     def process(self, frame: np.ndarray, t_capture: float, t_now: float | None = None, *, match_only=False) -> dict:
         """t_capture: when the photons hit the sensor. t_now: when this state will be used.
 
-        Reported positions are extrapolated to t_now; age_s says how old the
-        newest real measurement behind each one is. Control consumers must use
+        Reported positions are extrapolated to t_now; yaw_at_capture preserves
+        the measured heading separately from the display yaw. age_s says how old
+        the newest real measurement behind each one is. Control consumers must use
         calibration_valid and measured_this_frame; visible includes display coasting.
         """
         t_now = t_capture if t_now is None else t_now
@@ -499,6 +500,8 @@ class Perception:
                     # reacquisition must never extrapolate the nose to the far side.
                     "yaw": yaw if measured and state["tracking"] == "colors"
                            else wrap(yaw_f.yaw + yaw_f.rate * (t_now - yaw_f.t)),
+                    "yaw_at_capture": (wrap(yaw) if state["tracking"] == "colors"
+                                       else wrap(yaw_f.yaw)) if measured else None,
                     "vx": float(x[2]), "vy": float(x[3]), "wz": float(yaw_f.rate),
                     "age_s": t_now - pos_f.t_meas,
                     "measured_this_frame": measured, "measured_at": pos_f.t_meas,

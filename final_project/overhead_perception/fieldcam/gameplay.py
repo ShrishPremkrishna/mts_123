@@ -48,7 +48,8 @@ def to_observation(state: dict, robot: str = "striker", robot_id: str = "pupper-
     frame_capture = state.get("captured_at")
     capture_valid = (isinstance(frame_capture, (float, int)) and not isinstance(frame_capture, bool)
                      and math.isfinite(frame_capture))
-    captured_at = (frame_capture if capture_valid else state["stamp"] - state["frame_age_s"]) + clock_offset
+    # Invalid provenance stays invalid even when display timing looks plausible.
+    captured_at = frame_capture + clock_offset if capture_valid else math.nan
     frame_age = state["stamp"] - frame_capture if capture_valid else state["frame_age_s"]
 
     def from_this_frame(obj) -> bool:
@@ -61,7 +62,16 @@ def to_observation(state: dict, robot: str = "striker", robot_id: str = "pupper-
     r = state["robots"].get(robot, {})
     if state.get("calibration_valid") is True and from_this_frame(r):
         # Undo the extrapolation to "now": report where it was when the photons arrived.
-        pose = m.Pose(r["x"] - r["vx"] * frame_age, r["y"] - r["vy"] * frame_age, r["yaw"] - r["wz"] * frame_age)
+        yaw = r.get("yaw_at_capture")
+        if "yaw_at_capture" not in r:
+            tracking = state.get("tracking", "tags")
+            if tracking == "colors":
+                yaw = r["yaw"]
+            elif tracking == "tags":
+                yaw = r["yaw"] - r["wz"] * frame_age
+        if type(yaw) in (float, int) and math.isfinite(yaw):
+            pose = m.Pose(r["x"] - r["vx"] * frame_age, r["y"] - r["vy"] * frame_age,
+                          math.atan2(math.sin(yaw), math.cos(yaw)))
     b = state["ball"]
     if state.get("calibration_valid") is True and from_this_frame(b):
         ball = m.Ball(b["x"] - b["vx"] * frame_age, b["y"] - b["vy"] * frame_age, b["vx"], b["vy"])

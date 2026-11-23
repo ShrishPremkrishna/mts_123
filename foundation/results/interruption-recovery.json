@@ -3,9 +3,9 @@
   "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej\u2019s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "codex/pupper-fc-phase2",
-  "mode": "phase3_rebuild_plan",
-  "updated_utc": "2026-11-23T05:57:36.487126+00:00",
-  "current_report": "foundation/results/fc-phase3-plan-20261122.json",
+  "mode": "phase4_offline_rebuild",
+  "updated_utc": "2026-11-23T06:35:25.627511+00:00",
+  "current_report": "foundation/results/fc-phase4-checkpoint1-20261122.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -62,20 +62,22 @@
     "mounted_phone": "foundation/results/field-camera-live-20261120.json",
     "tej_phase2_reconciliation": "foundation/results/fc-phase2-reconciliation-20261122.json",
     "adversarial_architecture_nov22": "foundation/results/fc-architecture-review-20261122.json",
-    "phase3_rebuild_plan": "foundation/results/fc-phase3-plan-20261122.json"
+    "phase3_rebuild_plan": "foundation/results/fc-phase3-plan-20261122.json",
+    "phase4_checkpoint1": "foundation/results/fc-phase4-checkpoint1-20261122.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
     "full_numerical_python": ".venv/bin/python",
     "durable_artifacts": "/Users/shrish/workspace/pupper-foundation-artifacts",
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
-    "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
+    "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d",
+    "laptop_python": "/Users/shrish/.codex/worktrees/fc-teleop/cs123/.venv-fc/bin/python"
   },
-  "authorization": "User explicitly moved to Phase3 and requested ordered offline-first rebuild plan including powered-Pi work, separate from later user-run physical tests. Planning, source review, one read-only Pi inventory and documentation only; no Phase4 product implementation or hardware action initiated.",
+  "authorization": "User began Phase4: implement the offline-first plan with GPT-6 Astra integration, exact Fable5.2 high review and Opus5.5 high labor. Local commits and isolated no-device Pi builds/staging authorized. No active profile selection, services, sensors, cameras, hardware initialization or motion. Latest user override: do not impose task/provider/build wall-clock termination limits; allow completion while monitoring. Robot command expiry/Stop/safety deadlines remain unchanged.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
-    "claude_source_review": "User explicitly permits sharing any project code with Fable5.2; credentials remain external/not shared. Use exact claude-fable-5-2, not fable alias.",
+    "claude_source_review": "User explicitly approved source sharing for this rebuild: selected PupperFC source and project notes, including UI/teleop, perception, match logic and native build/control code, to exact Fable5.2 and Opus5.5 through Claude. Credentials excluded.",
     "overnight_2026_11_17": {
       "authorized_total_additional_usd": 50,
       "source": "User reply: Allow up to $50 additional cloud compute",
@@ -100,17 +102,19 @@
   },
   "activity": {
     "automation": "No automation controls the physical session.",
-    "compute": "One exact Fable5.2 high-effort planning review completed. Pi preparation/source audit completed locally after optional Opus export was rejected before process creation. No build/training/staging performed.",
+    "compute": "User-approved exact Fable5.2/Opus5.5 source review/labor continues without task wall-clock termination limits. Monitor progress and let work complete. No hardware safety expiry changed.",
     "owners": {
       "physical_robot": "Shrish owns physical setup. Root completed read-only Pi inventory; no owned hardware test or service change. Other robot-process ownership and motor state are not established by that inventory.",
-      "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
+      "gameplay_integration": "GPT-6 Astra /root/rebuild_lead owns integration, observation/geometry and QA. Exact Opus5.5 high owns selected runner/model/board-reader/FC planner/gemini runtime source edits under its assigned paths; no commits/hardware.",
       "movement": "Shrish and project lead own gait readiness, pose/heading, kick approach and defense.",
       "shooting": "Tej owns the leg kick. Shrish and project lead own the transition from field-guided gameplay.",
       "perception": "Ryan owns overhead source/tracking; source integrated. Root owns harness adapter. Mounted geometry, latency and tag coverage remain unqualified.",
       "arena": "Shrish",
-      "project_lead": "Root on codex/pupper-fc-phase2 in /Users/shrish/workspace/cs123. Phase3 plan complete; review agents idle, no scheduled work."
+      "project_lead": "GPT-6 Astra /root/rebuild_lead owns source integration, current docs/checkpoint, QA and local commits. Root orchestrates only.",
+      "runtime_build": "GPT-6 Astra /root/rebuild_runtime is sole Pi read/build/stage owner; maintained native recipe and release helpers. No device/lifecycle operations.",
+      "ui": "GPT-6 Astra /root/rebuild_ui owns launcher, teleop/lobby/setup adapters, static UI and replay transport; actual browser validation."
     },
-    "goal_status": "Phase3 plan complete: nine ordered offline work packages with parallel lanes and six separate physical-test groups. Implementation and physical batching have not begun.",
+    "goal_status": "Checkpoint1 complete: launchable five-screen synthetic I/O/lobby shell with rendered perception, source identity and honest native/physical limits. Current next increment integrates strict gateway/helper/runner pair and actual-executor UI rehearsal, then shared geometry/perception, full tactics and complete inactive candidate.",
     "pending_archives": [
       "Three original kickseen4/5/6 MCAP files remain on Pi, hashed and analyzed. Full local copy interrupted; partial archive retained and verified incomplete. See outputs/pupper-fc-reconcile-20261122/recording-preservation.json."
     ],
@@ -136,9 +140,36 @@
       "phase3_planning": {
         "status": "Fable review exited0; optional Opus export rejected before process creation, no retry. All review work closed. No Pi services started/stopped.",
         "evidence": "foundation/results/fc-phase3-plan-20261122.json"
+      },
+      "phase4_rebuild": {
+        "status": "Integration, runtime and UI agents active. Exact Fable5.2 high review completed exit0 in128.9s; exact UI Opus5.5 high labor completed exit0. Runtime worker owns Pi build/reviewer processes. User removed task/provider/build wall-clock limits; runtime notified to remove any safely removable active supervisor timers and report those that cannot be changed.",
+        "source_selection": "final_project/pupper_fc/release_selection.json",
+        "providers": {
+          "integration_opus": {
+            "tool_session": 78103,
+            "status": "running, no task time limit",
+            "prompt": "outputs/pupper-fc-phase4-20261122/integration/opus-integration-task.txt"
+          },
+          "orchestration_fable": {
+            "tool_session": 87830,
+            "status": "running read-only, no task time limit",
+            "prompt": "outputs/pupper-fc-phase4-20261122/integration/fable-orchestration-task.txt"
+          }
+        },
+        "ui_rehearsal": {
+          "tool_session": 12300,
+          "url": "http://127.0.0.1:8876",
+          "mode": "synthetic replay",
+          "status": "UI-owned server available; browser left idle with no robot peers connected."
+        },
+        "legacy_runtime_provider": {
+          "status": "Old tools-disabled native generator interrupted at600s by pre-override supervisor, exit143; no source tools/edits, result absent. Not complete.",
+          "receipt": "outputs/pupper-fc-phase4-20261122/runtime/opus-driver-result.json",
+          "continuation": "Same outcome now active in uncapped repo-enabled runtime-owned provider, session59389; helper provider71815 also active. No task timer on new work."
+        }
       }
     },
-    "software_verification": "Planning only: source-audited helper effects, confirmed Pi build-tool/storage presence, plan references/JSON and local artifact hashes. No product validation claimed."
+    "software_verification": "Frozen checkpoint integrated checks:203 passed and34 subtests, no skips; actual browser one/two participant setup/start/end/Stop/reconnect/settings/mobile checks. Baseline ARM driver build/link58/58 fake tests. Source-specific receipts in current report; physical behavior unqualified."
   },
   "hardware_session": {
     "status": "Pi reachable through mts, same boot throughout collection. FC profile selects fc-ui-stop-0c07ad63666b. No new robot/sensor/camera service or motion started; posture/torque not tested.",
@@ -216,20 +247,20 @@
   },
   "next": [
     {
-      "id": "phase3_plan_review",
-      "action": "Use final_project/PLAN.md as the ordered rebuild plan. Phase4 has not started; do not activate the robot from planning instructions."
+      "id": "coherent_runtime_and_executor_rehearsal",
+      "action": "Complete selected strict native/gateway/helper/runner closure and UI approach/kick/recovery/Stop using actual shared executor with explicitly synthetic native I/O. Dedicated Play/Home/operator UX continues in UI lane."
     },
     {
-      "id": "offline_implementation_order",
-      "action": "When Phase4 begins: selected source/build compatibility and shared operations first; parallel observation, runtime/teleop and UI work; first one-robot slice, full tactics, inactive paired candidate, final verification."
+      "id": "offline_increments",
+      "action": "Continue observation/geometry and lifecycle/teleop, continuous one-robot slice, independent opponent tactics, complete inactive paired candidate and final validation per PLAN.md."
     },
     {
       "id": "physical_test_groups",
-      "action": "P1-P6 remain separate later tests. Prepare every operation and recording in the UI during offline work. No batching or hardware schedule chosen yet."
+      "action": "P1-P6 remain later user-run tests. Prepare operations/recordings through UI; no physical actions during offline work."
     },
     {
       "id": "preserve_raw_recordings",
-      "action": "Preserve hash-identified kickseen4/5/6 originals with a resumable transfer; do not treat the interrupted local tar as complete or alter originals."
+      "action": "Runtime owner may preserve hash-identified kickseen4/5/6 originals via resumable transfer; incomplete prior local tar is not a complete archive."
     }
   ],
   "recorded_open_items": {
@@ -245,13 +276,14 @@
   "alignment": {
     "confirmed": "Current user vision: one-command launch, complete Home/Field/Robot/Settings/Play UI and all operator tests through it; variable field, adjustable2ftgoals, pink ball, nose-aligned tag heading previously demonstrated, foot strike required, one robot offense, two opponents may independently share roles, standing defense/retreat, all four requested data comparisons. Video deadlineDec2. No secondrobot available yet.",
     "open": "Physical causes of late IMU/joint deterioration and first-claim failures; measured mount/geometry, close-ball accuracy, distant-tag visibility, timing, contact repeatability and second-robot qualification.",
-    "next_discussion": "Phase3 ordered rebuild plan delivered. All offline work, including no-device Pi preparation, is prioritized; physical tests and unknown parameters are separated. Phase4 execution not assumed.",
+    "next_discussion": "Phase4 authorized and active. Deliver iterative usable offline checkpoints; physical tests remain deferred.",
     "owner_steering_2026_11_17": "Onboard front-camera stop/hold/resume is sufficient; hybrid/all-around human coverage and detouring are not required. Ryan pose unavailable for several sessions. Build independent state/execution/harness/gait evaluation work now. Pink ball contact deferred. Owner likes architecture and requests context-blind adversarial audits.",
     "owner_steering_2026_11_19": "Goals available; intended ball and second Pupper outstanding; field setup planned soon. Minimum demo: 1\u20132 minutes, two opponents, useful goal-directed shots, automatic role switching and smooth responsive execution. Latest reply requests camera-free endpoint repeatability first, with same marked starts; precision and accuracy recorded separately.",
     "owner_steering_2026_11_19_kick": "Prioritize the improved walk\u2013kick\u2013walk transition on the test block and use the trained leg policy as the demo shot. Discuss closed-loop approach, contact timing and field heading before resuming tests.",
     "owner_steering_2026_11_19_software": "Focus on one robot: continuous distance/heading feedback, low-latency steering at multiple speeds, natural deceleration into the leg kick, simulation and receipt-driven recovery. Tej handles physical kick testing. Mounted field camera and two-robot play follow later.",
     "owner_steering_2026_11_20": "Phone and tripod available, pink size-5 ball received. Owner is placing the perimeter AprilTags. Qualify overhead framing, field scale and ball detection now. Later, measure a curved approach and move toward quicker play, with trained physical kicks owned by Tej.",
-    "field_setup": "Phone feed recovered focus. Six floor tags, striker tag and pink ball reacquired together after setting the printed black square to about 6.25 inches. Corrected 0-to-1 measurement is about 2.70 m against a rough 9 ft tape. Physical goal mouths extend beyond the projected end lines. Setup UX deferred."
+    "field_setup": "Phone feed recovered focus. Six floor tags, striker tag and pink ball reacquired together after setting the printed black square to about 6.25 inches. Corrected 0-to-1 measurement is about 2.70 m against a rough 9 ft tape. Physical goal mouths extend beyond the projected end lines. Setup UX deferred.",
+    "owner_steering_2026_11_22_no_task_deadlines": "Do not set time limits for tasks; let them complete. This applies to provider/build/implementation supervision, not robot motion leases or Stop safety."
   },
   "verified_commands": {
     "status": "python3 foundation/scripts/session_status.py --verify-inputs",

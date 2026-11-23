@@ -4,6 +4,31 @@ Open **Pupper FC.command** from the extracted ZIP on an Apple silicon Mac runnin
 
 From a source checkout, run `./pupper-fc`. Source setup downloads dependencies when needed. The existing simulator remains available via `python -m final_project.pupper_fc`.
 
+## Device-free synthetic rehearsal
+
+From the active checkout on this Mac, reuse the verified laptop environment:
+
+```sh
+PUPPER_FC_PYTHON=/Users/shrish/.codex/worktrees/fc-teleop/cs123/.venv-fc/bin/python ./pupper-fc --mode replay
+```
+
+`PUPPER_FC_PYTHON` selects an existing environment, checks the pinned packages and imports,
+and never installs into that environment. Without it, the launcher uses its managed
+`.venv-fc` as before. Add `--no-open` to print the local address.
+
+Replay is a **synthetic I/O rehearsal**, not playback of a real recording. Home,
+Field, Robot, Settings and Play use the same lobby routes with isolated synthetic
+robot/field transports. The overhead image uses the maintained rendered scene and
+perception pipeline. No camera device, robot discovery, SSH, Home or network field
+publisher is opened. Connect one or two synthetic teams, open the field, start the
+rehearsal, then End or Stop. After Stop, explicitly disconnect and reconnect a team
+before another browser rehearsal. These acknowledgments do not test the native
+executor, physical standing, kicks, contact or Stop. The selected native pair and
+physical qualification remain pending. The Settings identity comes from the source
+selection manifest plus the actual checkout revision; source selection is not a
+deployment receipt. Live remains the default launch mode and never falls back to
+replay.
+
 ## Camera and teams
 
 Open camera settings to select the overhead camera, camera source, field dimensions and calibration. Six mapped floor tags provide automatic field calibration. The single-corner option requires a tag of known size, rotation and offsets, measured field dimensions and verification of the opposite corner. Body tags give team identity and heading. The experimental team-colour mode requires coloured team and nose patches and their height above the floor. The bare-body appearance overlay supplies candidate centres only. Use **Run offline check** in camera settings, or run `./pupper-fc --self-test`, to exercise a synthetic field without a camera or Pi.

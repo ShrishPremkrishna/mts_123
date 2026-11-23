@@ -54,3 +54,20 @@ button,select{font:inherit;color:inherit;border:1px solid var(--line);background
 @media (max-width: 780px) {
   #teams:has(.team-settings:not([hidden])) .team { grid-column: 1 / -1; }
 }
+
+.off-view{display:none!important}
+.mode-badge{font-size:11px;font-weight:800;letter-spacing:.06em;padding:5px 10px;border-radius:20px;border:1px solid var(--line);color:var(--sub);white-space:nowrap}
+body[data-mode=live] .mode-badge{color:var(--lime);border-color:#5d7a2c}
+body[data-mode=replay] .mode-badge{color:#1b1206;background:#f5c35f;border-color:transparent}
+.shell-nav{display:flex;flex-wrap:wrap;gap:6px;padding:12px 0 0}
+.shell-nav button{padding:8px 14px;background:transparent}
+.shell-nav button[aria-current=page]{background:#223038;border-color:#5b676c;color:var(--lime)}
+.app-panel{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 28px;margin-top:14px;padding:14px 18px;border:1px solid var(--line);border-left:3px solid var(--lime);border-radius:8px;background:#121a1e}
+body[data-mode=replay] .app-panel{border-left-color:#f5c35f}
+.app-panel h2{font-size:24px;letter-spacing:-.035em}.app-panel p{font-size:12px;color:var(--sub);line-height:1.5;max-width:46em;margin-top:4px}
+.app-panel dl{display:flex;flex-wrap:wrap;gap:8px 22px;margin:0;align-self:center}.app-panel dt{font-size:10px;letter-spacing:.12em;color:var(--sub);text-transform:uppercase}.app-panel dd{margin:2px 0 0;font:600 13px ui-monospace,monospace;overflow-wrap:anywhere}
+.replay-note:not([hidden]){position:absolute;left:22px;top:48px;max-width:calc(100% - 44px);font-size:11px;line-height:1.4;color:#f5c35f;text-shadow:0 1px 4px #000}
+section.self-test{margin-top:14px;padding:14px 16px;border:1px solid var(--line);border-radius:8px;display:grid;gap:8px;justify-items:start}
+section.self-test h3{font-size:15px}section.self-test p{font-size:12px;color:var(--sub);line-height:1.5}
+@media(max-width:520px){.mode-badge{font-size:9px;padding:3px 6px}.replay-note:not([hidden]){left:8px;top:36px}}
+@media(max-width:520px){header{height:auto;min-height:88px;flex-wrap:wrap;gap:8px;padding:10px 0}.brand{flex:1;white-space:nowrap}.local{display:none}#mode-badge{order:3;flex-basis:100%;text-align:center}#stop-all{flex-shrink:0}}

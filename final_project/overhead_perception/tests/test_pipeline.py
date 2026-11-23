@@ -348,6 +348,7 @@ def test_gameplay_observation_bridge():
     # Frames 1/30 s apart, each arriving 0.12 s after capture (the camera latency).
     for k in range(12):
         t_cap = 100.0 + k / 30
+        truth["striker"] = (-.6 + .005 * k, -.2, .4 + .01 * k)
         st = perc.process(arena.render(truth, ball), t_capture=t_cap, t_now=t_cap + 0.12)
     obs = to_observation(st, robot="striker", robot_id="pupper-1")
     assert isinstance(obs, Observation)
@@ -356,6 +357,15 @@ def test_gameplay_observation_bridge():
     assert abs(wrap(obs.robot.yaw - truth["striker"][2])) < math.radians(3)
     assert math.hypot(obs.ball.x - ball[0], obs.ball.y - ball[1]) < 0.02
     assert obs.fallen is False and obs.goal == 0
+    row = st["robots"]["striker"]
+    assert row["yaw_at_capture"] == pytest.approx(obs.robot.yaw)
+    position_filter, heading_filter = perc.robot_f["striker"]
+    assert abs(row["vx"]) > .05 and abs(row["wz"]) > .05
+    # Accepted positions are predicted linearly with this same velocity; undoing
+    # publication delay must recover the capture estimate, not a newer pose.
+    assert obs.robot.x == pytest.approx(position_filter.x[0])
+    assert obs.robot.y == pytest.approx(position_filter.x[1])
+    assert obs.robot.yaw == pytest.approx(heading_filter.yaw)
 
     # The gameplay controller, on its own field model, takes it and asks the robot to move.
     field = Field(length=cfg["field"]["length"], width=cfg["field"]["width"], goal_width=cfg["field"]["goal_width"])

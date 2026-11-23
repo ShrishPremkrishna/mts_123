@@ -1,0 +1,61 @@
+{
+  "schema": "pupper_fc_source_selection_v1",
+  "baseline": {
+    "main": "836d2fbefbf28face265b89a8524842224ec1699",
+    "match": "3e5f81f1ae05eb78e79203a95ace319f389f231d",
+    "tej": "28f3e8ce6f7dbd219ca2c6ef57ccecc575343676",
+    "current_docs": "1ff4670",
+    "recovered_u6": "outputs/pupper-fc-reconcile-20261122/pi"
+  },
+  "selected": {
+    "executor": "final_project/pupper_fc/integration.py",
+    "native_kick": "pupper_gait_deploy/src/neural_controller.cpp",
+    "stop": "pupperv3-monorepo/ros2_ws/src/joy_utils",
+    "overhead": "final_project/overhead_perception/fieldcam",
+    "local_ball": "Recovered u6 Ball Eye geometry; integration pending",
+    "planner": "FC continuous approach with selected Tej aim calculations; integration pending",
+    "laptop": "pupper-fc -> final_project.pupper_fc.teleop:create_app",
+    "build_recipe": "foundation/hardware/build_native_candidate.sh",
+    "release_assembler": "foundation/hardware/fc_walk_kick_release.py"
+  },
+  "qualification": {
+    "software": "in_progress",
+    "physical": "unqualified",
+    "target_build": "baseline_driver_passed_full_pair_pending",
+    "selected_live_pi_release_changed": false
+  },
+  "excluded_live_owners": [
+    "Tej finite-job polling/SSH bridge",
+    "Persistent heading, motion or contact calibration learning during play",
+    "Timer-only kick completion"
+  ],
+  "source_versions": {
+    "walker_command": "fc_deadline_v1",
+    "match_pitch": 1,
+    "kick_completion": "Matching native clip receipt and walker restoration; no physical contact inference"
+  },
+  "limits": [
+    "Source selection is not a built or deployed release identity.",
+    "Match and Tej branches remain preserved; changes are selected individually.",
+    "Model hashes and target library identities belong to the final staged manifest.",
+    "Missing Mac footage and incomplete local raw Pi archive remain outstanding.",
+    "Current laptop match helper/gateway contract still needs a coherent selected source closure; baseline driver build does not establish complete pair compatibility."
+  ],
+  "selected_models": {
+    "walker": {
+      "path": "pupper_gait_deploy/policies/default_policy.json",
+      "sha256": "ecf3a4ab8ea392dccda64977faa29d813dadc0d6099ae3abff5f84cc57156712"
+    },
+    "leg_kick": {
+      "path": "gemini_pupper/tricks/operator/leg_kick/policy.json",
+      "sha256": "9c841f2680d0747cb4fd484bd99218e2f661ac5e4257076f0a8027a76e22fc81"
+    }
+  },
+  "baseline_driver_build": {
+    "source_commit": "1ff46708c52ff37e423879e88ba81dc7d930581b",
+    "source_manifest_sha256": "b2d0b5b14966a48a07a9affd19cf43db57353355a50c25dc45b506d02fcf6787",
+    "architecture": "aarch64",
+    "receipt": "outputs/pupper-fc-phase4-20261122/runtime/checkpoint1-summary.json",
+    "result": "build/link and 58 device-free fixture tests passed; inactive private prefix"
+  }
+}

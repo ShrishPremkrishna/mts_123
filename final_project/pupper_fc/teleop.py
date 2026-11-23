@@ -6,6 +6,8 @@ import json
 import math
 import os
 from pathlib import Path
+import re
+import subprocess
 import uuid
 from urllib.parse import urlsplit
 
@@ -19,7 +21,49 @@ from .lobby import Lobby, Peer
 from .setup_session import open_setup, run_setup
 
 STATIC = Path(__file__).with_name("static")
+ROOT = Path(__file__).resolve().parents[2]
 ROBOTS = {"blue": "pupper-1", "red": "pupper-2"}
+MODES = ("live", "replay")
+REPLAY_NOTE = ("Replay · synthetic transport and field. No robot moves; board health and Stop "
+               "acknowledgments are simulated and never physical.")
+
+
+def source_identity(root=ROOT):
+    """Name the code this app runs: the ZIP's release stamp, else the local Git head."""
+    stamp = root / "release-source.json"
+    if stamp.is_file():
+        try:
+            commit = json.loads(stamp.read_text()).get("source_commit")
+        except (OSError, ValueError, AttributeError):
+            commit = None
+        valid = isinstance(commit, str) and re.fullmatch(r"[0-9a-f]{7,64}", commit)
+        return dict(kind="release", commit=commit if valid else None, dirty=None,
+                    detail="release-source.json" if valid else "release-source.json is unreadable")
+    try:
+        head = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True,
+                              timeout=2, stdin=subprocess.DEVNULL)
+        commit = head.stdout.strip()
+        if head.returncode or not re.fullmatch(r"[0-9a-f]{40,64}", commit):
+            raise ValueError
+        status = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--untracked-files=no"],
+                                capture_output=True, text=True, timeout=2, stdin=subprocess.DEVNULL)
+        dirty = bool(status.stdout.strip()) if status.returncode == 0 else None
+        return dict(kind="git", commit=commit, dirty=dirty, detail="local Git checkout")
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return dict(kind="unknown", commit=None, dirty=None, detail="No release stamp or readable Git head")
+
+
+def app_identity(mode, source):
+    try:
+        selection = json.loads(Path(__file__).with_name("release_selection.json").read_text())
+    except (OSError, ValueError):
+        selection = {"qualification": {"physical": "unqualified", "target_build": "pending"},
+                     "limits": ["Source selection manifest unavailable."]}
+    return dict(selection=selection, mode=mode, synthetic=mode == "replay", hardware_qualified=False, source=source,
+                # The lead integrates the canonical release manifest later. Never guess one.
+                native_candidate=dict(status="pending", detail="No verified native candidate is recorded for this app"),
+                limitation=REPLAY_NOTE if mode == "replay" else
+                "Live · commands reach enrolled robots. Software checks here do not qualify hardware.")
 
 
 async def open_runner(host, robot_id):
@@ -60,14 +104,28 @@ def operator_message(data, robot_id):
     raise ValueError("Invalid operator control")
 
 
-def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=open_setup):
+def create_app(hosts=None, connect=None, *, lobby=None, scan=None, setup=None, mode="live", identity=None):
+    if mode not in MODES:
+        raise ValueError("Choose live or replay mode")
+    replay = mode == "replay"
     hosts = hosts or {}
     hosts = {slot: ssh_host(host) for slot, host in hosts.items() if slot in ROBOTS and host}
     if len(set(hosts.values())) != len(hosts):
         raise ValueError("Blue and Red must have different SSH hosts")
+    if replay:
+        # Server-side boundary: replay owns every endpoint. Nothing reaches SSH, discovery or Home.
+        if hosts or connect is not None or scan is not None or setup is not None:
+            raise ValueError("Replay mode uses its own synthetic transport and never accepts SSH hosts")
+        from .replay_transport import REPLAY_HOSTS, open_replay_runner, replay_lobby
+        lobby = lobby or replay_lobby()
+        connect = open_replay_runner
+    else:
+        connect, setup, lobby = connect or open_runner, setup or open_setup, lobby or Lobby()
+    if lobby.mode != mode:
+        raise ValueError(f"The {mode} app requires a {mode} lobby")
+    identity = app_identity(mode, identity or source_identity())
     configured = dict(hosts)
     selected_by = {}
-    lobby = lobby or Lobby()
 
     @asynccontextmanager
     async def lifespan(app):
@@ -88,11 +146,16 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
     @app.get("/health")
     async def health(response: Response):
         response.headers["X-Pupper-FC-Installation"] = os.environ.get("PUPPER_FC_INSTALLATION", "")
-        return {"app":"pupper-fc-lobby"}
+        return {"app":"pupper-fc-lobby", "mode":mode}
+
+    @app.get("/api/app")
+    @app.get("/api/release")
+    async def app_info():
+        return identity
 
     @app.get("/api/state")
     async def arena_state():
-        return lobby.state()
+        return dict(lobby.state(), app=identity)
 
     @app.get("/api/frame.jpg")
     async def frame():
@@ -128,7 +191,8 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
                 if lobby.phase != "idle":
                     raise ValueError("End the match before running the offline check")
                 from .self_test import check
-                return await asyncio.to_thread(check)
+                report = await asyncio.to_thread(check)
+                return dict(report, scope="software-only", hardware_qualified=False)
             if action in ("camera/snapshot", "camera/confirm", "camera/far-corner"):
                 return await lobby.setup_snapshot(action, data, token)
             if action == "camera":
@@ -146,6 +210,11 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
                     if lobby.phase != "idle" or slot in owners:
                         raise ValueError("Disconnect this team and end the match before changing its connection")
                 can_select()
+                if replay:
+                    if data.get("host") or data.get("save_address") is True:
+                        raise ValueError("Replay mode never contacts robot addresses. Clear the SSH address.")
+                    hosts[slot], selected_by[slot] = REPLAY_HOSTS[ROBOTS[slot]], token
+                    return {"robot_id":ROBOTS[slot], "host":hosts[slot], "synthetic":True}
                 explicit = data.get("host", "")
                 if not isinstance(explicit, str):
                     raise ValueError("Enter an SSH alias or leave the address blank")
@@ -188,6 +257,12 @@ def create_app(hosts=None, connect=open_runner, *, lobby=None, scan=None, setup=
     async def setup_robot(ws: WebSocket, slot: str):
         if not available(ws, slot):
             await ws.close(code=1008)
+            return
+        if replay:
+            await ws.accept()
+            await ws.send_json(dict(event="setup", stage="error", robot_id=ROBOTS[slot], synthetic=True,
+                                    message="Replay mode skips Prepare and Home. It never contacts a robot."))
+            await ws.close()
             return
         owners.add(slot)
         setting_up.add(slot)
@@ -328,11 +403,15 @@ def main():
     parser.add_argument("--blue", metavar="SSH_HOST")
     parser.add_argument("--red", metavar="SSH_HOST")
     parser.add_argument("--port", type=int, default=8766)
+    parser.add_argument("--mode", choices=MODES, default="live",
+                        help="live controls enrolled robots; replay uses only synthetic endpoints")
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("Select a port between 1 and 65535")
+    if args.mode == "replay" and (args.blue or args.red):
+        parser.error("Replay mode never uses SSH hosts")
     try:
-        app = create_app({"blue": args.blue, "red": args.red})
+        app = create_app({"blue": args.blue, "red": args.red}, mode=args.mode)
     except ValueError as exc:
         parser.error(str(exc))
     uvicorn.run(app, host="127.0.0.1", port=args.port, access_log=False, ws_max_size=2048)

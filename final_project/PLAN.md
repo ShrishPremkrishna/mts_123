@@ -1,6 +1,6 @@
-# PupperFC rebuild plan — Phase 3
+# PupperFC rebuild plan — Phase 4 execution
 
-Updated November 22, 2026. The user has moved from investigation to planning and wants the offline work, including work on the powered Pi, organized first. Physical tests are separated below; their batching and scheduling are deferred. This is a plan, not an implementation or hardware qualification. The [architecture review](../foundation/results/fc-architecture-review-20261122.md) explains the changes; the [brief](README.md) owns the product vision and the [checkpoint](../foundation/results/interruption-recovery.json) owns current activity.
+Updated November 22, 2026. Phase 4 implementation is authorized and underway in usable checkpoints. Offline work, including isolated no-device work on the powered Pi, comes first. Physical tests are separated below; their batching and scheduling are deferred. The packages below define acceptance, not completed implementation or hardware qualification. The [architecture review](../foundation/results/fc-architecture-review-20261122.md) explains the changes; the [brief](README.md) owns the product vision and the [checkpoint](../foundation/results/interruption-recovery.json) owns current activity.
 
 ## Intended result
 
@@ -25,7 +25,7 @@ The numbers give integration order. Several packages run concurrently once their
 
 **Work:** use the active FC checkout and source-by-source integration map for main, match, Tej overhead and recovered u6. Preserve unique teammate work and the exact old releases. Select the existing FC executor, native kick/Stop, field solver, Ball Eye geometry and Tej aiming calculations; exclude the bridge's independent motion ownership from the new entry point. Record Mac/Pi source, model, driver, environment and profile identities. Recover the remaining raw recording archive with a verified resumable transfer when feasible; its absence does not block synthetic software checks.
 
-On the Pi, identify the real target underlay/toolchain and run a bounded compile/link smoke test for the selected native packages in an isolated build location. Do not install test artifacts over the active build. Confirm the existing Ball Eye model can load for saved-image inference. Keep training provenance unknown if unrecovered.
+On the Pi, identify the real target underlay/toolchain and run a monitored compile/link smoke test for the selected native packages in an isolated build location. Do not install test artifacts over the active build. Confirm the existing Ball Eye model can load for saved-image inference. Keep training provenance unknown if unrecovered.
 
 Refresh the preserved native build recipe against the integrated source closure: its November 19 version has fixed inputs and supports only the controller and gateway packages. Changed driver instrumentation needs its actual target build/test recipe; do not invent an unsupported option or reuse an older successful build as evidence for new source.
 
@@ -143,6 +143,8 @@ Exercise capture loss/future/outlier data, calibration changes, delayed operatio
 
 ## Parallel work and priorities
 
+Let implementation, provider and build tasks finish without wall-clock termination limits; monitor them with progress updates. Robot command expiry, Stop and native safety deadlines remain unchanged.
+
 After a small shared-interface agreement, use three concrete worker lanes plus root integration:
 
 | Lane | Main ownership | Runs without physical qualification |
@@ -152,7 +154,7 @@ After a small shared-interface agreement, use three concrete worker lanes plus r
 | UI/experiments | Static UI, agreed server/lobby adapters, views, recordings and experiment operations | Packages 2 and 7 throughout |
 | Root integration | Shared interfaces, controller/kick/tactics integration, file ownership and final verification | Packages 5, 6 and 9 |
 
-Assign one owner per file, especially shared lobby/server/integration modules, before edits. Reviewers are bounded and read-only; use available slots as workers finish rather than invent a fourth concurrent worker lane. Opus labor and Fable second opinions remain the preferred external models where source-sharing approval permits them; a blocked optional review does not block local work.
+Assign one owner per file, especially shared lobby/server/integration modules, before edits. Reviewers are read-only; use available slots as workers finish rather than invent a fourth concurrent worker lane. Opus labor and Fable second opinions remain the preferred external models where source-sharing approval permits them; a blocked optional review does not block local work.
 
 Critical sequence: **selected baseline/build smoke → shared operations → honest inputs plus one executor → one-robot UI slice → richer tactics and complete UI → frozen Pi candidate and final verification.** UI design, instrumentation, saved-image comparison and test preparation are concurrent work. Finish the first software slice before spending effort tuning later milestones. Do not wait for robot two to implement its software path.
 

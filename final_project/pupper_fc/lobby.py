@@ -95,15 +95,25 @@ class Peer:
                 answer.set_exception(ValueError(f"{self.robot} disconnected"))
 
 
+def synthetic(item):
+    """Replay endpoints declare themselves. Live endpoints never carry this marker."""
+    return getattr(item, "synthetic", False) is True
+
+
 class Lobby:
     def __init__(self, *, camera_factory=ArenaCamera, describe_peer=describe, field_factory=open_field,
-                 publisher_factory=None, settings=None):
+                 publisher_factory=None, settings=None, replay=False):
         self.profile = json.loads(PROFILE.read_text())
-        self.settings = settings or Path.home() / ".config/pupper-fc/arena.json"
+        default_settings = Path.home() / ".config/pupper-fc/arena.json"
+        if replay and (camera_factory is ArenaCamera or describe_peer is describe or field_factory is open_field
+                       or publisher_factory is None or settings is None or Path(settings) == default_settings):
+            raise ValueError("Replay requires injected replay endpoints and temporary settings")
+        self.mode = "replay" if replay else "live"
+        self.settings = settings or default_settings
         self.camera_factory, self.describe, self.field = camera_factory, describe_peer, field_factory
         self.publisher = publisher_factory
         self.camera, self.owner = None, None
-        self.source, self.appearance, self.goals = "phone", False, None
+        self.source, self.appearance, self.goals = "sim" if replay else "phone", False, None
         self.setup, self.tracking = {"mode": "layout"}, "tags"
         self.surveys = {}
         try:
@@ -160,7 +170,7 @@ class Lobby:
         balance = self.balance_state() if self.balance else None
         score = self.referee.state.get("score") if self.referee else self.last_score
         return dict(phase=self.phase, message=message, source=self.source, appearance=self.appearance,
-                    score=score,
+                    score=score, mode=self.mode, synthetic=self.mode == "replay",
                     balance=balance,
                     resume_ready=self.phase == "playing" and bool(camera and (camera.get("match") or {}).get("reset_ready"))
                     and all(p.offer.get("resume_ready") for p in self.autonomous),
@@ -179,17 +189,29 @@ class Lobby:
             source, appearance = data.get("source"), data.get("appearance", False)
             if source not in ("phone","0","1","2","3","sim") or type(appearance) is not bool:
                 raise ValueError("Select a camera from settings")
+            if self.mode == "replay" and source != "sim":
+                raise ValueError("Replay mode uses only the synthetic field. It never opens a camera.")
             setup, tracking = camera_settings(data, self.profile)
             if self.camera:
                 await asyncio.to_thread(self.camera.close)
+                self.camera = None
             self.setup, self.tracking = setup, tracking
             saved = self.surveys.get(self.geometry_key())
             self.goals = saved if source != "sim" and self.valid_goals(saved) else None
             profile = dict(self.profile, field_setup=setup, robot_tracking=tracking, surveyed_goals=self.goals)
-            self.camera = self.camera_factory(profile, source, appearance=appearance)
+            camera = self.camera_factory(profile, source, appearance=appearance)
+            if synthetic(camera) != (self.mode == "replay"):
+                raise ValueError("The synthetic replay field is available only in replay mode")
+            self.camera = camera
             self.save_settings()
             self.source, self.appearance = source, appearance
-            self.camera.start()
+            try:
+                self.camera.start()
+            except BaseException:
+                self.camera = None
+                with suppress(Exception):
+                    await asyncio.to_thread(camera.close)
+                raise
             return self.state()
 
     async def setup_snapshot(self, action, data, token):
@@ -266,6 +288,7 @@ class Lobby:
             players = list(self.peers.values())
             if not players or any(p.owner != token or not p.offer or p.closed for p in players):
                 raise ValueError("Connect your team in this window first")
+            self._check_mode(players)
             if not self.camera or not self.camera.snapshot().get("live"):
                 raise ValueError("Connect a live camera with a current field calibration")
             self.board_anchors = {p.robot:dict(proof(p)) for p in players}
@@ -344,6 +367,14 @@ class Lobby:
                 raise ValueError(self.message) from None
             finally:
                 self.transition = self.aborted = None
+
+    def _check_mode(self, players):
+        """Replay plays only replay teams on the synthetic field; live play refuses both."""
+        replay_parts = [synthetic(self.camera), *(synthetic(getattr(p, "proc", None)) for p in players)]
+        if self.mode == "replay" and not all(replay_parts):
+            raise ValueError("Replay matches use only replay teams and the synthetic field")
+        if self.mode != "replay" and any(replay_parts):
+            raise ValueError("Live matches refuse replay teams and the synthetic field")
 
     def _check_boards(self, players, epoch=None):
         for peer in players:

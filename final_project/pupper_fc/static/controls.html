@@ -4,27 +4,31 @@
 <link rel="stylesheet" href="/assets/controls.css"><script type="module" src="/assets/controls.mjs"></script></head>
 <body><main>
 <header><div class="brand"><b class="shield" aria-hidden="true">FC</b><span>PUPPER <i>FC</i></span></div>
-<span class="local"><i class="lamp"></i> Local arena</span><button id="stop-all" title="Stop all connected robots immediately">■ &nbsp; Stop <kbd>Esc</kbd></button></header>
-<section class="title"><div><div class="kicker">MATCHDAY</div><h1>Match lobby<span>.</span></h1></div>
+<span class="local"><i class="lamp"></i> Local arena</span><span id="mode-badge" class="mode-badge" role="status" aria-live="polite">Loading mode…</span><button id="stop-all" title="Stop all connected robots immediately">■ &nbsp; Stop <kbd>Esc</kbd></button></header>
+<nav class="shell-nav" aria-label="App sections"><button data-view-target="home" aria-current="page">Home</button><button data-view-target="field">Field</button><button data-view-target="robot">Robot</button><button data-view-target="settings">Settings</button><button data-view-target="play">Play</button></nav>
+<section id="app-panel" class="app-panel" data-views="home settings" aria-labelledby="app-mode-label">
+<div><div class="kicker">MODE</div><h2 id="app-mode-label">Checking app mode…</h2><p id="app-limitation"></p></div>
+<dl><div><dt>Source</dt><dd id="app-source">Unknown</dd></div><div><dt>Hardware qualified</dt><dd id="app-hardware">false</dd></div><div><dt>Native candidate</dt><dd id="app-native">Pending</dd></div></dl></section>
+<section class="title" data-views="home play"><div><div class="kicker">MATCHDAY</div><h1>Match lobby<span>.</span></h1></div>
 <div class="score" aria-label="Scoreboard"><span class="blue-ink">BLU</span><b id="score-blue">0</b><span class="dash">–</span><b id="score-red">0</b><span class="red-ink">RED</span></div></section>
-<div id="teams" aria-label="Choose your robots"></div>
+<div id="teams" aria-label="Choose your robots" data-views="home robot play"></div>
 <template id="team"><section class="team"><div class="teamtop"><span class="team-label"></span><span class="connection" role="status">Offline</span></div>
 <div class="teamfoot"><h2></h2><div class="actions"><button class="connect">Connect</button><button class="options" aria-expanded="false">Set up</button></div></div>
 <div class="team-settings" hidden><label>Control mode <select class="mode"><option value="autonomous">Autonomous</option><option value="teleop">Teleop</option></select></label><p class="guide" hidden></p><label>Onboard pink ball <select class="ball-mode"><option value="pink">Color + shape</option><option value="confirmed">Require YOLO confirmation</option><option value="off">Off</option></select></label><p class="ball-reading" aria-live="off">Waiting for camera telemetry.</p><p class="imu-profile"></p><button class="disconnect">Disconnect</button></div>
-<p class="feedback" role="status"></p></section></template>
-<section id="robot-setup" class="setup-panel" aria-labelledby="setup-title" hidden>
+<p class="replay-note" hidden></p><p class="feedback" role="status"></p></section></template>
+<section id="robot-setup" class="setup-panel" aria-labelledby="setup-title" data-views="home robot play" hidden>
 <div class="setup-heading"><h2 id="setup-title">Robot setup</h2><button id="setup-close" aria-label="Close robot setup">×</button></div>
 <div class="setup-step"><label for="setup-address">Team SSH address (optional)</label> <input id="setup-address" type="text" placeholder="Automatic discovery" autocomplete="off" spellcheck="false"> <button id="save-address">Save address</button><p>Connect requires an enrolled Pi with the Pupper FC session helper. Use its trusted SSH alias or leave blank for discovery.</p></div>
 <div class="setup-grid"><div class="setup-step"><h3>Prepare session</h3><p>Connect prepares a cold session automatically. Prepare is also available on its own.</p><button id="setup-prepare">Prepare</button></div>
 <div class="setup-step home-step"><h3>Home on stand</h3><label class="support"><input id="setup-supported" type="checkbox"> Pupper is supported on its stand.</label><label class="home-mode">After homing <select id="setup-home-mode"><option value="stand">Stand for a match</option><option value="home-only">Finish homed · no gamepad</option></select></label>
 <p id="setup-hint">Standing requires a connected Stop gamepad and a fresh cue after homing.</p><button id="setup-home" disabled>Home</button><button id="setup-stand" hidden>Enable standing</button></div></div>
 <p id="setup-status" role="status" aria-live="polite"></p></section>
-<div class="matchbar">
+<div class="matchbar" data-views="home field play">
 <div class="camera"><div class="camera-icon" aria-hidden="true">◉</div><div><h3>Field camera</h3><p id="camera-status">Disconnected</p></div>
 <button id="camera-connect">Connect camera</button><button id="camera-settings" title="Camera settings" aria-label="Camera settings" aria-expanded="false">⚙</button></div>
 <div class="kickoff"><button id="end-match" hidden>End match</button><button id="resume-balance" hidden>Resume after balance hold</button><button id="resume-match" hidden>Resume play ▸</button><button id="start-match" disabled>Start match &nbsp; ▸</button></div>
 </div><p id="error" role="status" aria-live="polite">Connect a team and the field camera to play.</p>
-<section class="fieldpanel" id="fieldpanel" hidden><div class="preview"><img id="view" alt="Overhead field with detected tags, ball and robots" hidden><span id="preview-wait">Waiting for a camera frame</span></div>
+<section class="fieldpanel" id="fieldpanel" data-views="home field settings play" hidden><div class="preview"><img id="view" alt="Overhead field with detected tags, ball and robots" hidden><span id="preview-wait">Waiting for a camera frame</span></div>
 <div class="cameraform"><h2>Camera settings</h2><label>Camera <select id="camera-source"><option value="phone">Wireless iPhone</option><option value="0">System camera 0</option><option value="1">System camera 1</option><option value="2">System camera 2</option><option value="3">System camera 3</option><option value="sim">Simulated field preview</option></select></label>
 <label>Field reference <select id="field-mode"><option value="layout">Mapped floor tags</option><option value="corner">One measured corner tag</option></select></label>
 <div id="anchor-fields" hidden>
@@ -45,6 +49,8 @@
 <label class="check"><input type="checkbox" id="appearance"> Show possible robot centres (preview only)</label><button id="apply-camera">Open camera</button>
 <p id="seen"></p><p id="layout-help"></p><p id="goal-source"></p>
 <div class="camera-actions"><button id="field-snapshot" disabled>Take snapshot</button><button id="far-corner" hidden>Mark opposite corner</button><button id="field-confirm" hidden>Confirm field overlay</button><button id="survey" disabled>Mark goalposts</button><button id="reset-goals" hidden>Use centred goals</button></div>
-<p id="survey-help" role="status" aria-live="polite"></p>
-<div class="self-test"><button id="self-test">Run offline check</button><p id="self-test-result" role="status" aria-live="polite"></p></div></div></section>
+<p id="survey-help" role="status" aria-live="polite"></p></div></section>
+<section id="checks" class="self-test" data-views="home settings" aria-labelledby="checks-title"><h3 id="checks-title">Offline software check</h3>
+<p>Software-only. Checks laptop perception and kickoff logic on a synthetic image. It does not test robots, cameras or hardware.</p>
+<button id="self-test">Run offline check</button><p id="self-test-result" role="status" aria-live="polite"></p></section>
 </main></body></html>

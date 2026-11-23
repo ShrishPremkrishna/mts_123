@@ -42,7 +42,10 @@ def camera_settings(data, profile):
 
 
 class ArenaCamera:
-    def __init__(self, profile, source="phone", *, appearance=False):
+    def __init__(self, profile, source="phone", *, appearance=False, synthetic_clock=None):
+        if synthetic_clock is not None and source != "sim":
+            raise ValueError("A synthetic clock is only valid for the rendered simulation")
+        self.synthetic_clock = synthetic_clock
         self.profile, self.source, self.appearance = profile, source, appearance
         self.session = uuid.uuid4().hex
         self.thread = None
@@ -260,11 +263,18 @@ class ArenaCamera:
                 if may_calibrate and not perception.calibration_valid and now >= next_cal:
                     next_cal = now + .4
                     perception.calibrate(frame)
+                simulation_time = receipt if simulation else None
+                if simulation and self.synthetic_clock is not None:
+                    # Generated images have an explicit rehearsal-clock mapping. Never repair live captures.
+                    receipt = self.synthetic_clock(receipt)
                 captured = receipt - cfg["camera"]["latency_s"] if live else receipt
                 if not live and not simulation:
                     captured = source.file_time_s(previous_video, None)
                     previous_video = captured
                 state = perception.process(frame, captured, time.time() if live else captured, match_only=True)
+                if simulation:
+                    state.update(synthetic=True, physical=False, simulation_time=simulation_time,
+                                 clock="rehearsal_wall" if self.synthetic_clock else "simulation")
                 fit_valid = state["calibration_valid"]
                 with self.lock:
                     needs_confirm = setup["mode"] == "corner" and fit_valid and self.confirmed_revision != state["calibration_revision"]

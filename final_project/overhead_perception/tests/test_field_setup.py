@@ -53,6 +53,7 @@ def test_one_tag_far_corner_refines_and_watches_the_independent_mark():
 
 
 def test_rectified_color_heading_is_signed_and_lost_nose_never_coasts_as_measured():
+    from fieldcam.gameplay import to_observation
     cam, sim = scene(.40, colors=True)
     im = sim.render({}, None)
     assert cam.calibrate(im), cam.calib_fail
@@ -69,12 +70,15 @@ def test_rectified_color_heading_is_signed_and_lost_nose_never_coasts_as_measure
     for name, (_, _, yaw) in flipped.items():
         assert fresh["robots"][name]["measured_this_frame"]
         assert abs(math.remainder(fresh["robots"][name]["yaw"] - yaw, math.tau)) < math.radians(5)
+        assert abs(fresh["robots"][name]["wz"]) > 1  # Exercise nonzero delay/rate, not a static pose.
+        assert abs(math.remainder(to_observation(fresh, robot=name).robot.yaw - yaw, math.tau)) < math.radians(5)
     hsv = cv2.cvtColor(observed, cv2.COLOR_BGR2HSV)
     missing = cv2.inRange(hsv,(26,150,150),(50,255,255))
     observed[missing != 0] = (30,30,30)
     after = cam.process(observed, 1.05, match_only=True)
     for robot in after["robots"].values():
         assert robot["visible"] and not robot["measured_this_frame"]
+        assert robot["yaw_at_capture"] is None
         assert "nose patch" in robot["tracking_detail"]
     assert after["tracking"] == "colors"
 
