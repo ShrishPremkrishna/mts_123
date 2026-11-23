@@ -79,6 +79,7 @@ class RobotCfg:
     host: str          # ssh host / IP of the Pi ("" = sim only)
     profile: str       # robot software profile name
     udp_host: str = ""  # LAN address for control packets ("" = resolve ssh host)
+    cam_url: str = ""   # optional onboard camera MJPEG URL (fc/robot/camstream.py), "" = none
 
 
 def load_field(path: Path = CONFIG / "field.json") -> Field:

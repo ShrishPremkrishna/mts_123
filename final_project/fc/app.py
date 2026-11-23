@@ -29,6 +29,8 @@ from .brain import Brain, shape
 from .brain import DEFAULTS as BRAIN_DEFAULTS
 from .core import CONFIG, Cmd, RobotCfg, World, load_field, load_params, wrap
 from .link import Link
+from .media import CamFeed, Recorder
+from .play import FLOW_DEFAULTS, FLOW_LIMITS, JOBS, RESTART_MODES, MatchFlow, Ticker, action_label, banners, health
 from .runlog import RUNS, Metrics, RunLog, list_runs
 from .sim import Sim
 from .sim import SIM_DEFAULTS
@@ -57,6 +59,10 @@ PARAM_FALLBACKS = {
     "eye_tag_offset_x": 0.065,  # robot tag centre ahead of body centre, m
     "eye_yaw_offset_deg": 0.0,  # add if the tag top does not point at the nose (Tej used -180)
     "eye_latency_s": 0.12,      # glass-to-python delay
+    **FLOW_DEFAULTS,            # Play screen match flow (see play.py)
+    "restart_mode": "ball_rest",  # after a goal: resume when the ball rests anywhere | walk to kickoff spots
+    "record": 1,                # camera source: write each run's overhead video to <run>/overhead.mp4
+    "rec_fps": 15.0,
 }
 # Hard limits for live edits. Speed ceilings mirror link.CEIL.
 LIMITS = {
@@ -72,20 +78,24 @@ LIMITS = {
     "yaw_learn": (0, 1), "yaw_learn_rate": (0.0, 0.2), "act_lag_s": (0.0, 1.0),
 }
 LIMITS.update({k: (0.0, 0.5) for k in ("push_vx", "hb_charge_vx", "hb_backoff_vx")})
+LIMITS.update(FLOW_LIMITS, record=(0, 1), rec_fps=(2, 30))
 CHOICES = {"role_mode": ["auto", "attack", "defend"], "contact_mode": ["push", "headbutt"],
-           "ball_lost": ["hold", "search"], "goalie_style": ["sideways", "facing"]}
+           "ball_lost": ["hold", "search"], "goalie_style": ["sideways", "facing"], "restart_mode": RESTART_MODES}
 TESTS = ["drive", "goto", "step", "deadman", "push_ball", "goalie", "match", "sim_eval"]
 ONE_ROBOT_TESTS = {"drive", "goto", "step", "deadman", "push_ball", "goalie"}
 BRAIN_MODES = {"play", "goto", "push_ball", "goalie", "match"}
 # Sim scenario each test starts from (sim source only; the UI can override).
 SIM_SCENARIO = {"push_ball": "attack_solo", "goalie": "shot_on_goal", "match": "kickoff"}
-ROBOT_OPS = ["status", "start", "stop", "bridge_start", "bridge_stop", "imu_test", "stage"]
+ROBOT_OPS = ["status", "ready", "down", "start", "stop", "bridge_start", "bridge_stop", "imu_test", "stage"]
+CONFIRM_OPS = {"start", "ready"}                   # may home the legs / stand the robot up
+ALWAYS_OPS = {"stop", "down"}                      # never refused by a running op
 PROFILES_DIR = HERE / "robot" / "profiles"
 HOST_RE = re.compile(r"[A-Za-z0-9_.@-]{1,253}")   # robots.json host: [user@]name, no shell or ssh-option chars
 IMU_TEST_S = (1, 900)
 IMU_MODES = ("auto", "bno", "ros")
 IMU_CONDITION_RE = re.compile(r"[a-z0-9_]{1,24}")
-OP_TIMEOUT_S = {"start": 180, "stage": 120}       # fcctl start waits up to 160 s for READY
+OP_TIMEOUT_S = {"start": 180, "stage": 120, "ready": 300, "down": 90}  # fcctl start waits up to 160 s for READY
+CAM_URL_RE = re.compile(r"https?://[A-Za-z0-9_.\-]+(:\d{1,5})?(/[A-Za-z0-9_./\-]*)?")
 STEP_PRE_S = 0.7                                   # step: still before the command (start pose)
 DEADMAN_PRE_S = 0.5
 PRESET_NAME_RE = re.compile(r"[A-Za-z0-9_\-]{1,40}")
@@ -98,6 +108,11 @@ def load_robot_config(path: Path = CONFIG / "robots.json") -> tuple[list[RobotCf
     names = {f.name for f in fields(RobotCfg)}
     robots = [RobotCfg(**{k: v for k, v in r.items() if k in names}) for r in raw]
     return robots, {str(r["id"]): str(r.get("udp_host") or "") for r in raw}
+
+
+def variants(active: list[str]) -> list[list[str]]:
+    """Demo variants the V key cycles through: every active robot, then each one alone."""
+    return [list(active)] + ([[r] for r in active] if len(active) > 1 else [])
 
 
 # ---------------------------------------------------------------------------------------
@@ -407,6 +422,15 @@ class App:
         self._err_t: dict[str, float] = {}
         self._lk_t = 0.0
         self.loop_stats = {"hz": 0.0, "overruns": 0, "tick_ms": 0.0}
+        self._dt = 1.0 / 30
+        # Play screen: who plays (V key), the match flow, decision ticker, robot phases, feeds, video
+        self.playing: list[str] = [r.id for r in self.active]
+        self.flow: MatchFlow | None = None
+        self.last_match: dict | None = None
+        self.ticker = Ticker()
+        self.robot_phase: dict[str, str] = {}
+        self.cams = {r.id: CamFeed(r.cam_url) for r in self.all_robots if r.cam_url and CAM_URL_RE.fullmatch(r.cam_url)}
+        self.recorder: Recorder | None = None
         self._stop = False
         self.say(f"started: source={source}, robots={[r.id for r in self.active]}"
                  + (", LINK OFF (nothing sent)" if source != "sim" and self.link is None else ""))
@@ -468,6 +492,7 @@ class App:
 
     def tick(self, dt: float) -> None:
         with self.lock:
+            self._dt = dt
             now = time.monotonic()
             world = self.sim.observe(now) if self.sim else self.eye.latest()
             if world is not None and world.t != now:
@@ -508,6 +533,7 @@ class App:
                 t["sent"].append((now, c.vx, c.vy, c.wz))
                 t["last_sent_t"], t["last_sent"] = now, c
             self.cmds, self.debug = cmds, debug
+            said = self.ticker.update(now, debug, self.cfg, self.playing) if self.mode in ("play", "match") else []
             if self.run:
                 rec = {"w": world_json(world, now),
                        "c": {k: [c.vx, c.vy, c.wz, c.tag] for k, c in cmds.items()},
@@ -518,6 +544,11 @@ class App:
                     rec["tr"] = truth_json(self.sim.truth())
                 if acks:
                     rec["a"] = acks
+                if said:
+                    rec["tk"] = [x["text"] for x in said]
+                if self.flow:
+                    rec["m"] = {"phase": self.flow.phase, "score": self.flow.score, "clock": round(self.flow.clock, 2),
+                                "touches": self.flow.touches}
                 if now - self._lk_t >= 0.5:   # link/IMU/eye health at 2 Hz
                     self._lk_t = now
                     if lstat:
@@ -553,7 +584,7 @@ class App:
 
     def _health_end_test(self) -> None:
         t = self.test
-        if not t or t["name"] == "sim_eval" or not (self.imu_bad or self.mux_lost):
+        if not t or t["name"] == "sim_eval" or t.get("flow") or not (self.imu_bad or self.mux_lost):
             return
         involved = {t["robot"]} if t.get("robot") else {r.id for r in self.active}
         for result, ids, key in (("imu_bad", self.imu_bad, "imu"), ("mux_lost", self.mux_lost, "hold")):
@@ -574,6 +605,14 @@ class App:
             return Cmd.stop(halt), {"role": "idle", "phase": halt, "target": None}, "hard"
         if mode in ONE_ROBOT_TESTS and r.id != test.get("robot"):
             return idle
+        if mode in ("play", "match") and r.id not in self.playing:
+            return Cmd.stop("benched"), {"role": "idle", "phase": "benched", "target": None}, "hard"
+        flow_goto = flow_role = None
+        if mode == "match" and test.get("flow") and self.flow:
+            kind, arg = self.flow.command(r.id)
+            if kind == "stop":
+                return Cmd.stop(arg), {"role": "idle", "phase": arg, "target": None}, "hard"
+            flow_goto, flow_role = (arg, None) if kind == "goto" else (None, arg)
         if mode == "drive":
             vx, vy, wz, t = self.teleop.get(r.id, (0, 0, 0, 0))
             if now - t > self.params["teleop_timeout_s"]:
@@ -588,10 +627,12 @@ class App:
         if not fresh:
             return Cmd.stop("stale"), {"role": "idle", "phase": "not seen", "target": None}, "app"
         params = self.params
-        if mode == "goto":
-            tgt = test["target"]
+        if mode == "goto" or flow_goto:
+            tgt = flow_goto or test["target"]
             params = {**params, "role_mode": "goto", "goto_x": tgt[0], "goto_y": tgt[1],
                       "goto_yaw": tgt[2] if len(tgt) > 2 else None}
+        elif flow_role:
+            params = {**params, "role_mode": flow_role}
         elif mode == "push_ball":
             params = {**params, "role_mode": "attack"}
         elif mode == "goalie":
@@ -651,6 +692,8 @@ class App:
 
     def _check_test(self, world: World | None, now: float) -> None:
         goals = self._goal_events(world, now)
+        if self.test and self.test.get("flow") and self.flow:
+            return self._flow_tick(world, now, goals)
         for team in goals:
             self.score[team] += 1
             self.say(f"GOAL {team}  ({self.score['blue']}-{self.score['red']})", team=team)
@@ -722,6 +765,31 @@ class App:
                     res = rep.pop("result")
                     self._finish(t.get("abort") or res, time_s=round(el, 2), **rep)
 
+    def _flow_tick(self, world: World | None, now: float, goals: list[str]) -> None:
+        f, t = self.flow, self.test
+        for ev in f.update(now, self._dt, world, self.debug, goals, self.params):
+            if ev.startswith("goal:"):
+                team = ev[5:]
+                self.say(f"GOAL {team}  ({f.score['blue']}-{f.score['red']})", team=team, clock=f.clock)
+                self.ticker.add(None, team, f"GOAL! {team.capitalize()} scores  {f.score['blue']}-{f.score['red']}", "goal")
+            elif ev == "play":
+                for b in self.brains.values():
+                    b.reset()
+                self.ticker.clear()
+            elif ev == "full_time":
+                self.ticker.add(None, None, f"Full time  {f.score['blue']}-{f.score['red']}", "goal")
+                self._finish("full_time", score=dict(f.score), touches=f.touches, goals=f.goals,
+                             time_s=round(now - t["t0"], 1))
+                return
+        self.score = dict(f.score)
+        # sim referee: robots in position but the ball is not at the centre -> put it back (kickoff reset)
+        if self.sim and f.phase == "kickoff" and f.in_pos and all(f.in_pos.values()) and not f.ball_ok:
+            if now - t.setdefault("ref_wait", now) > 1.0:
+                self._reset_sim("kickoff", list(f.cfg))
+                t.pop("ref_wait", None)
+        else:
+            t.pop("ref_wait", None)
+
     def _goto_report(self, t: dict, el: float) -> dict:
         p, tgt = t.get("last_pose"), t["target"]
         if p is None:
@@ -762,6 +830,8 @@ class App:
         self.run = RunLog(name, dict(self.params), meta, root=self.runs_root)
         self.metrics = Metrics([r.id for r in self.active], time.monotonic(), self.loop_stats["overruns"], lstat)
         self.test["run_dir"] = str(self.run.dir)
+        if self.eye is not None and self.params.get("record"):
+            self.recorder = Recorder(self.run.dir / "overhead.mp4", self.eye.frame, fps=float(self.params["rec_fps"]))
         self.say(f"start {name}" + (f" ({robot})" if robot else "") + f" -> {self.run.dir.name}"
                  + (f" [preset {self.preset_name}]" if self.preset_name else ""))
         return self.test
@@ -770,6 +840,14 @@ class App:
         """End the current test; summary.json written on a side thread. Caller holds the lock."""
         t, run, metrics = self.test, self.run, self.metrics
         self.test, self.run, self.metrics, self.mode = None, None, None, "idle"
+        if self.recorder:
+            self.recorder.stop()
+            summary.setdefault("video", {"file": "overhead.mp4", "frames": self.recorder.frames,
+                                         "error": self.recorder.error})
+            self.recorder = None
+        if self.flow is not None:
+            self.last_match = {**self.flow.json(time.monotonic(), self.params), "result": result}
+            self.flow = None
         self.teleop.clear()
         if self.link:
             self.link.stop_all()
@@ -811,7 +889,81 @@ class App:
                 return {"ok": True}
             if a == "test":
                 return self._start_test(body)
+            if a in ("kickoff", "play", "pause", "resume", "reposition", "touch", "variant", "job", "end"):
+                return self._play_action(a, body)
         return {"ok": False, "error": f"unknown action {a!r}"}
+
+    def _play_action(self, a: str, body: dict) -> dict:
+        """Play screen controls. Caller holds the lock."""
+        now, f = time.monotonic(), self.flow
+        active = [r.id for r in self.active]
+        if a == "variant":
+            opts = variants(active)
+            want = body.get("playing")
+            if want is None:
+                i = next((k for k, v in enumerate(opts) if v == self.playing), -1)
+                want = opts[(i + 1) % len(opts)]
+            if not (isinstance(want, list) and want and all(w in active for w in want)):
+                return {"ok": False, "error": f"playing must be a non-empty list of active robots, e.g. {opts}"}
+            self.playing = [rid for rid in active if rid in want]
+            if self.sim:
+                self._reset_sim("kickoff", self.playing if len(self.playing) < len(self.all_robots) else None)
+            if f:
+                solo = len(self.playing) == 1
+                f.cfg = {rid: self.cfg[rid] for rid in self.playing}
+                f.roles = {rid: ("attack" if solo and f.roles.get(rid, "auto") == "auto" else f.roles.get(rid, "auto"))
+                           for rid in self.playing}
+                f.reposition(now)
+            self.say(f"playing: {', '.join(self.playing)}")
+            return {"ok": True, "playing": self.playing}
+        if a == "touch":
+            d = body.get("delta", 1)
+            if d not in (1, -1) or isinstance(d, bool):
+                return {"ok": False, "error": "delta must be 1 or -1"}
+            if not f:
+                return {"ok": False, "error": "no match running"}
+            f.touches = max(0, f.touches + d)
+            self.say(f"referee touch {'+1' if d > 0 else '-1'} -> {f.touches}", touches=f.touches)
+            return {"ok": True, "touches": f.touches}
+        if a == "kickoff" or (a == "play" and not f):
+            halted = [r for r in self.playing if self.halted(r)]
+            if halted:
+                return {"ok": False, "error": f"{', '.join(halted)} halted by the bridge ({self.halted(halted[0])})"}
+            self._begin("match", None, flow=True, score0={"blue": 0, "red": 0}, playing=list(self.playing))
+            self.score = {"blue": 0, "red": 0}
+            self.ticker.clear()
+            self.flow = MatchFlow([self.cfg[r] for r in self.playing], self.field, now, kickoff=a == "kickoff",
+                                  restart_mode=self.params.get("restart_mode", "ball_rest"))
+            self.ticker.add(None, None, "Kickoff: robots walk to their spots" if a == "kickoff" else "Play from here")
+            return {"ok": True, "run": self.test["run_dir"]}
+        if not f:
+            return {"ok": False, "error": "no match running: press Kickoff"}
+        if a == "play":
+            ok = f.resume(now) or f.force_start(now)
+            return {"ok": True, "phase": f.phase} if ok else {"ok": False, "error": f"already {f.phase}"}
+        if a == "pause":
+            if f.pause(now):
+                if self.link:
+                    self.link.stop_all()      # zero now; the next tick holds it (hard stop per robot)
+                return {"ok": True, "phase": f.phase}
+            ok = f.resume(now)
+            return {"ok": ok, "phase": f.phase}
+        if a == "resume":
+            ok = f.resume(now)
+            return {"ok": True, "phase": f.phase} if ok else {"ok": False, "error": "not paused"}
+        if a == "reposition":
+            f.reposition(now)
+            return {"ok": True}
+        if a == "job":
+            rid, job = body.get("robot"), body.get("job")
+            if rid not in f.cfg or job not in JOBS:
+                return {"ok": False, "error": f"robot in {list(f.cfg)} and job in {JOBS}"}
+            f.roles[rid] = job
+            self.ticker.add(rid, self.cfg[rid].team, f"Operator: {rid.capitalize()} plays "
+                            + {"auto": "either job (auto)", "attack": "attack", "defend": "goalie"}[job])
+            return {"ok": True}
+        self._finish("ended", score=dict(f.score), touches=f.touches, goals=f.goals)   # a == "end"
+        return {"ok": True}
 
     @staticmethod
     def _num(body: dict, key: str, default: float, lo: float, hi: float) -> float:
@@ -984,10 +1136,10 @@ class App:
             return {"ok": False, "error": f"need robot in {list(self.cfg)} and op in {ROBOT_OPS}"}
         if not r.host:
             return {"ok": False, "error": f"{rid} has no host in robots.json"}
-        if op == "start" and body.get("confirm") is not True:
-            return {"ok": False, "error": "start homes the legs: send confirm=true"}
+        if op in CONFIRM_OPS and body.get("confirm") is not True:
+            return {"ok": False, "error": f"{op} homes the legs: send confirm=true"}
         cur = self.ops.get(rid)
-        if cur and cur.get("running") and op != "stop":   # stop is never refused here
+        if cur and cur.get("running") and op not in ALWAYS_OPS:   # stop/down are never refused here
             return {"ok": False, "error": f"{cur['op']} still running on {rid}"}
         host = r.host  # only ever from robots.json, never from the request
         if not HOST_RE.fullmatch(host) or host.startswith("-"):
@@ -995,12 +1147,12 @@ class App:
         timeout = OP_TIMEOUT_S.get(op, 60)
         # ssh joins remote args into one string for the Pi's shell, so every argument is
         # allowlisted here and shlex-quoted below.
-        if op == "start":
+        if op in ("start", "ready"):
             profile = body.get("profile") or self.preset_profile or r.profile
             known = self.profiles()
             if profile not in known:
                 return {"ok": False, "error": f"unknown profile {profile!r}; one of {known}"}
-            args = ["start", profile, "--confirm"]
+            args = ["start", profile, "--confirm"] if op == "start" else ["ready", profile]
         elif op == "imu_test":
             secs = body.get("seconds", 5)
             lo, hi = IMU_TEST_S
@@ -1018,7 +1170,8 @@ class App:
                 args += ["--condition", cond]
             timeout = secs + 90
         else:
-            args = {"status": ["status"], "stop": ["stop"], "bridge_start": ["bridge", "start", "--robot-id", rid],
+            args = {"status": ["status"], "stop": ["stop"], "down": ["down"],
+                    "bridge_start": ["bridge", "start", "--robot-id", rid],
                     "bridge_stop": ["bridge", "stop"], "stage": []}[op]
         if op == "stage":
             cmd = ["bash", str(HERE / "robot" / "stage.sh"), host]  # local script, no shell
@@ -1031,8 +1184,44 @@ class App:
                  "timeout_s": timeout}
         self.ops[rid] = state
         self.say(f"robot {rid}: {op}" + (" (dry run)" if self.dry_run_ops else ""), cmd=state["cmd"])
-        threading.Thread(target=self._run_op, args=(rid, state, cmd, timeout), daemon=True).start()
+        target = self._run_stream if op == "ready" else self._run_op
+        threading.Thread(target=target, args=(rid, state, cmd, timeout), daemon=True).start()
         return {"ok": True, "cmd": state["cmd"]}
+
+    def _run_stream(self, rid: str, state: dict, cmd: list[str], timeout: float) -> None:
+        """Long op whose output is JSON progress lines (fcctl ready: phase, elapsed, ok, error):
+        each line shows as it arrives; the newest JSON object is state["progress"]."""
+        state["progress"] = {}
+        try:
+            p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+                                 cwd=FINAL_PROJECT)
+        except OSError as e:
+            state.update(out=str(e), rc=-1, running=False, progress={"ok": False, "error": str(e)})
+            self.say(f"robot {rid}: {state['op']} -> {e}")
+            return
+        timed_out = []
+        timer = threading.Timer(timeout, lambda: (timed_out.append(1), p.kill()))
+        timer.start()
+        try:
+            for line in p.stdout:
+                state["out"] = (state["out"] + line)[-4000:]
+                try:
+                    obj = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(obj, dict):
+                    state["progress"] = obj
+                    if isinstance(obj.get("phase"), str):
+                        self.robot_phase[rid] = obj["phase"]
+            state["rc"] = p.wait()
+        finally:
+            timer.cancel()
+        if timed_out:
+            state["progress"] = {**state["progress"], "ok": False, "error": f"timeout after {timeout:.0f} s"}
+        elif state["rc"] != 0 and not state["progress"].get("error"):
+            state["progress"] = {**state["progress"], "ok": False, "error": f"exit {state['rc']}"}
+        state["running"] = False
+        self.say(f"robot {rid}: {state['op']} -> rc {state['rc']}", out=state["out"][-1500:])
 
     def _run_op(self, rid: str, state: dict, cmd: list[str], timeout: float) -> None:
         try:
@@ -1047,6 +1236,8 @@ class App:
             for line in reversed(state["out"].strip().splitlines()):
                 try:
                     self.robot_status[rid] = json.loads(line)
+                    if isinstance(self.robot_status[rid].get("phase"), str):
+                        self.robot_phase[rid] = self.robot_status[rid]["phase"]
                     break
                 except ValueError:
                     continue
@@ -1062,7 +1253,7 @@ class App:
                 test["elapsed"] = round(now - self.test["t0"], 1)
                 if "output" in self.test:
                     test["output"] = self.test["output"][-6000:]
-            return clean({
+            out = clean({
                 "t": now, "source": self.source, "mode": self.mode, "test": test, "impl": self.impl_note,
                 "run_dir": self.run.dir.name if self.run else None, "last_summary": self.last_summary,
                 "field": asdict(self.field), "robots": [asdict(r) for r in self.all_robots],
@@ -1078,11 +1269,45 @@ class App:
                 "profiles": self.profiles(), "udp_hosts": self.udp_hosts,
                 "ops": self.ops, "robot_status": self.robot_status, "dry_run_ops": self.dry_run_ops,
                 "events": list(self.events)[-30:], "score": self.score, "loop": self.loop_stats,
+                "play": self.play_state(now),
             })
+            # homographies need more than clean()'s 4 decimals (perspective terms are ~1e-4)
+            out["play"]["overlay"] = self.eye.overlay() if self.eye else None
+            return out
+
+    def play_state(self, now: float) -> dict:
+        """What the Play screen shows beyond the world: flow, labels, ticker, banners, lights.
+        Caller holds the lock."""
+        moving = self.mode in ("play", "match") and (self.flow is None or self.flow.phase in ("play", "kickoff"))
+        lstat = self._lstat if self.link else None
+        seen = {rid for rid, o in (self.world.robots.items() if self.world else [])
+                if now - o.t <= self.params["stale_stop_s"]}
+        active = {r.id for r in self.active}
+        robots = {}
+        for r in self.all_robots:
+            dbg = self.debug.get(r.id) or {}
+            robots[r.id] = {
+                "action": action_label(dbg, getattr(self.cmds.get(r.id), "tag", "")),
+                "role": dbg.get("role"),
+                "health": health(self.source, r.id in active, r.id in seen, (lstat or {}).get(r.id),
+                                 self.link is not None, self.ops.get(r.id), self.robot_phase.get(r.id),
+                                 r.id in self.imu_bad, r.id in self.mux_lost),
+                "phase": self.robot_phase.get(r.id), "playing": r.id in self.playing,
+                "cam": self.cams[r.id].status() if r.id in self.cams else None,
+            }
+        return {"flow": self.flow.json(now, self.params) if self.flow else None, "last_match": self.last_match,
+                "playing": self.playing, "variants": variants([r.id for r in self.active]), "robots": robots,
+                "ticker": list(self.ticker.items)[-12:],
+                "banners": banners(self.cfg, self.playing, moving, self.cmds, self.imu_bad, self.mux_lost, lstat,
+                                   self.link is not None),
+                "overlay": None,   # set by state() at full precision
+                "recording": bool(self.recorder)}
 
     def close(self) -> None:
         self.stop()
         self._stop = True
+        for c in self.cams.values():
+            c.close()
         if self.link:
             self.link.stop_all()
             self.link.close()
@@ -1111,8 +1336,18 @@ def make_handler(app: App):
 
         def do_GET(self):  # noqa: N802
             path = self.path.split("?")[0]
-            if path in ("/", "/index.html"):
+            if path in ("/", "/play"):
+                return self._send(200, (UI / "play.html").read_bytes(), "text/html; charset=utf-8")
+            if path in ("/ops", "/index.html"):
                 return self._send(200, (UI / "index.html").read_bytes(), "text/html; charset=utf-8")
+            if path == "/view.jpg":     # clean camera frame for the Play screen (encoded here, not in the loop)
+                jpg = app.eye.view_jpeg() if app.eye else None
+                return self._send(200, jpg, "image/jpeg") if jpg else self._send(404, b"no frame", "text/plain")
+            m = re.fullmatch(r"/cam/([\w\-]+)\.jpg", path)
+            if m:
+                feed = app.cams.get(m[1])
+                jpg = feed.latest() if feed else None
+                return self._send(200, jpg, "image/jpeg") if jpg else self._send(404, b"no feed", "text/plain")
             if path == "/state":
                 return self._json(app.state())
             if path == "/runs":

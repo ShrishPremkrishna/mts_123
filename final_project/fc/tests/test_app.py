@@ -532,3 +532,148 @@ def test_step_edge_abort_reports(server):
     post(base, "/action", {"action": "test", "test": "step", "robot": "blue", "vx": 0.2, "seconds": 1})
     assert wait(lambda: state(base)["mode"] == "idle", 4)
     assert state(base)["last_summary"]["result"] == "edge"
+
+
+# ---- Play screen, match flow, ready/down ops, feeds (2026-11-23) --------------------------
+def test_play_and_ops_pages(server):
+    app, base = server
+    code, html = get(base, "/")
+    assert code == 200 and b"Pupper FC" in html and b"kickoff" in html.lower()
+    code, html = get(base, "/ops")
+    assert code == 200 and b"Pupper FC v1" in html
+    p = state(base)["play"]
+    assert p["flow"] is None and p["playing"] == ["blue", "red"] and p["variants"][0] == ["blue", "red"]
+    assert p["robots"]["blue"]["health"]["level"] in ("ok", "warn") and p["robots"]["blue"]["cam"] is None
+    with pytest.raises(urllib.error.HTTPError) as e:
+        get(base, "/view.jpg")                                   # sim: no camera frame
+    assert e.value.code == 404
+
+
+def test_flow_match_kickoff_pause_touch_variant(server):
+    app, base = server
+    post(base, "/params", {"countdown_s": 0.3, "ball_settle_s": 0.3})
+    assert post(base, "/action", {"action": "pause"})[0] == 400                 # no match yet
+    code, r = post(base, "/action", {"action": "kickoff"})
+    assert code == 200 and state(base)["play"]["flow"]["phase"] == "kickoff"
+    run = app.runs_root / r["run"].split("/")[-1]
+    assert wait(lambda: (state(base)["debug"].get("blue") or {}).get("role") == "goto", 2)
+    assert wait(lambda: state(base)["play"]["flow"]["phase"] == "play", 25), state(base)["play"]["flow"]
+    assert wait(lambda: any(abs(c["vx"]) + abs(c["wz"]) > 0 for c in state(base)["cmds"].values()), 3)
+    assert post(base, "/action", {"action": "pause"})[0] == 200
+    assert state(base)["play"]["flow"]["phase"] == "paused"
+    assert wait(lambda: all(c["vx"] == c["wz"] == 0 for c in state(base)["cmds"].values()), 0.5)
+    assert post(base, "/action", {"action": "touch"})[1]["touches"] == 1
+    assert post(base, "/action", {"action": "touch", "delta": 5})[0] == 400
+    assert post(base, "/action", {"action": "job", "robot": "red", "job": "defend"})[0] == 200
+    assert post(base, "/action", {"action": "job", "robot": "red", "job": "fly"})[0] == 400
+    assert post(base, "/action", {"action": "pause"})[1]["phase"] == "countdown"   # pause toggles back
+    assert state(base)["play"]["ticker"]                                           # decisions narrated
+    code, r = post(base, "/action", {"action": "variant"})
+    assert code == 200 and r["playing"] == ["blue"]
+    s = state(base)
+    assert s["play"]["flow"]["playing"] == ["blue"] and s["play"]["flow"]["roles"] == {"blue": "attack"}
+    assert wait(lambda: state(base)["cmds"]["red"]["tag"] == "benched", 1)
+    assert post(base, "/action", {"action": "variant", "playing": ["nope"]})[0] == 400
+    assert post(base, "/action", {"action": "end"})[0] == 200
+    s = state(base)
+    assert s["play"]["flow"] is None and s["play"]["last_match"]["result"] == "ended"
+    assert s["play"]["last_match"]["touches"] == 1 and s["mode"] == "idle"
+    assert post(base, "/action", {"action": "variant", "playing": ["blue", "red"]})[1]["playing"] == ["blue", "red"]
+    assert wait(lambda: (run / "summary.json").exists(), 6)
+    lines = [json.loads(x) for x in (run / "events.jsonl").read_text().splitlines()]
+    assert any(x.get("m", {}).get("phase") == "play" for x in lines) and any("tk" in x for x in lines)
+
+
+def test_ready_and_down_ops(server):
+    app, base = server
+    code, r = post(base, "/robot", {"robot": "blue", "op": "ready"})
+    assert code == 400 and "confirm" in r["error"]
+    code, r = post(base, "/robot", {"robot": "blue", "op": "ready", "confirm": True})
+    assert code == 200 and "fcctl.sh ready stock" in r["cmd"] and r["cmd"].startswith("echo DRY-RUN")
+    assert wait(lambda: not state(base)["ops"]["blue"]["running"], 3)
+    code, r = post(base, "/robot", {"robot": "blue", "op": "down"})
+    assert code == 200 and r["cmd"].endswith("fcctl.sh down")
+
+
+def test_ready_streams_progress_and_down_never_refused(live_ops, monkeypatch):
+    import threading
+    app, calls = live_ops
+    lines = ['{"phase":"starting","elapsed":1.0}\n', "plain log line\n", '{"phase":"homed","elapsed":40.2}\n',
+             '{"phase":"ready","elapsed":71.0,"ok":true}\n']
+    gate = threading.Event()
+
+    class FakeProc:
+        def __init__(self, cmd, **kw):
+            calls.append(cmd)
+            self.stdout = self._lines()
+
+        def _lines(self):
+            for i, x in enumerate(lines):
+                if i == 2:
+                    gate.wait(2)
+                yield x
+
+        def wait(self):
+            return 0
+
+        def kill(self):
+            pass
+
+    monkeypatch.setattr(fcapp.subprocess, "Popen", FakeProc)
+    for bad in ("stock; reboot", "nope"):
+        assert not app.robot_op({"robot": "blue", "op": "ready", "confirm": True, "profile": bad})["ok"]
+    assert app.robot_op({"robot": "blue", "op": "ready", "confirm": True})["ok"]
+    assert wait(lambda: app.ops["blue"].get("progress", {}).get("phase") == "starting", 2)
+    assert app.play_state(time.monotonic())["robots"]["blue"]["health"]["text"].startswith("getting ready")
+    assert not app.robot_op({"robot": "blue", "op": "status"})["ok"]           # ready still running
+    ready_state = app.ops["blue"]
+    assert app.robot_op({"robot": "blue", "op": "down"})["ok"]                 # down always goes
+    gate.set()
+    assert wait(lambda: app.robot_phase.get("blue") == "ready" and not ready_state["running"], 2)
+    assert ready_state["rc"] == 0 and ready_state["progress"]["ok"] is True
+    assert calls[0][-3:] == ["--", "mts", "bash ~/fc-v1/robot/fcctl.sh ready stock"]
+    assert wait(lambda: len(calls) > 1, 2) and calls[1][-3:] == ["--", "mts", "bash ~/fc-v1/robot/fcctl.sh down"]
+
+
+def test_cam_url_config_and_feed_endpoint(server, tmp_path):
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from fc.media import CamFeed
+    app, base = server
+    p = tmp_path / "robots.json"
+    p.write_text(json.dumps([{"id": "blue", "team": "blue", "tag": 10, "host": "mts", "profile": "stock",
+                              "cam_url": "http://10.0.0.5:8090/stream.mjpg"}]))
+    robots, _ = load_robot_config(p)
+    assert robots[0].cam_url == "http://10.0.0.5:8090/stream.mjpg"
+    jpg = b"\xff\xd8" + b"fake-jpeg-body" + b"\xff\xd9"
+
+    class Mjpeg(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):  # noqa: N802
+            self.send_response(200)
+            self.send_header("Content-Type", "multipart/x-mixed-replace; boundary=f")
+            self.end_headers()
+            try:
+                for _ in range(60):
+                    self.wfile.write(b"--f\r\nContent-Type: image/jpeg\r\n\r\n" + jpg + b"\r\n")
+                    self.wfile.flush()
+                    time.sleep(0.05)
+            except OSError:
+                pass
+
+    cam = ThreadingHTTPServer(("127.0.0.1", 0), Mjpeg)
+    cam.daemon_threads = True
+    threading.Thread(target=cam.serve_forever, daemon=True).start()
+    app.cams["blue"] = CamFeed(f"http://127.0.0.1:{cam.server_address[1]}/stream.mjpg")
+    try:
+        assert wait(lambda: state(base)["play"]["robots"]["blue"]["cam"]["ok"], 3)
+        assert get(base, "/cam/blue.jpg") == (200, jpg)
+    finally:
+        app.cams["blue"].close()
+        cam.shutdown()
+    dead = CamFeed("http://127.0.0.1:9/none.mjpg", retry_s=0.1)
+    assert wait(lambda: dead.error not in (None, "connecting"), 3) and not dead.status()["ok"]
+    dead.close()
