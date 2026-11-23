@@ -185,8 +185,11 @@ def preflight_bno(bus):
                     break
         except OSError:
             pass
-    created = not os.path.exists(DRIVER_LOCK)
-    lock = os.open(DRIVER_LOCK, os.O_CREAT | os.O_RDWR, 0o666)
+    # Same path and flock protocol as the native driver, so the two exclude each
+    # other. Never follow a symlink; never unlink (unlinking while another process
+    # opens the path would let both "hold" different inodes).
+    created = False
+    lock = os.open(DRIVER_LOCK, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o644)
     try:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
@@ -201,8 +204,6 @@ def run_bno(a, out_dir):
     problems, (lock, created_lock) = preflight_bno(a.bus)
     if problems:
         if lock is not None:
-            if created_lock:
-                os.unlink(DRIVER_LOCK)
             fcntl.flock(lock, fcntl.LOCK_UN)
             os.close(lock)
         return {"ok": False, "mode": "bno", "error": "refused: " + "; ".join(problems)}
@@ -259,11 +260,6 @@ def run_bno(a, out_dir):
         if csv:
             csv.close()
         if lock is not None:
-            if created_lock:  # leave /tmp as found; unlink while still holding the lock
-                try:
-                    os.unlink(DRIVER_LOCK)
-                except OSError:
-                    pass
             fcntl.flock(lock, fcntl.LOCK_UN)
             os.close(lock)
     temps.append((round(a.seconds, 1), pi_temp_c()))
