@@ -554,6 +554,9 @@ class RunnerSession:
             if core.executor.external_holds[core.robot_id]:
                 controls.observe_path(False, controls.generation)
             controls.observe_output(step.decision.command)
+            # Observe completed runtime work with a fresh time, not the earlier
+            # command-sampling time (the executor advances its clock in tick).
+            now = self.clock()
             offer = (controls.offer(now, resume_cycle(core, now) if controls.ready else None)
                      if now >= controls.next_issue else None)
             if offer is not None:

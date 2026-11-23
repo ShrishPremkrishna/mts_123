@@ -28,7 +28,14 @@ GATEWAY_START = dict(selected_controller='gemini_walk', start_freshness_ms=500,
                      software_stop_topic='/estop_controller/request_stop')
 
 
-@pytest.mark.parametrize('capabilities', [{}, GATEWAY_START])
+FC_GATEWAY = dict(**GATEWAY_START, fc_operator_control=True, fc_operator_owner='2' * 32,
+                  fc_operator_armed=True, fc_operator_lease_ms=750)
+
+
+@pytest.mark.parametrize('capabilities', [{}, GATEWAY_START, FC_GATEWAY,
+    FC_GATEWAY | {'fc_operator_control': False, 'fc_operator_owner': '', 'fc_operator_armed': False},
+    FC_GATEWAY | {'fc_operator_owner': '', 'fc_operator_armed': False},
+    FC_GATEWAY | {'fc_operator_armed': False}])
 def test_explicit_native_gateway_schemas_keep_latch_age_and_instance_checks(capabilities):
     tracker = StopStatus()
     assert accept(tracker, latched=True, **capabilities) and tracker.reason(10.)
@@ -276,3 +283,25 @@ def test_direct_motion_cannot_bypass_existing_global_fault_flags(field,value):
         rig.ts.send_speed(0,0,0)
         assert (await rig.ts.switch_to(None)).ok
     run_case(case)
+
+
+@pytest.mark.parametrize('patch', [
+    {'fc_operator_control': 1}, {'fc_operator_armed': 0},
+    {'fc_operator_owner': None}, {'fc_operator_owner': 'Z' * 32},
+    {'fc_operator_owner': 'a' * 31}, {'fc_operator_owner': ''},
+    {'fc_operator_control': False}, {'fc_operator_lease_ms': True},
+    {'fc_operator_lease_ms': 751}, {'unknown_operator_field': False},
+])
+def test_fc_gateway_rejects_malformed_or_inconsistent_contract(patch):
+    tracker = StopStatus()
+    assert not accept(tracker, **(FC_GATEWAY | patch))
+    assert tracker.reason(10.)
+
+
+def test_partial_fc_schema_cannot_downgrade_to_legacy_status():
+    for missing in ('fc_operator_control', 'fc_operator_owner', 'fc_operator_armed', 'fc_operator_lease_ms'):
+        capabilities = dict(FC_GATEWAY)
+        del capabilities[missing]
+        tracker = StopStatus()
+        assert not accept(tracker, **capabilities)
+        assert tracker.reason(10.)

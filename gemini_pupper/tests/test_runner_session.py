@@ -245,3 +245,26 @@ assert Result(True, 'receipt').as_dict() == {'success': True, 'message': 'receip
 """
     result = subprocess.run([sys.executable, '-c', source], cwd=root, text=True, capture_output=True)
     assert result.returncode == 0, result.stderr
+
+
+def test_control_offers_observe_time_after_runtime_work(monkeypatch, tmp_path):
+    async def case():
+        async with opened_bench(monkeypatch, tmp_path) as b:
+            observed = []
+            original_tick, original_resume = b.runtime.tick, runner.resume_cycle
+
+            def advancing_tick(**kwargs):
+                b.rig.clock.now += .001
+                return original_tick(**kwargs)
+
+            def resume(core, now):
+                observed.append((now, core.executor.last_now))
+                assert now >= core.executor.last_now
+                return original_resume(core, now)
+
+            monkeypatch.setattr(b.runtime, 'tick', advancing_tick)
+            monkeypatch.setattr(runner, 'resume_cycle', resume)
+            for _ in range(15):
+                await b.tick()
+            assert observed, 'ready controls must evaluate the production resume predicate'
+    asyncio.run(case())
