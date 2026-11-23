@@ -52,7 +52,6 @@ from __future__ import annotations
 
 import asyncio
 import collections
-import contextvars
 import logging
 import json
 import math
@@ -83,6 +82,8 @@ from spawn_controllers import LOADED, spawn
 from secret_gate import SecretGate
 from stop_status import FIRST_STATUS_PENDING, StopStatus, TOPIC as STOP_STATUS_TOPIC
 from tricks import TRICK_FADE_S, TRICK_INIT_S, WALK_CONTROLLER, WALK_READY_S, Trick, load_tricks, reference_message_data
+from motion_contract import (ACTIVATION_GATE, CALL_STOPS, FELL_MESSAGE, LOCOMOTION,
+                             LOCOMOTION_CONTROLLER, Result, prepare_motion_handoff, with_note)
 
 log = logging.getLogger("robot_api")
 
@@ -91,13 +92,7 @@ class MotionBlockedError(RuntimeError):
     """No motion command was sent because the shared stop authority refused it."""
 
 
-# The locomotion controller Gemini drives: gemini_walk, the course default policy
-# (the joystick's X button) loaded by our launch file with running allowed and
-# reference tricks enabled. See tricks.py.
-LOCOMOTION_CONTROLLER = WALK_CONTROLLER
-
 # The states that aren't a trick (a trick's state is its Trick).
-LOCOMOTION = "locomotion"  # the locomotion policy holds the legs (following or not)
 MOTORS_IDLE = "motors idle"  # no controller holds the legs: Pupper lies down
 FALLEN = "fallen"  # a tilt e-stop latched: the motors only damp until a safe stand-up
 # gemini_walk holds the default pose for init_duration, then fades the policy in
@@ -123,10 +118,7 @@ SAFE_STILL_S = 1.0
 SAFE_WAIT_S = 4.0  # how long standing up waits for the robot to settle
 ESTOP_LOG = "Emergency stop triggered"
 PHYSICAL_STATE_UNKNOWN = "Physical pose, speed and stopping have not been measured."
-FELL_MESSAGE = (
-    "a tilt/fall stop was reported; physical posture and motor torque have not been measured. "
-    "A person should check and set the robot upright on its feet; then call stand_up when ready"
-)
+
 
 
 @dataclass
@@ -161,34 +153,6 @@ class Speeds:
 SPEEDS = Speeds()  # locomotion mode
 
 
-@dataclass
-class Result:
-    """What a tool tells Gemini: did it work, and what happened (or why not)."""
-
-    ok: bool
-    message: str
-    details: dict | None = None
-
-    def as_dict(self) -> dict:
-        result = {"success": self.ok, "message": self.message}
-        if self.details is not None:
-            result["details"] = self.details
-        return result
-
-
-async def prepare_motion_handoff(robot: Robot) -> str | Result:
-    """Release any pending follower ownership before a new motion is queued."""
-    result = await robot.prepare_follow_handoff()
-    if not result.ok:
-        return result
-    return "Stopped following the person first." if result.details["following"]["changed"] else ""
-
-
-def with_note(note: str, res: Result) -> Result:
-    """``res`` with ``note`` (e.g. "Stopped following the person first.") in front."""
-    return Result(res.ok, f"{note.strip()} {res.message}", res.details) if note.strip() else res
-
-
 def not_written(todo: str, where: str) -> Result:
     """What an unfinished TODO tells Gemini, so it says so instead of pretending."""
     return Result(False, f"{todo} is not written yet ({where})")
@@ -196,16 +160,6 @@ def not_written(todo: str, where: str) -> Result:
 
 # then= for a queued job that doesn't move the legs (robot.wait): see Robot.queue.
 UNCHANGED = object()
-
-# How many stops had happened when the tool call being handled began (set by
-# tool_registry.call). A request that was still in its *now* part when a stop
-# came in must not queue its job afterwards: stop clears everything.
-CALL_STOPS: contextvars.ContextVar[int | None] = contextvars.ContextVar("call_stops", default=None)
-
-# An in-process FC kick can lose its field authority while ROS service
-# discovery or parameter writes yield. Recheck at the native submission site.
-ACTIVATION_GATE: contextvars.ContextVar[Callable[[], str | None] | None] = contextvars.ContextVar(
-    "activation_gate", default=None)
 
 
 def state_name(state) -> str:

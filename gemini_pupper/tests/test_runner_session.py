@@ -226,3 +226,22 @@ def test_stop_during_a_kick_aborts_without_success_and_cannot_rearm(monkeypatch,
                 await b.tick("match-1", (-.9, 0.))
             assert b.last_command().is_zero and len(b.kicks) == 3
     asyncio.run(case())
+
+
+def test_production_session_and_kick_import_without_ros_or_test_modules():
+    import subprocess
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[2]
+    source = """
+import sys
+from final_project.behaviors.combined_fc_runner import RunnerSession
+from fc_walk_kick import CombinedRuntime
+from operator_kick import kick_in_place
+from motion_contract import CALL_STOPS, ACTIVATION_GATE, Result
+assert 'rclpy' not in sys.modules and 'robot_api' not in sys.modules
+assert not any(k.startswith('test_') for k in sys.modules)
+assert Result(True, 'receipt').as_dict() == {'success': True, 'message': 'receipt'}
+"""
+    result = subprocess.run([sys.executable, '-c', source], cwd=root, text=True, capture_output=True)
+    assert result.returncode == 0, result.stderr

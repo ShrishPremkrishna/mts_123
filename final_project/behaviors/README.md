@@ -4,7 +4,12 @@ Current FC execution uses `combined_fc_runner.py` and its shared `RunnerSession`
 with `board_imu.py`, `operator_drive.py` and `live_field_attack.py`. The selected
 strict profile requires fresh primary IMU and both SPI replies. A health hold ends
 the current match epoch; deliberate resume requires the same board session/Home,
-a new epoch and confirmed sole walker ownership. No automatic Home occurs.
+a new epoch and confirmed sole walker ownership. No automatic Home occurs. The shared queued-motion contract lives in
+`gemini_pupper/robot/motion_contract.py`, so the production runner and kick
+lifecycle import on the laptop without loading ROS or test fakes. The live
+robot adapter reexports the same result types and authority contexts. The
+extraction passed 48 affected kick/runtime/closure checks and a separate
+fresh-process import check.
 
 Kick receipts distinguish `engaged`, `clip_started`, `completed` (clip confirmed
 and walker restored), `retired` (walker restored without a successful clip), and

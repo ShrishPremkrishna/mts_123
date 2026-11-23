@@ -15,7 +15,7 @@ from final_project.pupper_fc.model import Decision, zero
 from final_project.pupper_fc.operator_kick_receipts import OperatorKickReceipts
 
 from operator_kick import kick_in_place
-from robot_api import CALL_STOPS, LOCOMOTION_CONTROLLER
+from motion_contract import CALL_STOPS, LOCOMOTION_CONTROLLER
 
 
 class CombinedRuntime:

@@ -1,6 +1,12 @@
 """Play one explicitly selected soccer kick from an already active walker."""
 
-from robot_api import ACTIVATION_GATE, FELL_MESSAGE, LOCOMOTION, LOCOMOTION_CONTROLLER, Result, Robot, prepare_motion_handoff, with_note
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+from motion_contract import ACTIVATION_GATE, FELL_MESSAGE, LOCOMOTION, LOCOMOTION_CONTROLLER, Result, prepare_motion_handoff, with_note
+
+if TYPE_CHECKING:
+    from robot_api import Robot
 from tricks import TRICK_FADE_S, TRICK_INIT_S, WALK_READY_S, Trick
 
 
