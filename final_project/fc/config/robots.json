@@ -12,6 +12,7 @@
     "team": "red",
     "tag": 11,
     "host": "",
-    "profile": "stock"
+    "profile": "stock",
+    "udp_host": ""
   }
 ]
