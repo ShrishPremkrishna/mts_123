@@ -1,4 +1,17 @@
 [
-  {"id": "blue", "team": "blue", "tag": 10, "host": "mts", "profile": "stock"},
-  {"id": "red",  "team": "red",  "tag": 11, "host": "",    "profile": "stock"}
+  {
+    "id": "blue",
+    "team": "blue",
+    "tag": 10,
+    "host": "mts",
+    "profile": "stock",
+    "udp_host": "10.19.203.20"
+  },
+  {
+    "id": "red",
+    "team": "red",
+    "tag": 11,
+    "host": "",
+    "profile": "stock"
+  }
 ]
