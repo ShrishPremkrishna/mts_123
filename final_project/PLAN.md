@@ -1,267 +1,184 @@
-# Pupper FC delivery plan
+# PupperFC rebuild plan — Phase 3
 
-Updated November 19, 2026. Confirmed outcomes guide this plan. The current owner steering below supersedes the earlier immediate sprint order. Use this as project context when choosing work with the current user, not as an automatic task assignment. Current activity and robot access are in the [checkpoint](../foundation/results/interruption-recovery.json). Implemented software and simulated play do not establish hardware acceptance.
+Updated November 22, 2026. The user has moved from investigation to planning and wants the offline work, including work on the powered Pi, organized first. Physical tests are separated below; their batching and scheduling are deferred. This is a plan, not an implementation or hardware qualification. The [architecture review](../foundation/results/fc-architecture-review-20261122.md) explains the changes; the [brief](README.md) owns the product vision and the [checkpoint](../foundation/results/interruption-recovery.json) owns current activity.
 
-## Current sprint — November 19
+## Intended result
 
-The owner has goals, is preparing the field and overhead camera at approximately
-13 feet, and does not yet have the intended ball. A second Pupper must be sourced.
-The immediate demo target is one to two minutes with two opposing robots: useful
-goal-directed shots, automatic offense/defense, smooth responsive execution and
-shared overhead tracking. First establish this sequence; earlier endurance targets
-remain qualification work after it is physically achievable.
+One command launches the complete Mac app. Home/Field/Robot/Settings/Play, calibration, per-robot teleop, experiments, recordings and recovery use the same maintained operations. A compatible Pi candidate runs one continuous execution path per robot with the existing finite foot kick and independent native Stop. Field and onboard observations retain their actual meaning; persistent calibration does not change during play. Both opponents can choose offense or standing defense independently.
 
-**Combined release and next test.** The single-Pupper release uses measured field position and heading to steer and slow into paw placement. In physics, all four trials completed approach, kick and walking recovery. Three scored. On the Pi, both foot policies completed walk–kick–walk on memory-backed joints. In each run the runner then requested Stop, the gateway latched and both leg controllers became inactive. The physical robot homed on the stand with the verified build loaded and both policies inactive. The next supervised check is to start the walker on the stand, request Stop and observe both the latch and controller deactivation. Consult the session receipt for current detector status. [Field rehearsal](pupper_fc/README.md#one-robot-software-rehearsal) · [Physics trials](../foundation/results/combined-walk-kick-physics-20261119.json) · [Pi qualification](../foundation/results/pi-combined-walk-kick-20261119.json).
+At the end of offline work, this system is integrated, tested through the actual UI, built for the actual Pi and staged without activation. Simulated behavior and device-free native checks are labeled as such. Physical accuracy, stable standing, contact and real matches remain unqualified until the separate tests pass.
 
-**Tej’s parallel work.** Tej owns physical kick and recovery, measured wind-up and the paw contact window. Test the deployed transition first and compare his faster return against its contact and first stable walking step. [Shooting handoff](handoffs/SHOOTING.md).
+## What “offline, including the Pi” means
 
-**Later camera block.** Qualify scale, capture age and robot heading against independent marks. Corner IDs 0/1/2/3 are west-south, east-south, east-north and west-north. IDs 10/11 identify robots. Goals use measured geometry. Replay captured field inputs through the same executor before enabling field-guided motion on the deployed release.
+- Mac: source integration, unit/contract tests, recorded/synthetic perception, simulation, browser validation, release assembly and evidence analysis.
+- Pi: read-only inventory, preservation of existing logs/models, isolated target builds, linkage/import checks, explicitly device-free native/ROS tests, replay/inference on saved images, and file-only staging of an inactive candidate.
+- Excluded: native hardware initialization, Home, motor/controller activation, changes to a running sensor/camera service, reboot, active-profile selection or any command that silently replaces a live session. A live camera or sensor capture still requires its specific setup; saved-image inference does not.
+- “Connect,” “prepare,” “runner-only” and “no-launch” are not proofs of no physical effect. Some FC prepare paths shut down a previous session or start deferred perception. Use audited file-only preparation and isolated no-device launches. An isolated ROS domain alone does not prevent device access.
 
-**First integrated play.** First use a fixed field target with real robot pose
-feedback and compare final x, y and heading against tape from several starts.
-The November 19 forward trials supply an approximate straight baseline. The
-+20° IMU turn timed out, so qualify terminal heading against an external mark.
-Then specify a target for the robot center that places the actual ball beside
-the selected paw, with yaw aimed through the ball toward the goal. Use fresh
-overhead pose to steer continuously and slow for the final alignment. Measure the
-safe kicking position and heading window on the real ball before adopting
-acceptance thresholds. Use one command owner, stop walking, dispatch one leg kick,
-confirm the requested clip and walking recovery, and reacquire field state.
-The combined release performs this handoff in physics simulation and on the Pi with memory-backed joints. On the field, enable the kick after Tej qualifies contact and walking recovery on that release. The legacy run-through is available for historical replay.
+The Pi was reachable in this planning session, with Python 3.11.2, CMake/Ninja/g++/rsync and about 47.9 GiB free. This supports the work plan, not a clean build or motor-state claim. Recheck ownership and executable identities before implementation-side Pi work.
 
-**Next increments.** Measure ball displacement during the wind-up and update
-moving-ball targets up to commitment. Commission robot two, validate each team's
-role transitions, and rehearse the short match. Keep front-camera person stopping
-in the physical qualification. Consider onboard ball refinement only if measured
-overhead error or occlusion prevents consistent placement. Longer gait sweeps and
-additional training can wait for a demonstrated limitation.
-[Floor and timing evidence](../foundation/results/staged-field-session-20261119.json).
+## Ordered work packages
 
-## Outcome and ownership
+The numbers give integration order. Several packages run concurrently once their shared interfaces are defined; they are not nine serial waits for hardware.
 
-Two Puppers sustain offensive and defensive play using overhead vision and a 2D field model. The demo requires tracked positioning, shooting with Tej’s leg policy, defense and goal restarts. The owner accepted manual ball replacement and one deliberate resume cue for the first working game. Self-righting receives a bounded feasibility investigation before commitment to the demo. A special goalie pose remains optional. Ball-in-simulation training is a later experiment, not a prerequisite for the first working game.
+### 1. Select the integration baseline and prove Pi build compatibility early
 
-| Owner | Outcome |
-| --- | --- |
-| Shrish — [movement notes](handoffs/MOVEMENT.md) | Controllable forward/lateral motion, turning, braking, stability and accurate placement for the selected paw. Existing teammate gait exports remain candidates; measured limits are still needed. |
-| Tej — [shooting](handoffs/SHOOTING.md) | Foot-kick policy, with known entry conditions, contact and exit behavior. Shrish owns the approach and handoff. |
-| Ryan — [perception](handoffs/PERCEPTION.md) | iPhone ingestion, field coordinates, persistent robot identities/headings, ball position/velocity, goals, shooting geometry and observation age/validity. |
-| Shrish, assisted by agents — gameplay/integration | Offense/defense selection, approach execution, command ownership, interruption, recovery coordination, startup, operator view and whole-game validation. |
-| Shrish — arena | Camera mounting, boundaries/goals, markers, ball, surface and paw contact marks for repeatable trials. Coordinate dimensions and markers with Ryan. |
+**Work:** use the active FC checkout and source-by-source integration map for main, match, Tej overhead and recovered u6. Preserve unique teammate work and the exact old releases. Select the existing FC executor, native kick/Stop, field solver, Ball Eye geometry and Tej aiming calculations; exclude the bridge's independent motion ownership from the new entry point. Record Mac/Pi source, model, driver, environment and profile identities. Recover the remaining raw recording archive with a verified resumable transfer when feasible; its absence does not block synthetic software checks.
 
-These are the team's current areas, not fixed roles for incoming agents. Get-up was previously P0; the accepted takeover recommendation is a bounded feasibility investigation before committing it to the demo. Physical-motion ownership remains to be assigned. Shrish and assisting agents own its gameplay integration. The first playable prototype can advance while recovery is open; it must not be described as having solved recovery. Technical boundaries may change jointly without dropping an outcome.
+On the Pi, identify the real target underlay/toolchain and run a bounded compile/link smoke test for the selected native packages in an isolated build location. Do not install test artifacts over the active build. Confirm the existing Ball Eye model can load for saved-image inference. Keep training provenance unknown if unrecovered.
 
-## Course deliverables
+Refresh the preserved native build recipe against the integrated source closure: its November 19 version has fixed inputs and supports only the controller and gateway packages. Changed driver instrumentation needs its actual target build/test recipe; do not invent an unsupported option or reuse an older successful build as evidence for new source.
 
-Checked against the [live fall-26 directions](https://cs123-stanford.readthedocs.io/en/latest/schedule/labs/fall-26/final_project.html) on November 17, 2026. Dates below use the course's local Pacific time. Submission/checkoff completion needs owner confirmation; source-code progress does not establish submission.
+**Output:** a concrete selected-source map, a compatible build recipe, preserved baseline identities and a minimal release description understood by the Mac and Pi.
 
-| Due | Deliverable | Known status |
-| --- | --- | --- |
-| November 6 | Proposal (20%) | Completion and TA feedback not recovered. |
-| November 16 | Progress checkpoint with TA/instructor (20%) | Completed, confirmed by owner during takeover. |
-| December 2, 11:59 p.m. | Narrated demo video under 3 minutes (20%) | Not produced; capture representative successes and failures during development. |
-| December 3, 6:30 p.m., CoDA B90 | Five-minute presentation including live demo (30%); documented GitHub repository/install instructions | Open. Reserve rehearsal and two-robot access; retain a runnable, filmed fallback. |
-| December 9, 11:59 p.m. | Code/blog/other wrap-up (10%) | Open; exact linked wrap-up/rubric details still need verification. |
+**Offline acceptance:** selected source imports and target code builds/links on the real Pi without starting a hardware node; missing dependency/ABI incompatibilities are resolved now. A missing Mac run recording is recorded as missing rather than treated as a passed replay.
 
-No late days. The [current linked rubric](https://docs.google.com/document/d/1JdIppC1S4bj4yeZbd9zm9Q1xBVgj7ydUSrw18KlayaI/edit)
-was read through the signed-in course account on November 17. It confirms 25
-points each for innovation, execution, presentation and overall impression.
-Reliable operation, a clear explanation, coherent teamwork and added Pupper
-capabilities all matter; software test counts alone do not satisfy them. The
-public directions still do not specify the wrap-up format beyond code/blog/etc.
-Do not invent observations, personal contributions or checkoffs.
+### 2. Establish shared app operations and an immediately usable UI shell
 
-## Execution agreement — November 16, 2026
+**Depends on:** package 1's selected boundaries; UI layout can start while the build runs.
 
-For the owner's next physical session after the overnight block, freeze new
-features and qualify the existing candidate: target-compatible build and source
-selection, fixed-camera evidence, supported routing/Stop, then measured short
-motion and heading trials. Keep the last floor-tested release as rollback.
-Preparation must finish before requesting motor supervision. The first complete
-real-perception play follows mounted-source and target-runtime qualification.
+Define only the existing interfaces that cross components: accepted observations, target proposals, session/control ownership, and requested/accepted/controller-completed/physically-observed outcomes. Extend current helpers and types; do not add a workflow engine or universal world-state service.
 
-Deferred beyond this immediate sprint: the one-cue/two-bridge match operator
-(correlation and goal-cycle binding need work), final two-robot commissioning,
-new gait training or speed sweeps without a measured deficit, additional
-self-righting trajectories, replacement detector/crop sweeps, and presentation
-polish before missing physical footage exists. These remain next-step candidates,
-not cancelled outcomes. Camera stopping and exact-angle qualification remain in
-the immediate robot work; the two-robot match remains the project target.
+Expose discovery/manual connection, selected-release description, field setup, Home/Stand requests, Play/hold/Stop/rearm, per-robot teleop and recording through the same backend operations. Add a labeled replay/test mode that runs those operations against an explicit test backend. Live mode cannot silently fall back to synthetic observations or readiness.
 
-The owner confirmed two-robot soccer as the target and a complete live play before further gait optimization, conditional on proving the existing gait is adequate. Penalty shootout remains fallback. For the first working game, a person replaces the ball and gives one deliberate resume cue while robots reposition themselves. Physical self-righting gets a bounded feasibility investigation before a demo commitment; fall stopping remains required. A complete camera-to-robot play is the next major result. More speed, new policies and temporary onboard perception are valuable only when they remove a measured obstacle to that result.
+Wire Home, Field, Robot, Settings and Play from the outset. Put Offline Validation and experiment entry points in the UI. Maintained scripts may implement an operation behind a button; an operator or agent must not need a separate terminal sequence to complete an acceptance test.
 
-Owner accepted the recommendations and progression during the takeover discussion. The targets below guide acceptance; they are not achieved results:
+**Output:** one-command app launch, navigable screens, explicit live/replay state, operation results and recording identity.
 
-- Repeatable core: measured forward/brake, turn-to-heading and lateral trials; choose usable limits from observed error, wobble and stopping distance on the actual arena surface.
-- One-robot play: useful contact in at least 8 of 10 predefined arrangements; five consecutive goal/reset/resume sequences without restarting software or repositioning the robot by hand.
-- Full demo: three consecutive two-minute two-robot bouts with autonomous offense/defense and only agreed ball resets. Report all interventions, goals, failed shots and falls.
-- Recovery, if retained: demonstrate self-righting and fresh-play resumption from agreed representative postures, retaining failed attempts and duration. Set the success threshold after a bounded feasibility trial, before acceptance.
-- Delivery: reproducible startup, a tested fallback release, recorded evidence, narrated video, concise presentation, installation instructions and honest contributions/results write-up.
+**Offline acceptance:** a browser-driven setup/Stop/recovery rehearsal completes through real app routes with labeled test results; missing participants/cameras produce actionable messages, not invented readiness. The shell grows continuously through the remaining packages.
 
-Work advances by evidence. The resident-client freshness defects and command-routing gaps now have offline fixes and rehearsals. Next, qualify the target build, measure the smallest physical motion/camera envelope needed for a complete play, and connect Ryan's actual synchronized perception sample. Defense and second-robot acceptance then build on that baseline. Recovery feasibility can proceed independently within its bounded scope. Start defense with goal-side ball tracking and bounded positioning; add prediction only if measured shots expose a need. Ryan supplies field state and candidate actions/targets; our harness owns execution, interruption and low latency, while Tej develops foot kicking. An unavailable camera or robot routes useful work to recorded inputs, concrete integration gaps, recovery feasibility or deliverables.
+### 3. Unify observation semantics and physical geometry
 
-Each experiment states its question, comparison, observable result and stopping limit before it runs. Prepare dependencies, builds and rehearsals before requesting physical time. Aim for less than a minute between prepared trials in one homed session; measure the interval and fix a recurring delay once. Stop a failing path after it no longer separates plausible causes. Keep one owner per file/robot; use bounded independent reviews for uncertain faults and verify the integrated checkout after edits freeze.
+**Depends on:** the selected observation/profile interfaces. Runs alongside packages 4 and 7.
 
-Use the existing checkpoint for active owners, exact next action, verified commands, failures and pending archives. Use this plan for outcomes/decisions and the brief for capabilities; replace superseded claims. No scheduled task, cloud compute, remote robot monitor or background motion is implied. A chat/platform interruption still requires a resumable checkpoint; repository edits alone cannot cure UI latency.
+Preserve original per-entity capture times, source, frame, calibration revision and measured-versus-predicted status. Add uncertainty/method fields only where a consumer uses them; unmeasured bounds stay unknown. Correct color/tag heading time conventions together; stop invalid timestamp repair; reject outliers before they update tracking; expire body-frame corrections after motion/loss. Keep independent overhead and Pi-local estimators and assemble their admissible outputs without inventing one shared capture time.
 
-## Game behavior and proposed rules
+Use one physical field/ball/goal definition with per-camera and per-robot calibrations. Separate marker layout, playable bounds and surveyed goal fronts. Support variable field dimensions from known printed scale, the six perimeter marker roles and extra markers. With insufficient markers, ask only the remaining geometric constraints. Show markers, axes, field outline and adjustable yellow 0.6096 m goal mouths in Field Setup, with Finish returning home.
 
-Offense selects a target, approaches the useful side of the ball, aligns the selected paw, hands control to the kick policy, verifies walker recovery and reassesses. The current defensive baseline takes a goal-side position facing the ball and updates that position as the ball moves. Role selection uses ball position relative to the own goal, distinct entry/exit thresholds and a minimum dwell to limit oscillation. Predictive interception is optional work only if measured play shows this heuristic is insufficient.
+Integrate Ball Eye's useful ray/projection/outline geometry; compare it and corrected pink proposals on identical saved images. Preserve tag and color/nose alternatives for comparison. Freeze persistent heading/motion/contact learning during play; provide explicit saved profiles and comparison results instead.
 
-Manual ball replacement and one deliberate resume cue are accepted for the first working game; detailed game rules remain adjustable. A missed shot, moving ball or blocked route causes reassessment rather than stale timed actions. Geometry and heuristics can establish a baseline; learned decision-making remains an option. Proposed placement: local gameplay handles time-sensitive control, while voice sets intent and explains state.
+**Output:** consistent inputs for planning/close alignment, complete field setup and deterministic detector/calibration comparisons.
 
-- Fixed opposing goals and robot identities. Both robots can attack and defend. Shared observations need not expose each robot's intended action to its opponent.
-- Define goal-mouth crossing using measured goal geometry and ball radius; count each goal once.
-- After a goal, cancel the old play, reach valid restart positions and wait while a person replaces the ball. Resume without restarting software or homing. One deliberate resume signal after the field is clear is accepted for the first version; the precise interaction can be chosen downstream.
-- Replan for stationary and boundary-adjacent balls. Decide how to handle out-of-bounds or physically trapped balls; routine human resets beyond goals are not agreed.
-- Avoid deliberate robot collisions. Boundary and opponent clearance must accommodate measured braking and recovery space.
-- Tracking loss, controller faults and physical obstruction are explicit states. Exceptional human interventions count against reported autonomy.
+**Offline acceptance:** stale/future/duplicate/outlier/recalibration cases cannot become fresh evidence; the reproduced capture-yaw defect is eliminated for both adapters without breaking tags. Geometry consumers agree on goals and bounds. Detector comparisons report error only when independent labels exist; synthetic sphere checks remain synthetic. Missing real footage becomes a prepared UI capture task.
 
-## Physical recovery feasibility
+### 4. Consolidate robot lifecycle, native diagnostics and teleop
 
-If the feasibility study supports committing physical get-up, the required chain is: detect a fall, cancel the old action, acquire exclusive recovery control, physically self-right, verify stable standing and localization, then select a fresh play. Ordinary stand, controller reactivation or clearing a tilt latch does not satisfy it. Stop must interrupt recovery; reconnect must not replay old attacks. Distinguish a recoverable fall from operator Stop, stale sensors, low power and hardware faults.
+**Depends on:** packages 1–2; proceeds in parallel with package 3.
 
-The owner accepted a bounded feasibility investigation before committing physical get-up to the demo. Assign a physical-motion owner and compare a small set of representative postures; do not promise broad coverage from an upright restart. Catalogue expected postures on the arena surface with the bumper, including both sides and any reachable back/belly configurations. Compare suitable motion sequences or learned policies in simulation, then supervised physical trials. Record successes, duration, retries and failure postures. Unsolved expected falls keep the recovery deliverable open; do not redefine them away after failure. Entrapment or damaged hardware may require exceptional assistance. Unbounded retries do not establish recovery.
+Use one Pi execution path per robot for autonomy, experiments and teleop. Preserve existing session/intent ownership and independent native Stop. Reconnection, server replacement and Stop end old intent; readiness is not inferred from text or absent health.
 
-The November 17 source inventory found no side/back-to-standing reference among
-17 current trick exports. The existing `stand_up` API waits for an already-upright
-body; ordinary native gait also damps before inference at side/back tilt. Neither
-is physical get-up. The bounded [side-roll experiment](../artifacts/pupper-fc/2026-11-17/recovery-side-feasibility/experiment-summary.json)
-is now closed after five direct-PD physics runs and one allowed trajectory revision.
-Standing and belly-to-standing controls passed a source-geometry contact gate:
-the lower-leg hulls include their feet. The original stricter gate failure is
-preserved. Both side attempts settled outside the specified 80–100° entry range
-and neither reached standing from its resulting posture. Right-side and perturbed
-cases were not run. This establishes no side-recovery capability and does not
-prove recovery impossible. Further work first needs representative, reproducible
-fallen postures; do not launch another sweep from these results. Native authority,
-gains, limits and fall stopping remain unchanged. Physical get-up stays open.
+Make Home/Stand/movement/kick/restored-walking outcomes explicit and consistent. Instrument distinct joint-exchange, report-validity and admission failures, including the exact failed predicate, report ages, generation/deadline and bounded recent history. Reuse confirmed driver timing/publication fixes. Audit transition-specific conditions; fix a demonstrated software defect without widening joint limits/gains or claiming the physical jitter solved.
 
-## Minimum integration agreement
+Implement per-robot teleop in Settings now as the simplest client of this execution path. Autonomous and teleop ownership cannot overlap; loss of input and Stop follow the same expiry/cancellation mechanism. Provide UI tests for all transition outcomes and named errors.
 
-Agree these meanings at the first connection and version changes with affected owners. Schemas, libraries and transport remain open.
+**Output:** target-built native diagnostics, shared execution/lifecycle operations and usable teleop in replay/device-free mode.
 
-- Field axes, metric units, heading convention, body-to-field conversion, robot IDs and goal ownership. Convert explicitly at existing ROS/tool boundaries.
-- Capture time, clock basis and observation age; measured, predicted and missing states. Include robot footprint, measured left/right foot contact offsets and ball radius. Camera distortion and elevated marker effects need calibration even with 2D gameplay.
-- Skill entry conditions, limits, interruption and completion meanings. Navigation targets must be replaceable rather than accumulating in a queue.
-- One effective motion owner per robot across gameplay, strike, recovery, voice and joystick; Stop has priority. Commands identify their robot.
-- Robot-local expiration of stale motion intent covering lost camera, laptop, network or publisher. An upstream timeout cannot cover that process dying. Reconnect establishes fresh authority.
+**Offline acceptance:** Stop during activation/kick, delayed receipts, missing health, process replacement, double requests and disconnect/rearm behave correctly in the selected device-free chain. Native kick completion requires the matching request/clip and actual walker-restoration receipt. Software holds, latched Stop and emergency damping remain distinct. Physical Home/Stand and stillness remain pending.
 
-Perception supplies state and candidate shooting geometry. Gameplay chooses and executes an approach considering opponent, boundaries and uncertainty. Shooting declares acceptable entry states. Movement supplies achievable motion/braking. Connect these early with the existing gait before polishing components independently.
+### 5. Complete the one-robot continuous approach and foot-kick slice
 
-## Power-on experience
+**Depends on:** usable outputs from packages 2–4.
 
-Target: power on, the selected software prepares automatically and reports ready or a concrete missing dependency; one deliberate start/arm action begins play. No routine SSH recipes or repeated service setup. Goals and ordinary skill changes keep the session alive.
+Move Tej's stage/route/aim calculations into target generation for the existing continuous FC executor. Keep overhead and local sensing independent of UI previews, slow requests and recording. Refine approach targets while walking, slow into paw placement, commit one finite foot kick and resume from actual restoration evidence. Keep the first contact mode deliberately stationary; add smoother contact only against measured timing.
 
-Automatic software preparation and physical initialization have different effects. Supported startup followed by one deliberate start action is accepted for the first version. Existing `start-native` may home and assumes supervised placement; automated orchestration still needs implementation and verification. Missing camera, credentials, models, network or controller must produce actionable status. Pin the runnable release, retain rollback and avoid automatic updates from changing branches. Mac/iPhone readiness matters too; Pi power alone does not establish the overhead feed.
+Use action-specific loss/reacquisition: current local ball evidence does not refresh global pose; blind-job quotas are removed. Tag-loss continuation requires a measured heading/drift/clearance budget. Prepare the implementation and tests while leaving this capability unqualified in live profiles. Keep front-camera person/obstacle hold/Stop behavior, with the selected soccer-ball exception tied to the actual detector/model rather than a blanket bypass.
 
-Preserve each teammate's active runtime and experiments. The [build/test handoff](ROBOT_BUILD_AND_TEST_HANDOFF.md) separates shared source, isolated builds, selected releases and physical acceptance. Current ownership and authorization come from the checkpoint and user, not historical assignments in this plan. FC automatic startup is still unimplemented.
+**Output:** the entire one-robot UI flow through observed approach, foot-kick request, recovery and replayed goal/reset/resume. Normal one-robot gameplay stays offense.
 
-## Working prototype ladder and evidence
+**Offline acceptance:** browser-driven stationary and changing-ball scenarios, gaps/reacquisition, abort during kick and first resumed command all exercise the same selected executor. Record observation-to-decision-to-command latency under replay and slow-consumer load. Simulated foot contact and goal outcomes are clearly labeled; receipts do not turn into physical-success claims.
 
-The first [offline approach-and-shot sandbox](pupper_fc/README.md) implements one-robot approach/alignment/strike and simulated goal restart, with interactive disturbances and replay. It establishes an executable gameplay baseline for integration; the physical and two-robot outcomes below remain open.
+### 6. Add moving-ball play, standing defense and independent opponents
 
-These are integration outcomes, not a serial allocation of teammate time. Every increment leaves a demonstrable baseline.
+**Depends on:** the shared interfaces; pure tactic work can start earlier, integrated acceptance follows package 5.
 
-1. **See the field.** Live overlay and recorded replay show identities/headings, ball, goals and observation age. Check known positions, motion, occlusion and reacquisition.
-2. **Reach a pose.** Existing gait reaches marked positions with chosen heading and stops. Measure position/heading error, response delay and stopping distance.
-3. **Complete a play.** Find, approach, shoot, reacquire and repeat from varied arrangements. Record attempts, useful shots/goals, elapsed time and interventions. Retain the chosen foot, observed ball travel and first resumed walking step.
-4. **Defend and recover.** Intercept rolled balls with measured lateral reach; demonstrate fall stopping, supervised restart and temporary perception loss. Add physical get-up only if its bounded feasibility work supports that commitment.
-5. **Play against an opponent.** Use replay, simplified simulation and physical surrogates before robot two is available. Then commission its own profile/calibration and run real matches. Robot one's acceptance does not validate robot two.
-6. **Sustain the demo.** Repeat match-length trials with shots, defense, misses, goal restart and representative recovery. Separately exercise camera/command loss, Stop and restart. Set numerical thresholds before acceptance and retain failures.
+Implement ball prediction and intercept selection using a movement profile that includes speed, turning/braking and kick delay. Synthetic profiles allow deterministic tests; real values require physical measurement. Predictions retain their source age and bounds. Missing measured parameters block only the dependent live capability, not the rest of the offline work or supervised measurement workflow.
 
-Simulation of game decisions does not establish physical contact or sim-to-real performance. Preserve compact evidence with source/policy identities, conditions, trial counts, timing and limiting failures, plus relevant clips. The live operator view should show observed state, selected behavior/target, motion owner, tracking age, release and fault reason. Measure end-to-end delay, not FPS alone. Reserve two-robot access before the final integration window.
+For defense, predict an own-goal crossing and choose a reachable interception; otherwise retreat to cover the physical mouth and stand/block. With uncertain ball motion, use a conservative goal-side blocking position. No sit motion. Expose a one-robot defensive experiment without changing normal solo offense.
 
-## Owner steering and audited architecture — November 17, 2026
+Remove the referee's global single-attacker assumption. Each opponent independently selects offense/defense with hysteresis, its own goal and its own execution owner. Preserve per-robot Stop/teleop, identity and feeds. Resolve opponent-clearance cases through approach, kick and reset, including a held/missing peer; unconditional deadlock is not a successful match test. The second physical robot is not needed to implement these paths.
 
-The owner requests native object detection, explicit offense/defense roles, coordinate and angle targets, rigorous directional/combined movement tests, latency measurement and gait improvement. The owner likes the architecture and authorized offline implementation and adversarial audits. Clarified scope: front-camera stop/hold/resume to prevent driving into visible people/objects is sufficient; all-around coverage, overhead person fusion and detouring are not required. On November 17 the live feed was unavailable. The November 19 integration brought in its producer and clock adapter. The mounted-field feed still needs qualification. Contact trials using the temporary ball are deferred: the intended ball is a pink size-5 soccer ball with flower patterns. Overhead perception remains authoritative for future field localization and shot geometry. Current hardware/process state belongs in the checkpoint, not this plan.
+**Output:** replay-complete rolling interception, standing defense and two-opponent games, plus diagnostic scenarios for role switching and clearance.
 
-- Separate persistent **role** (offense/defense), **action phase** (navigate, align, strike, guard) and **motion authority** (execute, yield/replan, hold for stale tracking, stopped/fallen). These are two opponents, so roles are selected independently; do not force one global attacker/defender assignment. Start with a deterministic threat/opportunity rule and hysteresis.
-- Ryan supplies timestamped robot poses/headings, ball state, goals and validity, plus optional staging/shot targets. Agree one owner for shot geometry; the existing controller already computes it. A target alone cannot close the navigation loop. Build against synthetic/replayed state now; physical coordinate acceptance needs independently measured live pose, even if only an early AprilTag feed.
-- Reuse pose navigation and the bounded strike controller. Add a small reactive goalie that stays goal-side on a clamped guard line and faces/tracks the ball. Replace blind long run-throughs with current-state checks for ball corridor, heading, boundaries, obstacles and braking. Person interruption must cancel/revalidate a strike before resumption.
-- Reuse the existing Hailo detector without activating person-following as a competing motion owner. Qualify frontal detection and stop/hold/resume first; no detour is required. The gate must cancel current execution, expire with source camera evidence and require fresh field state before resuming field actions. Unknown camera health holds. Recognition of known classes alone does not establish generic free-space sensing.
-- Qualify a frozen gait on forward, backward, left, right, turns, direction changes and combined translation/turns, then under camera load and warm operation. Measure tracking error, slip, tilt, stopping distance and end-to-end latency distributions. Tune/compare existing candidates for a demonstrated deficit before committing to new training. The short passing floor trials do not establish endurance or coordinate accuracy.
-- Calibrate field/goal/ball/contact geometry and live movement limits before connecting the sandbox to hardware. Current simulation defaults include 0.82 m goals and 0.06 m ball radius, and allow speeds beyond the recent physical tests. Measure capture-to-decision-to-command-to-native-feedback timing separately from actual physical response; acknowledgement is not movement.
-- For the real ball, compare the existing detector and a pink-color baseline on robot-view footage, then fine-tune only if measured failures justify it. Flower patterns, lighting, partial views and other pink objects belong in evaluation. Ball-specific training is independent of initial person avoidance.
+**Offline acceptance:** both robots may attack simultaneously without sharing a motor owner; role choices remain stable across noisy observations. Test defend/intercept/retreat branches, stale ball, held/lost opponent, scoring and deliberate reset/resume. Simulated arrival/braking assumptions remain visible and unqualified.
 
-Independent checks included source audits and a context-blind Claude Code review using exact model `claude-fable-5-2`. They produced fixes for cached-frame strike authorization, strike boundary allowance, camera-gap resumption, capture timestamp propagation, timestamp poisoning and mutable detector projection. The controller, role selector and camera gate have offline evidence; they are not live robot acceptance. See the [November 17 result](../foundation/results/navigation-obstacles-20261117.json).
+### 7. Finish the full operator experience and experiment suite
 
-Offline outcomes now include raw-video inspection, stop/hold replay, camera gating in the body-command path, and an IMU-turn client. The next independent evidence is a fixed-height camera holdout and physical motion under camera load. Field-coordinate navigation and reactive goalie acceptance need a live pose source. The raw-video review found the intended tall obstacle was largely missed, while a provisional pixel threshold also missed much of the person approach. A threshold fitted to this one clip is only a candidate; person recognition must not conceal failure to recognize the obstacle behind/in front of them.
+**Depends on:** package 2; develops throughout packages 3–6, rather than starting after them.
 
-Two bounded local policy comparisons are complete, including 30-second directional/combined segments and production heading hold. They favor keeping stock for braking, reveal lateral drift, and expose a large post-turn yaw transient in Markus's candidate. These are nominal CPU simulation results, not deployment evidence. No GPU allocation or verified training-resume path is established; new training needs a demonstrated deficit, verified evaluation/resume and the existing spending agreement. Use useful bounded experiments rather than an open-ended research loop.
+Finish the FIFA-style Home with PupperFC branding, two robots in kits, Settings and three connection actions. Finish attractive Field/Robot setup and a dedicated Play screen: overhead field plus one onboard feed for every participant, score, role/action, robot pose/heading, targets/errors, source age/latency, and understandable holds/recovery controls. Keep feeds and recording from blocking control. Show clean one-robot and two-robot layouts and honest missing/disconnected states.
 
-## Overnight execution — November 17, 2026
+Every remaining physical question gets a ready-to-run UI experiment: stationary geometry/tag/color capture, near-ball comparison, sensor/body diagnostics, directional motion/turn/arc, controlled tracking loss/front-camera stopping, both-foot kick repeats, moving interception, standing defense and second-robot commissioning. Each names the setup, measured values, stopping condition, raw recording, result and unresolved question. Saving an observation must not invent a physical outcome; allow the operator to record contact/miss/intervention explicitly.
 
-The November 17 offline work block is closed. Its **$50 total additional cloud compute** cap applied to that block. The items below record the original scope. The checkpoint owns current work, access and costs.
+Include one Offline Validation operation for the maintained software checks, with progress/results and exportable diagnostics. Complete browser/computer-use validation loops on actual screens, including keyboard/focus behavior, stalled cameras, reconnect, disabled actions, one/two participants, responsive layouts and screenshots. Final art improves here, with functional checks running throughout.
 
-1. **Motion harness:** feedback-controlled relative angles and absolute IMU headings in the existing persistent client; fresh capture evidence, execution-time anchoring, bounded commands, cancellation, verified zero feedback and truthful receipts. Prepare subsequent body-command camera gating using the same command owner.
-2. **Gameplay:** leased automatic role selection connected to the existing executor, a goalie that keeps facing the ball, separate role/action/hold reasons and replayable interruption behavior. Keep explicit teammate targets and automatic planning mutually exclusive.
-3. **Perception:** freeze a raw-video regression set with person and tower-object labels separated. Compare pretrained detection outside the fixed COCO vocabulary and, if justified, a depth signal. Preserve misses and false holds; a single-room screen cannot establish general obstacle avoidance. Complete source timestamp, fixed projection and camera-health contracts before a real guard adapter.
-4. **Latency and reliability:** measure the exercised software path, profile actual bottlenecks, preserve p50/p95/worst gaps, and inject delayed/reordered/dropped inputs and scheduler stalls. Distinguish offline software timings from physical response and Pi inference performance. Fix reproduced defects and retain regression seeds.
-5. **Startup and integration:** complete review and resident-caller integration of the existing software Start candidate; retain deliberate activation and Stop ownership. Prepare a coherent release and one concise next-session procedure, without starting or deploying it overnight.
-6. **Gait readiness:** preserve the stock baseline; investigate observed yaw/braking tradeoffs and exact checkpoint/configuration parity. Train only after a useful hypothesis, working evaluation, resumed-step/export smoke and checkpoint collection are verified. No automatic policy promotion.
-7. **Demo readiness:** expose role, action, target, input age and hold reason in existing replay/operator tools; prepare Ryan's minimal adapter example and a scripted mock-input play. Keep actual hardware footage separate from simulated evidence. Update only authoritative setup/state documents and remove demonstrated stale instructions.
+**Output:** all agreed screens, feeds, controls and experiments usable through the app, plus reviewed visual evidence.
 
-The resident gameplay executor and ROS publisher now run per robot, sharing a
-local monotonic clock and publishing only that robot's commands through its
-selected path: legacy mux/guard or direct deadline guard/native. Isolated ROS checks passed expiry, hold recovery and Stop
-ordering; concurrent domains also separated lease loss, Stop and guard death
-while the other robot continued. Native feedback and field inputs were fixtures,
-so these results do not establish physical play. Two additional mirrored
-one-robot ROS rehearsals naturally scored in the simulator, returned home,
-accepted one deliberate resume after ball replacement, and began another shot.
-They expose the entire solo play cycle but do not test a shared-ball match.
-Synthetic, explicitly clock-normalized
-frames let this advance before Ryan's feed. Do not equate clocks across machines
-or refresh old capture/intent times on receipt. Start with the guard-compatible
-symmetric envelope (0.3 m/s forward/backward and lateral, 1 rad/s yaw); the
-simulator defaults exceed it. An external camera hold must cancel the internal
-strike and require fresh field/intent evidence before replanning. Keep the
-finite movement trial client for qualification. The next integration gates are
-real camera timing/coverage, target runtime acceptance and an actual overhead
-sample with calibrated geometry and clock mapping. The soccer-ball exception
-must be explicit and model-bound; a guard that always blocks the ball prevents
-approach, while a blanket obstacle bypass defeats person interruption.
+**Offline acceptance:** every planned acceptance/rehearsal workflow can be run without a separate terminal sequence after launch. No stale or placeholder UI status claims the robot is healthy, physically standing or successfully kicking. All tests use the same backend operations as normal play.
 
-The shared-state audit also exposed opposing routes that overlap before ball
-contact. Distinct passing sides work in clear synthetic starts but fail against
-a held or missing opponent; one-sided priority holding also fails. Neither
-shortcut is selected. Before a shared-ball match, qualify opponent clearance
-across navigation, striking and return-home, including stopped and lost tracks,
-command lifetime and braking allowance. Keep route progress separate from
-collision prevention; stopping both robots indefinitely is not a match pass.
+### 8. Assemble and verify the complete inactive Mac/Pi candidate
 
-Original per-robot capture times now survive normalization; explicit required
-participants hold motion on stale/missing tracks, including return-home. The
-remaining opponent-clearance candidate is unselected: it prevents the original
-simulated overlaps but stalls in some held-peer cases. More critically, an
-actual mux/guard/native cascade retained a command for 491 ms after its source
-stopped. The legacy native 250 ms watchdog measures its latest receipt, which
-relays can refresh. The opt-in direct FC mode now preserves original expiry
-through the actuation boundary, with device-free native failure tests and ROS
-startup/hold/Stop checks. It also requires native acknowledgement of the current
-bridge instance before arm. Target build and physical acceptance remain open.
-The bounded 12-run reassessment improved two approach times with shorter command
-survival, but retained two stalls: the assumed stopping reserve excludes usable
-staging/contact positions. Adding a whole-target veto also blocked useful shots.
-Neither planning change is selected. Resume that work when measured braking or
-another justified bound can replace the assumption; more waypoint tuning cannot
-fix an excluded target. The observed 491 ms legacy tail is a counterexample,
-not a worst-case or physical stopping bound.
+**Depends on:** frozen integrated sources for packages 3–7. Incremental Pi build checks already occurred in packages 1 and 4.
 
-The existing finite pulse/IMU-turn client now exercises that direct command path
-without a field-pose substitute. A full software rehearsal exposed another
-boundary: native emergency damping did not cancel the gateway's pending Start.
-Software Stop now also enters the gateway's existing latch/epoch/corrective
-cleanup path, and both clients require that capability before software Start.
-Actual ROS cancellation checks retain delayed-activation cases and distinguish
-latch acknowledgement, backend deactivation and physical stopping. Target build
-and supported physical qualification remain the next acceptance boundary.
+Use the maintained FC release assembler and selected native build recipe; the older Lab 6 app packager is not a universal FC deployment path. Include the actual field helper, target-built native components, Ball Eye model/config and selected policies. Verify exact executable/library/config identities and imports from the staged tree, not accidentally from the developer checkout. Keep hardware activation and profile selection separate from staging.
 
-Use three bounded parallel tracks plus root integration, with clear file ownership. Each experiment has one hypothesis, a baseline, a metric and a stop condition; completed work leads to the next item. Checkpoint collection must work before a long GPU job. Collect all final outputs and close owned cloud resources. Independent source reviews and exact Fable 5.2 reviews target consequential changes; tests and reviews are integrated before a release is called ready. Morning evidence should include commits, affected-test results, timings, observed limitations, compute consumption and the shortest useful physical acceptance block.
+Run the selected Mac-to-Pi protocol, inference on saved images and native wire/transition tests with the audited device-free backend on isolated ports/domain. Measure load/timing without interpreting it as camera exposure or physical response. The current live release stays unchanged.
 
-## Existing gaps and decisions to settle
+Use the supported FC `stage`/`verify` and static native-inspection surfaces after extending their selected file closure. Low-level persistent-session preparation can create new run files without launching; its manifest-specific preflight checks selected imports. Do not substitute the higher-level FC prepare/Connect path, which can mutate an existing session. Inspect partial output before retrying and verify test processes have exited.
 
-The local source audit found tilt stopping and supervised restart, not self-righting: [recovery logic](../gemini_pupper/robot/robot_api.py), [upright-injected tests](../gemini_pupper/tests/test_fall_recovery.py). The maintained [native velocity path](../pupper_gait_deploy/src/neural_controller.cpp) expires silent gait-velocity input after 250 ms from its latest callback receipt, not the original source timestamp. [Movement evidence](../foundation/results/movement-live-20261116.json) records partial physical acceptance of the Pi-native release; the brief separates observed capabilities from remaining tests. This expiry does not implement target-policy cancellation, hardware-watchdog protection or measured braking. [Session helpers](../foundation/hardware/persistent_session.py) and the [velocity mux](../pupperv3-monorepo/ros2_ws/src/cmd_vel_mux/src/cmd_vel_mux_node.cpp) remain reusable but do not establish FC boot-to-ready or gameplay.
+**Output:** a complete paired release, build/staging receipts, explicit capabilities and an inactive candidate ready for supervised selection.
 
-Settle when the relevant work begins: surface/ball/bumper/goal dimensions; mount and whole-field coverage; out-of-bounds/trapped-ball rules; recovery ownership/postures/clearance; match duration/success thresholds; second robot access and identity. Supported startup, manual ball replacement and one deliberate resume cue are accepted; self-righting commitment follows its feasibility investigation. Implementation can progress with explicit reversible assumptions. The adversarial review identified recovery, limited arena braking space, late robot-two access, occlusion, and boot/restart behavior as the principal risks; the plan includes evidence for each.
+**Offline acceptance:** clean-target import/link checks, model loading and the entire selected protocol pass with no hardware driver/device initialization; mismatches fail with a specific reason. Release metadata is visible in the UI and included in every run. Device-free checks prove software behavior only.
+
+### 9. Freeze, adversarially validate and clean the handoff
+
+**Depends on:** packages 5–8 integrated.
+
+Run affected tests during implementation; after the sources freeze, run one broader regression and full UI rehearsal. Use exact Fable 5.2 high-effort review on consequential ownership/time/geometry changes and integration, with source adjudication. Native tests must use the chosen executables and message contracts. Recheck only after relevant changes/failures.
+
+Exercise capture loss/future/outlier data, calibration changes, delayed operations, Stop/restart races, stale peer, slow recording and partial artifact collection. Confirm recordings close and identities remain attached to failures. Remove dead code from the new entry point and duplicate launch instructions. Preserve unique branches and frozen old releases; operational retirement/deletion of the old path follows physical replacement acceptance. Update one concise brief, this plan, relevant setup documentation and the current checkpoint.
+
+**Output:** reproducible UI-driven validation, one coherent release candidate, exact known unknowns and ready physical experiments. No orphan agent/reviewer/build processes or incomplete archive labeled complete.
+
+**Offline acceptance:** a fresh session can launch the app, run software validation, inspect the staged candidate and open the next physical experiment from the UI. All milestones have functional software coverage; none is mislabeled as physically done.
+
+## Parallel work and priorities
+
+After a small shared-interface agreement, use three concrete worker lanes plus root integration:
+
+| Lane | Main ownership | Runs without physical qualification |
+|---|---|---|
+| Perception/geometry | Field producer, timestamp adapters, onboard observation path, physical profiles and comparison fixtures | Packages 3 and relevant package 6 prediction inputs |
+| Pi/runtime | Native diagnostics, selected build/release helpers, lifecycle/teleop operations and device-free checks | Packages 1, 4 and 8 |
+| UI/experiments | Static UI, agreed server/lobby adapters, views, recordings and experiment operations | Packages 2 and 7 throughout |
+| Root integration | Shared interfaces, controller/kick/tactics integration, file ownership and final verification | Packages 5, 6 and 9 |
+
+Assign one owner per file, especially shared lobby/server/integration modules, before edits. Reviewers are bounded and read-only; use available slots as workers finish rather than invent a fourth concurrent worker lane. Opus labor and Fable second opinions remain the preferred external models where source-sharing approval permits them; a blocked optional review does not block local work.
+
+Critical sequence: **selected baseline/build smoke → shared operations → honest inputs plus one executor → one-robot UI slice → richer tactics and complete UI → frozen Pi candidate and final verification.** UI design, instrumentation, saved-image comparison and test preparation are concurrent work. Finish the first software slice before spending effort tuning later milestones. Do not wait for robot two to implement its software path.
+
+Do not spend the offline block on speculative new policies, broad detector training, Hailo conversion, arbitrary admission relaxation or an automatic self-righting implementation. Reopen a bounded experiment when data shows it addresses the remaining failure. Preserve required fall stopping and deliberate recovery; physical self-righting remains a separate bounded feasibility question, not a hidden promise.
+
+## Physical tests the user will need to run later
+
+These are dependency groups, not scheduled batches. All scripts, displays and recording flows are prepared by packages 2–9.
+
+| Group | What needs the real setup/user | What it decides | Prior register |
+|---|---|---|---|
+| P1: geometry and perception | Measure ball/tag/camera/goal geometry; place ball at near/contact positions and robot near/far at known headings; record actual lighting/coverage | Accurate field/goal model, near-ball method, tag versus color, actual exposure/processing age and usable error bounds | T1–T3 |
+| P2: body and lifecycle | Support the robot for candidate selection/Home/Stand; external-reference motor-disabled sensor capture, supported transition, warm zero-command standing, Stop/rearm | Exact startup cause and sensor-versus-body deterioration; whether the selected body release is usable | T4–T5 |
+| P3: motion and interruption | Short measured forward/lateral/turn/arc and braking trials; controlled localization/network loss and person/obstacle stopping | Real arrival, turn, stopping and tag-loss limits; physically effective interruption | T6 |
+| P4: complete foot-kick slice | Place stationary ball, run full UI approach/kick/recovery, record both feet and all misses/interventions | Actual contact window, goal heading, kick delay/scatter, stable restored walking and benefit of onboard refinement | T7 |
+| P5: rolling ball and standing defense | Roll balls on known paths and toward the own goal; observe intercept/retreat/block behavior | Prediction quality, reachable defense, contact under motion and real failure cases | T8 |
+| P6: second robot and final match | Per-robot calibration and qualification, independent role/teleop checks, opposing play and repeated full app startup/reset | Whether software generalizes to robot two; real two-opponent game, reliability and demo footage | T9 |
+
+Physical parameters remain unknown until measured: exposure delay/error, tag/ball accuracy, warm stability, usable speed/turn/braking, tag-loss drift, kick contact/timing/scatter and opponent clearance. They live in the selected profile with provenance; replay uses explicitly synthetic values rather than filling the live profile with guesses.
+
+The first body result creates a decision: fix a named software defect and repeat the relevant test, or investigate the indicated physical failure. Do not bypass admission or automatically transplant a new loop onto u6. Preserve any genuinely qualified full release as rollback; the reported bridge run alone is not a qualified fallback. After physical data changes a profile or code, repeat affected checks rather than rebuilding every unrelated layer.
+
+## Completion and delivery
+
+The offline handoff contains the full Mac app, inactive Pi candidate, source/model/profile identity, browser-verified screens, scenario fixtures, passing software checks, closed evidence and all physical experiments accessible in the UI. It explicitly separates implemented/replay-tested, target/device-free-tested and physically verified behavior.
+
+The December 2 video and December 3 live-demo deadlines remain the user-confirmed targets. Preparing recordings and export now supports them; footage, performance claims and the final demonstration still require physical runs. Existing accepted ball replacement plus one deliberate resume cue remains supported, as do fall stopping and front-camera obstacle interruption. Earlier numerical match-success targets and historical coursework details remain evidence in Git and prior reports, not invented achievements or reasons to delay the first useful slice.
+
+Body diagnosis is the biggest schedule uncertainty. It does not prevent this offline plan, but software completion alone cannot guarantee a playable robot by the deadline. Once the user schedules hardware time, the prepared body diagnostics can run without waiting for tactics or art to be finished.

@@ -1,0 +1,142 @@
+{
+  "schema": "pupper_fc_phase3_plan_v1",
+  "date_local": "2026-11-22",
+  "updated_utc": "2026-11-23T05:57:36.487126+00:00",
+  "phase": 3,
+  "status": "plan_complete_implementation_not_started",
+  "plan": "final_project/PLAN.md",
+  "architecture_basis": "foundation/results/fc-architecture-review-20261122.json",
+  "baseline_docs_commit": "2408f6e",
+  "evidence_directory": "outputs/pupper-fc-phase3-20261122",
+  "manifest": "outputs/pupper-fc-phase3-20261122/manifest.json",
+  "product_changes": false,
+  "pi_actions": "One read-only process-name/build-tool/storage inventory; no build/stage/services/camera/sensor/motor actions.",
+  "fable_review": {
+    "requested_model": "claude-fable-5-2",
+    "effort": "high",
+    "observed_models": [
+      "claude-fable-5-2"
+    ],
+    "elapsed_s": 44.01,
+    "exit_code": 0,
+    "timed_out": false,
+    "scope": "Phase3 plan only, no-tool review",
+    "errors": [],
+    "all_owned_processes_closed": true
+  },
+  "optional_opus_review": {
+    "requested_model": "claude-opus-5-5",
+    "requested_effort": "high",
+    "status": "rejected_before_process_creation",
+    "process_started": false,
+    "data_sent": false,
+    "retry_or_reroute": false,
+    "reason": "Automatic approval review rejected transmission of a large private project source and hardware documentation bundle to Claude; standing Opus use did not establish approval for this specific export.",
+    "actual_model": null,
+    "exit_code": null,
+    "local_audit_completed": true
+  },
+  "local_pi_source_audit": "outputs/pupper-fc-phase3-20261122/pi-offline-audit.txt",
+  "pi_inventory": "outputs/pupper-fc-phase3-20261122/pi-planning-inventory.json",
+  "ordered_packages": [
+    {
+      "id": 1,
+      "name": "Select integration baseline and prove target build compatibility",
+      "depends_on": []
+    },
+    {
+      "id": 2,
+      "name": "Shared operations and immediately usable UI shell",
+      "depends_on": [
+        1
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Observation semantics and physical geometry",
+      "depends_on": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Robot lifecycle, diagnostics and teleop",
+      "depends_on": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": 5,
+      "name": "One-robot continuous approach and foot-kick software slice",
+      "depends_on": [
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Moving-ball play, standing defense and independent opponents",
+      "depends_on": [
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Full operator experience and experiment suite",
+      "depends_on": [
+        2
+      ],
+      "final_acceptance_after": [
+        3,
+        4,
+        5,
+        6
+      ],
+      "starts_early": true
+    },
+    {
+      "id": 8,
+      "name": "Complete inactive Mac/Pi candidate",
+      "depends_on": [
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Freeze, adversarial validation and clean handoff",
+      "depends_on": [
+        5,
+        6,
+        7,
+        8
+      ]
+    }
+  ],
+  "physical_groups": {
+    "P1": "Geometry/perception T1-T3",
+    "P2": "Body/lifecycle T4-T5",
+    "P3": "Motion/interruption T6",
+    "P4": "Foot kick T7",
+    "P5": "Rolling ball/standing defense T8",
+    "P6": "Second robot/match T9"
+  },
+  "ordering_adjudication": [
+    "Move Pi compatibility early; final freeze/verification still late.",
+    "Teleop belongs with execution ownership.",
+    "UI is operational from the first software shell and is validated throughout.",
+    "Three independent workers plus root fit the available concurrency limit.",
+    "No guessed calendar dates or physical test durations.",
+    "Respect offline-first planning; physical batching later, body uncertainty remains schedule risk.",
+    "Existing higher-level prepare/Connect and sensor diagnostics are not no-device checks."
+  ],
+  "next": "Present Phase3 plan. Phase4 implementation not initiated; physical-test batching remains deferred."
+}

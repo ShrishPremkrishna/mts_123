@@ -1,8 +1,10 @@
 # Pupper FC
 
-## Current investigation — November 22, 2026
+## Current plan — November 22, 2026
 
-Shrish has kept the project in Phase 2. The [adversarial architecture review](../foundation/results/fc-architecture-review-20261122.md) consolidates the findings into six core problems: unqualified body behavior, inconsistent observation meaning, serial approach control, forked execution lifecycles, confounded calibration and incomplete UI-driven runs. It proposes reusing the continuous FC executor and native kick/Stop, retiring the bridge's production motion loop only after a complete replacement slice passes, and freezing persistent calibration learning. Two exact Fable 5.2 high-effort passes challenged the proposal; rejected claims and direct source counterexamples are recorded. No rebuild is implemented or authorized by this review.
+Shrish has moved to **Phase 3**. The [ordered rebuild plan](PLAN.md) prioritizes all Mac and no-device Pi work before separately scheduled physical tests: early target-build compatibility, shared UI operations, parallel observation/runtime/UI work, the first one-robot software slice, moving-ball/defense/two-opponent behavior, then a complete inactive release and final validation. Teleop is built with the shared execution owner; the UI and experiments grow throughout. The powered Pi is reachable and has build tools, but no build, staging, service change or physical test occurred in this planning block. Phase 4 implementation has not begun.
+
+The [adversarial architecture review](../foundation/results/fc-architecture-review-20261122.md) explains the six core issues and reuse/retirement choices. The plan keeps the continuous FC executor and native kick/Stop, freezes persistent calibration learning, and retires the bridge's production motion loop only after replacement acceptance. Unknown physical parameters remain explicit while software work proceeds. The [planning record](../foundation/results/fc-phase3-plan-20261122.json) contains the exact Fable review and Pi preparation audit.
 
 The [Tej reconciliation](../foundation/results/fc-phase2-reconciliation-20261122.md) remains the evidence register with 12 software cases and nine physical-test batches; the architecture review supersedes treating them as independent bridge patches. Four kick playbacks are independently corroborated by Pi logs; reported contact/goal outcomes still need Tej's Mac camera evidence. Late IMU/joint deterioration and separate FC startup faults remain physically unresolved. No fixes were deployed or robot motion performed in these investigations.
 
@@ -38,14 +40,14 @@ clock budget. The earlier routed campus test admitted 2 of 16 probes. The
 mounted camera still needs a sustained timing check on the arena network.
 [Pi and network measurements](../foundation/results/staged-field-session-20261119.json).
 The [camera setup and tag check](ROBOT_BUILD_AND_TEST_HANDOFF.md#mounted-overhead-camera-motors-inactive)
-can proceed with a loose tag before a robot is available. The [tracked navigation test](PLAN.md#current-sprint--november-19)
+can proceed with a loose tag before a robot is available. The [tracked navigation test](PLAN.md#physical-tests-the-user-will-need-to-run-later)
 uses the same target with measured robot poses once the mounted camera, timing
 and field dimensions have been qualified.
 
 Tej’s `tej/gemini-ball-kick` branch advanced to `30b84a0`. The Pi logged u5 walk–kick–walk jobs of 5.76/5.63 s for left/right, then
 4.98/5.03 s with the shorter settings. Ball contact was unmeasured.
 The combined release uses the conservative transition timings. Tej owns qualifying the faster return, ball contact and a real step after each kick. The [shooting handoff](handoffs/SHOOTING.md) records the
-timings, evidence limits and the integration decision. Mounted tracking follows when the field is ready. [Testing order](PLAN.md#current-sprint--november-19).
+timings, evidence limits and the integration decision. Mounted tracking follows when the field is ready. [Testing order](PLAN.md#physical-tests-the-user-will-need-to-run-later).
 
 - Shrish currently owns movement, shot positioning, gameplay and integration. Tej iterates on the foot-kick policy. Ryan owns overhead perception, localization and proposed actions/shot targets; our harness translates those into responsive robot execution. Marcus’s existing gait exports remain available for comparison; the active ownership checkpoint governs robot access. Shrish builds the 8 × 12-foot arena with approximately 2-foot goals; no bumper is fitted yet.
 - The owner accepted manual ball replacement and one deliberate resume cue after goals for the first working game; robots reposition themselves with software still running. Physical self-righting gets a bounded feasibility investigation before a demo commitment. Fall stopping, ordinary standing and physical get-up remain distinct capabilities.

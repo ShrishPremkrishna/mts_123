@@ -1,6 +1,6 @@
 # Shooting
 
-November 19, 2026 · [Demo testing order](../PLAN.md#current-sprint--november-19)
+November 19, 2026 · [Demo testing order](../PLAN.md#physical-tests-the-user-will-need-to-run-later)
 
 The selected demo shot uses Tej’s left or right leg kick. Shrish owns the field-guided approach and the handoff from walking. The combined release drives one walking policy into either kick, observes the applied clip and resumes walking on a new native activation. Tej owns physical kick and recovery testing. [Selected release and simulation evidence](../pupper_fc/README.md#walking-and-kicking-in-one-release)
 

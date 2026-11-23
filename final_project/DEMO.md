@@ -1,6 +1,6 @@
 # Pupper FC demo and recording
 
-Working delivery script, November 19, 2026. The [delivery plan](PLAN.md#course-deliverables)
+Working delivery script, November 19, 2026. The [delivery plan](PLAN.md#completion-and-delivery)
 owns deadlines and acceptance targets. This is the production plan for the narrated
 video and five-minute presentation. It is not a record of completed filming or
 submission. The [brief](README.md)

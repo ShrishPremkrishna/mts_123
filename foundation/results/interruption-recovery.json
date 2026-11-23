@@ -3,9 +3,9 @@
   "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej\u2019s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "codex/pupper-fc-phase2",
-  "mode": "phase2_architecture_review",
-  "updated_utc": "2026-11-23T05:41:42.112093+00:00",
-  "current_report": "foundation/results/fc-architecture-review-20261122.json",
+  "mode": "phase3_rebuild_plan",
+  "updated_utc": "2026-11-23T05:57:36.487126+00:00",
+  "current_report": "foundation/results/fc-phase3-plan-20261122.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -61,7 +61,8 @@
     "guarded_body_arc": "foundation/results/guarded-body-arc-20261120.json",
     "mounted_phone": "foundation/results/field-camera-live-20261120.json",
     "tej_phase2_reconciliation": "foundation/results/fc-phase2-reconciliation-20261122.json",
-    "adversarial_architecture_nov22": "foundation/results/fc-architecture-review-20261122.json"
+    "adversarial_architecture_nov22": "foundation/results/fc-architecture-review-20261122.json",
+    "phase3_rebuild_plan": "foundation/results/fc-phase3-plan-20261122.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -70,7 +71,7 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "User requests continued Phase 2 adversarial root-cause investigation with exact Fable 5.2 and high reasoning. Source/evidence review, provider consultation and documentation only this block; no implementation, deployment, robot service/camera/sensor changes or motion.",
+  "authorization": "User explicitly moved to Phase3 and requested ordered offline-first rebuild plan including powered-Pi work, separate from later user-run physical tests. Planning, source review, one read-only Pi inventory and documentation only; no Phase4 product implementation or hardware action initiated.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
@@ -99,17 +100,17 @@
   },
   "activity": {
     "automation": "No automation controls the physical session.",
-    "compute": "Current block: two exact Fable 5.2 high-effort adversarial passes, two exact Opus 5.5 high-effort source labor reviews, root source checks and isolated synthetic color-heading reproduction. No product tests/build/training/deployment.",
+    "compute": "One exact Fable5.2 high-effort planning review completed. Pi preparation/source audit completed locally after optional Opus export was rejected before process creation. No build/training/staging performed.",
     "owners": {
-      "physical_robot": "Shrish handles physical setup. Root completed read-only collection; no active motion test, no controller/camera process observed. Physical posture/torque not inspected.",
+      "physical_robot": "Shrish owns physical setup. Root completed read-only Pi inventory; no owned hardware test or service change. Other robot-process ownership and motor state are not established by that inventory.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Shrish and project lead own gait readiness, pose/heading, kick approach and defense.",
       "shooting": "Tej owns the leg kick. Shrish and project lead own the transition from field-guided gameplay.",
       "perception": "Ryan owns overhead source/tracking; source integrated. Root owns harness adapter. Mounted geometry, latency and tag coverage remain unqualified.",
       "arena": "Shrish",
-      "project_lead": "Root on codex/pupper-fc-phase2 in /Users/shrish/workspace/cs123. All source/reviewer agents completed; no ongoing work scheduled."
+      "project_lead": "Root on codex/pupper-fc-phase2 in /Users/shrish/workspace/cs123. Phase3 plan complete; review agents idle, no scheduled work."
     },
-    "goal_status": "Phase 2 architectural RCA complete for current evidence. Six core issues and direct remedies proposed; physical cause of jitter and startup predicate still unresolved. Implementation has not begun.",
+    "goal_status": "Phase3 plan complete: nine ordered offline work packages with parallel lanes and six separate physical-test groups. Implementation and physical batching have not begun.",
     "pending_archives": [
       "Three original kickseen4/5/6 MCAP files remain on Pi, hashed and analyzed. Full local copy interrupted; partial archive retained and verified incomplete. See outputs/pupper-fc-reconcile-20261122/recording-preservation.json."
     ],
@@ -131,9 +132,13 @@
       "phase2_architecture_review": {
         "status": "All owned provider review processes exited successfully; no robot access or services used in this block.",
         "evidence": "foundation/results/fc-architecture-review-20261122.json"
+      },
+      "phase3_planning": {
+        "status": "Fable review exited0; optional Opus export rejected before process creation, no retry. All review work closed. No Pi services started/stopped.",
+        "evidence": "foundation/results/fc-phase3-plan-20261122.json"
       }
     },
-    "software_verification": "Current block: source verification and exact ingress-function synthetic reproduction of color-heading time-convention error. Earlier 21 bridge tests/reproductions remain in reconciliation; no physical success inferred."
+    "software_verification": "Planning only: source-audited helper effects, confirmed Pi build-tool/storage presence, plan references/JSON and local artifact hashes. No product validation claimed."
   },
   "hardware_session": {
     "status": "Pi reachable through mts, same boot throughout collection. FC profile selects fc-ui-stop-0c07ad63666b. No new robot/sensor/camera service or motion started; posture/torque not tested.",
@@ -166,7 +171,8 @@
     "frozen_release_source_commit": null,
     "verified_front_camera": "Historical qualification remains in older reports; not activated or requalified November22.",
     "thermal_log": "Only point CPU temperature observations this block, approximately64\u201366 C; not an IMU-temperature or drift test.",
-    "previous_run": "/home/pi/pupper-fc-runs/fc-walk-kick-3bd1bc9f54db-prepared"
+    "previous_run": "/home/pi/pupper-fc-runs/fc-walk-kick-3bd1bc9f54db-prepared",
+    "planning_inventory": "outputs/pupper-fc-phase3-20261122/pi-planning-inventory.json"
   },
   "preservation": {
     "movement_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
@@ -201,20 +207,25 @@
       "directory": "outputs/pupper-fc-architecture-20261122",
       "manifest": "outputs/pupper-fc-architecture-20261122/manifest.json",
       "count": 16
+    },
+    "phase3_plan_20261122": {
+      "directory": "outputs/pupper-fc-phase3-20261122",
+      "manifest": "outputs/pupper-fc-phase3-20261122/manifest.json",
+      "count": 8
     }
   },
   "next": [
     {
-      "id": "phase2_architecture_discussion",
-      "action": "Remain Phase 2. Use the architecture review as the core diagnosis; resolve further user evidence before Phase 3. Do not treat F1-F12 as independent patches to all launch paths."
+      "id": "phase3_plan_review",
+      "action": "Use final_project/PLAN.md as the ordered rebuild plan. Phase4 has not started; do not activate the robot from planning instructions."
     },
     {
-      "id": "proposed_structural_direction",
-      "action": "Proposed: one compatible release/session, existing continuous executor and exclusive native kick, honest observations, frozen persistent calibration, complete UI experiments. Retire bridge motion ownership only after replacement physical acceptance."
+      "id": "offline_implementation_order",
+      "action": "When Phase4 begins: selected source/build compatibility and shared operations first; parallel observation, runtime/teleop and UI work; first one-robot slice, full tactics, inactive paired candidate, final verification."
     },
     {
-      "id": "physical_discriminators",
-      "action": "Pending T1-T9 remain; start with small stationary capture comparisons and external-reference body diagnostics. Instrument and name Home/Stand failure before changing admission. Mac raw run evidence remains absent from23fetched branch tips."
+      "id": "physical_test_groups",
+      "action": "P1-P6 remain separate later tests. Prepare every operation and recording in the UI during offline work. No batching or hardware schedule chosen yet."
     },
     {
       "id": "preserve_raw_recordings",
@@ -234,7 +245,7 @@
   "alignment": {
     "confirmed": "Current user vision: one-command launch, complete Home/Field/Robot/Settings/Play UI and all operator tests through it; variable field, adjustable2ftgoals, pink ball, nose-aligned tag heading previously demonstrated, foot strike required, one robot offense, two opponents may independently share roles, standing defense/retreat, all four requested data comparisons. Video deadlineDec2. No secondrobot available yet.",
     "open": "Physical causes of late IMU/joint deterioration and first-claim failures; measured mount/geometry, close-ball accuracy, distant-tag visibility, timing, contact repeatability and second-robot qualification.",
-    "next_discussion": "Review six core problems and direct remedies in Phase 2. Later Phase 3 should set a bounded engineering/cutover decision based on actual supervised sessions; no automatic bridge fallback or implementation assumed.",
+    "next_discussion": "Phase3 ordered rebuild plan delivered. All offline work, including no-device Pi preparation, is prioritized; physical tests and unknown parameters are separated. Phase4 execution not assumed.",
     "owner_steering_2026_11_17": "Onboard front-camera stop/hold/resume is sufficient; hybrid/all-around human coverage and detouring are not required. Ryan pose unavailable for several sessions. Build independent state/execution/harness/gait evaluation work now. Pink ball contact deferred. Owner likes architecture and requests context-blind adversarial audits.",
     "owner_steering_2026_11_19": "Goals available; intended ball and second Pupper outstanding; field setup planned soon. Minimum demo: 1\u20132 minutes, two opponents, useful goal-directed shots, automatic role switching and smooth responsive execution. Latest reply requests camera-free endpoint repeatability first, with same marked starts; precision and accuracy recorded separately.",
     "owner_steering_2026_11_19_kick": "Prioritize the improved walk\u2013kick\u2013walk transition on the test block and use the trained leg policy as the demo shot. Discuss closed-loop approach, contact timing and field heading before resuming tests.",
