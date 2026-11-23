@@ -751,6 +751,8 @@ function renderTelemetry(t, cam) {
     [phase, reason, ptone] = ['Not connected', '', 'hold'];
   } else if (awaitingCurrent) {
     [phase, reason, ptone] = ['Waiting for this match', 'Waiting for current robot telemetry.', 'hold'];
+  } else if (state.phase === 'idle' && tel?.stopped === false && planner.phase === 'stopped') {
+    [phase, reason] = ['Standby', 'Match ended. Start a new match to arm this runner.'];
   } else if (mode === 'teleop') {
     [phase, reason] = ['Driven from this keyboard', KEY_GUIDE[t.slot]];
   } else if (!tel) {
