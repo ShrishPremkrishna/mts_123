@@ -22,11 +22,20 @@ FAKE_PROFILE = r'''
 PROFILE_DESC="fake"; PROFILE_CMD_TOPIC=/llm_cmd_vel; PROFILE_IMU_TOPIC=/imu
 PROFILE_WALKER=w; PROFILE_LEG_CONTROLLERS="w"
 profile_env() { export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}; }
-rosq() {  # fake graph: FAKE_TOPO=good|bad
+rosq() {  # fake graph: FAKE_TOPO=good|bad; walker state in $FC_ROOT/fake_walker; FAKE_SWITCH=refuse = latched gateway
+  local f=$FC_ROOT/fake_walker w=inactive
+  [ -f "$f" ] && w=$(cat "$f")
+  if [ "$1" = switch ]; then
+    if [ -n "$2" ] && [ "${FAKE_SWITCH:-ok}" = refuse ]; then
+      echo '{"ok":false,"error":"no answer (gateway latched or manager busy)","controllers":{"w":"'$w'"}}'; return
+    fi
+    if [ -n "$2" ]; then echo active > "$f"; else echo inactive > "$f"; fi
+    echo '{"ok":true,"controllers":{"w":"'$(cat "$f")'"}}'; return
+  fi
   if [ "${FAKE_TOPO:-good}" = good ]; then
-    echo '{"mux":{"ok":true,"alive":true,"problems":[],"cmd_vel_pubs":["cmd_vel_mux"],"topic":"/llm_cmd_vel","topic_subs":["cmd_vel_mux"],"topic_pubs":[],"teleop_pubs":["teleop_twist_joy_node"]}}'
+    echo '{"mux":{"ok":true,"alive":true,"problems":[],"cmd_vel_pubs":["cmd_vel_mux"],"topic":"/llm_cmd_vel","topic_subs":["cmd_vel_mux"],"topic_pubs":[],"teleop_pubs":["teleop_twist_joy_node"]},"controllers":{"w":"'$w'","joint_state_broadcaster":"active"}}'
   else
-    echo '{"mux":{"ok":false,"alive":true,"problems":["/cmd_vel publishers [cmd_vel_mux, cmd_vel_mux] (want exactly cmd_vel_mux)"],"cmd_vel_pubs":["cmd_vel_mux","cmd_vel_mux"],"topic":"/llm_cmd_vel","topic_subs":[],"topic_pubs":[],"teleop_pubs":[]}}'
+    echo '{"mux":{"ok":false,"alive":true,"problems":["/cmd_vel publishers [cmd_vel_mux, cmd_vel_mux] (want exactly cmd_vel_mux)"],"cmd_vel_pubs":["cmd_vel_mux","cmd_vel_mux"],"topic":"/llm_cmd_vel","topic_subs":[],"topic_pubs":[],"teleop_pubs":[]},"controllers":{"w":"'$w'"}}'
   fi
 }
 profile_start() {
@@ -65,8 +74,15 @@ def fc(tmp_path):
         lines = [l for l in out.stdout.splitlines() if l.startswith("{")]
         return json.loads(lines[-1]) if lines else {"raw": out.stdout, "err": out.stderr}
 
+    def lines(*args, extra_env=None, timeout=120):
+        out = subprocess.run(["bash", str(robot / "fcctl.sh"), *args], env={**env, "FC_READY_SETTLE_S": "0",
+                             "FC_DOWN_SETTLE_S": "0", **(extra_env or {})}, capture_output=True, text=True, timeout=timeout)
+        return out.returncode, [json.loads(l) for l in out.stdout.splitlines() if l.startswith("{")]
+
     run.root = root
     run.robot = robot
+    run.lines = lines
+    run.env = env
     yield run
     run("stop")
     for pidfile in (root / "run").glob("*.pid"):   # belt and braces: never leak sleepers
@@ -76,8 +92,8 @@ def fc(tmp_path):
             pass
 
 
-def lock_holders(root):
-    lock = str(root / "run" / "lock")
+def lock_holders(root, name="lock"):
+    lock = str(root / "run" / name)
     holders = []
     for pid in filter(str.isdigit, os.listdir("/proc")):
         try:
@@ -189,3 +205,129 @@ def test_status_reports_heading_hold_off(fc):
     assert st["heading_hold_overlay"]["sha256"].startswith("9f5a3e98") and st["heading_hold_overlay"]["kind"] == "u6"
     assert lock_holders(fc.root) == []
     assert fc("stop")["ok"]
+
+
+# ---------------------------------------------------------------- ready / down / status phase / boot
+def phases(lines):
+    return [l["phase"] for l in lines]
+
+
+def test_ready_needs_confirm_before_homing(fc):
+    rc, out = fc.lines("ready", "fake")
+    assert rc == 3 and out[-1]["phase"] == "needs_confirm" and out[-1]["done"] is True and out[-1]["ok"] is False
+    assert not (fc.root / "run" / "launch.pid").exists()                # nothing started, nothing homed
+    assert fc("status")["phase"] == "off"
+
+
+def test_ready_homes_then_stops_for_the_floor(fc):
+    rc, out = fc.lines("ready", "fake", "--confirm")
+    assert rc == 0 and phases(out) == ["begin", "starting", "homed"], out
+    assert out[-1]["done"] and out[-1]["next"] == "ready"
+    assert fc("status")["phase"] == "homed" and (fc.root / "fake_walker").exists() is False
+    rc, out = fc.lines("ready")
+    assert rc == 0 and phases(out) == ["begin", "homed", "standing_up", "standing", "bridge", "ready"], out
+
+
+def test_ready_full_path_then_down(fc):
+    rc, out = fc.lines("ready", "fake", "--confirm", "--stand-now")
+    assert rc == 0, out
+    assert phases(out) == ["begin", "starting", "homed", "standing_up", "standing", "bridge", "ready"], out
+    assert out[-1]["ok"] and out[-1]["done"] and all(isinstance(l["elapsed"], (int, float)) for l in out)
+    assert out[-2]["bridge"]["ok"] is True
+    assert lock_holders(fc.root) == [] and lock_holders(fc.root, "ready.lock") == []
+    st = fc("status")
+    assert st["phase"] == "ready" and st["light"] == "green" and st["walker_active"] is True, st
+    rc, out = fc.lines("down")
+    assert rc == 0 and phases(out) == ["begin", "bridge_stopped", "lying_down", "down"], out
+    assert out[-1]["done"] and out[-1]["stop"]["ok"]
+    assert (fc.root / "fake_walker").read_text().strip() == "inactive"
+    assert fc("status")["phase"] == "off"
+
+
+def test_ready_is_idempotent(fc):
+    assert fc.lines("ready", "fake", "--confirm", "--stand-now")[0] == 0
+    rc, out = fc.lines("ready")                                           # profile defaults to the running one
+    assert rc == 0 and phases(out) == ["begin", "homed", "standing", "bridge", "ready"], out
+    assert "already" in out[2]["msg"] and "already" in out[3]["msg"]
+
+
+def test_down_keep_stack_then_ready_without_homing(fc):
+    assert fc.lines("ready", "fake", "--confirm", "--stand-now")[0] == 0
+    launch_pid = (fc.root / "run" / "launch.pid").read_text()
+    rc, out = fc.lines("down", "--keep-stack")
+    assert rc == 0 and out[-1]["stack"] == "kept"
+    st = fc("status")
+    assert st["phase"] == "homed" and st["bridge"]["alive"] is False, st
+    rc, out = fc.lines("ready")                                           # no --confirm needed: already homed
+    assert rc == 0 and phases(out) == ["begin", "homed", "standing_up", "standing", "bridge", "ready"], out
+    assert (fc.root / "run" / "launch.pid").read_text() == launch_pid   # same stack, no re-homing
+
+
+def test_ready_waits_for_gamepad_when_gateway_refuses(fc):
+    assert fc("start", "fake", "--confirm")["ok"]
+    assert fc("status")["phase"] == "homed"
+    p = subprocess.Popen(["bash", str(fc.robot / "fcctl.sh"), "ready"], env={**fc.env, "FAKE_SWITCH": "refuse",
+                         "FC_READY_SETTLE_S": "0"}, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    seen = []
+    for line in p.stdout:
+        seen.append(json.loads(line))
+        if seen[-1]["phase"] == "waiting_operator":
+            break
+    assert "latched" in seen[-1]["msg"] and seen[-1]["action"]
+    (fc.root / "fake_walker").write_text("active\n")                     # the operator presses the button
+    rest = [json.loads(l) for l in p.stdout]
+    assert p.wait(timeout=30) == 0
+    assert phases(rest) == ["standing", "bridge", "ready"], rest
+
+
+def test_ready_operator_timeout(fc):
+    assert fc("start", "fake", "--confirm")["ok"]
+    rc, out = fc.lines("ready", extra_env={"FAKE_SWITCH": "refuse", "FC_READY_OPERATOR_S": "2"})
+    assert rc == 4 and out[-1]["phase"] == "error" and out[-1]["at"] == "waiting_operator" and out[-1]["done"]
+    assert fc("status")["phase"] == "homed" and not (fc.root / "run" / "bridge.pid").exists()
+
+
+def test_ready_refuses_other_profile_and_bad_topology(fc):
+    (fc.robot / "profiles" / "fake2.sh").write_text(FAKE_PROFILE)
+    assert fc("start", "fake", "--confirm")["ok"]
+    rc, out = fc.lines("ready", "fake2")
+    assert rc == 1 and out[-1]["at"] == "profile"
+    assert fc("stop")["ok"]
+    rc, out = fc.lines("ready", "fake", "--confirm", extra_env={"FAKE_TOPO": "bad"})
+    assert rc == 1 and out[-1]["at"] == "starting", out
+    assert fc("status")["phase"] == "fault"
+
+
+def test_status_phases_walk_and_stale_state(fc):
+    assert fc("status")["phase"] == "off"
+    assert fc("start", "fake", "--confirm")["ok"]
+    assert fc("status")["phase"] == "homed"
+    fc("walk")
+    st = fc("status")
+    assert st["phase"] == "standing" and st["active_legs"] == ["w"], st
+    assert fc("stop")["ok"]
+    run = sorted((fc.root / "runs").iterdir())[-1]
+    (fc.root / "run" / "active").write_text(f"fake\n{run}\nnot-this-boot\n")   # left by an earlier boot
+    st = fc("status")
+    assert st["phase"] == "off" and "earlier boot" in st["phase_detail"], st
+    boot = open("/proc/sys/kernel/random/boot_id").read().strip()
+    (fc.root / "run" / "active").write_text(f"fake\n{run}\n{boot}\n")           # this boot, stack gone
+    assert fc("status")["phase"] == "fault"
+    (fc.root / "run" / "active").unlink()
+
+
+def test_boot_modes(fc):
+    fc.root.mkdir(parents=True, exist_ok=True)
+    (fc.root / "boot.env").write_text("FC_BOOT_PROFILE=fake\nFC_BOOT_MODE=idle\n")
+    assert fc("boot")["result"] == "idle" and fc("status")["phase"] == "off"
+    (fc.root / "boot.env").write_text("# comment\nFC_BOOT_PROFILE=fake\nFC_BOOT_MODE=home\nFC_BOOT_DELAY_S=0\nrm -rf /=x\n")
+    b = fc("boot")
+    assert b["result"] == "homed", b
+    st = fc("status")
+    assert st["phase"] == "homed" and st["boot"]["result"] == "homed" and st["boot"]["profile"] == "fake"
+    assert fc("boot")["result"] == "skipped"                              # never homes twice
+    assert lock_holders(fc.root) == [] and lock_holders(fc.root, "ready.lock") == []
+    rc, out = fc.lines("ready")                                           # Ready after boot: stand + bridge only
+    assert rc == 0 and phases(out)[1:3] == ["homed", "standing_up"], out
+    (fc.root / "boot.env").write_text("FC_BOOT_MODE=stand\n")
+    assert fc("boot")["result"] == "failed"

@@ -98,6 +98,8 @@ Each run writes `fc/runs/<UTC timestamp>-<test>/` (gitignored): `params.json`,
   `.update(t, quat_xyzw, gyro_xyz, cmd_zero: bool)`, `.summary() -> dict` with
   `tilt_deg, pulse_density, bias_x, stale_ms, level` (ok|warn|bad).
 - Pi control (run by the app over ssh): `~/fc-v1/robot/fcctl.sh` with
-  `status` (prints one JSON line), `start <profile> --confirm` (may home the legs),
-  `stop`, `bridge start [--robot-id ID]|stop`, `imu-test <seconds>`. Staged by
+  `status` (prints one JSON line, incl. `phase` off|starting|homed|standing|ready|fault),
+  `ready [profile] [--confirm]` (JSON lines; homed → standing → bridge; homes only with `--confirm`),
+  `down [--keep-stack]`, `start <profile> --confirm` (may home the legs),
+  `stop`, `bridge start [--robot-id ID]|stop`, `imu-test <seconds>` (format: `robot/README.md`). Staged by
   `fc/robot/stage.sh <host>` (rsync into `~/fc-v1/` only, plus `link.key` and `robot_id`).

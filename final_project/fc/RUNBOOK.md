@@ -17,6 +17,10 @@ IMU tilt: use R3. `start` homes the legs, so the robot must be on the stand.
   With the 100.x address the card warns "Tailscale".
 - [ ] Load preset **slow** (Params, Load preset). The header must show `preset: slow`.
 
+Faster path, not yet run on the robot (try it once at step 3): after **start** on the stand, put the robot on
+the floor and run `ssh mts bash ~/fc-v1/robot/fcctl.sh ready` (stock: stands in software; tej_u6: asks for
+Options), then `fcctl.sh down` at the end. Interface and evidence: `robot/README.md`.
+
 ## Steps
 | # | UI action | Watch | Pass | If it fails |
 |---|---|---|---|---|

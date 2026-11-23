@@ -1,0 +1,32 @@
+# Pupper FC power-on service. Template: install.sh replaces @USER@ and @HOME@ and writes
+# /etc/systemd/system/fc-boot.service. See boot/README.md for what it does and how to roll back.
+[Unit]
+Description=Pupper FC: home the legs at power-on (robot ON THE STAND), then wait for Ready
+Documentation=file://@HOME@/fc-v1/robot/boot/README.md
+After=network.target bluetooth.target
+
+[Service]
+# simple + RemainAfterExit: boot is not delayed by homing, and the stack fcctl spawns keeps running
+# in this unit after 'fcctl.sh boot' exits.
+Type=simple
+RemainAfterExit=yes
+User=@USER@
+Environment=HOME=@HOME@
+Environment=FC_ROOT=@HOME@/fc-v1
+WorkingDirectory=@HOME@
+ExecStart=/bin/bash @HOME@/fc-v1/robot/fcctl.sh boot
+# Power-off / 'systemctl stop': fcctl's own stop (bridge zero, leg controllers off, Ctrl-C the stack).
+ExecStop=/bin/bash @HOME@/fc-v1/robot/fcctl.sh stop
+# Never let systemd SIGKILL the robot stack (fcctl policy): only the (already exited) main process is
+# signalled; anything fcctl stop could not stop is left for manual inspection, as from ssh.
+KillMode=process
+TimeoutStopSec=90
+StandardOutput=append:@HOME@/fc-v1/logs/boot.log
+StandardError=append:@HOME@/fc-v1/logs/boot.log
+# The same realtime limits as the course's robot.service (an ssh login gets them from PAM limits).
+LimitRTPRIO=infinity
+LimitMEMLOCK=infinity
+LimitCPU=infinity
+
+[Install]
+WantedBy=multi-user.target
