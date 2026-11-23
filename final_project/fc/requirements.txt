@@ -1,0 +1,7 @@
+# fc core (app.py, link.py, runlog.py, brain.py, sim.py): Python 3.12 stdlib only.
+# Camera source (eye.py -> overhead_perception/fieldcam), versions verified 2026-11-23 in .venv-fc:
+opencv-python==5.1.0.95
+numpy==2.5.5
+PyYAML==6.0.3
+# tests
+pytest==9.2.0

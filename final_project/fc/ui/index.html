@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pupper FC v1</title>
+<style>
+  :root { --bg:#f4f5f7; --card:#fff; --ink:#1d2330; --mute:#6b7383; --line:#dde1e8;
+          --blue:#2563eb; --red:#dc2626; --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --pink:#ec4899; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.35 -apple-system, system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  header { display:flex; gap:12px; align-items:center; padding:8px 14px; background:#111827; color:#fff; position:sticky; top:0; z-index:5; flex-wrap:wrap; }
+  header h1 { font-size:16px; margin:0 8px 0 0; }
+  header .pill { background:#374151; padding:3px 9px; border-radius:99px; font-size:12px; }
+  header .pill.live { background:var(--ok); }
+  header .spacer { flex:1; }
+  #stop { background:var(--red); color:#fff; border:0; font-weight:700; font-size:16px; padding:10px 26px; border-radius:8px; cursor:pointer; }
+  #go { background:var(--ok); color:#fff; border:0; font-weight:600; padding:10px 18px; border-radius:8px; cursor:pointer; }
+  main { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr); gap:12px; padding:12px; }
+  @media (max-width:900px) { main { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:12px; }
+  .card h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--mute); margin:0 0 8px; }
+  canvas { width:100%; display:block; border-radius:6px; background:#2f6b3a; cursor:crosshair; }
+  #frame { width:100%; border-radius:6px; display:none; margin-top:8px; }
+  button { font:inherit; padding:6px 10px; border:1px solid var(--line); background:#fff; border-radius:6px; cursor:pointer; }
+  button:hover { background:#eef2ff; }
+  button.on { background:#dbeafe; border-color:var(--blue); }
+  button.danger { border-color:var(--red); color:var(--red); }
+  .row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin:4px 0; }
+  .robots { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px; }
+  .robot { border:1px solid var(--line); border-radius:8px; padding:8px; }
+  .robot h3 { margin:0 0 4px; font-size:14px; display:flex; gap:6px; align-items:center; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; background:#9ca3af; }
+  .dot.ok { background:var(--ok); } .dot.warn { background:var(--warn); } .dot.bad { background:var(--bad); }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:1px 10px; font-size:12px; }
+  .kv span:nth-child(odd) { color:var(--mute); }
+  pre { background:#0f172a; color:#e2e8f0; padding:6px 8px; border-radius:6px; font-size:11px; max-height:180px; overflow:auto; white-space:pre-wrap; margin:6px 0 0; }
+  #params { display:grid; grid-template-columns:1fr 110px; gap:3px 8px; font-size:12px; max-height:360px; overflow:auto; }
+  #params label { color:var(--mute); align-self:center; overflow:hidden; text-overflow:ellipsis; }
+  #params input, #params select { font:inherit; padding:2px 4px; width:100%; }
+  #params .bad { outline:2px solid var(--red); }
+  #events { font-size:12px; max-height:180px; overflow:auto; }
+  #events div { border-bottom:1px solid #f1f2f4; padding:2px 0; }
+  #runs { font-size:12px; max-height:220px; overflow:auto; }
+  #runs div { border-bottom:1px solid #f1f2f4; padding:3px 0; }
+  .mute { color:var(--mute); }
+  .score { font-size:18px; font-weight:700; }
+  #hint { font-size:12px; color:var(--mute); }
+  #msg { font-size:12px; min-height:16px; }
+  #msg.err { color:var(--red); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pupper FC v1</h1>
+  <span class="pill" id="src">-</span>
+  <span class="pill" id="mode">idle</span>
+  <span class="pill" id="impl">-</span>
+  <span class="score"><span style="color:#93c5fd" id="sb">0</span> : <span style="color:#fca5a5" id="sr">0</span></span>
+  <span class="spacer"></span>
+  <span class="mute" id="loop" style="color:#9ca3af;font-size:12px"></span>
+  <button id="go" title="Free play with the current params (role_mode)">Go</button>
+  <button id="stop" title="Space bar">STOP (space)</button>
+</header>
+<main>
+  <section>
+    <div class="card">
+      <h2>Field <span id="fieldinfo" class="mute" style="text-transform:none"></span></h2>
+      <canvas id="field" width="1000" height="740"></canvas>
+      <img id="frame" alt="camera">
+      <div id="hint">Solid = sim truth / camera; outline = what the brain sees. Cross = target.</div>
+    </div>
+    <div class="card">
+      <h2>Tests</h2>
+      <div class="row">
+        robot <select id="robotSel"></select>
+        <span id="scenarioBox">scenario <input id="scenario" placeholder="kickoff" size="10"> <button data-a="reset">Reset sim</button></span>
+        <button data-a="score_reset">Reset score</button>
+      </div>
+      <div class="row" id="testBtns">
+        <button data-test="drive" title="WASD move, QE turn, space stop">Drive (WASD/QE)</button>
+        <button data-test="goto" title="then click a point on the field">Goto (click field)</button>
+        <button data-test="push_ball">Push ball</button>
+        <button data-test="goalie">Goalie</button>
+        <button data-test="match">Match 1v1</button>
+        <button data-test="sim_eval">Sim eval</button>
+        <input id="evalArgs" value="--quick" size="10" title="sim_eval arguments">
+      </div>
+      <div id="msg"></div>
+      <div id="testInfo" class="kv"></div>
+      <pre id="testOut" style="display:none"></pre>
+    </div>
+    <div class="card">
+      <h2>Robots</h2>
+      <div class="robots" id="robots"></div>
+    </div>
+  </section>
+  <section>
+    <div class="card">
+      <h2>Params</h2>
+      <div class="row">
+        <select id="presetSel"></select><button id="presetLoad">Load</button>
+        <input id="presetName" placeholder="name" size="10"><button id="presetSave">Save</button>
+      </div>
+      <div id="params"></div>
+    </div>
+    <div class="card"><h2>Events</h2><div id="events"></div></div>
+    <div class="card"><h2>Runs</h2><div id="runs"></div></div>
+  </section>
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+let S = null, gotoArmed = false, keys = new Set(), lastTeleop = "", paramsBuilt = "", presetsSeen = "";
+const TEAM = { blue: "#2563eb", red: "#dc2626" };
+const f2 = (v, n = 2) => (v === null || v === undefined || Number.isNaN(v)) ? "-" : Number(v).toFixed(n);
+
+async function post(path, body) {
+  try {
+    const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!j.ok) say((j.error || (j.errors || []).join("; ")) || "failed", true);
+    return j;
+  } catch (e) { say("server not reachable: " + e, true); return { ok: false }; }
+}
+function say(text, err) { const m = $("msg"); m.textContent = text; m.className = err ? "err" : ""; }
+
+// ---------- stop: always ----------
+function stopAll() { gotoArmed = false; keys.clear(); post("/action", { action: "stop" }); say("STOP sent"); }
+$("stop").onclick = stopAll;
+$("go").onclick = () => post("/action", { action: "go" });
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space") { e.preventDefault(); stopAll(); return; }
+  const k = e.key.toLowerCase();
+  if (S && S.mode === "drive" && "wasdqe".includes(k) && k.length === 1 && !isTyping(e)) { keys.add(k); sendTeleop(true); }
+}, true);
+document.addEventListener("keyup", (e) => { const k = e.key.toLowerCase(); if (keys.delete(k)) sendTeleop(true); });
+window.addEventListener("blur", () => { keys.clear(); sendTeleop(true); });
+function isTyping(e) { const t = e.target.tagName; return t === "INPUT" || t === "SELECT" || t === "TEXTAREA"; }
+function sendTeleop(force) {
+  if (!S || S.mode !== "drive") return;
+  const h = (k) => keys.has(k) ? 1 : 0;
+  const cmd = { action: "teleop", robot: S.test && S.test.robot, vx: h("w") - h("s"), vy: h("a") - h("d"), wz: h("q") - h("e") };
+  const sig = JSON.stringify(cmd);
+  if (force || sig !== lastTeleop || keys.size) { lastTeleop = sig; post("/action", cmd); }
+}
+setInterval(() => sendTeleop(false), 100);
+
+// ---------- tests ----------
+document.querySelectorAll("[data-test]").forEach((b) => b.onclick = () => {
+  const test = b.dataset.test, robot = $("robotSel").value, scenario = $("scenario").value.trim() || undefined;
+  if (test === "goto") { gotoArmed = true; say("Click a point on the field for " + robot); return; }
+  const body = { action: "test", test, robot, scenario };
+  if (test === "sim_eval") body.args = $("evalArgs").value;
+  post("/action", body).then((j) => j.ok && say("started " + test));
+});
+document.querySelectorAll("[data-a]").forEach((b) => b.onclick = () =>
+  post("/action", { action: b.dataset.a, scenario: $("scenario").value.trim() || "kickoff" }));
+
+// ---------- field drawing ----------
+const cv = $("field"), cx = cv.getContext("2d");
+let view = null;
+function setupView() {
+  const F = S.field, m = 0.45, W = cv.width, H = cv.height;
+  const s = Math.min(W / (F.length + 2 * m), H / (F.width + 2 * m));
+  view = { s, ox: W / 2, oy: H / 2 };
+}
+const P = (x, y) => [view.ox + x * view.s, view.oy - y * view.s];
+cv.addEventListener("click", (e) => {
+  if (!gotoArmed || !view) return;
+  const r = cv.getBoundingClientRect(), k = cv.width / r.width;
+  const px = (e.clientX - r.left) * k, py = (e.clientY - r.top) * k;
+  const x = (px - view.ox) / view.s, y = (view.oy - py) / view.s;
+  gotoArmed = false;
+  post("/action", { action: "test", test: "goto", robot: $("robotSel").value, target: [+x.toFixed(3), +y.toFixed(3)],
+                    scenario: $("scenario").value.trim() || undefined })
+    .then((j) => j.ok && say(`goto (${x.toFixed(2)}, ${y.toFixed(2)})`));
+});
+function drawRobot(id, p, ghost, label) {
+  const [x, y] = P(p.x, p.y), r = S.field.robot_radius * view.s, col = TEAM[(S.robots.find(q => q.id === id) || {}).team] || "#555";
+  cx.save();
+  cx.lineWidth = ghost ? 2 : 1.5; cx.strokeStyle = ghost ? col : "#fff"; cx.fillStyle = col;
+  if (ghost) cx.setLineDash([5, 4]);
+  cx.beginPath(); cx.arc(x, y, r, 0, 7);
+  ghost ? cx.stroke() : (cx.globalAlpha = 0.9, cx.fill(), cx.globalAlpha = 1, cx.stroke());
+  if (p.yaw !== undefined) {
+    cx.setLineDash([]); cx.strokeStyle = ghost ? col : "#fff"; cx.lineWidth = 3;
+    cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x + Math.cos(p.yaw) * r * 1.4, y - Math.sin(p.yaw) * r * 1.4); cx.stroke();
+  }
+  if (label) { cx.fillStyle = "#fff"; cx.font = "bold 14px system-ui"; cx.fillText(label, x + r + 4, y - r); }
+  cx.restore();
+}
+function drawBall(b, ghost) {
+  const [x, y] = P(b.x, b.y), r = Math.max(4, S.field.ball_radius * view.s);
+  cx.save(); cx.beginPath(); cx.arc(x, y, r, 0, 7);
+  if (ghost) { cx.setLineDash([3, 3]); cx.strokeStyle = "#fbcfe8"; cx.lineWidth = 2; cx.stroke(); }
+  else { cx.fillStyle = "#ec4899"; cx.fill(); cx.strokeStyle = "#fff"; cx.stroke(); }
+  if (!ghost && b.vx !== undefined && Math.hypot(b.vx, b.vy) > 0.03) {
+    const [x2, y2] = P(b.x + b.vx * 0.5, b.y + b.vy * 0.5);
+    cx.beginPath(); cx.moveTo(x, y); cx.lineTo(x2, y2); cx.strokeStyle = "#fbcfe8"; cx.stroke();
+  }
+  cx.restore();
+}
+function draw() {
+  if (!S) return; if (!view) setupView();
+  const F = S.field, L = F.length / 2, W = F.width / 2, G = F.goal_width / 2, D = F.goal_depth;
+  cx.fillStyle = "#2f6b3a"; cx.fillRect(0, 0, cv.width, cv.height);
+  cx.strokeStyle = "#fff"; cx.lineWidth = 2;
+  const [x0, y0] = P(-L, W), [x1, y1] = P(L, -W);
+  cx.strokeRect(x0, y0, x1 - x0, y1 - y0);
+  cx.beginPath(); cx.moveTo(...P(0, W)); cx.lineTo(...P(0, -W)); cx.stroke();
+  cx.beginPath(); cx.arc(...P(0, 0), 0.25 * view.s, 0, 7); cx.stroke();
+  for (const [sx, team] of [[-1, "blue"], [1, "red"]]) {   // west goal is blue's own goal
+    const [gx0, gy0] = P(sx < 0 ? -L - D : L, G), [gx1, gy1] = P(sx < 0 ? -L : L + D, -G);
+    cx.fillStyle = TEAM[team] + "55"; cx.fillRect(gx0, gy0, gx1 - gx0, gy1 - gy0);
+    cx.strokeStyle = TEAM[team]; cx.lineWidth = 4;
+    cx.beginPath(); cx.moveTo(...P(sx * L, G)); cx.lineTo(...P(sx * L, -G)); cx.stroke();
+  }
+  const T = S.truth, Wd = S.world;
+  if (T) { if (T.ball) drawBall(T.ball, false); for (const [id, p] of Object.entries(T.robots || {})) if (p) drawRobot(id, p, false, id); }
+  if (Wd) {
+    if (Wd.ball) drawBall(Wd.ball, !!T);
+    for (const [id, p] of Object.entries(Wd.robots || {})) {
+      const d = S.debug[id] || {};
+      const lab = (T ? "" : id + " ") + (d.role ? `${d.role}/${d.phase || ""}` : "");
+      drawRobot(id, p, !!T, T ? null : lab);
+      if (T && lab) { const [x, y] = P(p.x, p.y); cx.fillStyle = "#fff"; cx.font = "12px system-ui"; cx.fillText(lab, x + 14, y + 26); }
+      if (d.target) {
+        const [tx, ty] = P(d.target[0], d.target[1]), [rx, ry] = P(p.x, p.y);
+        cx.save(); cx.strokeStyle = "#fde047"; cx.lineWidth = 2; cx.setLineDash([4, 4]);
+        cx.beginPath(); cx.moveTo(rx, ry); cx.lineTo(tx, ty); cx.stroke(); cx.setLineDash([]);
+        cx.beginPath(); cx.moveTo(tx - 7, ty - 7); cx.lineTo(tx + 7, ty + 7); cx.moveTo(tx + 7, ty - 7); cx.lineTo(tx - 7, ty + 7); cx.stroke();
+        cx.restore();
+      }
+    }
+  }
+  if (S.test && S.test.name === "goto" && S.test.target) {
+    const [tx, ty] = P(S.test.target[0], S.test.target[1]);
+    cx.strokeStyle = "#fde047"; cx.lineWidth = 2; cx.beginPath(); cx.arc(tx, ty, S.params.goto_tol_m * view.s, 0, 7); cx.stroke();
+  }
+  if (gotoArmed) { cx.fillStyle = "#fde047"; cx.font = "bold 18px system-ui"; cx.fillText("click a goto target", 12, 24); }
+  if (!Wd) { cx.fillStyle = "#fff"; cx.font = "bold 18px system-ui"; cx.fillText("no world yet (camera not calibrated?)", 12, cv.height - 14); }
+}
+
+// ---------- panels ----------
+function levelClass(l) { return l === "ok" ? "ok" : l === "warn" ? "warn" : l === "bad" ? "bad" : ""; }
+function renderRobots() {
+  const box = $("robots");
+  const ids = S.robots.map(r => r.id);
+  if (box.dataset.ids !== ids.join()) {
+    box.dataset.ids = ids.join();
+    box.innerHTML = S.robots.map(r => `
+      <div class="robot" id="r-${r.id}">
+        <h3><span class="dot" id="dot-${r.id}"></span><span style="color:${TEAM[r.team]}">${r.id}</span>
+            <span class="mute">tag ${r.tag} · ${r.host || "no host"} · ${r.profile}</span></h3>
+        <div class="kv" id="kv-${r.id}"></div>
+        <div class="row">
+          ${["status", "start", "stop", "bridge_start", "bridge_stop", "imu_test", "stage"].map(op =>
+            `<button data-op="${op}" data-r="${r.id}" class="${op === "start" ? "danger" : ""}">${op.replace("_", " ")}</button>`).join("")}
+        </div>
+        <pre id="op-${r.id}" style="display:none"></pre>
+      </div>`).join("");
+    box.querySelectorAll("[data-op]").forEach(b => b.onclick = () => {
+      const body = { robot: b.dataset.r, op: b.dataset.op };
+      if (body.op === "start") {
+        if (!confirm(`Start ${body.robot}? This may HOME THE LEGS. Robot on the stand / clear area?`)) return;
+        body.confirm = true;
+      }
+      post("/robot", body);
+    });
+  }
+  for (const r of S.robots) {
+    const L = (S.link || {})[r.id], c = S.cmds[r.id], w = S.world && S.world.robots[r.id], d = S.debug[r.id] || {};
+    const imu = (L && L.imu) || (S.robot_status[r.id] || {}).imu || null;
+    const active = S.active.includes(r.id);
+    const rows = [
+      ["active", active ? "yes" : "no"],
+      ["link", L ? (L.connected ? "connected" : (L.error || "no acks")) : (S.source === "sim" ? "sim" : "-")],
+      ["ack age / rtt", L ? `${f2(L.ack_age)} s / ${f2(L.rtt_ms, 0)} ms` : "-"],
+      ["profile", (L && L.profile) || (S.robot_status[r.id] || {}).profile || "-"],
+      ["imu", imu ? `${imu.level || "?"} · tilt ${f2(imu.tilt_deg, 1)}° · pulse ${f2(imu.pulse_density)}` : "-"],
+      ["seen", w ? `(${f2(w.x)}, ${f2(w.y)}) ${f2(w.yaw * 57.3, 0)}° · age ${f2(w.age)}s` : "not seen"],
+      ["role/phase", d.role ? `${d.role} / ${d.phase}` : "-"],
+      ["cmd", c ? `vx ${f2(c.vx)} vy ${f2(c.vy)} wz ${f2(c.wz)} ${c.tag}` : "-"],
+    ];
+    $("kv-" + r.id).innerHTML = rows.map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join("");
+    $("dot-" + r.id).className = "dot " + (L ? (L.connected ? levelClass(imu && imu.level) || "ok" : "bad") : (w ? "ok" : ""));
+    const op = S.ops[r.id], pre = $("op-" + r.id);
+    if (op) { pre.style.display = "block"; pre.textContent = `[${op.t}] ${op.op} ${op.running ? "running..." : "rc " + op.rc}\n$ ${op.cmd}\n${op.out}`; }
+  }
+}
+function renderTest() {
+  const t = S.test, ls = S.last_summary;
+  document.querySelectorAll("[data-test]").forEach(b => b.classList.toggle("on", !!t && t.name === b.dataset.test));
+  $("go").classList.toggle("on", !!t && t.name === "play");
+  const rows = [];
+  if (t) { rows.push(["running", `${t.name}${t.robot ? " · " + t.robot : ""} · ${f2(t.elapsed, 1)} s`], ["run", S.run_dir]); }
+  if (ls) rows.push(["last", Object.entries(ls).filter(([k]) => k !== "output_tail")
+                                 .map(([k, v]) => `${k}=${typeof v === "object" ? JSON.stringify(v) : v}`).join("  ")]);
+  $("testInfo").innerHTML = rows.map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join("");
+  const out = (t && t.output) || (!t && ls && ls.output_tail) || "";
+  $("testOut").style.display = out ? "block" : "none"; $("testOut").textContent = out;
+}
+function buildParams() {
+  const keys = Object.keys(S.params).sort();
+  paramsBuilt = keys.join();
+  $("params").innerHTML = keys.map(k => {
+    const v = S.params[k], lim = S.limits[k], ch = S.choices[k];
+    const title = lim ? `limits ${lim[0]} … ${lim[1]}` : "";
+    let input;
+    if (ch) input = `<select data-k="${k}">${ch.map(c => `<option>${c}</option>`).join("")}</select>`;
+    else if (typeof v === "boolean") input = `<input type="checkbox" data-k="${k}">`;
+    else if (typeof v === "number") input = `<input type="number" step="any" data-k="${k}" title="${title}">`;
+    else input = `<input data-k="${k}">`;
+    return `<label title="${k} ${title}">${k}</label>${input}`;
+  }).join("");
+  $("params").querySelectorAll("[data-k]").forEach(el => el.onchange = async () => {
+    const k = el.dataset.k, old = S.params[k];
+    let v = el.type === "checkbox" ? el.checked : el.value;
+    if (typeof old === "number") v = Number(v);
+    const j = await post("/params", { [k]: v });
+    el.classList.toggle("bad", !j.ok); delete el.dataset.dirty;
+    if (j.ok) say(`${k} = ${v}`);
+  });
+  $("params").querySelectorAll("input,select").forEach(el => el.oninput = () => el.dataset.dirty = "1");
+}
+function renderParams() {
+  if (Object.keys(S.params).sort().join() !== paramsBuilt) buildParams();
+  $("params").querySelectorAll("[data-k]").forEach(el => {
+    if (el === document.activeElement || el.dataset.dirty) return;
+    const v = S.params[el.dataset.k];
+    if (el.type === "checkbox") el.checked = !!v; else if (String(el.value) !== String(v)) el.value = v;
+  });
+  const p = S.presets.join();
+  if (p !== presetsSeen) { presetsSeen = p; $("presetSel").innerHTML = S.presets.map(n => `<option>${n}</option>`).join(""); }
+}
+$("presetSave").onclick = () => post("/preset", { op: "save", name: $("presetName").value.trim() }).then(j => j.ok && say("preset saved"));
+$("presetLoad").onclick = () => post("/preset", { op: "load", name: $("presetSel").value }).then(j => j.ok && say("preset loaded"));
+
+function render() {
+  $("src").textContent = S.source + (S.dry_run_ops ? " · ops dry-run" : "");
+  $("mode").textContent = S.mode + (S.test && S.test.robot ? " · " + S.test.robot : "");
+  $("mode").className = "pill" + (S.mode !== "idle" ? " live" : "");
+  $("impl").textContent = S.impl;
+  $("sb").textContent = S.score.blue; $("sr").textContent = S.score.red;
+  $("loop").textContent = `loop ${f2(S.loop.hz, 0)} Hz · ${f2(S.loop.tick_ms, 1)} ms · overruns ${S.loop.overruns}`;
+  $("fieldinfo").textContent = `${S.field.length} × ${S.field.width} m` + (S.eye ? ` · eye: ${S.eye.message || ""}` : "");
+  $("scenarioBox").style.display = S.source === "sim" ? "" : "none";
+  const sel = $("robotSel");
+  if (sel.dataset.ids !== S.active.join()) { sel.dataset.ids = S.active.join(); sel.innerHTML = S.active.map(i => `<option>${i}</option>`).join(""); }
+  $("events").innerHTML = S.events.slice().reverse().map(e => `<div><span class="mute">${e.t}</span> ${e.msg}</div>`).join("");
+  renderRobots(); renderTest(); renderParams(); draw();
+}
+
+async function poll() {
+  try { S = await (await fetch("/state")).json(); render(); }
+  catch (e) { $("mode").textContent = "DISCONNECTED"; $("mode").className = "pill"; }
+  setTimeout(poll, 100);
+}
+async function pollRuns() {
+  try {
+    const runs = await (await fetch("/runs")).json();
+    $("runs").innerHTML = runs.map(r => {
+      const s = r.summary;
+      const txt = s ? `${s.result} · ${s.duration_s}s` + (s.pos_err_m !== undefined ? ` · err ${s.pos_err_m} m` : "")
+                    + (s.score ? ` · ${s.score.blue}-${s.score.red}` : "") + (s.time_s !== undefined ? ` · t ${s.time_s}s` : "")
+                    : "running / no summary";
+      return `<div><a href="/runs/${r.name}/summary.json" target="_blank">${r.name}</a> <span class="mute">${txt}</span></div>`;
+    }).join("") || '<span class="mute">no runs yet</span>';
+  } catch (e) {}
+  setTimeout(pollRuns, 2000);
+}
+let frameTimer = null;
+function pollFrame() {
+  if (S && S.source === "camera") {
+    const img = $("frame"); img.style.display = "block";
+    const next = new Image();
+    next.onload = () => { img.src = next.src; setTimeout(pollFrame, 200); };
+    next.onerror = () => setTimeout(pollFrame, 1000);
+    next.src = "/frame.jpg?t=" + Date.now();
+    return;
+  }
+  setTimeout(pollFrame, 1000);
+}
+poll(); pollRuns(); pollFrame();
+</script>
+</body>
+</html>

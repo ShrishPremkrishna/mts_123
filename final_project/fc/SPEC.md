@@ -41,7 +41,7 @@ One laptop process (`python -m fc.app`) owns the loop at 30 Hz and serves the UI
 | Module | Role |
 | --- | --- |
 | `core.py`, `config/` | contract (overseer) |
-| `brain.py` | `Brain.decide(world, me, params) -> (Cmd, debug)`; roles attack/defend/auto; contact `push`/`headbutt` |
+| `brain.py` | `Brain(cfg, field).decide(world, params) -> (Cmd, debug)`; roles attack/defend/auto; contact `push`/`headbutt` |
 | `sim.py` | 2 robots + ball kinematics with injected real errors; consumes `Cmd`, produces `World` |
 | `eye.py` | fieldcam camera → `World` |
 | `link.py` | `Cmd` → UDP packet to each Pi; heartbeat/ack status |
