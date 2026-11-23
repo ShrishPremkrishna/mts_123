@@ -13,7 +13,9 @@ IMU tilt: use R3. `start` homes the legs, so the robot must be on the stand.
 - [ ] Rigid robot tag fitted. Corner tags 0-3 down. iPhone Center Stage **off**.
 - [ ] Key and code on the Pi: `python -m fc.robot.keygen` once, then **stage** on the robot card.
 - [ ] LAN address: run `ssh mts hostname -I`, then start the app with that address:
-  `.venv-fc/bin/python -m fc.app --source camera --robots blue --udp-host blue=<LAN IP>`.
+  `.venv-fc/bin/python -m fc.app --source camera --robots blue --udp-host blue=<LAN IP>`
+  (or `fc/run.sh camera --robots blue --udp-host blue=<LAN IP>`). Tests are on `/ops`; `/` is the Play screen.
+  Every run now saves `overhead.mp4` in its run folder (`record: 0` turns it off).
   With the 100.x address the card warns "Tailscale".
 - [ ] Load preset **slow** (Params, Load preset). The header must show `preset: slow`.
 

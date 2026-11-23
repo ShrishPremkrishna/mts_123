@@ -45,7 +45,8 @@ One laptop process (`python -m fc.app`) owns the loop at 30 Hz and serves the UI
 | `sim.py` | 2 robots + ball kinematics with injected real errors; consumes `Cmd`, produces `World` |
 | `eye.py` | fieldcam camera → `World` |
 | `link.py` | `Cmd` → UDP packet to each Pi; heartbeat/ack status |
-| `app.py`, `ui/` | loop, run logging, HTTP UI, test pipelines |
+| `app.py`, `ui/` | loop, run logging, HTTP UI (Play screen `/`, tests `/ops`), test pipelines |
+| `play.py`, `media.py` | match flow, ticker, banners, health lights; onboard feeds, run video |
 | `robot/` | Pi side: `drive_bridge.py`, profile start/stop scripts, IMU health |
 
 ## Wire protocol (laptop → Pi), UDP port 9870, JSON per datagram
@@ -97,7 +98,10 @@ Each run writes `fc/runs/<UTC timestamp>-<test>/` (gitignored): `params.json`,
 - `fc.robot.imu_health.ImuHealth(params: dict)`;
   `.update(t, quat_xyzw, gyro_xyz, cmd_zero: bool)`, `.summary() -> dict` with
   `tilt_deg, pulse_density, bias_x, stale_ms, level` (ok|warn|bad).
+- `RobotCfg.cam_url` (optional, default ""): onboard camera MJPEG URL for the Play screen.
 - Pi control (run by the app over ssh): `~/fc-v1/robot/fcctl.sh` with
-  `status` (prints one JSON line), `start <profile> --confirm` (may home the legs),
+  `status` (prints one JSON line; `phase` off|starting|homed|standing|ready|fault),
+  `ready <profile>` (start + stand + bridge; JSON progress lines `phase`, `elapsed`, `ok`, `error`; may home
+  the legs), `down`, `start <profile> --confirm` (may home the legs),
   `stop`, `bridge start [--robot-id ID]|stop`, `imu-test <seconds>`. Staged by
   `fc/robot/stage.sh <host>` (rsync into `~/fc-v1/` only, plus `link.key` and `robot_id`).
