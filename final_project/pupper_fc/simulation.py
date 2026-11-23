@@ -4,6 +4,10 @@ The robot is a bounded disc with a short frontal bumper. Body-frame commands
 accelerate toward their target, and expired/invalid commands brake toward zero.
 The ball rolls with friction and bounces at walls outside the goal mouth. These
 assumptions make gameplay inspectable; none are measured Pupper performance.
+Walls follow the field's playable bounds and goals its physical fronts, so a
+selected pitch scores at mouths beyond the markers or off centre. Optional
+extra robots (``add_robot``) share the ball; robot-robot contact is not
+modelled, so callers measure separation instead of relying on collisions.
 """
 from collections import deque
 from dataclasses import asdict
@@ -114,6 +118,8 @@ class Simulator:
         self.fallen = False
         self._random = random.Random(seed)
         self._history = deque(maxlen=4001)
+        self._peer_history = deque(maxlen=4001)  # (time, {robot_id: Pose}) aligned with _history
+        self.others = {}  # robot_id -> [Pose, Velocity]
         self._last_observation = None
         self._observation_key = None
         self._last_ball_sample = None
@@ -136,30 +142,70 @@ class Simulator:
 
     def _record(self):
         frame = Observation(self.time, self.robot, self.ball, fallen=self.fallen, goal=self.goal)
+        peers = (self.time, {robot_id: body[0] for robot_id, body in self.others.items()})
         if self._history and self._history[-1].captured_at == self.time:
             self._history[-1] = frame
+            self._peer_history[-1] = peers
         else:
             self._history.append(frame)
+            self._peer_history.append(peers)
 
-    def step(self, command: Command, dt=0.05):
-        """Advance at most 0.2 seconds with small internal collision steps."""
+    def add_robot(self, robot_id, x, y, yaw):
+        """Add another robot body that shares the ball; command it through step(others=...)."""
+        if not isinstance(robot_id, str) or not robot_id or robot_id == "pupper-1" or robot_id in self.others:
+            raise ValueError("extra robot needs a new identity other than pupper-1")
+        self.others[robot_id] = [self._clamp_body(x, y, yaw), Velocity()]
+        self._record()
+
+    def peers(self, delay=0.0):
+        """Extra robot poses from the same buffered frame observe(delay) would use."""
+        cutoff = self.time - delay
+        for frame, (_, poses) in zip(reversed(self._history), reversed(self._peer_history)):
+            if frame.captured_at <= cutoff + 1e-9:
+                return dict(poses)
+        return dict(self._peer_history[0][1])
+
+    def _clamp_body(self, x, y, yaw):
+        if not all(math.isfinite(value) for value in (x, y, yaw)):
+            raise ValueError("robot position and heading must be finite")
+        b, r = self.field.bounds, self.field.robot_radius
+        return Pose(_clip(x, b.x_min + r, b.x_max - r), _clip(y, b.y_min + r, b.y_max - r), _angle(yaw))
+
+    def step(self, command: Command, dt=0.05, *, others=None):
+        """Advance at most 0.2 seconds with small internal collision steps.
+
+        ``others`` maps extra robot IDs to their own commands; absent or
+        invalid commands brake that robot exactly like the primary one.
+        """
         if not math.isfinite(dt) or not 0 < dt <= 0.2:
             raise ValueError("dt must be finite, positive and at most 0.2 seconds")
-        valid = (isinstance(command, Command) and command.robot_id == "pupper-1"
-                 and all(_finite_number(v) for v in
-                         (command.vx, command.vy, command.wz, command.expires_at)))
+        others = others or {}
+        if set(others) - set(self.others):
+            raise ValueError("commands address an unknown extra robot")
+
+        def usable(cmd, robot_id):
+            return (isinstance(cmd, Command) and cmd.robot_id == robot_id
+                    and all(_finite_number(v) for v in (cmd.vx, cmd.vy, cmd.wz, cmd.expires_at)))
+
+        commands = {"pupper-1": command if usable(command, "pupper-1") else None}
+        commands.update({r: c if usable(c, r) else None for r, c in others.items()})
         end = self.time + dt
         while self.time < end - 1e-12:
             h = min(0.01, end - self.time)
-            if valid and self.time < command.expires_at < self.time + h:
-                h = command.expires_at - self.time
-            if valid and command.expires_at > self.time and not self.fallen:
-                target = Velocity(_clip(command.vx, -self.limits.vx, self.limits.vx),
-                                  _clip(command.vy, -self.limits.vy, self.limits.vy),
-                                  _clip(command.wz, -self.limits.wz, self.limits.wz))
-            else:
-                target = Velocity()
-            self._move(h, target)
+            for cmd in commands.values():
+                if cmd is not None and self.time < cmd.expires_at < self.time + h:
+                    h = cmd.expires_at - self.time
+
+            def target(cmd, fallen=False):
+                if cmd is None or cmd.expires_at <= self.time or fallen:
+                    return Velocity()
+                return Velocity(_clip(cmd.vx, -self.limits.vx, self.limits.vx),
+                                _clip(cmd.vy, -self.limits.vy, self.limits.vy),
+                                _clip(cmd.wz, -self.limits.wz, self.limits.wz))
+
+            self._move(h, target(commands["pupper-1"], self.fallen))
+            for robot_id, body in self.others.items():
+                body[0], body[1] = self._move_body(body[0], body[1], h, target(commands.get(robot_id)))
             if not self.goal:
                 self._roll_ball(h)
             self.time += h
@@ -170,7 +216,9 @@ class Simulator:
         if self.fallen:
             self.velocity = Velocity()
             return
-        old = self.velocity
+        self.robot, self.velocity = self._move_body(self.robot, self.velocity, dt, target)
+
+    def _move_body(self, robot, old, dt, target):
         dx, dy = target.vx - old.vx, target.vy - old.vy
         distance = math.hypot(dx, dy)
         scale = min(1.0, self.limits.acceleration * dt / distance) if distance else 0.0
@@ -178,27 +226,27 @@ class Simulator:
                             old.wz + _clip(target.wz - old.wz,
                                            -self.limits.yaw_acceleration * dt,
                                            self.limits.yaw_acceleration * dt))
-        yaw_mid = self.robot.yaw + (old.wz + velocity.wz) * dt / 4
+        yaw_mid = robot.yaw + (old.wz + velocity.wz) * dt / 4
         c, s = math.cos(yaw_mid), math.sin(yaw_mid)
         wx = ((old.vx + velocity.vx) * c - (old.vy + velocity.vy) * s) / 2
         wy = ((old.vx + velocity.vx) * s + (old.vy + velocity.vy) * c) / 2
-        xmax = self.field.length / 2 - self.field.robot_radius
-        ymax = self.field.width / 2 - self.field.robot_radius
-        x = _clip(self.robot.x + wx * dt, -xmax, xmax)
-        y = _clip(self.robot.y + wy * dt, -ymax, ymax)
+        b, r = self.field.bounds, self.field.robot_radius
+        low_x, high_x, low_y, high_y = b.x_min + r, b.x_max - r, b.y_min + r, b.y_max - r
+        x = _clip(robot.x + wx * dt, low_x, high_x)
+        y = _clip(robot.y + wy * dt, low_y, high_y)
         # Wall contact removes velocity into the wall, including in body coordinates.
         world_vx, world_vy = velocity.vx * c - velocity.vy * s, velocity.vx * s + velocity.vy * c
-        if abs(x) >= xmax and x * world_vx > 0:
+        if (x >= high_x and world_vx > 0) or (x <= low_x and world_vx < 0):
             world_vx = 0.0
-        if abs(y) >= ymax and y * world_vy > 0:
+        if (y >= high_y and world_vy > 0) or (y <= low_y and world_vy < 0):
             world_vy = 0.0
         body_vx, body_vy = world_vx * c + world_vy * s, -world_vx * s + world_vy * c
         # Projection onto a wall can increase an individual body component.
         # Scale both together to preserve wall tangency and the speed limits.
         scale = min(1.0, self.limits.vx / abs(body_vx) if body_vx else 1.0,
                     self.limits.vy / abs(body_vy) if body_vy else 1.0)
-        self.velocity = Velocity(body_vx * scale, body_vy * scale, velocity.wz)
-        self.robot = Pose(x, y, _angle(self.robot.yaw + (old.wz + velocity.wz) * dt / 2))
+        return (Pose(x, y, _angle(robot.yaw + (old.wz + velocity.wz) * dt / 2)),
+                Velocity(body_vx * scale, body_vy * scale, velocity.wz))
 
     def _roll_ball(self, dt):
         ball, field = self.ball, self.field
@@ -207,26 +255,29 @@ class Simulator:
         factor = slowed / speed if speed else 0.0
         vx, vy = ball.vx * factor, ball.vy * factor
         x, y = ball.x + (ball.vx + vx) * dt / 2, ball.y + (ball.vy + vy) * dt / 2
-        x, y, vx, vy = self._ball_contact(x, y, vx, vy)
-        ymax = field.width / 2 - field.ball_radius
-        if abs(y) > ymax:
-            y = math.copysign(ymax, y)
-            if y * vy > 0:
+        x, y, vx, vy = self._ball_contact(x, y, vx, vy, self.robot, self.velocity)
+        for body in self.others.values():
+            x, y, vx, vy = self._ball_contact(x, y, vx, vy, *body)
+        b, r = field.bounds, field.ball_radius
+        if y > b.y_max - r or y < b.y_min + r:
+            y = _clip(y, b.y_min + r, b.y_max - r)
+            if (y - (b.y_min + b.y_max) / 2) * vy > 0:
                 vy *= -0.65
-        in_mouth = abs(y) + field.ball_radius <= field.goal_width / 2
-        if in_mouth and abs(x) >= field.length / 2 + field.ball_radius:
-            self.goal = (1 if x > 0 else -1) * field.attack_sign
-            self.ball = Ball(math.copysign(field.length / 2 + field.ball_radius, x), y)
-            return
-        xmax = field.length / 2 - field.ball_radius
-        if not in_mouth and abs(x) > xmax:
-            x = math.copysign(xmax, x)
-            if x * vx > 0:
-                vx *= -0.65
+        for sign, end in ((1, b.x_max), (-1, b.x_min)):
+            goal = field.goal(sign)
+            if not goal.encloses(y, r):
+                if sign * x > sign * end - r:
+                    x = end - sign * r
+                    if sign * vx > 0:
+                        vx *= -0.65
+            elif sign * (x - goal.x) >= r:
+                self.goal = sign * field.attack_sign
+                self.ball = Ball(goal.x + sign * r, y)
+                return
         self.ball = Ball(x, y, vx, vy)
 
-    def _ball_contact(self, x, y, vx, vy):
-        robot, field = self.robot, self.field
+    def _ball_contact(self, x, y, vx, vy, robot, velocity):
+        field = self.field
         c, s = math.cos(robot.yaw), math.sin(robot.yaw)
         dx, dy = x - robot.x, y - robot.y
         forward, left = dx * c + dy * s, -dx * s + dy * c
@@ -244,8 +295,8 @@ class Simulator:
             return x, y, vx, vy
         x, y = x + nx * depth, y + ny * depth
         # Tangential bumper movement from yaw contributes to contact speed.
-        rvx = self.velocity.vx * c - self.velocity.vy * s - self.velocity.wz * (y - robot.y)
-        rvy = self.velocity.vx * s + self.velocity.vy * c + self.velocity.wz * (x - robot.x)
+        rvx = velocity.vx * c - velocity.vy * s - velocity.wz * (y - robot.y)
+        rvy = velocity.vx * s + velocity.vy * c + velocity.wz * (x - robot.x)
         closing = (rvx - vx) * nx + (rvy - vy) * ny
         if closing > 0:
             impulse = closing * (1.65 if bumper else 1.15)
@@ -292,9 +343,8 @@ class Simulator:
         """Operator placement inside the field; a latched goal needs explicit reset."""
         if not all(math.isfinite(value) for value in (x, y)):
             raise ValueError("ball position must be finite")
-        xmax = self.field.length / 2 - self.field.ball_radius
-        ymax = self.field.width / 2 - self.field.ball_radius
-        self.ball = Ball(_clip(x, -xmax, xmax), _clip(y, -ymax, ymax))
+        b, r = self.field.bounds, self.field.ball_radius
+        self.ball = Ball(_clip(x, b.x_min + r, b.x_max - r), _clip(y, b.y_min + r, b.y_max - r))
         self._last_ball_sample = None
         self._record()
 
@@ -309,6 +359,7 @@ class Simulator:
         self.move_ball(x, y)  # Validate before changing the goal or observation epoch.
         self.goal = 0
         self._history.clear()
+        self._peer_history.clear()
         self._last_observation = None
         self._observation_key = None
         self._last_ball_sample = None
@@ -324,11 +375,7 @@ class Simulator:
     def move_robot(self, x, y, yaw=None):
         if yaw is None:
             yaw = self.robot.yaw
-        if not all(math.isfinite(value) for value in (x, y, yaw)):
-            raise ValueError("robot position and heading must be finite")
-        xmax = self.field.length / 2 - self.field.robot_radius
-        ymax = self.field.width / 2 - self.field.robot_radius
-        self.robot = Pose(_clip(x, -xmax, xmax), _clip(y, -ymax, ymax), _angle(yaw))
+        self.robot = self._clamp_body(x, y, yaw)
         self.velocity = Velocity()
         self._record()
 

@@ -12,8 +12,10 @@ from final_project.pupper_fc.tests.test_resume_integration import home, resume, 
 
 
 ROBOT = "pupper-1"
+# The opponent stands clear of the strike lane: a robot straight ahead of a
+# run-through is (deliberately) limited by the executor's peer braking envelope.
 STAGED = {ROBOT: dict(x=-.45, y=0, yaw=0),
-          "pupper-2": dict(x=.45, y=0, yaw=math.pi)}
+          "pupper-2": dict(x=.45, y=.9, yaw=math.pi)}
 
 
 def playing(kind="auto", *, both=False):
@@ -36,6 +38,7 @@ def held_and_released(executor):
 
 
 def test_external_hold_immediately_cancels_strike_and_only_its_robot():
+    unaffected = playing(both=True).tick(.27)["pupper-2"]
     executor = playing(both=True)
     executor.set_external_hold(ROBOT, True, .26, "camera blocked")
     controller = executor.controllers[ROBOT]
@@ -43,8 +46,8 @@ def test_external_hold_immediately_cancels_strike_and_only_its_robot():
     decisions = executor.tick(.27)
     assert decisions[ROBOT].phase == "external_hold"
     assert decisions[ROBOT].command.vx == 0
-    assert decisions["pupper-2"].phase == "strike"
-    assert decisions["pupper-2"].command.vx > 0
+    assert decisions["pupper-2"] == unaffected
+    assert math.hypot(decisions["pupper-2"].command.vx, decisions["pupper-2"].command.vy) > 0
 
 
 @pytest.mark.parametrize("kind", ["auto", "attack"])

@@ -8,8 +8,9 @@ emergency handling belong to the runtime, not here.
 
 Plan, recomputed from the observed ball every tick:
 
-1. Shot line: from the ball to the opponent goal centre
-   ``(attack_sign * length / 2, 0)``. The staging point sits on that line
+1. Shot line: from the ball to the physical opponent goal centre
+   (``field.opponent_goal``; nominally ``(attack_sign * length / 2, 0)``).
+   Reachability uses ``field.bounds``. The staging point sits on that line
    behind the ball with the bumper ``STRIKE_GAP`` short of contact. Near a
    wall the gap shrinks, never below ``MIN_STAGING_GAP``, until the robot body
    fits inside the field. If no such point exists the controller reports
@@ -117,6 +118,15 @@ def _segment_distance(ax, ay, bx, by, px, py):
 def defensive_clearance(field):
     """Ball exclusion radius enclosing the body and frontal bumper, plus margin."""
     return max(field.robot_radius, field.bumper_offset) + field.ball_radius + CLEARANCE_MARGIN
+
+
+def peer_clearance(field):
+    """Centre distance two bumper-inclusive bodies keep, plus the sandbox stopping allowance.
+
+    Shared by tactical standoffs and the executor's peer keep-out. The allowance
+    is not measured braking; a measured profile should replace it before play.
+    """
+    return 2 * max(field.robot_radius, field.bumper_offset) + CLEARANCE_MARGIN + STRIKE_STOPPING_ALLOWANCE
 
 
 class Controller:
@@ -327,7 +337,7 @@ class Controller:
         if shot_target is not None and math.hypot(shot_target[0] - ball.x, shot_target[1] - ball.y) <= 1e-6:
             return self._halt("invalid_intent", "shot destination coincides with the ball", now, robot_id)
         if self._paw is not None:
-            goal = shot_target or (self.field.attack_sign * self.field.length / 2, 0.0)
+            goal = shot_target or self._goal_centre()
             if math.hypot(goal[0] - ball.x, goal[1] - ball.y) <= 1e-6:
                 return self._halt("blocked", "ball is already at the shot destination", now, robot_id)
             return self._paw_attack(robot, ball, goal, observation.captured_at, now, robot_id)
@@ -445,8 +455,9 @@ class Controller:
         return None
 
     def _plausible(self, x, y):
-        return (abs(x) <= self.field.length / 2 + FIELD_MARGIN
-                and abs(y) <= self.field.width / 2 + FIELD_MARGIN)
+        b = self.field.bounds
+        return (b.x_min - FIELD_MARGIN <= x <= b.x_max + FIELD_MARGIN
+                and b.y_min - FIELD_MARGIN <= y <= b.y_max + FIELD_MARGIN)
 
     def _update_goal_latch(self, goal):
         if goal:
@@ -462,10 +473,13 @@ class Controller:
             self._reset_requested = False
 
     def _reachable(self, x, y):
-        """Clamp a robot-centre target to where the body stays inside the field."""
-        xmax = self.field.length / 2 - self.field.robot_radius
-        ymax = self.field.width / 2 - self.field.robot_radius
-        return _clip(x, -xmax, xmax), _clip(y, -ymax, ymax)
+        """Clamp a robot-centre target to where the body stays inside the playable area."""
+        b, r = self.field.bounds, self.field.robot_radius
+        return _clip(x, b.x_min + r, b.x_max - r), _clip(y, b.y_min + r, b.y_max - r)
+
+    def _goal_centre(self):
+        """Centre of the physical opponent goal front, never a recentred substitute."""
+        return self.field.opponent_goal.center
 
     def _drive(self, phase, reason, robot, target, heading, max_speed, now, robot_id, *, min_speed=0.):
         """Proportional move to a field point while turning to a field heading."""
@@ -646,7 +660,7 @@ class Controller:
         Returns ((x, y), heading, ux, uy) with (ux, uy) the unit shot direction.
         """
         field = self.field
-        destination = shot_target if shot_target is not None else (field.attack_sign * field.length / 2, 0.0)
+        destination = shot_target if shot_target is not None else self._goal_centre()
         gx, gy = destination[0] - ball.x, destination[1] - ball.y
         goal_distance = math.hypot(gx, gy)
         ux, uy = (gx / goal_distance, gy / goal_distance) if goal_distance > 1e-6 else (field.attack_sign, 0.0)

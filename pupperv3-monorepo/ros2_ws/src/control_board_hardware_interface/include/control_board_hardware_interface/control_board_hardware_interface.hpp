@@ -4,8 +4,15 @@
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Vector3.h>
 
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -13,6 +20,7 @@
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/system_interface.hpp"
+#include "board_health.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
 #include "imu_manager.hpp"
 #include "rclcpp/clock.hpp"
@@ -41,10 +49,11 @@ std::ostream &operator<<(std::ostream &os, const std::array<T, N> &container) {
 
 namespace control_board_hardware_interface {
 
+// NaN and +/-Inf are both unusable state.
 template <typename T>
-bool contains_nan(const T &container) {
+bool contains_nonfinite(const T &container) {
   return std::any_of(container.begin(), container.end(),
-                     [](double val) { return std::isnan(val); });
+                     [](double val) { return !std::isfinite(val); });
 }
 
 class ControlBoardHardwareInterface : public hardware_interface::SystemInterface {
@@ -79,12 +88,57 @@ class ControlBoardHardwareInterface : public hardware_interface::SystemInterface
 
  private:
   void deactivate_motors();
-  void copy_actuator_commands(bool use_position_limits = false);
+  // Prepares the packet from the command interfaces. Returns nullptr, or the
+  // rejection reason with the packet unchanged: a NaN/+-Inf command, or a
+  // final value (after limits and zero offset) that is not a finite float.
+  const char *copy_actuator_commands(bool use_position_limits = false);
   void copy_actuator_states();
   bool do_homing();
-  bool hw_states_contains_nan();
+  // Command admission before any transmission (homed write(), every Home
+  // step): NaN/+-Inf in any joint command, or a packet value the float wire
+  // format cannot hold, faults to neutral instead of being prepared.
+  bool admit_commands(const char *phase, bool use_position_limits);
 
-  int lock_fd_ = -1;  // File descriptor for lock file
+  // Joint feedback from the latest exchange. Returns nullptr only when both
+  // boards replied validly and every configured joint's position and velocity
+  // is finite; otherwise the reason. Nothing is copied into joint state.
+  const char *joint_feedback_error() const;
+  // Raw board-frame position/velocity for joint i in the latest exchange.
+  bool raw_joint_feedback(std::size_t i, float &position, float &velocity) const;
+  void fault_joint_feedback(const BNO055::Output &sample, const char *phase, const char *reason);
+  // One INFO line per Home on its first valid read; report only.
+  void log_home_residual();
+
+  struct ExchangeCounters {
+    int mask = -1;
+    uint64_t valid = 0, rejected = 0, streak = 0;
+    std::chrono::steady_clock::time_point last_valid{};
+  };
+  // One board exchange plus transport-receipt accounting for diagnostics.
+  void exchange();
+  ExchangeCounters exchange_counters() const;
+  // Neutral first, then revoke the receipt, then format one bounded diagnostic.
+  void disable_for_fault(const BNO055::Output &sample, const char *phase, const char *kind,
+                         const char *reason, const char *prefix = "",
+                         const std::function<void(std::ostream &)> &extra = nullptr);
+  void terminal_health(const BNO055::Output &sample);
+  void publish_read_health(const BNO055::Output &sample);
+  std::string board_snapshot(std::chrono::steady_clock::time_point now,
+                             const ExchangeCounters &at_fault) const;
+
+  int lock_fd_ = -1;  // File descriptor for lock file; -1 unless this instance owns the lock
+
+  // FC_BOARD_HEALTH_V1 strict receipt (profile 1). Healthy only after this
+  // activation's completed mechanical Home, with a validated IMU sample and
+  // valid replies from both boards in the same read().
+  pupper_imu::BoardHealth board_health_;
+  // True only between a completed Home and the next fault/deactivation. While
+  // false, every exchange carries the neutral packet.
+  std::atomic<bool> homed_session_{false};
+  bool home_residual_pending_ = false;
+  uint64_t spi_valid_exchanges_ = 0, spi_rejected_exchanges_ = 0, spi_rejected_streak_ = 0;
+  uint64_t unhomed_rejected_reads_ = 0;
+  std::chrono::steady_clock::time_point last_valid_exchange_{}, last_unhomed_reject_log_{};
 
   IMUManager imu_manager_;
 

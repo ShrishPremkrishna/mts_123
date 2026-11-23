@@ -11,6 +11,9 @@ frame; a successful empty inference retains its real source stamp.
 The same inference also publishes /fc/obstacle_detections with explicit source
 identity and fixed projection. Its healthy flag means successful inference, not
 proof that the lens is unobscured or that every obstacle was recognized.
+With --fc-metric-profile, the same capture is then offered to a Ball Eye
+thread (ball_eye.py) that publishes /fc/onboard_ball_metric with that capture's
+own times; it never delays or changes the obstacle envelope.
 
 The model always runs on the *undistorted* (equirectangular) image, never on the
 raw fisheye -- the lens bends people into shapes YOLO has never seen, and scores
@@ -864,7 +867,7 @@ def run_fc_detector(args):
     import json
     from contextlib import ExitStack
 
-    from onboard_ball import TOPIC, MODE_TOPIC, MODES, SCHEMA, capture_is_current
+    from onboard_ball import TOPIC, MODE_TOPIC, MODES, SCHEMA, METRIC_TOPIC, capture_is_current
     from pink_ball import PinkBallTracker
     from std_msgs.msg import String
 
@@ -879,6 +882,22 @@ def run_fc_detector(args):
         ball_output = source.node.create_publisher(String, TOPIC, 1)
         tracker = PinkBallTracker()
         requested_mode = args.fc_ball_mode
+        metric = None
+        if args.fc_metric_profile:
+            # Optional Ball Eye measurements on their own thread. The obstacle
+            # envelope above is published first and never waits for this work.
+            from ball_eye import BallEye, MetricJob, MetricProfile, MetricWorker, OnnxBackend
+            with open(args.fc_metric_profile) as selected:
+                profile = MetricProfile.read(json.load(selected), camera_params=args.camera_params)
+            backend = (OnnxBackend(args.fc_ball_eye_model, expected_sha256=args.fc_ball_eye_sha256)
+                       if args.fc_ball_eye_model else None)
+            metric_output = source.node.create_publisher(String, METRIC_TOPIC, 1)
+            metric = MetricWorker(
+                BallEye(profile, backend), lambda payload: metric_output.publish(String(data=payload)),
+                lambda job: (capture_is_current(job.captured_at_ros_ns, source.node.get_clock().now().nanoseconds)
+                             and capture_is_current(job.captured_at_mono_ns, time.monotonic_ns())),
+                model_sha256=backend.sha256 if backend else None)
+            resources.callback(metric.close)
 
         def set_mode(msg):
             nonlocal requested_mode
@@ -966,6 +985,12 @@ def run_fc_detector(args):
                                    captured_at_mono_ns=captured_mono, projection_width=projected.shape[1], **result)
                     ball_output.publish(String(data=json.dumps(payload, allow_nan=False, separators=(",", ":"))))
                 record["ball_end_mono_ns"] = time.monotonic_ns()
+                if metric is not None and mode != "off" and current():
+                    # Hand over this capture's frame and pink box; never wait for the result.
+                    record["metric_submitted"] = metric.submit(MetricJob(
+                        bgr, args.swap_rb, stamp, captured_mono, sequence,
+                        tuple(result["box"]) if result.get("state") == "tracked" else None, projected.shape[1]))
+                    record.update(metric_counts=dict(metric.counts), metric_error=metric.last_error)
             except cv2.error as exc:
                 record.update(outcome="image_error", error=type(exc).__name__)
                 warn_frame(exc)
@@ -982,6 +1007,10 @@ def main():
     parser.add_argument("--fc-ball-mode", choices=("pink", "confirmed", "off"), default="pink",
                         help="onboard telemetry: pink appearance, require YOLO corroboration, or off")
     parser.add_argument("--fc-timings", metavar="NEW_JSONL", help="record capture-to-publication timing in FC mode")
+    parser.add_argument("--fc-metric-profile", metavar="JSON",
+                        help="publish Ball Eye body-frame measurements using this selected radius/mount profile")
+    parser.add_argument("--fc-ball-eye-model", metavar="ONNX", help="optional Ball Eye YOLO model for metric proposals")
+    parser.add_argument("--fc-ball-eye-sha256", metavar="HEX", help="required content hash of --fc-ball-eye-model")
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--width", type=int, default=1400, help="capture width (picam)")
     parser.add_argument("--height", type=int, default=1050, help="capture height (picam)")
@@ -1027,13 +1056,15 @@ def main():
     if args.fc_headless:
         if args.source != "ros" or not args.detect or not args.publish_detections:
             parser.error("--fc-headless requires --source ros with detection and publication enabled")
+        if args.fc_ball_eye_model and (not args.fc_metric_profile or not args.fc_ball_eye_sha256):
+            parser.error("--fc-ball-eye-model requires --fc-metric-profile and --fc-ball-eye-sha256")
         try:
             run_fc_detector(args)
         except KeyboardInterrupt:
             pass  # ExitStack releases the ROS subscription and accelerator.
         return
-    if args.fc_timings:
-        parser.error("--fc-timings requires --fc-headless")
+    if args.fc_timings or args.fc_metric_profile or args.fc_ball_eye_model:
+        parser.error("--fc-timings and metric Ball Eye options require --fc-headless")
     import viser
     if args.source == "picam":
         with open(args.camera_params) as f:

@@ -72,6 +72,10 @@ class Goal:
     def center(self):
         return self.x, (self.y_min + self.y_max) / 2
 
+    def encloses(self, y, radius):
+        """Whether a ball centre at ordinate y fits wholly between the posts."""
+        return self.y_min + radius <= y <= self.y_max - radius
+
     def record(self):
         return {key: getattr(self, key) for key in ("x", "y_min", "y_max")}
 
@@ -109,6 +113,21 @@ class Pitch:
     @property
     def goals(self):
         return {"west": self.west.record(), "east": self.east.record()}
+
+    def goal(self, sign):
+        """The physical goal front at +x (sign 1, east) or -x (sign -1, west)."""
+        if sign not in (-1, 1) or type(sign) is not int:
+            raise ValueError("goal side must be the integer -1 or 1")
+        return self.east if sign == 1 else self.west
+
+    @property
+    def mouth_discrepancy(self):
+        """Surveyed mouth width minus the selected nominal width, per goal, in metres.
+
+        Reported for setup review only. It is neither corrected nor accepted
+        against a tolerance here: no survey repeatability has been measured.
+        """
+        return {"west": self.west.width - self.goal_width, "east": self.east.width - self.goal_width}
 
     @property
     def ball_search_bounds(self):

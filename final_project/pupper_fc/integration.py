@@ -58,6 +58,32 @@ Decisions expose ``role`` separately from execution ``phase`` while auto owns
 an unexpired lease; explicit intents leave role null.
 Defense preserves the guard target's facing heading while repositioning; move
 retains its ordinary travel-facing behavior. No background planner is created.
+An auto intent may name ``roles`` (``match`` default, ``offense`` for normal
+solo play, ``defense`` for the deliberate defensive experiment) and a
+``role_session``. A replacement auto intent with the same unexpired
+role_session and roles keeps role hysteresis while its new intent_id still
+starts a new kick attempt; without role_session replacement resets it.
+Tactics see the other present robots' poses and referee ``kick_active`` flags;
+they never receive motion authority from them. Tactical actions defend, block,
+intercept and yield use ball-clear guard transit to their target pose.
+Optional ``motion_profile`` (tactics.MotionProfile) enables forecast
+intercepts. A synthetic profile is offline-only: it requires
+``allow_synthetic_profile=True``. Live adapters pass a measured profile or none;
+without one, rolling balls still produce conservative block/guard targets.
+Decisions that used a forecast carry ``prediction`` with its capture time, age,
+model and profile source.
+
+Peer clearance: whenever another robot's pose is in the frame, closing speed is
+limited to a braking envelope around controller.peer_clearance and no new kick
+may become ready inside it (``peer_clearance`` phase). Moving apart and turning
+remain allowed. This only removes or redirects motion; a clip still finishes.
+
+Geometry: arm ``pitch`` is either the legacy {length, width[, goal_width]}
+rectangle or a complete version-2 pitch record (fieldcam.pitch). A version-2
+epoch requires every frame to carry the identical ``pitch`` record and any
+goal points to equal its physical goal-front centres; a frame carrying a pitch
+in an epoch armed without one is rejected. Goal fronts may lie beyond the
+marker rectangle and off centre; poses are never recentred.
 
 Intent seq increases independently per robot. Renew the same intent_id/kind/
 target to extend its lease (at most 0.5 s from issued_at); renewal does not reset
@@ -84,10 +110,13 @@ from copy import copy
 from pathlib import Path
 import sys
 
-from .controller import Controller, MAX_OBSERVATION_AGE
+from .controller import Controller, MAX_OBSERVATION_AGE, peer_clearance
 from .model import Ball, Command, Decision, Field, Limits, Observation, Pose, zero
 from .obstacles import Detection, DetectionFrame, ForwardObstacleGate
-from .tactics import Tactics
+from .tactics import ROLE_POLICIES, MotionProfile, Tactics
+
+GUARDED_ACTIONS = ("defend", "block", "intercept", "yield")  # ball-clear transit, target heading kept
+PEER_LATENCY_S = .15  # command lifetime before a newer frame can correct motion near a peer
 
 MAX_INTENT_LEASE = 0.5
 LEASE_ROUNDING_TOLERANCE_S = 1e-12  # subtraction roundoff only, never extra lease time
@@ -131,6 +160,17 @@ class Intent:
     target: Pose | tuple | None
     issued_at: float
     valid_until: float
+    roles: str = "match"
+    session: str | None = None
+
+
+def epoch_field(field, pitch):
+    """Apply an arm pitch: None, the legacy rectangle, or a version-2 record."""
+    if pitch is None:
+        return field
+    if isinstance(pitch, dict) and "version" in pitch:
+        return field.with_pitch(pitch)
+    return field.measured_pitch(pitch)
 
 
 class Executor:
@@ -142,7 +182,13 @@ class Executor:
     """
 
     def __init__(self, fields=None, limits=Limits(), *, obstacle_config=None,
-                 required_participants=(), kick_side=None, paw_forward_m=None):
+                 required_participants=(), kick_side=None, paw_forward_m=None,
+                 motion_profile=None, allow_synthetic_profile=False):
+        if motion_profile is not None and not isinstance(motion_profile, MotionProfile):
+            raise ValueError("motion_profile must be a tactics.MotionProfile")
+        if motion_profile is not None and motion_profile.synthetic and allow_synthetic_profile is not True:
+            raise ValueError("a synthetic motion profile is offline-only; pass allow_synthetic_profile=True")
+        self.motion_profile = motion_profile
         fields = fields or {"pupper-1": Field(), "pupper-2": Field(attack_sign=-1)}
         self.enrolled_fields = dict(fields)
         self.kick_side = kick_side
@@ -179,12 +225,15 @@ class Executor:
         self.intents = {r: None for r in self.controllers}
         self.intent_seq = {r: -1 for r in self.controllers}
         self.resume_frame_seq = {r: -1 for r in self.controllers}
-        self.tactics = {r: Tactics(c.field, r) for r, c in self.controllers.items()}
+        self.tactics = {r: self._new_tactics(r) for r in self.controllers}
         self.obstacle_gates = ({r: ForwardObstacleGate(self.obstacle_config) for r in self.controllers}
                                if self.obstacle_config is not None else {})
         self.obstacle_resume_after = {r: -math.inf for r in self.controllers}
         for controller in self.controllers.values():
             controller.cancel()
+
+    def _new_tactics(self, robot_id, roles="match"):
+        return Tactics(self.controllers[robot_id].field, robot_id, roles=roles, profile=self.motion_profile)
 
     def stop(self):
         self._revoked_kicks.update(self._kick_owners)
@@ -197,15 +246,14 @@ class Executor:
         now = number(now, "now")
         if epoch in self.used_epochs:
             raise ValueError("arm requires a new epoch; old actions cannot be resumed")
-        fields = self.enrolled_fields if pitch is None else {
-            robot: field.measured_pitch(pitch) for robot, field in self.enrolled_fields.items()}
+        fields = {robot: epoch_field(field, pitch) for robot, field in self.enrolled_fields.items()}
         self.stop()
         self.epoch, self.clock, self.last_now = epoch, clock, now
         self.used_epochs.add(epoch)
         # A deliberate new session gets fresh referee/controller state too.
         self.controllers = {r: Controller(fields[r], c.limits, kick_side=self.kick_side, paw_forward_m=self.paw_forward_m)
                             for r, c in self.controllers.items()}
-        self.tactics = {r: Tactics(c.field, r) for r, c in self.controllers.items()}
+        self.tactics = {r: self._new_tactics(r) for r in self.controllers}
         # A new gameplay epoch cannot release an ongoing local physical veto.
         self.external_resume_after = {r: now if (self.external_holds[r] or
                                                self.external_resume_after[r] != -math.inf) else -math.inf
@@ -304,7 +352,7 @@ class Executor:
         self._revoke_kick(robot_id)
         self.intents[robot_id] = None
         self.controllers[robot_id].cancel()
-        self.tactics[robot_id] = Tactics(self.controllers[robot_id].field, robot_id)
+        self.tactics[robot_id] = self._new_tactics(robot_id)
 
     def _session(self, event):
         if not self.armed:
@@ -335,6 +383,9 @@ class Executor:
             raise ValueError("frame capture is duplicate, reordered, future or stale")
         self.capture_highwater = stamp
         robots, raw_ball, goals = event.get("robots"), event.get("ball"), event.get("goals", {})
+        selected = next(iter(self.controllers.values())).field.pitch
+        if event.get("pitch") != (None if selected is None else selected.record()):
+            raise ValueError("frame pitch differs from the pitch selected at arm")
         if not isinstance(robots, dict) or set(robots) - set(self.controllers):
             raise ValueError("robots must contain only configured robot IDs")
         ball = None
@@ -345,17 +396,25 @@ class Executor:
         if not isinstance(goals, dict) or set(goals) - {"left", "right"}:
             raise ValueError("goals must map left/right to field points or null")
         goals = {key: point(value) for key, value in goals.items() if value is not None}
+        if selected is not None:
+            for key, sign in (("left", -1), ("right", 1)):
+                centre = selected.goal(sign).center
+                if key in goals and math.dist(goals[key], centre) > 1e-9:
+                    raise ValueError("frame goal differs from the selected physical goal front")
         observations = {}
         capture_updates, identity_updates = {}, {}
         for robot_id in self.controllers:
             row = robots.get(robot_id)
-            pose, fallen, goal = None, False, 0
+            pose, fallen, goal, kicking = None, False, 0, False
             track_stamp = stamp
             if row is not None:
                 pose = point(row, heading=True)
                 fallen, goal = row.get("fallen", False), row.get("goal", 0)
+                kicking = row.get("kick_active", False)
                 if type(fallen) is not bool or type(goal) is not int or goal not in (-1, 0, 1):
                     raise ValueError("fallen/goal must be boolean and integer -1/0/+1")
+                if type(kicking) is not bool:
+                    raise ValueError("kick_active must be boolean")
                 if robot_id in self.required_participants and "captured_at" not in row:
                     raise ValueError(f"required participant {robot_id} requires captured_at")
                 track_stamp = number(row.get("captured_at", stamp), f"{robot_id}.captured_at")
@@ -370,7 +429,7 @@ class Executor:
                 if track_stamp == previous_stamp and identity != self.track_identity[robot_id]:
                     raise ValueError(f"{robot_id} pose changed at the same capture")
                 capture_updates[robot_id], identity_updates[robot_id] = track_stamp, identity
-            observations[robot_id] = Observation(track_stamp, pose, ball, robot_id, fallen, goal)
+            observations[robot_id] = Observation(track_stamp, pose, ball, robot_id, fallen, goal, kicking)
             problem = self.controllers[robot_id].observation_problem(observations[robot_id])
             if problem:
                 raise ValueError(problem)
@@ -420,7 +479,14 @@ class Executor:
             target = None if kind in ("attack", "auto") else point(event.get("target"), heading=kind in ("move", "defend"))
             if kind in ("attack", "auto") and event.get("target") is not None:
                 raise ValueError("attack/auto derive their targets; use shoot or move for an explicit target")
-            intent = Intent((identity, kind, target), kind, target, issued, expiry)
+            roles, session = event.get("roles", "match"), event.get("role_session")
+            if kind != "auto" and ("roles" in event or "role_session" in event):
+                raise ValueError("roles and role_session belong to auto intents")
+            if roles not in ROLE_POLICIES:
+                raise ValueError("auto roles must be match, offense or defense")
+            if session is not None:
+                session = token(session, "role_session")
+            intent = Intent((identity, kind, target, roles), kind, target, issued, expiry, roles, session)
         except (ValueError, TypeError):
             self._cancel_intent(robot_id)
             raise
@@ -429,8 +495,17 @@ class Executor:
         # expired lease always interrupts, even when the coordinates match.
         same_stream = (self.kick_side is not None and previous is not None
                        and kind in ("move", "shoot") and previous.identity[:2] == intent.identity[:2])
+        continuing_roles = (kind == "auto" and previous is not None and previous.kind == "auto"
+                            and previous.valid_until > now and intent.session is not None
+                            and (previous.session, previous.roles) == (intent.session, intent.roles))
         if previous is None or previous.valid_until <= now or (previous.identity != intent.identity and not same_stream):
+            tactics = self.tactics[robot_id]
             self._cancel_intent(robot_id)
+            if continuing_roles:
+                # A new attempt in the same role session: kick identity changes, role memory does not.
+                self.tactics[robot_id] = tactics
+            elif kind == "auto":
+                self.tactics[robot_id] = self._new_tactics(robot_id, intent.roles)
         self.intents[robot_id] = intent
 
     def _obstacles(self, event, now):
@@ -563,6 +638,7 @@ class Executor:
                 stamp, observations, goals = self.frame
                 observation = observations[robot_id]
                 kwargs = {}
+                prediction = None
                 action, target = intent.kind, intent.target
                 owner = self._kick_owners.get(robot_id)
                 in_clip = (owner is not None and owner.active is not None and owner.clip_started
@@ -580,17 +656,18 @@ class Executor:
                 elif controller.referee_active(observation.goal):
                     action = "referee"
                 elif action == "auto":
-                    tactical = self.tactics[robot_id].tick(observation, now)
-                    action, target = tactical.action, tactical.target
+                    peers = {r: o for r, o in observations.items() if r != robot_id and o.robot is not None}
+                    tactical = self.tactics[robot_id].tick(observation, now, peers)
+                    action, target, prediction = tactical.action, tactical.target, tactical.prediction
                     if action == "hold":
                         controller.cancel()
                         decisions[robot_id] = Decision("tactical_hold", tactical.reason, zero(now, robot_id),
-                                                       recovery_requested=observation.fallen)
+                                                       recovery_requested=observation.fallen, prediction=prediction)
                         continue
-                if action in ("move", "defend"):
+                if action == "move" or action in GUARDED_ACTIONS:
                     kwargs["target_pose"] = target
-                    kwargs["preserve_target_heading"] = action == "defend"
-                    kwargs["avoid_ball"] = action == "defend"
+                    kwargs["preserve_target_heading"] = action in GUARDED_ACTIONS
+                    kwargs["avoid_ball"] = action in GUARDED_ACTIONS
                 elif action == "shoot":
                     kwargs["shot_target"] = intent.target
                 elif action == "attack":
@@ -605,6 +682,12 @@ class Executor:
                                         zero(now, robot_id))
                 else:
                     decision = controller.tick(observation, now, **kwargs)
+                    if action in GUARDED_ACTIONS and decision.phase == "move":
+                        decision = replace(decision, phase=action)
+                    if intent.kind == "auto" and action in ("block", "intercept", "yield"):
+                        decision = replace(decision, reason=f"{tactical.reason}; {decision.reason}")
+                    decision = replace(decision, prediction=prediction)
+                    decision = self._peer_keepout(controller, observation, observations, decision, now)
                 evidence_deadline = self.frame_evidence_deadline(robot_id)
                 deadline = min(decision.command.expires_at, intent.valid_until,
                                evidence_deadline if evidence_deadline is not None else now)
@@ -614,9 +697,7 @@ class Executor:
                     controller.cancel()
                     decisions[robot_id] = Decision("tracking_lost", "evidence expired at this tick", zero(now, robot_id))
                     continue
-                decisions[robot_id] = replace(decision,
-                    phase="defend" if action == "defend" and decision.phase == "move" else decision.phase,
-                    command=replace(decision.command, expires_at=deadline))
+                decisions[robot_id] = replace(decision, command=replace(decision.command, expires_at=deadline))
                 continue
             controller.cancel()
             recovery_requested = (phase == "participant_hold" and self.frame is not None
@@ -630,6 +711,68 @@ class Executor:
             if robot_id in self._kick_owners and not self._kick_permitted(robot_id, decisions[robot_id]):
                 self._revoke_kick(robot_id)
         return decisions
+
+    def _peer_keepout(self, controller, observation, observations, decision, now):
+        """Limit motion that closes on another present robot to a braking envelope.
+
+        Each robot may close at most at the speed from which it can stop within
+        half the remaining gap to ``peer_clearance`` after ``PEER_LATENCY_S``,
+        braking at the profile's measured value or else the configured planning
+        acceleration (a sandbox value, not measured braking). Two robots that
+        apply this rule never meet; a static peer is simply an obstacle. Excess
+        closing speed turns to this robot's own right of the peer direction
+        ("keep right"), so two robots meeting head-on pass without
+        communicating. Speed never increases, the redirected step stays inside
+        the playable area, and no kick may become ready inside the clearance.
+        """
+        robot = observation.robot
+        if robot is None:
+            return decision
+        clearance = peer_clearance(controller.field)
+        profile = self.motion_profile
+        braking = profile.braking if profile is not None and profile.braking is not None else controller.limits.acceleration
+        command = decision.command
+        c, s = math.cos(robot.yaw), math.sin(robot.yaw)
+        vx, vy = command.vx * c - command.vy * s, command.vx * s + command.vy * c
+        speed = math.hypot(vx, vy)
+        problem = None
+        nearby = []
+        for peer_id, peer in sorted(observations.items()):
+            if peer_id == observation.robot_id or peer.robot is None:
+                continue
+            dx, dy = peer.robot.x - robot.x, peer.robot.y - robot.y
+            distance = math.hypot(dx, dy)
+            if distance < clearance and decision.phase == "kick_ready":
+                problem = f"peer {peer_id} inside clearance; no kick"
+                vx = vy = 0.
+                break
+            gap = max(0., distance - clearance) / 2
+            allowed = -braking * PEER_LATENCY_S + math.sqrt((braking * PEER_LATENCY_S) ** 2 + 2 * braking * gap)
+            nx, ny = (dx / distance, dy / distance) if distance > 1e-9 else (c, s)
+            closing = vx * nx + vy * ny
+            if closing <= allowed + 1e-9:
+                continue
+            nearby.append((peer.robot, distance))
+            excess = closing - allowed
+            vx, vy = vx - excess * nx + excess * ny, vy - excess * ny - excess * nx
+            norm = math.hypot(vx, vy)
+            scale = min(1., speed / norm) if norm > 1e-12 else 0.
+            vx, vy = vx * scale, vy * scale
+            problem = f"braking envelope near peer {peer_id}; keeping right"
+        if problem is None:
+            return decision
+        step = (robot.x + vx * .15, robot.y + vy * .15)
+        if controller._reachable(*step) != step or any(
+                distance < clearance and math.hypot(pose.x - step[0], pose.y - step[1]) < distance - 1e-9
+                for pose, distance in nearby):
+            vx = vy = 0.
+            if not problem.endswith("no kick"):
+                problem = "peer clearance leaves no clear motion"
+        if (math.hypot(vx, vy) <= 1e-9 and abs(command.wz) <= 1e-9) or problem.endswith("no kick"):
+            controller.cancel()
+            return replace(decision, phase="peer_clearance", reason=problem, command=zero(now, command.robot_id))
+        body = replace(command, vx=vx * c + vy * s, vy=-vx * s + vy * c)
+        return replace(decision, phase="peer_clearance", reason=problem, command=body)
 
     def _revoke_kick(self, robot_id):
         owner = self._kick_owners.get(robot_id)

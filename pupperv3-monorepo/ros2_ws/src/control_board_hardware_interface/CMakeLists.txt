@@ -61,7 +61,6 @@ if(BUILD_TESTING)
   enable_testing()
   foreach(scenario never_started implicit_destroy explicit_stop_twice restart_after_stop destroy_during_sample invalid_after_good)
     add_test(NAME imu_manager_${scenario} COMMAND test_imu_manager_lifecycle ${scenario})
-    set_tests_properties(imu_manager_${scenario} PROPERTIES TIMEOUT 10)
   endforeach()
 
   # Actual driver callbacks with fake SPI/BNO and isolated lock syscalls.
@@ -73,16 +72,37 @@ if(BUILD_TESTING)
   ament_target_dependencies(test_driver_neutral_deactivate hardware_interface pluginlib rclcpp rclcpp_lifecycle tf2)
   target_link_options(test_driver_neutral_deactivate PRIVATE
     -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=close -Wl,--wrap=flock -Wl,--wrap=unlink)
-  foreach(scenario deactivate error destroy repeated)
+  foreach(scenario deactivate error destroy repeated contention init_failed_before_spi)
     add_test(NAME driver_neutral_${scenario} COMMAND test_driver_neutral_deactivate ${scenario})
-    set_tests_properties(driver_neutral_${scenario} PROPERTIES TIMEOUT 10)
   endforeach()
   add_executable(test_spi_zero_encoding test/test_spi_zero_encoding.cpp src/rt/rt_spi.cpp)
   target_include_directories(test_spi_zero_encoding PRIVATE include)
   target_link_libraries(test_spi_zero_encoding pthread)
   target_link_options(test_spi_zero_encoding PRIVATE -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=ioctl)
   add_test(NAME driver_neutral_board_encoding COMMAND test_spi_zero_encoding)
-  set_tests_properties(driver_neutral_board_encoding PROPERTIES TIMEOUT 10)
+
+  # Actual rt_spi exchange against scripted fake spidev replies (no device opened).
+  add_executable(test_spi_reply_status test/test_spi_reply_status.cpp src/rt/rt_spi.cpp)
+  target_include_directories(test_spi_reply_status PRIVATE include)
+  target_link_libraries(test_spi_reply_status pthread)
+  target_link_options(test_spi_reply_status PRIVATE
+    -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=ioctl -Wl,--wrap=close)
+  add_test(NAME driver_spi_reply_status COMMAND test_spi_reply_status)
+
+  # FC_BOARD_HEALTH_V1 receipts from actual driver callbacks with fake SPI/BNO.
+  # The receipt is a regular file in a private mkdtemp directory.
+  add_executable(test_board_health test/test_board_health.cpp
+    src/control_board_hardware_interface.cpp src/imu_manager.cpp)
+  target_compile_features(test_board_health PRIVATE cxx_std_17)
+  target_include_directories(test_board_health PRIVATE include)
+  ament_target_dependencies(test_board_health hardware_interface pluginlib rclcpp rclcpp_lifecycle tf2)
+  target_link_options(test_board_health PRIVATE
+    -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=close -Wl,--wrap=flock -Wl,--wrap=unlink)
+  foreach(scenario publisher_race lifecycle homing_reply probe_refused imu_disabled no_joints
+          active_fault nonfinite post_home_fault inactive stale_payload home_residual homing_nonfinite
+          command_nonfinite command_encoded command_inactive command_homing)
+    add_test(NAME board_health_${scenario} COMMAND test_board_health ${scenario})
+  endforeach()
 
   add_executable(test_imu_health_guard test/test_imu_health_guard.cpp
     src/control_board_hardware_interface.cpp src/imu_manager.cpp)
@@ -93,7 +113,6 @@ if(BUILD_TESTING)
     -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=close -Wl,--wrap=flock -Wl,--wrap=unlink)
   foreach(scenario health init_missing read_gyro read_quat read_norm activate_bias homing_stale activate_fresh)
     add_test(NAME imu_health_${scenario} COMMAND test_imu_health_guard ${scenario})
-    set_tests_properties(imu_health_${scenario} PROPERTIES TIMEOUT 25)
   endforeach()
 
   add_executable(test_bno_protocol test/test_bno_protocol.cpp)
@@ -101,7 +120,6 @@ if(BUILD_TESTING)
   target_include_directories(test_bno_protocol PRIVATE include)
   foreach(scenario normal two delayed_tail large three probe2 short_read bad_channel bad_sequence bad_length missing_continuation orphan too_short too_large empty bounded_retry atomic_truncated atomic_unknown signed_timing unknown_time no_base game_and_stability sequence)
     add_test(NAME bno_protocol_${scenario} COMMAND test_bno_protocol ${scenario})
-    set_tests_properties(bno_protocol_${scenario} PROPERTIES TIMEOUT 5)
   endforeach()
 
   add_executable(test_bno_cache test/test_bno_cache.cpp src/rt/rt_bno055.cpp src/imu_manager.cpp)
@@ -112,7 +130,6 @@ if(BUILD_TESTING)
     -Wl,--wrap=open -Wl,--wrap=open64 -Wl,--wrap=ioctl -Wl,--wrap=read -Wl,--wrap=write -Wl,--wrap=close)
   foreach(scenario initial gyro_only valid delayed_tail duplicate gyro_refresh control game_not_selected bad_quaternion truncated short_read open_failure overlap_deadline following_read_blocked stale_before_fresh manager_blocked_read)
     add_test(NAME bno_cache_${scenario} COMMAND test_bno_cache ${scenario})
-    set_tests_properties(bno_cache_${scenario} PROPERTIES TIMEOUT 5)
   endforeach()
 
   find_package(ament_lint_auto REQUIRED)
@@ -141,3 +158,14 @@ ament_export_dependencies(
   transmission_interface
 )
 ament_package()
+
+# No wall-clock cap on any test in this package. ament_package() registers the
+# ament lint tests (default 60/300 s), so this runs after it. An explicit 0
+# overrides CTEST_TEST_TIMEOUT and `ctest --timeout`; functional deadlines
+# (command expiry, startup windows) are asserted inside the tests themselves.
+if(BUILD_TESTING)
+  get_property(package_tests DIRECTORY PROPERTY TESTS)
+  if(package_tests)
+    set_tests_properties(${package_tests} PROPERTIES TIMEOUT 0)
+  endif()
+endif()

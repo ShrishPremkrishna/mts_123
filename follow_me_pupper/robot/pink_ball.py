@@ -4,6 +4,20 @@ import math
 import cv2
 
 
+def pink_masks(hsv):
+    """(saturated, pale, bright pale) pink masks of an OpenCV HSV image.
+
+    The actual ball's pale patches cross OpenCV hue zero in the archived field
+    photo. Restrict the red/orange side to pale bright pixels so ordinary
+    saturated team red does not become pink. Ball Eye applies the same
+    thresholds in its stereographic floor view.
+    """
+    saturated = cv2.inRange(hsv, (140, 140, 105), (175, 255, 255))
+    pale = cv2.inRange(hsv, (164, 30, 188), (179, 150, 255))
+    pale |= cv2.inRange(hsv, (0, 30, 188), (7, 150, 255))
+    return saturated, pale, cv2.bitwise_and(pale, cv2.inRange(hsv[:, :, 2], 210, 255))
+
+
 class PinkBallTracker:
     """Associate current colour observations. Never extrapolate a missing box."""
 
@@ -35,17 +49,12 @@ class PinkBallTracker:
         h, w = rgb.shape[:2]
         top = int(h * .35)
         hsv = cv2.cvtColor(rgb[top:], cv2.COLOR_RGB2HSV)
-        # The actual ball's pale patches cross OpenCV hue zero in the
-        # archived field photo. Restrict the red/orange side to pale bright
-        # pixels so ordinary saturated team red does not become pink.
-        saturated = cv2.inRange(hsv, (140, 140, 105), (175, 255, 255))
-        pale = cv2.inRange(hsv, (164, 30, 188), (179, 150, 255))
-        pale |= cv2.inRange(hsv, (0, 30, 188), (7, 150, 255))
+        saturated, pale, bright = pink_masks(hsv)
         # Keep the pale panels separate from highly saturated carpet or clothing.
         # A bright core can still form a round candidate when a pink cast joins
         # a dimmer part of the ball to its surroundings.
         contours = []
-        for mask in (saturated, pale, cv2.bitwise_and(pale, cv2.inRange(hsv[:, :, 2], 210, 255))):
+        for mask in (saturated, pale, bright):
             mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.close_kernel)
             mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.open_kernel)
             contours.extend(cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0])

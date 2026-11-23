@@ -31,7 +31,7 @@ spi_command_t spi_command_drv;
 spi_data_t spi_data_drv;
 spi_torque_t spi_torque;
 
-pthread_mutex_t spi_mutex;
+pthread_mutex_t spi_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 const float max_torque[3] = {3.f, 3.f, 3.f};
 const float wimp_torque[3] = {0.5f, 0.5f, 0.5f};
@@ -124,10 +124,6 @@ void init_spi() {
   memset(&spi_command_drv, 0, sizeof(spi_command_drv));
   memset(&spi_data_drv, 0, sizeof(spi_data_drv));
 
-  if (pthread_mutex_init(&spi_mutex, NULL) != 0) {
-    printf("[ERROR: RT SPI] Failed to create spi data mutex\n");
-  }
-
   if (command_size != K_EXPECTED_COMMAND_SIZE) {
     printf("[RT SPI] Error command size is %ld, expected %d\n", command_size,
            K_EXPECTED_COMMAND_SIZE);
@@ -142,7 +138,16 @@ void init_spi() {
   }
 
   printf("[RT SPI] Open\n");
+  close_spi();  // Never leak descriptors this process opened earlier.
   spi_open();
+}
+
+/*!
+ * Close only the SPI descriptors this process opened. Idempotent.
+ */
+void close_spi() {
+  if (spi_1_fd >= 0) { close(spi_1_fd); spi_1_fd = -1; }
+  if (spi_2_fd >= 0) { close(spi_2_fd); spi_2_fd = -1; }
 }
 
 /*!
@@ -150,11 +155,11 @@ void init_spi() {
  */
 int spi_open() {
   int rv = 0;
-  spi_1_fd = open("/dev/spidev0.0", O_RDWR);
+  spi_1_fd = open("/dev/spidev0.0", O_RDWR | O_CLOEXEC);
   if (spi_1_fd < 0) {
     perror("[ERROR] Couldn't open spidev 0.0");
   }
-  spi_2_fd = open("/dev/spidev0.1", O_RDWR);
+  spi_2_fd = open("/dev/spidev0.1", O_RDWR | O_CLOEXEC);
   if (spi_2_fd < 0) {
     perror("[ERROR] Couldn't open spidev 0.1");
   }
@@ -229,7 +234,7 @@ int spi_open() {
   return rv;
 }
 
-int spi_driver_iterations = 0;
+uint32_t spi_driver_iterations = 0;
 
 /*!
  * convert spi command to spine_cmd_t
@@ -309,9 +314,10 @@ void spine_to_spi(spi_data_t *data, spine_data_t *spine_data, int leg_0) {
  * send receive data and command from spine
  */
 void spi_send_receive(spi_command_t *command, spi_data_t *data) {
-  // update driver status flag
+  // update driver status flag. Unsigned arithmetic wraps without overflow;
+  // the low bits are cleared here and set below only for valid replies.
   spi_driver_iterations++;
-  data->spi_driver_status = spi_driver_iterations << 16;
+  data->spi_driver_status = static_cast<int32_t>(spi_driver_iterations << 16);
 
   // transmit and receive buffers
   uint16_t tx_buf[K_WORDS_PER_MESSAGE];
@@ -361,7 +367,6 @@ void spi_send_receive(spi_command_t *command, spi_data_t *data) {
 
     // do spi communication
     int rv = ioctl(spi_board == 0 ? spi_1_fd : spi_2_fd, SPI_IOC_MESSAGE(1), &spi_message);
-    (void)rv;
 
     // flip bytes the other way
     for (int i = 0; i < 30; i++) {
@@ -375,8 +380,30 @@ void spi_send_receive(spi_command_t *command, spi_data_t *data) {
     // }
     // printf("\n");
 
-    // copy back to data
-    spine_to_spi(data, &g_spine_data, spi_board * 2);
+    // Decode into a staging copy. Only a valid reply replaces this board's legs
+    // in data, so a missing, short or corrupt reply never fabricates readings.
+    spi_data_t staged = *data;
+    spine_to_spi(&staged, &g_spine_data, spi_board * 2);
+
+    // An all-zero buffer also passes XOR when an unplugged bus returns zeros.
+    // This is a transport receipt only; the firmware supplies no motor sample counter.
+    const auto *reply = reinterpret_cast<const unsigned char *>(&g_spine_data);
+    bool nonempty = false;
+    for (size_t i = 0; i < sizeof(g_spine_data); ++i) nonempty |= reply[i] != 0;
+    if (rv == static_cast<int>(spi_message[0].len) && nonempty &&
+        xor_checksum(reinterpret_cast<uint32_t *>(&g_spine_data), 14) ==
+            static_cast<uint32_t>(g_spine_data.checksum)) {
+      data->spi_driver_status |= 1 << spi_board;
+      for (int leg = spi_board * 2; leg < spi_board * 2 + 2; ++leg) {
+        data->q_abad[leg] = staged.q_abad[leg];
+        data->q_hip[leg] = staged.q_hip[leg];
+        data->q_knee[leg] = staged.q_knee[leg];
+        data->qd_abad[leg] = staged.qd_abad[leg];
+        data->qd_hip[leg] = staged.qd_hip[leg];
+        data->qd_knee[leg] = staged.qd_knee[leg];
+        data->flags[leg] = staged.flags[leg];
+      }
+    }
   }
 }
 

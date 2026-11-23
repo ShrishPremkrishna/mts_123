@@ -102,3 +102,76 @@ def test_edges_of_color_swapped_projection_are_identical(monkeypatch):
         if not swap:
             new = cv2.cvtColor(new, cv2.COLOR_BGR2RGB)
         np.testing.assert_array_equal(previous, new)
+
+
+IDENTITY = dict(profile_id="a" * 64, calibration_id="b" * 64, status="estimated", ball_radius_m=.11,
+                radius_measured=False, mount_measured=False)
+FIT = dict(method="eye_fit", x=.4, y=.05, z=-.04, range_m=.31, rho_rad=.36, circle=[300., 400., 60.], score=.8,
+           sigma_px=.6, sigma_xy_m=.002, sigma_range_m=.002, fit_rms_px=.6, fit_points=40)
+
+
+def metric_row(**fields):
+    values = dict(producer_instance="cam", sequence=4, frame_sequence=19, captured_at_ros_ns=STAMP,
+                  captured_at_mono_ns=STAMP, identity=IDENTITY, model_sha256="c" * 64, state="measured",
+                  selected=0, candidates=[FIT], processing_ms=41.5)
+    values.update(fields)
+    return contract.metric_payload(**values)
+
+
+def test_metric_row_is_admitted_by_its_own_capture_and_never_renewed_by_arrival():
+    receiver = contract.MetricBallReceiver()
+    assert receiver.snapshot(STAMP, 1.)["state"] == "stale"
+    assert receiver.accept(metric_row(), STAMP + 100_000_000, 1.1), receiver.reason
+    seen = receiver.snapshot(STAMP + 100_000_000, 1.2)
+    assert seen["state"] == "measured" and seen["method"] == "eye_fit" and seen["age_ms"] == 200
+    assert seen["identity"] == IDENTITY and seen["uncertainty_scope"] == "image_only"
+    assert receiver.latest(STAMP + 100_000_000, 1.36) is None  # 360 ms after capture on the Pi clock
+    assert receiver.snapshot(STAMP + 100_000_000, 1.36)["state"] == "stale"
+    assert receiver.latest(STAMP + 360_000_000, 1.2) is None
+
+
+@pytest.mark.parametrize("fields", [
+    {"captured_at_ros_ns": STAMP + 200_000_001}, {"captured_at_ros_ns": STAMP - 300_000_000},
+    {"captured_at_mono_ns": STAMP + 200_000_000}, {"captured_at_mono_ns": STAMP - 300_000_000},
+    {"captured_at_ros_ns": None}, {"captured_at_mono_ns": 1.5}, {"sequence": -1}, {"sequence": True},
+    {"identity": {**IDENTITY, "ball_radius_m": 0}}, {"identity": {**IDENTITY, "profile_id": "A" * 64}},
+    {"identity": {**IDENTITY, "status": "learned"}}, {"model_sha256": "xyz"},
+    {"state": "measured", "selected": None}, {"state": "searching", "selected": None},
+    {"state": "conflict", "selected": None}, {"selected": 1},
+    {"candidates": [{**FIT, "method": "track"}]}, {"candidates": [{**FIT, "sigma_xy_m": 0}]},
+    {"candidates": [{**FIT, "method": "eye_box"}]}, {"candidates": [{**FIT, "fit_points": None}]},
+    {"candidates": [FIT, FIT], "state": "conflict", "selected": None}, {"candidates": [{**FIT, "score": 1.5}]},
+    {"candidates": [{**FIT, "circle": [1, 2]}]}, {"processing_ms": -1},
+])
+def test_metric_receiver_refuses_invalid_rows_without_state_change(fields):
+    receiver = contract.MetricBallReceiver()
+    assert not receiver.accept(metric_row(**fields), STAMP + 100_000_000, 1.1)
+    assert receiver.row is None and receiver.rejected == 1 and receiver.reason
+
+
+def test_metric_receiver_refuses_nonfinite_numbers_scope_and_oversize():
+    receiver = contract.MetricBallReceiver()
+    assert not receiver.accept(metric_row().replace('"x":0.4', '"x":1e999'), STAMP, 1.)
+    assert not receiver.accept(metric_row().replace('"image_only"', '"total"'), STAMP, 1.)
+    assert not receiver.accept(metric_row(producer_instance="p" * 9000), STAMP, 1.)
+    assert receiver.row is None
+
+
+def test_metric_duplicate_reordered_and_restarted_producer_rows():
+    receiver = contract.MetricBallReceiver()
+    assert receiver.accept(metric_row(), STAMP + 50_000_000, 1.05)
+    assert not receiver.accept(metric_row(sequence=5), STAMP + 50_000_000, 1.05)  # same capture
+    assert not receiver.accept(metric_row(sequence=3, captured_at_ros_ns=STAMP + 1, captured_at_mono_ns=STAMP + 1),
+                               STAMP + 50_000_000, 1.05)
+    assert receiver.reason == "duplicate or reordered sequence"
+    # A restarted producer may restart its sequence, but never its capture order.
+    assert receiver.accept(metric_row(producer_instance="new", sequence=0, captured_at_ros_ns=STAMP + 2,
+                                      captured_at_mono_ns=STAMP + 2), STAMP + 50_000_000, 1.05)
+    box = {**FIT, "method": "pink_box", "fit_rms_px": None, "fit_points": None}
+    assert receiver.accept(metric_row(sequence=1, captured_at_ros_ns=STAMP + 3, captured_at_mono_ns=STAMP + 3,
+                                      state="searching", selected=None, candidates=[]), STAMP + 50_000_000, 1.05)
+    assert receiver.snapshot(STAMP + 50_000_000, 1.05)["state"] == "searching"
+    assert "method" not in receiver.snapshot(STAMP + 50_000_000, 1.05)
+    assert receiver.accept(metric_row(sequence=2, captured_at_ros_ns=STAMP + 4, captured_at_mono_ns=STAMP + 4,
+                                      state="conflict", selected=None, candidates=[FIT, box]),
+                           STAMP + 50_000_000, 1.05)

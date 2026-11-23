@@ -1,0 +1,20 @@
+{
+  "schema": "fc_onboard_metric_profile_v1",
+  "status": "estimated",
+  "ball": {
+    "radius_m": 0.11,
+    "source": "final_project/pupper_fc/arena.json field.ball_radius (setup estimate, unmeasured)",
+    "measured": false
+  },
+  "mount": {
+    "x": 0.15,
+    "y": 0.0,
+    "z": 0.03,
+    "tilt_up_deg": 10.0,
+    "yaw_deg": 0.0,
+    "source": "recovered u6 Ball Eye estimate 2026-11-16, unmeasured",
+    "measured": false
+  },
+  "base_height_m": 0.15,
+  "view": {"size": 640, "half_fov_deg": 72.0, "pitch_deg": 40.0}
+}

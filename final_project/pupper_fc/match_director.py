@@ -1,4 +1,13 @@
-"""One camera-side match referee. Fan out each return value with its original frame."""
+"""One camera-side match referee. Fan out each return value with its original frame.
+
+Without a pitch record this is the legacy (version 1) referee: it names one
+global ``attacker`` and keeps a single kick owner. With a selected version-2
+pitch the referee keeps score, kickoff, reset and each robot's kick receipts,
+and names no attacker: every robot chooses its own role locally. Its directive
+then carries the ``pitch`` record and ``kick_owners`` (robot -> unresolved
+attempt). Receipts never imply ball contact. A directive's shape tells
+consumers which contract applies; there is no silent reinterpretation.
+"""
 import math
 import time
 
@@ -34,6 +43,19 @@ def directive_ok(row, epoch, roster, seq):
             or type(row.get("reset_ready")) is not bool or type(row.get("goal_sign")) is not int):
         return False
     phase, sign, who = row.get("phase"), row["goal_sign"], row.get("attacker")
+    if "pitch" in row:
+        # Version 2: independent roles. No attacker; per-robot unresolved kicks.
+        owners = row.get("kick_owners")
+        try:
+            Pitch.read(row["pitch"])
+        except (ValueError, TypeError):
+            return False
+        if (who is not None or not isinstance(owners, dict) or not set(owners) <= set(roster)
+                or not all(isinstance(v, str) and v for v in owners.values())):
+            return False
+        return ((phase == "playing" and sign == 0 and not row["reset_ready"])
+                or (phase == "goal" and sign in (-1, 1))
+                or (phase in ("holding", "pending") and sign == 0 and not row["reset_ready"]))
     return ((phase == "playing" and who in roster and sign == 0 and not row["reset_ready"])
             or (phase == "goal" and who is None and sign in (-1, 1))
             or (phase in ("holding","pending") and who is None and sign == 0 and not row["reset_ready"]))
@@ -71,7 +93,9 @@ class MatchDirector:
         if self.pitch is not None and goal_lines is not None and goal_lines != self.pitch.goals:
             raise ValueError("referee goals differ from the selected pitch")
         self.goal_lines = self.pitch.goals if self.pitch is not None else goal_lines
-        self.kick_owner = None
+        self.independent = self.pitch is not None
+        self.kick_owner = None    # legacy single owner (robot, attempt)
+        self.kick_owners = {}     # version 2: robot -> unresolved attempt
         self.retired_kicks = set()
         self.revision = None
         self.calibration_changed = False
@@ -90,6 +114,7 @@ class MatchDirector:
                 "reset_ready": False if fenced else self.reset_ready}
         if self.pitch is not None:
             result["pitch"] = self.pitch.record()
+            result["kick_owners"] = dict(sorted(self.kick_owners.items()))
         return result
 
     def _missing(self):
@@ -99,13 +124,31 @@ class MatchDirector:
         self.challenger = self.switch_at = None
 
     def observe_kick(self, event):
-        """Keep the current attacking role through its native clip and return to walking."""
+        """Keep the current attacking role through its native clip and return to walking.
+
+        Version 2 tracks each robot's attempt independently; both may kick.
+        completed/retired release it after walker restoration; aborted keeps
+        it unresolved (restoration unconfirmed) until the match is rebuilt.
+        """
         if not isinstance(event, dict) or event.get("epoch") != self.epoch:
             return False
         robot, attempt = event.get("robot_id"), event.get("attempt_id")
         if robot not in self.tracks.values() or not isinstance(attempt, str):
             return False
         edge = (robot, attempt)
+        if self.independent:
+            state = event.get("state")
+            if state == "engaged":
+                if (edge in self.retired_kicks or self.kick_owners.get(robot, attempt) != attempt
+                        or not attempt.startswith(f"r{self.rally}-")):
+                    return False
+                self.kick_owners[robot] = attempt
+                return True
+            if state in ("completed", "retired") and self.kick_owners.get(robot) == attempt:
+                self.retired_kicks.add(edge)
+                del self.kick_owners[robot]
+                return True
+            return False
         if event.get("state") == "engaged":
             if (self.owner != robot or edge in self.retired_kicks or self.kick_owner not in (None, edge)
                     or not attempt.startswith(f"r{self.rally}-p{self.role_cycle}-k")):
@@ -222,9 +265,12 @@ class MatchDirector:
         else:
             self._ball(capture, ball, goals, f["ball_radius"], f["width"])
             if not self.goal_sign and all(poses.values()):
-                attacker = self._roles(poses, ball, capture)
-                if attacker:
+                if self.independent:
                     phase = "playing"
+                else:
+                    attacker = self._roles(poses, ball, capture)
+                    if attacker:
+                        phase = "playing"
             elif not all(poses.values()):
                 self.challenger = self.switch_at = None
         if self.goal_sign and not self.pending_start:
@@ -242,7 +288,7 @@ class MatchDirector:
 
     def after_balance(self, epoch):
         """A fresh authority starts behind the kickoff fence with the same scoreboard."""
-        if not self.balance_paused or self.calibration_changed or self.kick_owner is not None:
+        if not self.balance_paused or self.calibration_changed or self.kick_owner is not None or self.kick_owners:
             raise ValueError("End the match and check the field or native kick before starting again")
         director = MatchDirector(epoch, self.tracks, self.signs, goal_lines=self.goal_lines, pending_start=True,
                                  pitch=self.pitch.record() if self.pitch is not None else None)
@@ -266,7 +312,8 @@ class MatchDirector:
 
     def resume(self, *, now=None):
         now = time.time() if now is None else now
-        if self.kick_owner is not None or not self.goal_sign or not self.reset_ready or not 0 <= now - self.last_capture <= FRESH:
+        if (self.kick_owner is not None or self.kick_owners or not self.goal_sign or not self.reset_ready
+                or not 0 <= now - self.last_capture <= FRESH):
             raise ValueError("a fresh measured ball reset inside the field is required")
         self.rally += 1
         self.goal_sign, self.reset_ready = 0, False

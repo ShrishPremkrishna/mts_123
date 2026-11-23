@@ -247,6 +247,22 @@ assert Result(True, 'receipt').as_dict() == {'success': True, 'message': 'receip
     assert result.returncode == 0, result.stderr
 
 
+def test_metric_onboard_ball_is_telemetry_beside_display_and_never_drives_play(monkeypatch, tmp_path):
+    async def case():
+        async with opened_bench(monkeypatch, tmp_path) as b:
+            seen = []
+            b.session.ball_snapshot = lambda now: {"state": "tracked"}
+            b.session.local_ball_snapshot = lambda now: seen.append(now) or {"state": "measured", "x": .3}
+            for _ in range(11):
+                await b.tick()
+            reports = [e for e in b.events if e.get("event") == "local_ball"]
+            assert reports and len(reports) == len([e for e in b.events if e.get("event") == "onboard_ball"])
+            assert reports[-1] == {"event": "local_ball", "robot_id": ROBOT, "usage": "telemetry_only",
+                                   "local_ball": {"state": "measured", "x": .3}}
+            assert seen and b.last_command().is_zero and not b.core.executor.armed
+    asyncio.run(case())
+
+
 def test_control_offers_observe_time_after_runtime_work(monkeypatch, tmp_path):
     async def case():
         async with opened_bench(monkeypatch, tmp_path) as b:

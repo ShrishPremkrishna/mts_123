@@ -12,6 +12,12 @@ source's capture is its host camera-delivery timestamp minus the configured
 latency adjustment, not a measured sensor exposure timestamp; this adapter
 cannot measure camera/driver buffering.
 Source IDs are operational pins on a trusted network, not authentication.
+
+Geometry: without a pinned pitch, goals must equal the nominal centred mouth.
+A pinned version-2 pitch requires the producer's identical record, emits the
+physical goal-front centres (possibly beyond the markers and off centre) and
+forwards the record with every admitted frame so the executor can verify it
+matches the pitch selected at arm. A changed pitch revokes rather than adapts.
 """
 from __future__ import annotations
 
@@ -274,6 +280,8 @@ class IngressCore:
                 robots[target] = pose
         ball = measured(state.get("ball"))
         event = self._event(mapped, robots, ball, goals)
+        if self.pitch is not None:
+            event["pitch"] = self.pitch.record()
         if "fc_match" in state:
             # The selected play adapter validates referee epoch/schema/sequence.
             event["fc_match"] = state["fc_match"]
@@ -350,6 +358,7 @@ def main(argv=None):
     parser.add_argument("--calibration-revision", type=int)
     parser.add_argument("--field-config", type=Path)
     parser.add_argument("--robot-map", action="append", default=[], metavar="SOURCE=FC_ID")
+    parser.add_argument("--pitch", help="complete version-2 pitch record JSON to pin")
     args = parser.parse_args(argv)
     if not math.isfinite(args.duration) or not 0 < args.duration <= 3600:
         parser.error("duration must be between 0 and 3600 seconds")
@@ -389,7 +398,8 @@ def main(argv=None):
             producer_id=args.producer_id, epoch=args.epoch,
             boot_id=Path("/proc/sys/kernel/random/boot_id").read_text().strip(), robot_map=mapping,
             calibration_revision=args.calibration_revision,
-            field=json.loads(args.field_config.read_text())["field"])
+            field=json.loads(args.field_config.read_text())["field"],
+            pitch=json.loads(args.pitch) if args.pitch is not None else None)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         parser.error(str(exc))
     import rclpy  # Deliberately lazy: offline observation/core need only stdlib.

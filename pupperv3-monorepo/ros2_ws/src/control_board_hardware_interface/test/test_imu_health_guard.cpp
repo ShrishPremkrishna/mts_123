@@ -2,7 +2,9 @@
 // No device implementation is linked and every open except the fake lock fails.
 #include "control_board_hardware_interface/control_board_hardware_interface.hpp"
 #include "control_board_hardware_interface/imu_health.hpp"
+#include <algorithm>
 #include <atomic>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <limits>
@@ -88,10 +90,12 @@ void unit_health() {
   for(int i=0;i<=300;++i){auto t=now+milliseconds(i*10);auto s=output(t);if(i==250)s.gyro.x()=.06;require(!spike.observe(s,t),"gyro spike did not restart window");}
 }
 }
+// The fake transport always replies, so it honestly reports both board groups valid.
 void init_spi(){command={};data={};}
+void close_spi(){}
 spi_command_t *get_spi_command(){return &command;}
 spi_data_t *get_spi_data(){return &data;}
-void spi_driver_run(){sent.push_back(command);if(lose_during_enable && command.flags[0])mode=1;}
+void spi_driver_run(){sent.push_back(command);data.spi_driver_status=static_cast<int32_t>(static_cast<uint32_t>(sent.size())<<16)|SPI_BOTH_REPLIES_VALID;if(lose_during_enable && command.flags[0])mode=1;}
 BNO055::BNO055(int,uint32_t){}
 BNO055::~BNO055(){}
 BNO055::Output BNO055::sample(){return output(std::chrono::steady_clock::now());}
@@ -102,6 +106,7 @@ extern "C" int __wrap_close(int fd){require(fd==lock_fd,"unexpected close");retu
 extern "C" int __wrap_unlink(const char *p){require(std::strcmp(p,"/tmp/control_board_hardware.lock")==0,"unexpected unlink");return 0;}
 int main(int argc,char **argv){try{
   require(argc==2,"scenario required");std::string scenario=argv[1];
+  unsetenv("PUPPER_FC_BOARD_HEALTH_PATH");unsetenv("PUPPER_IMU_STARTUP_TRACE");
   if(scenario=="health"){unit_health();std::cout<<"PASS health\n";return 0;}
   auto driver=std::make_unique<control_board_hardware_interface::ControlBoardHardwareInterface>();
   hardware_interface::HardwareInfo info;info.name="imu_guard_fake";info.type="system";
@@ -134,7 +139,9 @@ int main(int argc,char **argv){try{
       const auto start=std::chrono::steady_clock::now();
       require(driver->on_activate(rclcpp_lifecycle::State())==hardware_interface::CallbackReturn::SUCCESS,"stationary startup rejected");
       require(std::chrono::steady_clock::now()-start>=pupper_imu::stationary_window,"startup skipped window");
-      require(!sent.empty()&&sent.front().flags[0]==1,"fresh activation never enabled fake SPI");
+      const spi_command_t zero{};
+      require(!sent.empty()&&std::memcmp(&sent.front(),&zero,sizeof zero)==0,"no neutral board reply probe before enable");
+      require(std::any_of(sent.begin(),sent.end(),[](const spi_command_t &p){return p.flags[0]==1;}),"fresh activation never enabled fake SPI");
     }else throw std::runtime_error("unknown scenario");
   }
   driver.reset();std::cout<<"PASS "<<scenario<<" fake_SPI_packets="<<sent.size()<<'\n';return 0;

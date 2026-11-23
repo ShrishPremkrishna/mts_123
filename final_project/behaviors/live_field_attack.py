@@ -8,6 +8,13 @@ The runner selects the kick foot and owns arm, gait, kick and Stop. With
 --approach-only --side, this source emits only MOVE to a ball-clear standoff on
 that paw line. An unsafe segment or lost pair withdraws the frame immediately.
 By default report the actual field observations without loading ROS.
+
+--pitch pins one complete version-2 pitch record for ingress and play. A
+camera-directed match whose referee directive carries that same pitch uses
+independent roles: this robot issues an ``auto`` intent and its own executor
+Tactics chooses offense/defense, intercepts and possession clearance. A solo
+version-2 match is offense unless --solo-roles defense selects the deliberate
+defensive experiment. Directives without a pitch keep the legacy attacker.
 """
 from __future__ import annotations
 
@@ -30,8 +37,8 @@ class LiveFieldPlay:
         self.goal_name = "right" if field.attack_sign == 1 else "left"
 
     def inside(self, point, margin=0.):
-        return (abs(point["x"]) <= self.field.length / 2 - margin
-                and abs(point["y"]) <= self.field.width / 2 - margin)
+        """Within the field's playable bounds (physical goal fronts when a pitch is selected)."""
+        return self.field.bounds.contains(point["x"], point["y"], margin)
 
     def plan(self, frame, now):
         captured = frame["captured_at"]
@@ -82,10 +89,13 @@ class LiveFieldPlay:
 
 class LiveMatchPlay(LiveFieldPlay):
     """Apply the one camera referee's decision using only this Pi's capture-bound observations."""
-    def __init__(self, robot_id, field, max_age, epoch, roster):
+    def __init__(self, robot_id, field, max_age, epoch, roster, solo_roles="offense"):
         super().__init__(robot_id, field, max_age)
         from final_project.pupper_fc.tactics import Tactics
+        if solo_roles not in ("offense", "defense"):
+            raise ValueError("solo roles must be offense or defense")
         self.epoch, self.roster = epoch, sorted(roster)
+        self.solo_roles = solo_roles
         self.tactics = Tactics(field, robot_id)
         self.number, self.started, self.reacquire_after = 1, None, None
         self.goal_notified = self.attempt_capture = self.in_flight = None
@@ -130,6 +140,8 @@ class LiveMatchPlay(LiveFieldPlay):
                 or not directive_ok(info, self.epoch, self.roster, frame.get("source", {}).get("seq"))
                 or pose is None or pose["captured_at"] != captured or not self.inside(pose, self.field.robot_radius)):
             return hold("match directive, participant pose or capture not ready")
+        if "pitch" in info:
+            return self._independent(frame, info, captured, pose, ball, hold)
         lines = info.get("goal_lines")
         if not goal_geometry(lines, self.field.length, self.field.width, self.field.ball_radius):
             return hold("calibrated goal posts required")
@@ -137,12 +149,7 @@ class LiveMatchPlay(LiveFieldPlay):
                                    for key, end in (("left", "west"), ("right", "east"))}}
         phase = info["phase"]
         if phase == "pending":
-            poses = [frame["robots"].get(robot) for robot in self.roster]
-            if (not ball or not self.inside(ball) or not all(row and row["captured_at"] == captured
-                    and self.inside(row, self.field.robot_radius) for row in poses)):
-                return hold("waiting for measured kickoff positions")
-            self.ready_to_arm = True
-            return frame, None, "kickoff observations ready; awaiting all arms"
+            return self._ready_kickoff(frame, ball, captured, hold)
         event = {"event":"intent", "epoch":self.epoch, "producer_id":frame["producer_id"], "clock":frame["clock"],
                  "seq":frame["seq"], "robot_id":self.robot_id, "kind":"attack",
                  "intent_id":"referee-" + str(info["rally"]), "issued_at":captured, "valid_until":captured + self.max_age}
@@ -192,6 +199,73 @@ class LiveMatchPlay(LiveFieldPlay):
             self.started, self.attempt_capture = attempt, captured
         event["intent_id"] = self.started
         return frame, event, "paired attack"
+
+    def _ready_kickoff(self, frame, ball, captured, hold):
+        poses = [frame["robots"].get(robot) for robot in self.roster]
+        if (not ball or not self.inside(ball) or not all(row and row["captured_at"] == captured
+                and self.inside(row, self.field.robot_radius) for row in poses)):
+            return hold("waiting for measured kickoff positions")
+        self.ready_to_arm = True
+        return frame, None, "kickoff observations ready; awaiting all arms"
+
+    def _independent(self, frame, info, captured, pose, ball, hold):
+        """Version-2 referee: score/reset/receipts only; this robot's executor picks its role."""
+        from final_project.pupper_fc.controller import HOME_FRACTION
+        selected = self.field.pitch
+        if selected is None or info["pitch"] != selected.record():
+            return hold("referee pitch differs from this robot's selected pitch")
+        goals = frame["goals"]
+        for key, sign in (("left", -1), ("right", 1)):
+            centre = selected.goal(sign).center
+            row = goals.get(key)
+            if not isinstance(row, dict) or math.dist((row["x"], row["y"]), centre) > 1e-9:
+                return hold("frame goals differ from the selected physical goal fronts")
+        phase = info["phase"]
+        if phase == "pending":
+            return self._ready_kickoff(frame, ball, captured, hold)
+        owners = info["kick_owners"]
+        frame = {**frame, "robots": {robot: ({**row, "kick_active": True}
+                                             if robot in owners and robot != self.robot_id else row)
+                                     for robot, row in frame["robots"].items()}}
+        roles = "match" if len(self.roster) > 1 else self.solo_roles
+        event = {"event": "intent", "epoch": self.epoch, "producer_id": frame["producer_id"],
+                 "clock": frame["clock"], "seq": frame["seq"], "robot_id": self.robot_id, "kind": "auto",
+                 "roles": roles, "role_session": "r" + str(info["rally"]),
+                 "intent_id": self.started or "r" + str(info["rally"]) + "-wait",
+                 "issued_at": captured, "valid_until": captured + self.max_age}
+        if self.in_flight is not None:
+            if any(r not in frame["robots"] for r in self.roster):
+                return hold("fresh participant poses required throughout a kick")
+            event["intent_id"] = self.in_flight
+            if phase == "goal":
+                frame["robots"] = {**frame["robots"], self.robot_id: {**pose, "goal": info["goal_sign"] * self.field.attack_sign}}
+            return frame, event, "native kick owns legs until walker return"
+        if phase == "holding":
+            return hold("shared match referee holds")
+        if phase == "goal":
+            new_goal = self.goal_notified != info["rally"]
+            self.goal_notified = info["rally"]
+            sign = info["goal_sign"] * self.field.attack_sign if new_goal or not info["reset_ready"] else 0
+            if not sign:
+                for key in ("roles", "role_session"):
+                    event.pop(key)
+                event.update(kind="move", intent_id="reset-home-" + str(info["rally"]),
+                             target={"x": -self.field.attack_sign * HOME_FRACTION * self.field.length,
+                                     "y": 0., "yaw": math.atan2(0., self.field.attack_sign)})
+            robots = {**frame["robots"], self.robot_id: {**pose, "goal": sign}}
+            return {**frame, "robots": robots}, event, "scored; returning for reset"
+        if ball is None or not self.inside(ball) or any(row not in frame["robots"] for row in self.roster):
+            return hold("current participants and ball required")
+        if self.reacquire_after is not None:
+            if captured <= self.reacquire_after:
+                return hold("waiting for a ball measured after walker recovery")
+            self.number += 1
+            self.reacquire_after = None
+        attempt = f"r{info['rally']}-k{self.number}"
+        if self.started != attempt:
+            self.started, self.attempt_capture = attempt, captured
+        event["intent_id"] = self.started
+        return frame, event, "independent role chosen by this robot's tactics"
 
 
 
@@ -263,6 +337,9 @@ def main(argv=None):
     parser.add_argument("--epoch", required=True)
     parser.add_argument("--robot-id", required=True, choices=("pupper-1", "pupper-2"))
     parser.add_argument("--match-tracks", help="JSON camera-track to team-ID map for a camera-directed match")
+    parser.add_argument("--pitch", help="complete version-2 pitch record JSON pinned for ingress and play")
+    parser.add_argument("--solo-roles", choices=("offense", "defense"), default="offense",
+                        help="version-2 solo match role policy; defense is the deliberate experiment")
     parser.add_argument("--stop-on-eof", action="store_true", help="SSH input closes the field producer")
     parser.add_argument("--approach-only", action="store_true", help="issue only MOVE to a ball-clear standoff")
     parser.add_argument("--side", choices=("right", "left"), help="approach-only standoff's paw line")
@@ -285,17 +362,24 @@ def main(argv=None):
             parser.error("ingress or executor import is outside the selected release")
     config = json.loads(args.field_config.read_text())
     field = bridge.load_fields(config)[args.robot_id]
+    pitch = json.loads(args.pitch) if args.pitch is not None else None
+    if pitch is not None:
+        try:
+            field = field.with_pitch(pitch)
+        except (ValueError, TypeError) as exc:
+            parser.error(f"--pitch: {exc}")
     play = LiveFieldPlay(args.robot_id, field, ingress.MAX_FRAME_AGE_S, args.side)
     tracks = json.loads(args.match_tracks) if args.match_tracks is not None else {args.source_robot: args.robot_id}
     if args.match_tracks is not None:
         if args.approach_only or not isinstance(tracks, dict) or args.robot_id not in tracks.values():
             parser.error("continuous match needs the participant track and cannot select a standoff")
-        play = LiveMatchPlay(args.robot_id, field, ingress.MAX_FRAME_AGE_S, args.epoch, tracks.values())
+        play = LiveMatchPlay(args.robot_id, field, ingress.MAX_FRAME_AGE_S, args.epoch, tracks.values(),
+                             solo_roles=args.solo_roles)
     core = ingress.IngressCore(source_id=args.source_id, source_session=args.source_session,
         producer_id=args.producer_id, epoch=args.epoch,
         boot_id=Path("/proc/sys/kernel/random/boot_id").read_text().strip(),
         robot_map=tracks, calibration_revision=args.calibration_revision,
-        field=config["field"])
+        field=config["field"], pitch=pitch)
     receiver = ingress.UDPIngress(core, port=args.port, source_host=args.source_host)
     trace = node = None
     try:
@@ -341,7 +425,7 @@ def main(argv=None):
         print(json.dumps({"event": "source_open", "mode": "publish" if publish else "observe",
                           "source": core.identity(), "epoch": args.epoch, "producer_id": args.producer_id,
                           "robot_id": args.robot_id, "goal": play.goal_name, "approach_only": args.approach_only,
-                          "side": args.side, "field": config["field"]}),
+                          "side": args.side, "field": config["field"], "pitch": pitch}),
               flush=True)
         try:
             stream(receiver, play, args.duration, publish=publish, trace=trace, pump=pump,

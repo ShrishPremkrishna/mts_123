@@ -492,11 +492,14 @@ class RunnerSession:
     """
 
     def __init__(self, core, path, balance, gateway, emit, *, controls=None, publish_kick=None,
-                 set_ball_mode=None, ball_snapshot=None, clock=time.monotonic):
+                 set_ball_mode=None, ball_snapshot=None, local_ball_snapshot=None, clock=time.monotonic):
         self.core, self.path, self.balance, self.gateway, self.emit = core, path, balance, gateway, emit
         self.controls = controls
         self.publish_kick = publish_kick or (lambda edge: None)
         self.set_ball_mode, self.ball_snapshot = set_ball_mode, ball_snapshot
+        # Metric Ball Eye rows are telemetry here; docking use needs the executor seam
+        # (final_project/pupper_fc/local_ball.py) and a qualified profile.
+        self.local_ball_snapshot = local_ball_snapshot
         self.clock = clock
         self.runtime = self.kicks = self.resume_task = None
         self.last_phase = None
@@ -561,6 +564,9 @@ class RunnerSession:
             if self.ball_snapshot is not None and now >= self.next_ball_report:
                 self.next_ball_report = now + .10
                 self.emit({"event": "onboard_ball", "robot_id": core.robot_id, "onboard_ball": self.ball_snapshot(now)})
+                if self.local_ball_snapshot is not None:
+                    self.emit({"event": "local_ball", "robot_id": core.robot_id, "usage": "telemetry_only",
+                               "local_ball": self.local_ball_snapshot(now)})
             if core.executor.external_holds[core.robot_id]:
                 controls.observe_path(False, controls.generation)
             controls.observe_output(step.decision.command)
@@ -672,9 +678,10 @@ async def run(args):
             return None
 
     balance = MatchImu(board_reader, latest_ros_imu)
-    set_ball_mode = ball_snapshot = None
+    set_ball_mode = ball_snapshot = local_ball_snapshot = None
     if controls is not None:
         ball_receiver = onboard_ball.OnboardBallReceiver()
+        metric_receiver = onboard_ball.MetricBallReceiver()
         ball_modes = node.create_publisher(String, onboard_ball.MODE_TOPIC, 1)
 
         def set_ball_mode(mode):
@@ -683,13 +690,19 @@ async def run(args):
         def ball_snapshot(now):
             return ball_receiver.snapshot(node.get_clock().now().nanoseconds, now)
 
+        def local_ball_snapshot(now):
+            return metric_receiver.snapshot(node.get_clock().now().nanoseconds, now)
+
         node.create_subscription(String, onboard_ball.TOPIC, lambda msg: ball_receiver.accept(
+            msg.data, node.get_clock().now().nanoseconds, clock()), 1)
+        node.create_subscription(String, onboard_ball.METRIC_TOPIC, lambda msg: metric_receiver.accept(
             msg.data, node.get_clock().now().nanoseconds, clock()), 1)
     quit_event = asyncio.Event()
     gateway = attach(node, clock=clock, selected_controller="gemini_walk")
     session = RunnerSession(core, path, balance, gateway, emit, controls=controls, clock=clock,
                             publish_kick=lambda edge: kick_events.publish(String(data=json.dumps(edge, allow_nan=False))),
-                            set_ball_mode=set_ball_mode, ball_snapshot=ball_snapshot)
+                            set_ball_mode=set_ball_mode, ball_snapshot=ball_snapshot,
+                            local_ball_snapshot=local_ball_snapshot)
     runtime = CombinedRuntime(robot, core.executor, core.robot_id, velocity_sink=path.write,
                               path_problem=session.runtime_problem, walker_ready=path.restored_walker_ready,
                               hard_stop=lambda reason: gateway.request_stop(reason, authority=robot.gateway_stop_anchor()))

@@ -103,12 +103,22 @@ typedef struct {
 } spi_torque_t;
 
 void init_spi();
+void close_spi();
 
 void spi_send_receive(spi_command_t* command, spi_data_t* data);
 void spi_driver_run();
 
 spi_data_t* get_spi_data();
 spi_command_t* get_spi_command();
+
+// Low bits of spi_data_t::spi_driver_status mark board groups (bit 0: channels
+// 0/1, bit 1: channels 2/3) with a complete, nonempty, checksum-valid reply in
+// the latest exchange. Transport evidence only: the firmware supplies no motor
+// sample counter, so a valid reply does not prove motor-coordinate continuity.
+// A group's q/qd/flags in spi_data_t change only when its bit is set; otherwise
+// they keep that group's last valid reply. Checksum validity does not imply
+// finite values; callers must still reject NaN/Inf.
+constexpr int SPI_BOTH_REPLIES_VALID = 3;
 
 /*!
  * SPI command message
