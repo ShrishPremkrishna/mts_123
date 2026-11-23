@@ -1,0 +1,283 @@
+"""The tool registry: turns the @tool functions in lab/ into what Gemini reads,
+and checks every call against it before running it (provided).
+
+You don't change this file. In a lab/ file:
+
+    @tool("my_tool", "What Gemini reads about the tool.",
+          speed=Param("number", "What Gemini reads about this parameter.", required=False))
+    async def my_tool_tool(robot, speed=0.4) -> Result:
+        ...
+
+The first word is the tool's name, the one Gemini calls; the Python function
+can be called anything (in lab/ it is the name plus _tool, so it doesn't clash
+with the behavior of the same name).
+
+A description may contain {tricks} or {actions}: the installed tricks, or the
+installed interactive actions, one per line. A parameter's enum (the values Gemini
+may pass) may be TRICK_NAMES or ACTION_IDS for the same lists.
+
+The web app asks the robot server for the declarations (GET /tools) when it
+connects, and sends every call to POST /tools/<name>, which runs call() below.
+"""
+
+from __future__ import annotations
+
+import importlib
+import logging
+import math
+import sys
+import types
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Awaitable, Callable
+
+from robot_api import CALL_STOPS, Result, Robot
+
+log = logging.getLogger("tools")
+
+
+@dataclass
+class Param:
+    """One parameter of a tool, as Gemini sees it."""
+
+    type: str  # "string", "number", "integer" or "boolean"
+    description: str
+    enum: list | Callable[[Robot], list] | None = None  # allowed values
+    required: bool = True
+
+
+@dataclass
+class Tool:
+    name: str
+    description: str
+    params: dict[str, Param]
+    run: Callable[..., Awaitable[Result]]
+    module: str = ""
+    ends_following: bool = False
+
+
+TOOLS: dict[str, Tool] = {}
+
+# The lab's files, in the order of the lab. Gemini gets the tools in this order.
+LAB_DIR = Path(__file__).resolve().parent.parent / "lab"
+LAB_MODULES = ["basics", "part2_walk", "part3_follow", "part4_tricks", "part5_interactive_action", "part9_ball_kick",
+               "part10_kick_seen"]
+
+
+def tool(tool_name: str, description: str, /, *, _ends_following: bool = False, **params: Param):
+    """Register the function below as the tool Gemini calls ``tool_name``. (The
+    ``/`` lets a tool have a parameter called name, like play_trick.)"""
+
+    if type(_ends_following) is not bool:
+        raise TypeError("_ends_following must be a boolean capability flag")
+
+    def register(fn):
+        previous = TOOLS.get(tool_name)
+        if previous is not None:
+            raise ValueError(
+                f"duplicate tool name {tool_name!r}: already registered by "
+                f"{previous.run.__module__}.{previous.run.__qualname__}"
+            )
+        TOOLS[tool_name] = Tool(tool_name, description, params, fn, fn.__module__, _ends_following)
+        return fn
+
+    return register
+
+
+def load_lab() -> types.SimpleNamespace:
+    """Import every lab/ file (which registers its tools), and return everything
+    they define in one namespace: lab.walk, lab.check_move, lab.play_trick, ..."""
+    if str(LAB_DIR) not in sys.path:
+        sys.path.append(str(LAB_DIR))  # last, so a lab/ file never hides a provided module
+    names: dict[str, Any] = {}
+    for module in LAB_MODULES:
+        m = importlib.import_module(module)
+        names.update({k: v for k, v in vars(m).items() if not k.startswith("_")})
+    return types.SimpleNamespace(**names)
+
+
+def _in_lab_order(tools: list[Tool]) -> list[Tool]:
+    def key(t: Tool) -> int:
+        return LAB_MODULES.index(t.module) if t.module in LAB_MODULES else len(LAB_MODULES)
+
+    return sorted(tools, key=key)  # stable: within a file, in the order they are written
+
+
+def TRICK_NAMES(robot: Robot) -> list:
+    """enum: the installed tricks that play_trick offers (not tool_only ones)."""
+    return list(robot.offered_tricks())
+
+
+def ACTION_IDS(robot: Robot) -> list:
+    """enum: the installed interactive actions."""
+    return list(robot.action_ids())
+
+
+def handshake_trick(robot: Robot):
+    """The installed Sit policy must return both paws to its idle loop."""
+    trick = robot.tricks.get("sit_stay_shake")
+    if trick is None or trick.kind != "policy" or not trick.interactive or trick.walks:
+        return None
+    try:
+        idle, _ = robot._clip_endpoint(trick, trick.clips[0]["name"])
+        if not idle.get("loop"):
+            return None
+        for action in ("shake_left", "shake_right"):
+            if action not in trick.actions or action == trick.exit_clip:
+                return None
+            endpoint, _ = robot._clip_endpoint(trick, action)
+            if endpoint != idle:
+                return None
+    except (KeyError, ValueError, StopIteration, IndexError):
+        return None
+    return trick
+
+
+# Tools for operator programs (robot/ball_seek.py): POST /tools/<name> works, but
+# declarations() leaves them out, so Gemini never sees or calls them.
+OPERATOR_ONLY_TOOLS = frozenset({"kick_in_place", "kick_at", "kick_seen", "look_ball"})
+
+
+def kick_ball_available(robot: Robot) -> bool:
+    """kick_ball needs the leg kick trick with both kick clips (lab/part9_ball_kick.py)."""
+    trick = robot.tricks.get("leg_kick")
+    return (trick is not None and trick.interactive and trick.tool_only == "kick_ball"
+            and {"kick_right", "kick_left"} <= {c["name"] for c in trick.clips})
+
+
+def _trick_list(robot: Robot) -> str:
+    return "\n".join(f'- "{name}": {t.description}' for name, t in robot.offered_tricks().items()) or "(none available)"
+
+
+def _action_list(robot: Robot) -> str:
+    lines = [f'- "{aid}" (during "{t.name}"): {t.actions[clip]}' for aid, (t, clip) in robot.action_ids().items()]
+    return "\n".join(lines) or "(none installed yet)"
+
+
+def _describe(text: str, robot: Robot) -> str:
+    if "{locomotion_motion_contract}" in text:
+        speeds = robot.speeds("locomotion")
+        limits = speeds.limits
+        forward = limits.vx_forward_max if limits.vx_forward_max is not None else limits.vx_max
+        backward = limits.vx_backward_max if limits.vx_backward_max is not None else limits.vx_max
+        running = ("Running needs at least 1.0 m/s (default 1.2) and is refused in directions below that cap."
+                   if max(forward, backward) >= 1.0 else "Running is unavailable in this selected profile.")
+        contract = (f"Default walking speed is {speeds.walk} m/s. Forward maximum {forward} m/s; "
+                    f"backward maximum {backward} m/s; sideways maximum {limits.vy_max} m/s. "
+                    + running)
+        text = text.replace("{locomotion_motion_contract}", contract)
+    if "{locomotion_arc_contract}" in text:
+        limits = robot.speeds("locomotion").limits
+        text = text.replace("{locomotion_arc_contract}",
+            f"At speed v, radius must be at least v/{math.radians(limits.wz_max):.3g} "
+            f"in locomotion (turn cap {limits.wz_max} deg/s). One arc travels at most {limits.distance_max} m.")
+    if "{tricks}" in text:
+        text = text.replace("{tricks}", _trick_list(robot))
+    if "{actions}" in text:
+        text = text.replace("{actions}", _action_list(robot))
+    return text
+
+
+def _resolve(value, robot: Robot):
+    return value(robot) if callable(value) else value
+
+
+def declarations(robot: Robot) -> list[dict]:
+    """Every tool in the format Gemini expects."""
+    out = []
+    for t in _in_lab_order(list(TOOLS.values())):
+        if t.name == "follow" and not robot.follow_available:
+            continue
+        if t.name == "shake_hand" and handshake_trick(robot) is None:
+            continue
+        if t.name in ("kick_ball", "locate_ball") and not kick_ball_available(robot):
+            continue
+        if t.name in OPERATOR_ONLY_TOOLS:  # callable over HTTP, never offered to Gemini
+            continue
+        props, required = {}, []
+        for name, p in t.params.items():
+            prop: dict[str, Any] = {"type": p.type.upper(), "description": p.description}
+            enum = _resolve(p.enum, robot)
+            if enum:
+                prop["enum"] = [str(v) for v in enum]
+            props[name] = prop
+            if p.required:
+                required.append(name)
+        decl: dict[str, Any] = {"name": t.name, "description": _describe(t.description, robot)}
+        if props:
+            decl["parameters"] = {"type": "OBJECT", "properties": props, "required": required}
+        out.append(decl)
+    return out
+
+
+def follow_handoff_metadata(robot: Robot) -> dict:
+    """Client admission behavior, separate from model parameters and prose.
+
+    Extensions that end follow mode opt in with @tool(..., _ends_following=True).
+    The existing server prepare_to_move remains the actuator ownership guard.
+    """
+    offered = {entry["name"] for entry in declarations(robot)}
+    return {"schema": "pupper_follow_handoff_v1", "prepare_if_active": True,
+            "tools": [t.name for t in _in_lab_order(list(TOOLS.values()))
+                      if robot.follow_available and t.ends_following and t.name in offered]}
+
+
+_TYPES = {"string": (str,), "number": (int, float), "integer": (int,), "boolean": (bool,)}
+
+
+async def call(robot: Robot, name: str, args: dict) -> Result:
+    """Check a tool call against its declaration, then run it."""
+    t = TOOLS.get(name)
+    if t is None:
+        return Result(False, f"unknown tool {name}; the tools are {sorted(TOOLS)}")
+    if not isinstance(args, dict):
+        return Result(False, f"{name} arguments must be an object")
+    args = dict(args)
+    extra = sorted(set(args) - set(t.params))
+    if extra:
+        return Result(False, f"{name} has no parameter {extra}; it takes {sorted(t.params)}")
+    for pname, p in t.params.items():
+        if pname not in args:
+            if p.required:
+                return Result(False, f"{name} needs {pname}: {p.description}")
+            continue
+        v = args[pname]
+        if isinstance(v, bool) and p.type != "boolean" or not isinstance(v, _TYPES[p.type]):
+            return Result(False, f"{name}: {pname} must be a {p.type}")
+        if p.type in ("number", "integer"):
+            try:
+                finite = math.isfinite(v)
+            except OverflowError:
+                finite = False
+            if not finite:
+                return Result(False, f"{name}: {pname} must be finite")
+        enum = _resolve(p.enum, robot)
+        if enum is not None and not enum:
+            return Result(False, f"{name}: nothing is installed for {pname} yet, so it can't be used")
+        if enum is not None and v not in enum:
+            return Result(False, f"{name}: {pname} must be one of {list(enum)}, not {v!r}")
+    return await dispatch(robot, lambda: t.run(robot, **args), name=name,
+                          interrupt=name in ("stop", "robot_status"))
+
+
+async def dispatch(robot: Robot, run: Callable[[], Awaitable[Result]], *, name: str, interrupt: bool = False) -> Result:
+    """The same stop-generation/serialization boundary for tools and direct HTTP controls."""
+    inherited = CALL_STOPS.get()  # HTTP admission may precede body/dispatch completion.
+    token = CALL_STOPS.set(robot.stops if inherited is None else inherited)
+    try:
+        if interrupt:
+            return await run()
+        await robot.ready.wait()
+        if robot.startup_error:
+            return Result(False, robot.startup_error)
+        if robot.controller_fault:
+            return Result(False, robot.controller_fault)
+        async with robot.action_lock:
+            if robot.stopped_during_call():
+                return Result(False, "Request cancelled by a stop; ask again when ready.")
+            return await run()
+    except Exception as e:  # a bug in a tool must not crash the server
+        log.exception("tool %s failed", name)
+        return Result(False, f"{name} failed on the robot: {type(e).__name__}: {e}")
+    finally:
+        CALL_STOPS.reset(token)

@@ -1,0 +1,7 @@
+description: Experimental yaw-neutral push-up routine trained on a mirrored class
+  recording. One complete routine playback only; no claim of counted physical repetitions.
+type: policy
+policy: policy.json
+start_pose: standing
+end_pose: standing
+max_body_angle_deg: 60

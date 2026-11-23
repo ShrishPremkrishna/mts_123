@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "base_revision": "dabe5cecb9a3d325e5747e29b078d44f2773532b",
+  "files": {
+    "gemini_pupper/robot/controller_coverage.py": {
+      "sha256": "6da12e6e494acc298e3237ae8e695a4d126b4e37c0a9a5c0951635e918f76f26",
+      "bytes": 4397,
+      "original_sha256": "3ca8de42affca135e16979be95c06d0465d242dac1278076e1d66e5ac6b8ff26"
+    },
+    "gemini_pupper/robot/robot_api.py": {
+      "sha256": "4061ff0655c304bc6b755f6acfe426f29d38f6e563c88fb85f59933fef26f229",
+      "bytes": 76918,
+      "original_sha256": "9f685b1c3f12a93114ab943ccdbbd7f66db303665bb514aa219706e1c5d9354d"
+    },
+    "gemini_pupper/robot/startup_readiness.py": {
+      "sha256": "76c3160d639e81c10adaad3a3e809bc62063af5d2869942286601f5348255143",
+      "bytes": 19955,
+      "original_sha256": "b3bebd9ff1c606d1b50acee6e2605857395bc96edf3a2fb006a0c42b9fe61c77"
+    },
+    "gemini_pupper/robot/stop_status.py": {
+      "sha256": "ccebd758a101f15023946363114c0b32f3b5717914326cac77605058ca0bb9ca",
+      "bytes": 5289,
+      "original_sha256": null
+    },
+    "gemini_pupper/robot/test_tools.py": {
+      "sha256": "c05d3a6099d93e1de44dea0e7e2e9b8b8490daf6841878c9bd3f670717c108b1",
+      "bytes": 80633,
+      "original_sha256": "da3bbd0c7011f539d1984b98e3f162982f9bf794392432682e0341d99b912b0b"
+    },
+    "gemini_pupper/tests/test_controller_coverage.py": {
+      "sha256": "26380995f7e09b9b4cc85a9a40d28223e1ded0aea2c448f13338447201f25e80",
+      "bytes": 13721,
+      "original_sha256": "bc6c7b987dad69a0e3473113b7b8751a0cd585ba9dfab1b5a213dd113310907e"
+    },
+    "gemini_pupper/tests/test_foundation.py": {
+      "sha256": "7a70383304a604af779e6cf7353bf903853c59c4108e090163288662f2031917",
+      "bytes": 36376,
+      "original_sha256": "1fa6d4db71e10e66bc145453995241c3ce947dffbf98fb08614079acc21b3bc0"
+    },
+    "gemini_pupper/tests/test_server_transport.py": {
+      "sha256": "40c876ef7998f58c8d157d7ee7af24c7d3e0694945463a71d4b68525d9f4f466",
+      "bytes": 15436,
+      "original_sha256": "37024d887562c6d086f611f393aff2c47f5b3234111368ab108e0532fbc266e2"
+    },
+    "gemini_pupper/tests/test_shared_stop_contract.py": {
+      "sha256": "d13d4affcbfef4f94726f5495d3c224e0e97e9dd621174d8d2205dc4f77e79f5",
+      "bytes": 10156,
+      "original_sha256": null
+    },
+    "gemini_pupper/tests/test_startup_readiness.py": {
+      "sha256": "2d6b836d787997667a3055b6602ff4e01571b4ae4b50d40c0cf60f75fb272f6d",
+      "bytes": 29030,
+      "original_sha256": "f78b82d16707b3cfcbefbad8127963c45bc8dac7701190640b4a6cb5719f86f5"
+    },
+    "pupper_gait_deploy/config.yaml": {
+      "sha256": "6b25c2a68b99b99f1679e701dce49fc72ce7992c9754a517f70a983cfb4c4661",
+      "bytes": 10265,
+      "original_sha256": "d4049ebfe34c53455b469111f14437de93e7eb7f38887c1e59865676869217f3"
+    },
+    "pupper_gait_deploy/install.py": {
+      "sha256": "bd055ecf23fc248959af5c146586f18815d9e1ce8f5ea63c140edf6c7ba5ac5b",
+      "bytes": 15134,
+      "original_sha256": "7e2ccd43cb27e4f357055f3a998a17353b468e04ceaad40af0c8689ef11494ed"
+    },
+    "pupper_gait_deploy/launch.py": {
+      "sha256": "b98b1727260b6b202bb8da244f36c48f199003d22b41a758a7c08ab29d741129",
+      "bytes": 9075,
+      "original_sha256": "b76b665a819f5e0245527e665a69e2d9e464987f8cdbaa79b434a483c715d25f"
+    },
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/CMakeLists.txt": {
+      "sha256": "fa0daec738985b00189aefe22d2b01eacdf9a76018851fb0a27f202f08c1759f",
+      "bytes": 2797,
+      "original_sha256": "4e8f27dea82ba7f79f889a5403d41997c8b7e481268baafa9373da4b5eb1a001"
+    },
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/include/joy_utils/stop_arbiter.hpp": {
+      "sha256": "da26f07cabc33779742d2c2782a72409f265ff712a4fe0df25961b5a3c4fe510",
+      "bytes": 12871,
+      "original_sha256": null
+    },
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/package.xml": {
+      "sha256": "5fbecd62157a0876d58fc8c1afde5e9abd83fe6d2705447c381d2153e05f64ad",
+      "bytes": 787,
+      "original_sha256": "6210aa9e75d28bf0c6f74951c03a4858025ce0db10070c57eb30a674164c9e3b"
+    },
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/src/estop_controller.cpp": {
+      "sha256": "ca48c83beeeec26cbc2900d0bfd27302917634093f80f480006a984cf8378d6d",
+      "bytes": 13304,
+      "original_sha256": "f4ac054baab1d47e2adca3034b98090034b453c76a7f57b0327e65921afe4667"
+    },
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/test/test_estop_parameter_contract.cpp": {
+      "sha256": "0e7a01e2c68b43a76921783f3023088eadde889d3809d1ba464eae88f174a64c",
+      "bytes": 4384,
+      "original_sha256": "05559d499a7830464a1c39836ef9662935b2fce229b4544d8db8e3bc38629e6d"
+    },
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/test/test_inventory_barrier.cpp": {
+      "sha256": "00787051f16442488726aacfcd333379aa0619d7542a23e029edf92bae885e34",
+      "bytes": 3156,
+      "original_sha256": null
+    },
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/test/test_stop_arbiter.cpp": {
+      "sha256": "9a5fe16a349a618f87623ff619ab9a1e213766411ddeec00a3ed46456522c061",
+      "bytes": 12538,
+      "original_sha256": null
+    },
+    "pupperv3-monorepo/ros2_ws/src/joy_utils/test/test_stop_gateway_dds.cpp": {
+      "sha256": "4e91d55b2b200c136b12633ee9a9b6469bb4e5d4960153fd55d0e4faba29d3a4",
+      "bytes": 10926,
+      "original_sha256": null
+    }
+  },
+  "scope": "Separate cloned software/install overlay; no launch or hardware action. Existing overlay and original coursework remain untouched."
+}

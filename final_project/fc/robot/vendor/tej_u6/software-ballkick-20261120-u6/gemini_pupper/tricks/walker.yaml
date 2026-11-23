@@ -1,0 +1,7 @@
+# gemini_walk blend-in for the soccer release (robot/tricks.py walker_config). The course values
+# are 2 s + 2 s; they exist to lift the robot from the floor. Here gemini_walk starts in 0.5 s, and
+# stand_first names the controller that stands the robot up at the course pace when it does not stand.
+init_duration: 0.2
+fade_in_duration: 0.3
+stand_first: neural_controller_default
+stand_first_s: 2.3

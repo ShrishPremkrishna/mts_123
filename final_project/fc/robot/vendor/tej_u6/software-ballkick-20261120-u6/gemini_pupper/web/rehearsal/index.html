@@ -1,0 +1,9 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pupper offline browser media rehearsal</title><style>
+body{font:16px system-ui;max-width:950px;margin:36px auto;padding:0 22px;background:#f6f7f9;color:#15202b}button{padding:12px 18px;margin:8px 8px 8px 0}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:white;padding:18px;border:1px solid #ccd3db}h1{font-size:26px}.note{color:#435369}
+</style></head><body><h1>Offline browser media rehearsal</h1>
+<p>Real production service and WebAudio. Synthetic audio and canvas video; mock Google messages; localhost fake robot API. No microphone, camera, API key, robot or physical proof.</p>
+<p class="note">The target must identify itself as fake before every HTTP mutation. A held WAV decode tests whether a later Stop callback can finish independently. Canvas red-to-blue updates also exercise production JPEG encoding and discard a held conversion after disconnect. Synthetic fixtures are not camera, speech-recognition or cloud-latency evidence.</p>
+<button id="run">Run synthetic rehearsal</button><button id="stop">Stop fake queue and disconnect</button><button id="download">Download receipt</button>
+<pre id="state">Ready. The fake API defaults to http://127.0.0.1:18091; override with ?api=loopback-origin.</pre><pre id="events"></pre>
+<script type="module" src="./rehearsal.js"></script></body></html>

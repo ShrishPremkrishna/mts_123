@@ -1,0 +1,25 @@
+{
+  "evaluation_source": "/private/tmp/ws1-spider-swim-handoff-20261102/handoff.json",
+  "walk_policy_sha256": "052dc8bbb18279deea8eccf58c894123fcb4b3ae7fe8f35560c324ff0378afe0",
+  "speed": 0.1,
+  "max_forward": 0.1,
+  "max_sideways": 0.1,
+  "turn": 11.459155902616466,
+  "limit_semantics": "Experimental nominal-tested command caps, NOT calibrated achieved physical speeds. Forward/backward and positive turn from the existing reviewed nominal chain; signed sideways from two targeted fresh nominal worlds. Negative turning at this cap remains untested.",
+  "hardware_validated": false,
+  "promoted": false,
+  "response_summary": {
+    "forward_mean_m_s": 0.07767372551201096,
+    "backward_mean_m_s": -0.03923901395283544,
+    "positive_turn_mean_rad_s": 0.22405405346609855,
+    "sideways_positive_mean_vx_vy_m_s": [
+      0.019315020371353995,
+      0.01458492420592559
+    ],
+    "sideways_negative_mean_vx_vy_m_s": [
+      0.013571341974527152,
+      -0.013940735525436069
+    ]
+  },
+  "adverse_evidence": "foundation/results/spider-encoder-native-reviewed.json: all eight adverse chains failed the quiet-return criterion; support/contact and drift limitations remain."
+}

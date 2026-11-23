@@ -1,0 +1,225 @@
+"""Part 4: Tricks. TODO 7 (play_trick), then TODO 8 (what Gemini reads about it).
+
+Read it top to bottom: play_trick (yours) checks the request and queues the
+job; play_policy_trick (finished: read it) is that job; the play_trick tool
+(yours: its words) is what Gemini calls.
+
+Two kinds of trick, both played by a trick policy (trick mode). A playback trick
+(trick.interactive is False), like sit, plays one reference motion from start to
+finish; its tracking policy keeps Pupper balanced while it plays. An interactive
+trick (trick.interactive is True), like sit_stay_shake, is one Pupper stays in:
+it plays its opening clips, then loops one (the "stay") until Gemini asks for
+another (interactive_action, Part 5), or any other motion leaves it through its exit
+clip (trick.exit_clip).
+"""
+
+from __future__ import annotations
+
+from basics import PREPARES_MOVE
+from part3_follow import prepare_to_move
+from robot_api import FELL_MESSAGE, LOCOMOTION, LOCOMOTION_CONTROLLER, WALK_READY_S, Result, Robot, not_written, with_note  # noqa: F401
+from tool_registry import TRICK_NAMES, Param, tool
+from tricks import Trick
+from trick_quantity import validate_trick_quantity
+
+
+# ============================================================ what the robot does
+async def play_trick(robot: Robot, name: str, *, count: int = 1) -> Result:
+    """Play a trick from <repo>/tricks. Every trick in the lab is played by trick
+    policies on their own controllers (the job is play_policy_trick below).
+
+    TODO 7 (Part 4) ------------------------------------------------------------
+    Now:                 an unknown name fails with f"unknown trick '{name}';
+                         available: {list(robot.tricks)}"; leave follow mode.
+    Later (the job):     play_policy_trick(robot, trick), below: read it.
+    Gemini hears now:    robot.queue(f"trick {name}", job, trick.total_time,
+                         then=...) with the note in front.
+                         then is the state Pupper is in once the job is done
+                         (play_policy_trick's step 4): LOCOMOTION after a
+                         playback trick that ends standing (the job hands the
+                         legs back), else the trick itself (an interactive trick
+                         stays in it; any other trick holds its end pose).
+    Tests check:         - an unknown name fails, and the message lists the real names.
+                           Passes: "unknown trick 'backflip'; available: ['bow', ...]"
+                           Fails:  "unknown trick"
+                         - a real trick is accepted right away ("trick bow queued; ...")
+                         - the queued job is play_policy_trick: the trick's
+                           controller takes the legs for trick.total_time, and the
+                           job's outcomes ("back in locomotion mode", "holds its
+                           final pose", "already doing ...") come from it
+                         - then=: LOCOMOTION after a trick that ends standing, else
+                           the trick (asking for an interactive trick again while
+                           Pupper is in it says "already doing ...")
+                         - with follow mode on, the reply contains "follow" (the note)
+    Test:                python3 lab/test.py todo7
+
+    Optional, after the lab: the jump. Pupper's default locomotion policy can
+    already jump (you have seen it on the gamepad). Give Gemini that jump:
+    rename tricks/jump/trick.yaml.optional to trick.yaml, and make a trick of
+    trick.kind == "reference" play with robot.play_reference_trick(trick)
+    instead. Test: python3 lab/test.py optional_jump
+    """
+    # ========== TODO 7: YOUR CODE HERE ==========
+    # NOW:
+    # 1. trick = robot.tricks.get(name). If it is None, fail, and list the real names: list(robot.tricks).
+    # 2. note = await prepare_to_move(robot)
+    # THE JOB:
+    # 3. job = lambda: play_policy_trick(robot, trick)
+    #    (a lambda is a function in one line: robot.queue calls it later, when it's the trick's turn)
+    # QUEUE IT:
+    # 4. Decide then: which state is Pupper in once the job is done? (Read the card above.)
+    # 5. return with_note(note, await robot.queue(f"trick {name}", job, trick.total_time, then=...))
+    trick = robot.offered_tricks().get(name)  # tool_only tricks (the leg kick) belong to their tool
+    if trick is None:
+        return Result(False, f"unknown trick '{name}'; available: {list(robot.offered_tricks())}")
+    refused = validate_trick_quantity(count, "routine_playback", trick=trick)
+    if refused is not None:
+        return refused
+    if robot.fallen:
+        return Result(False, FELL_MESSAGE)
+    note = await prepare_to_move(robot)
+    if isinstance(note, Result):
+        return note
+
+    async def job() -> Result:
+        # One accepted job owns both swim playbacks. A failure or cancellation
+        # aborts the remainder; the queue's existing failure cascade handles any
+        # later dependent commands. Each playback retains its own endpoint token.
+        for index in range(count):
+            if robot.stopped_during_call():
+                return Result(False, "trick playback cancelled by a stop")
+            if robot.fallen:
+                return Result(False, FELL_MESSAGE)
+            result = (await robot.play_reference_trick(trick) if trick.kind == "reference"
+                      else await play_policy_trick(robot, trick))
+            if not result.ok:
+                if count == 1:
+                    return result
+                return Result(False, f"{name} playback {index + 1}/{count} failed: {result.message}", result.details)
+        if count == 1:
+            return result
+        return Result(True, f"controller playback completed for {name} (2 routine playbacks); "
+                            f"holding final controller frame (configured target pose: {trick.end_pose})")
+
+    then = LOCOMOTION if trick.kind == "reference" or (not trick.interactive and trick.end_pose == "standing") else trick
+    controller = LOCOMOTION_CONTROLLER if trick.kind == "reference" else trick.controller
+    estimate = count * trick.total_time + robot.transition_time_estimate(controller)
+    if trick.kind == "policy":
+        estimate += count * 0.3  # full blend-in/playback and pad for each activation
+        if not trick.interactive and trick.end_pose == "standing":
+            estimate += WALK_READY_S  # switch_to waits for the final walking handoff
+    # The same-swim reset adds no timed wait; ROS service latency is unknown,
+    # as for a single playback. A stand is not inserted between lying endpoints.
+    label = f"trick {name}" if count == 1 else f"trick {name} x{count} routine playbacks"
+    return with_note(note, await robot.queue(label, job, estimate, then=then))
+    # ====================================
+
+
+async def play_policy_trick(robot: Robot, trick: Trick) -> Result:
+    """The job that plays a policy trick (finished: read it).
+
+    Your play_trick (TODO 7) queues this; it runs when the queue gets to the
+    trick. It gives the legs to the trick's controller (trick mode), waits while
+    the trick plays, then leaves the robot in the right state, and says which:
+    Gemini (and robot_status) can only plan the next move if it knows. The four
+    steps:
+
+    1. An interactive trick Pupper is already in: nothing to do.
+    2. A playback trick still holding the end of its last run (Pupper is still
+       in its state): relax first. Switching to a controller that is already on
+       does nothing at all, so without this "swim again" would just keep lying
+       there.
+    3. Give the legs to the trick, and wait while it plays.
+    4. Afterwards: an interactive trick stays (Pupper is in it until another
+       motion), and one that walks in its own stance (the spider, Part 6) hands
+       the legs to its walking policy; a playback trick that ends standing hands
+       the legs back to the locomotion policy; any other trick holds its final
+       pose.
+
+    Examples (the handout has them as a table):
+      sit (ends standing), in locomotion   -> "played sit; back in locomotion mode"
+      swim (ends lying), in locomotion     -> "played swim; it holds its final pose (lying)"
+      swim again, still lying from swim    -> relaxes first (step 2), then the same
+      sit_stay_shake (interactive)         -> "played sit_stay_shake; it now stays sitting. Trick
+                                              actions: shake_left, shake_right, stand_up. ..."
+      sit_stay_shake, already in it        -> "already doing sit_stay_shake"
+    """
+    if robot.fallen:
+        return Result(False, FELL_MESSAGE)
+    if trick.interactive and robot.state_now is trick:  # 1. already in it
+        return Result(True, f"{trick.name} controller already selected; no new entry playback")
+    if not trick.interactive and robot.state_now is trick:
+        # 2. Still holding this trick's end pose: relax, so switching to it restarts it.
+        res = await robot.switch_to(None)
+        if not res.ok:
+            return res
+    res = await robot.switch_to(trick.controller)  # 3. the trick takes the legs
+    if not res.ok:
+        return res
+    await robot.sleep(trick.play_time + 0.3)  # ... and plays
+    if robot.fallen:
+        return Result(False, f"{trick.name} ended in a fall: {FELL_MESSAGE}")
+    if not trick.interactive:
+        confirmed = await robot.confirm_finite_endpoint(trick)
+        if not confirmed.ok:
+            return confirmed
+    if trick.interactive:  # 4. it stays in its looping clip until asked for an action
+        confirmed = await robot.confirm_clip_endpoint(trick)
+        if not confirmed.ok:
+            return confirmed
+        actions = ", ".join(trick.actions) or "none"
+        leave = f" Any other motion first plays {trick.exit_clip}." if trick.exit_clip else ""
+        if trick.walks:  # ... and a trick that walks in its stance hands the legs to its walking policy
+            res = await robot.switch_to(trick.walk_controller)
+            if not res.ok:
+                return Result(False, f"played {trick.name}, but its walking policy did not take over: {res.message}")
+            await robot.sleep(WALK_READY_S)  # it eases into the stance, then fades its policy in
+            if robot.fallen or robot.stopped_during_call():
+                return Result(False, "walking trick interrupted by a fall or stop")
+            return Result(True, f"controller entry playback confirmed for {trick.name}; walking controller active, "
+                                f"configured target pose: {trick.end_pose}. {trick.walk.describe()} "
+                                f"Interactive actions: {actions}.{leave}")
+        return Result(True, f"controller entry playback confirmed for {trick.name}; configured target pose: {trick.end_pose}. Interactive actions: {actions}.{leave}")
+    if trick.end_pose == "standing":  # 4. hand back to the locomotion policy
+        res = await robot.switch_to(LOCOMOTION_CONTROLLER)
+        if not res.ok:
+            return Result(False, f"played {trick.name} but could not return to locomotion mode: {res.message}")
+        return Result(True, f"controller playback completed for {trick.name}; locomotion controller active")
+    return Result(True, f"controller playback completed for {trick.name}; holding final controller frame (configured target pose: {trick.end_pose})")  # 4. it stays
+
+
+# ============================================================ what Gemini reads
+# TODO 8: describe play_trick for Gemini. {tricks} in a description becomes the
+# list of installed tricks (each with its description from its trick.yaml).
+# Gemini needs to know that each trick says whether it starts standing or lying
+# down, and that the robot keeps a trick's final pose until the next motion.
+#   Tests check:
+#   - the description is 20+ characters, and name is described
+#   - it contains {tricks} (every trick's own description appears in it).
+#     Fails: listing the tricks by hand (it goes stale when a trick is added)
+#   - name keeps enum=TRICK_NAMES
+#   - it contains the word "pose": "A trick keeps its final pose until the next motion."
+#   Test: python3 lab/test.py todo8
+# ========== TODO 8: YOUR CODE HERE ==========
+@tool(
+    "play_trick",
+    "Play an installed recorded routine, not a measured physical repetition. Copy the person's explicit quantity"
+    " into count and distinguish routine_playback from physical_repetition; do not silently substitute or split requests."
+    " Use count_unit=routine_playback: count=1 for any installed trick, or count=2 only for finite swim (swim twice)."
+    " Two swim playbacks are one queued request; the existing lying-endpoint reset restarts the routine without a stand between."
+    " Other counts and all physical_repetition counts are refused. Do not append standing unless requested."
+    " Read its description and starting pose before choosing. A playback trick keeps its final"
+    " pose unless it ends standing; an interactive trick stays until an action or another motion leaves it."
+    " Use sit_stay_shake for sit-and-stay once installed. A queued reply means accepted, not already completed."
+    + PREPARES_MOVE + "\nAvailable tricks:\n{tricks}",
+    name=Param("string", "Exact installed trick name from the available list.", enum=TRICK_NAMES),
+    count=Param("integer", "Requested quantity, 1 through 10. Copy an explicit user count; use 1 only when the person requested one or did not specify a quantity."),
+    count_unit=Param("string", "routine_playback means the entire recorded routine; physical_repetition means counted exercises such as ten push-ups. Physical counts are unsupported; call with the requested count to obtain an honest refusal.", enum=["routine_playback", "physical_repetition"]),
+    _ends_following=True,
+)
+# ====================================
+async def play_trick_tool(robot: Robot, name: str, count: int, count_unit: str) -> Result:
+    refused = validate_trick_quantity(count, count_unit, trick=robot.tricks.get(name))
+    if refused is not None:
+        return refused
+    return await play_trick(robot, name, count=count)

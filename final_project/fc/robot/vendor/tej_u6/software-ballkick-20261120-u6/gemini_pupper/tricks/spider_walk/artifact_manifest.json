@@ -1,0 +1,27 @@
+{
+  "policy_run": null,
+  "walk_run": null,
+  "policy_source": {
+    "type": "local",
+    "path": "/Users/shrish/workspace/cs123-foundation/artifacts/lab6/spider-encoder-native-v1/native/nominal/measured/trick-policy.json",
+    "sha256": "a1be106405c02f92f323a468898552b31fd1f30d1093f6e21185b15567a430fb"
+  },
+  "walk_source": {
+    "type": "local",
+    "path": "/Users/shrish/workspace/cs123-foundation/artifacts/lab6/spider-encoder-native-v1/inputs/measured/policy.json",
+    "sha256": "052dc8bbb18279deea8eccf58c894123fcb4b3ae7fe8f35560c324ff0378afe0"
+  },
+  "files": {
+    "policy.json": "a1be106405c02f92f323a468898552b31fd1f30d1093f6e21185b15567a430fb",
+    "walk_policy.json": "052dc8bbb18279deea8eccf58c894123fcb4b3ae7fe8f35560c324ff0378afe0",
+    "walk_limits.json": "f20a32e1d7465374a360fa77423b79fc7105d8199f2b06d80727e2cf4f89515a",
+    "trick.yaml": "7bb137186d2c3a8a3a4d7f5386f85c731075ce83c985760861aedb051cf80326"
+  },
+  "hardware_validated": false,
+  "ta_approval_recorded": false,
+  "walk_limits_source": {
+    "path": "/private/tmp/ws1-spider-swim-handoff-20261102/experimental-walk-limits.json",
+    "sha256": "f20a32e1d7465374a360fa77423b79fc7105d8199f2b06d80727e2cf4f89515a",
+    "walk_policy_sha256": "052dc8bbb18279deea8eccf58c894123fcb4b3ae7fe8f35560c324ff0378afe0"
+  }
+}

@@ -1,0 +1,1724 @@
+{
+  "schema": "ws1_application_delta_v1",
+  "source_checkout_head": "cdae59825be048e79a79076f65b11a2ad9da30a1",
+  "source_identity": "Final freeze 032af230974b73101d88b668b1f249cd660d520fed0a4cdeca0140ebd1bb049d at HEAD cdae59825be048e79a79076f65b11a2ad9da30a1; client index-Cr13ul_q.js. Packaged by package_app.py; no build.",
+  "baseline_remote_path": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r5",
+  "destination_remote_path": "/home/pi/pupper-foundation-session-20261029/software-ballkick-20261120-u6",
+  "baseline_manifest_sha256": "290aa2f7d8dea629ab0fe1f343664481ce3a4c8760b8390b72f4bad03d862ea8",
+  "required_baseline_files": [
+    {
+      "path": "follow_me_pupper/lab/avoidance.py",
+      "sha256": "aabdac0228941b2029f11d174e41dfc3d406a053ada19608b610c29e898a25e0"
+    },
+    {
+      "path": "follow_me_pupper/lab/boxes.py",
+      "sha256": "96a12a08682b68404cf2158b05adbab3f404cd44665d1a15fb514c44f011e466"
+    },
+    {
+      "path": "follow_me_pupper/lab/follow_me.py",
+      "sha256": "fa9478cf124dbe1ad4f6bacedb250251ab48b4445cc8e11bf5e1e87a5b57e076"
+    },
+    {
+      "path": "follow_me_pupper/lab/target_lock.py",
+      "sha256": "15c80ce89bae3ba6d0795d0e726680c0eeee9431b3bf1ac3d5f7f6d6da8a30dd"
+    },
+    {
+      "path": "follow_me_pupper/lab/test.py",
+      "sha256": "94297f61c81c55954d73ef6561baebca5a3ff40c563870b1336cb05f70950041"
+    },
+    {
+      "path": "follow_me_pupper/robot/camera_params.yaml",
+      "sha256": "a6ab2537a1751571139c9a596fe422a3acfc7472fd3ec50c74442359ec9ff5a7"
+    },
+    {
+      "path": "follow_me_pupper/robot/coco.txt",
+      "sha256": "bd17f1ee35d5f3c862a4894605855abbb9dda4b0621fdb0ac4c2c8c7bb7e730a"
+    },
+    {
+      "path": "follow_me_pupper/robot/fisheye_converter.py",
+      "sha256": "703eed7ee0c79974536cb6495780f2ed1ad50add2ec58daffa7e66f5be866385"
+    },
+    {
+      "path": "follow_me_pupper/robot/follow_me.launch.py",
+      "sha256": "f8d211bd8de1c540c0e1d5ca24947c3e5387ec967a5384e144102a950e7fec60"
+    },
+    {
+      "path": "follow_me_pupper/robot/follow_service.py",
+      "sha256": "96bd7658e5c61c5c296b5a2cada6c67a2486272c2dddfcd241cd16802f592c76"
+    },
+    {
+      "path": "follow_me_pupper/robot/karel.py",
+      "sha256": "18c032fe8bf33e4417f95a5b14f52a821e27ab02de64110afa42c5c5032328c4"
+    },
+    {
+      "path": "follow_me_pupper/robot/lab_checks.py",
+      "sha256": "0e935780f788c807ca93dce7976f887da9b0f267ac9d9cd6416b70a21b47cfbf"
+    },
+    {
+      "path": "follow_me_pupper/robot/perception_safety.py",
+      "sha256": "79c84eb7a67432853e8adc145398e549e2208aae6d9c76c90fbb912d63e2e6aa"
+    },
+    {
+      "path": "follow_me_pupper/robot/test_tracking.py",
+      "sha256": "cdc5343cfaddc9056ed111093cd69eb9a239bc8a1e224c6efbb953eefa26f047"
+    },
+    {
+      "path": "follow_me_pupper/robot/viser_camera.py",
+      "sha256": "430bafea0b1117caf2bd9b87292f43d044a54a27f39dc6321c7685cd881674d7"
+    },
+    {
+      "path": "follow_me_pupper/robot/yolo_seg.py",
+      "sha256": "8290bd34a4f0a6406437d65b6085460b9c8289b0f731bf4be522c5fee9df9b87"
+    },
+    {
+      "path": "follow_me_pupper/robot/yolov8n_seg.hef",
+      "sha256": "3e91fd4c8be77a560169185bd8cba7e6a6b9ab8be14ea118d5e9d054df51ca36"
+    },
+    {
+      "path": "foundation/hardware/floor_stock/baseline-expanded.urdf",
+      "sha256": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44"
+    },
+    {
+      "path": "foundation/hardware/floor_stock/shutdown_coordinator.py",
+      "sha256": "0a2e9825b912319bbb1a0bb200be251b297ef6e08bf9a7286f9408b098e8ee12"
+    },
+    {
+      "path": "foundation/hardware/lab6-session.yaml",
+      "sha256": "d7542febd4fd382d3c3e71e0c5a3fb8ea7a5b140f87ff1cb12ead1982d3854c0"
+    },
+    {
+      "path": "foundation/hardware/lab6_session.launch.py",
+      "sha256": "02c2efb0888db3edcbc25c1b1c88952fade496e1520b3c48f6bdb6f582308044"
+    },
+    {
+      "path": "foundation/hardware/persistent_session.py",
+      "sha256": "490fd84bd3ce1de25e237f378819f65156a77a913a25943a5556adb72e836236"
+    },
+    {
+      "path": "foundation/hardware/stage_app.py",
+      "sha256": "cef31f55681bc03eeb9c7c04d237ead6ba0425eebfe38824dcbd123e31852973"
+    },
+    {
+      "path": "gemini_pupper/README.md",
+      "sha256": "2de89b51c859635c7ad5ca3123728f6997dc6b1fe84366e417cf6f3367b609e7"
+    },
+    {
+      "path": "gemini_pupper/conversation_guard.json",
+      "sha256": "ae74676ca1804d84a82ab6ad328f1cb42a3174e95e5a4caaa6704c015c6638ed"
+    },
+    {
+      "path": "gemini_pupper/lab/basics.py",
+      "sha256": "195c070e6bd50e28dc1df02142c8f3389c7f92a704136372d14c8782360beb66"
+    },
+    {
+      "path": "gemini_pupper/lab/chat.py",
+      "sha256": "65e87c7a25454ee206c9ce01d8ad6ee5fd8f487e629ab401056cdcb18b941566"
+    },
+    {
+      "path": "gemini_pupper/lab/part2_walk.py",
+      "sha256": "7033e4e26619515973857ffaf7c65b6fc63c7fa550e41d1482c0a8a8028132d7"
+    },
+    {
+      "path": "gemini_pupper/lab/part3_follow.py",
+      "sha256": "518f87ce0ad203088081ec2f98f35be6fc7819f65331f834dd2687494628e143"
+    },
+    {
+      "path": "gemini_pupper/lab/part4_tricks.py",
+      "sha256": "dfc0e5bf835aaa7997bee85f96f8bfc61847d50376083ee90cf40ad18ae1cc29"
+    },
+    {
+      "path": "gemini_pupper/lab/part5_interactive_action.py",
+      "sha256": "f8bc560b016b7b00256d634223a2c9b4a829073fe372a09f3b96b33196b481d0"
+    },
+    {
+      "path": "gemini_pupper/lab/part8_secrets.py",
+      "sha256": "75eb160afd591460be0c964b0c63244ea0ce14c7d482f99dac6db9ddfec5c75c"
+    },
+    {
+      "path": "gemini_pupper/lab/prompt.md",
+      "sha256": "15d97cb1c58ba9dd19ecef8a3b1dc6f3d1d058e0bc223b74f1f49e76998ffa84"
+    },
+    {
+      "path": "gemini_pupper/lab/test.py",
+      "sha256": "49afc36326516f12e55fa70d8f5108cf90c8bfef19cdcfc6fd3b08d22e466308"
+    },
+    {
+      "path": "gemini_pupper/lab/test_skill_sequences.py",
+      "sha256": "8e454d8e127e89dd2bd5af7353904d3f13c9c024c7ab9158da1c33e58edc0fb9"
+    },
+    {
+      "path": "gemini_pupper/robot/camera_params.yaml",
+      "sha256": "c3d549fe6a30362adfc81c625dc7f5379b3597433f53df0569cb649af9527a13"
+    },
+    {
+      "path": "gemini_pupper/robot/controller_coverage.py",
+      "sha256": "6da12e6e494acc298e3237ae8e695a4d126b4e37c0a9a5c0951635e918f76f26"
+    },
+    {
+      "path": "gemini_pupper/robot/fake_server.py",
+      "sha256": "60194129b0ab0f4f66ea8eb5fa4875ecf1cba766d5d2b229aadc5838b817c468"
+    },
+    {
+      "path": "gemini_pupper/robot/fisheye_converter.py",
+      "sha256": "703eed7ee0c79974536cb6495780f2ed1ad50add2ec58daffa7e66f5be866385"
+    },
+    {
+      "path": "gemini_pupper/robot/gemini_chat.py",
+      "sha256": "a1b800d4f1983a43f9b9ef4fed8bb00b3634eba864bd1c862cce94f025276331"
+    },
+    {
+      "path": "gemini_pupper/robot/get_trick.py",
+      "sha256": "37f60f0bd3e8769621ae3318a856f4404222c29d177d0b1fdc8ffc5e4dcffada"
+    },
+    {
+      "path": "gemini_pupper/robot/kiosk.py",
+      "sha256": "86e2cb23bb101b7252b592669e31c5947949c3a03e7d5cfec3c212b5b0c44130"
+    },
+    {
+      "path": "gemini_pupper/robot/launch/gemini_pupper.launch.py",
+      "sha256": "48b9cfe1ba518e93833ec0c5ee20e9839af11810491dfa5898dda10022d5af3f"
+    },
+    {
+      "path": "gemini_pupper/robot/launch/gemini_pupper.yaml",
+      "sha256": "1062909b25bed8e5c2504faeb71e1b9975411796d9a42df19c2a214997c0e244"
+    },
+    {
+      "path": "gemini_pupper/robot/onboard_bootstrap.py",
+      "sha256": "c640f4758c5e08987ef6f2147bdc632836f012b8ca62835665f63613d8d8f373"
+    },
+    {
+      "path": "gemini_pupper/robot/operator_feedback.py",
+      "sha256": "9b600ae3c384b1f29c7ed7958ebb4132375e64c8fe972d7f73c6629b26394cca"
+    },
+    {
+      "path": "gemini_pupper/robot/preflight.py",
+      "sha256": "52581517317caa63b409ae073a497221b8a4a0c48c5fa756ce5576b13a687343"
+    },
+    {
+      "path": "gemini_pupper/robot/robot_api.py",
+      "sha256": "78ccbf62537d4edf4afc17fa44543a8449ae685522b6c61e3cf319daf1b1cb41"
+    },
+    {
+      "path": "gemini_pupper/robot/runtime_config.py",
+      "sha256": "c96c89458fb905549e73a8beab3b8ae23fb45b94941c40f4eedba6a1a7720913"
+    },
+    {
+      "path": "gemini_pupper/robot/secret_gate.py",
+      "sha256": "18707a3ccf0d76bd1669a629a90c6b445e1990a71582de44fce31d15e6e7c3aa"
+    },
+    {
+      "path": "gemini_pupper/robot/server.py",
+      "sha256": "f31491d6924618bf8583d3acc83e7c4f31209967e50534c8cd5cc49d830facf6"
+    },
+    {
+      "path": "gemini_pupper/robot/session_processes.py",
+      "sha256": "652569629cfdfcd15b2f8d6a0f3c369c86ff8077609fc9c5926d08039b26825d"
+    },
+    {
+      "path": "gemini_pupper/robot/setup.sh",
+      "sha256": "21fd57becab1b36ceffb1e29cd10a08480a30d60c46bb8a9d5fb3a2a4279dfb9"
+    },
+    {
+      "path": "gemini_pupper/robot/spawn_controllers.py",
+      "sha256": "b3766dff9fe8f6a2265ca19faaee8fa46f27c2a6fbe3037b70e2a57fc77ec697"
+    },
+    {
+      "path": "gemini_pupper/robot/start.sh",
+      "sha256": "9d63a93466254ccbcb34d98fef15fca91bfa7597d30f6184f7f0d2a93ddc407d"
+    },
+    {
+      "path": "gemini_pupper/robot/startup_readiness.py",
+      "sha256": "76c3160d639e81c10adaad3a3e809bc62063af5d2869942286601f5348255143"
+    },
+    {
+      "path": "gemini_pupper/robot/stop.sh",
+      "sha256": "2b43e545583a370b8603909eb86be1ea66bafc41a54b2b2e0330653dd823ba00"
+    },
+    {
+      "path": "gemini_pupper/robot/stop_status.py",
+      "sha256": "ccebd758a101f15023946363114c0b32f3b5717914326cac77605058ca0bb9ca"
+    },
+    {
+      "path": "gemini_pupper/robot/test_tools.py",
+      "sha256": "b34089fd98b58f0d9356792c86ec92b4998fffef517471ce3ba3196b2ad4f975"
+    },
+    {
+      "path": "gemini_pupper/robot/tool_registry.py",
+      "sha256": "c7a517dd1290c6876882a942ed09483450681ef9929c6650cee7e27b79e2fa47"
+    },
+    {
+      "path": "gemini_pupper/robot/trick_quantity.py",
+      "sha256": "c2ba920fd6548f97fb4bc001c4e5f0c14f1215b913736e1f0359b15010db82fe"
+    },
+    {
+      "path": "gemini_pupper/robot/tricks.py",
+      "sha256": "efc79594b097ee4688568c5db940c67960cac5dfc66f7407653d28ae1d337e8c"
+    },
+    {
+      "path": "gemini_pupper/web/App.tsx",
+      "sha256": "296fd9a7a775ffc976f62340d57c91cf42ca216597435950f45b00cf3ab0498a"
+    },
+    {
+      "path": "gemini_pupper/web/components/DebugPanel.tsx",
+      "sha256": "ed4e0a747243abe372094661b9031788391fad312c1565c0d60f3cc2d6c4b834"
+    },
+    {
+      "path": "gemini_pupper/web/components/DogFace.tsx",
+      "sha256": "b50a01d07d872a5ee2b955b80db12d5d5e01fa9d14e5063d1d01ed335fc92419"
+    },
+    {
+      "path": "gemini_pupper/web/components/ExecutionStatus.tsx",
+      "sha256": "19d6fe336852272568c7aa8ca50e7956934dc4f43678c6bdc3b814b30d841ac7"
+    },
+    {
+      "path": "gemini_pupper/web/components/Settings.tsx",
+      "sha256": "dfb43a7666582ee4b9a257ebbbc19e4f673affecc32ed6247c5b0e0e79a3f6e1"
+    },
+    {
+      "path": "gemini_pupper/web/constants.ts",
+      "sha256": "49b66c003289c11660b35eaf0cf3e3315eaba4e28bdfc1d90376ea1da580e2a8"
+    },
+    {
+      "path": "gemini_pupper/web/dist/assets/index-FXa-YGat.js",
+      "sha256": "2b9872d57d4601fb93a4985d731ecb419723826714588b3d177bbc5e9e1eb0b3"
+    },
+    {
+      "path": "gemini_pupper/web/dist/index.html",
+      "sha256": "1edb756b8811a568df948d4b1684348872918201c7c4cd1f5af1d45544888d0b"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/arc-queued.pcm",
+      "sha256": "1f8d9b0ccf8a17f66fed74a76b2d709d5e9fdf4f11efb58c765f010f1f099176"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/interactive-action-queued.pcm",
+      "sha256": "c9a4d53d74b908d38ada15094d4b1b78220a2aa4d3777df99eab7c5c40b6bc8f"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/left-paw-command-queued.pcm",
+      "sha256": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/move-queued.pcm",
+      "sha256": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/okay.pcm",
+      "sha256": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/physical-count-unsupported.pcm",
+      "sha256": "e294556f0393ef41b0de5b5aaefb755ff486b5c5bde9bfca4e84bd98f734ebbf"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/request-failed.pcm",
+      "sha256": "507d56b2c5aba5c401618940fda631c40ef47551c4404df0233b8673bd887ee6"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/right-paw-command-queued.pcm",
+      "sha256": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/stand-queued.pcm",
+      "sha256": "4e22d8279b7a47665cc40143e3413823addaccf5d797aa26fb4d6265dd15ddea"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/stop-requested.pcm",
+      "sha256": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/trick-queued.pcm",
+      "sha256": "7c483a3049d2954d264e4ea30a52d8478e053f1d5f4f14207c9c7d750ef2fec9"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/turn-queued.pcm",
+      "sha256": "73eabe99e6de558e3ff56ab3bf27599b23b57d6aa404bfc6c5b0de99308450ea"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/wait-queued.pcm",
+      "sha256": "9b85a84a3c29da07ac7b348fcdb82fd7bb5e1cc1bcbc1ebbef6cd07c182a7991"
+    },
+    {
+      "path": "gemini_pupper/web/images/blue_eyes.png",
+      "sha256": "c1df49e8e58216005a02de2dd68cf509df0195a3d9bb9d7e184e0adcfc9d3c45"
+    },
+    {
+      "path": "gemini_pupper/web/images/fullscreen_icon.svg",
+      "sha256": "5336eab58f9bf876d359a71e39741a8a8b339fe41f2b8c170957a4301ed9a7cd"
+    },
+    {
+      "path": "gemini_pupper/web/images/status_active.svg",
+      "sha256": "fd78d7e68097621c3ebaa67d341e9cea2f3abe41d564a61e4837df607b921d93"
+    },
+    {
+      "path": "gemini_pupper/web/images/status_inactive.svg",
+      "sha256": "9002df0678b198f9a507420ce3ea705faadf9e30ea54e0c3fbe3e7eb49b798b3"
+    },
+    {
+      "path": "gemini_pupper/web/images/status_loading.svg",
+      "sha256": "be6a5e99cad375d2b70d197e3fb5de1015b1edda90f7bd1e93875cd26c3e63ea"
+    },
+    {
+      "path": "gemini_pupper/web/images/status_unknown.svg",
+      "sha256": "c84b9820208e15cc41168ae83776ac204a2c032a52d10710e89b36ec15d2a8b9"
+    },
+    {
+      "path": "gemini_pupper/web/index.html",
+      "sha256": "0cb8172d257f4a447c4ef590c125141c5b8373b382e0e3880c9559dc993f8bf7"
+    },
+    {
+      "path": "gemini_pupper/web/index.tsx",
+      "sha256": "850366f90c85638abab2dd52d1f4a39a59a923c569b9af3e8562fafd5feedae3"
+    },
+    {
+      "path": "gemini_pupper/web/package-lock.json",
+      "sha256": "66df7abef00d4660adf44ce2c679cbe90df3a4a476d17da70b3a965b959156fa"
+    },
+    {
+      "path": "gemini_pupper/web/package.json",
+      "sha256": "1560e3ea507299812fe8ec7ce1de736568bd596bcbf61e614d2f08015328bcde"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/arc-queued.pcm",
+      "sha256": "1f8d9b0ccf8a17f66fed74a76b2d709d5e9fdf4f11efb58c765f010f1f099176"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/interactive-action-queued.pcm",
+      "sha256": "c9a4d53d74b908d38ada15094d4b1b78220a2aa4d3777df99eab7c5c40b6bc8f"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/left-paw-command-queued.pcm",
+      "sha256": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/move-queued.pcm",
+      "sha256": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/okay.pcm",
+      "sha256": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/physical-count-unsupported.pcm",
+      "sha256": "e294556f0393ef41b0de5b5aaefb755ff486b5c5bde9bfca4e84bd98f734ebbf"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/request-failed.pcm",
+      "sha256": "507d56b2c5aba5c401618940fda631c40ef47551c4404df0233b8673bd887ee6"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/right-paw-command-queued.pcm",
+      "sha256": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/stand-queued.pcm",
+      "sha256": "4e22d8279b7a47665cc40143e3413823addaccf5d797aa26fb4d6265dd15ddea"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/stop-requested.pcm",
+      "sha256": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/trick-queued.pcm",
+      "sha256": "7c483a3049d2954d264e4ea30a52d8478e053f1d5f4f14207c9c7d750ef2fec9"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/turn-queued.pcm",
+      "sha256": "73eabe99e6de558e3ff56ab3bf27599b23b57d6aa404bfc6c5b0de99308450ea"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/wait-queued.pcm",
+      "sha256": "9b85a84a3c29da07ac7b348fcdb82fd7bb5e1cc1bcbc1ebbef6cd07c182a7991"
+    },
+    {
+      "path": "gemini_pupper/web/rehearsal/build.mjs",
+      "sha256": "58f04fe1fa4f823fb66949e22925c204442be41ca2b04f804469aabd8cbb5258"
+    },
+    {
+      "path": "gemini_pupper/web/rehearsal/fakeOnly.ts",
+      "sha256": "85929a8dfca46f0bf0991ead8d6856e5a742b8d4374e9355c9e3b73bb1798909"
+    },
+    {
+      "path": "gemini_pupper/web/rehearsal/index.html",
+      "sha256": "3181ba85140d7ae541a20ea791ab27f246b20eff418fa04427409fe1eb1f4e04"
+    },
+    {
+      "path": "gemini_pupper/web/rehearsal/main.ts",
+      "sha256": "c19b6f58f4e5283849226c16b35e6f5bb56a63e4a0c506607936b5a03440fa32"
+    },
+    {
+      "path": "gemini_pupper/web/rehearsal/mockGoogle.ts",
+      "sha256": "66f411b31c455a6421eef46763562581c5ae989e88d221dd9a16a8ef79d30b43"
+    },
+    {
+      "path": "gemini_pupper/web/services/audioUtils.ts",
+      "sha256": "1d535c0835a3f1edc48ecec1d95142965d1b7a186a1481307d1dfc865894891e"
+    },
+    {
+      "path": "gemini_pupper/web/services/conversationOutput.ts",
+      "sha256": "97259aedc4823332d97a4566d71108e5b850050ba02ad17f3fdfcf274d75615a"
+    },
+    {
+      "path": "gemini_pupper/web/services/executionStatus.ts",
+      "sha256": "46abc7ded2d1d31519175d823eea96500159b2951c556e8d81a8a14f516ce71b"
+    },
+    {
+      "path": "gemini_pupper/web/services/geminiLive.ts",
+      "sha256": "e91e4b83b7c66038e1a47f86ee83eefa1426bc759b6900f50ab858a4ed4b2d9d"
+    },
+    {
+      "path": "gemini_pupper/web/services/manualControls.ts",
+      "sha256": "6b53e15c61af0d5dc6ee58903fa9bc291a21669266e3155c81929fe3f4b4711d"
+    },
+    {
+      "path": "gemini_pupper/web/services/onboardBootstrap.ts",
+      "sha256": "778c961a2d24968304464f4e9319e6f60743f7f6885557c592c9a20edefe2d58"
+    },
+    {
+      "path": "gemini_pupper/web/services/operatorFeedback.ts",
+      "sha256": "bafcf6ea4d2cbc3808c328a608401b18335df001829213e5ec6ab9945c41de53"
+    },
+    {
+      "path": "gemini_pupper/web/services/receiptAudioCache.ts",
+      "sha256": "e8c1806e1ab32c13b37ced66b42c35f249d737cbb67e8012a427dcdc28c1633a"
+    },
+    {
+      "path": "gemini_pupper/web/services/receiptAudioManifest.json",
+      "sha256": "82ecfedf800b4416db3a7d7454da51d00a570477129537efabf46c4ff45995b2"
+    },
+    {
+      "path": "gemini_pupper/web/services/receiptAudioPreload.ts",
+      "sha256": "b2f320c0de01d5b9f7484b0fba50fe9968b4e7c1abb15a78e0d220c5d94eab85"
+    },
+    {
+      "path": "gemini_pupper/web/services/robotBridge.ts",
+      "sha256": "f486043dc0e68c8d87f3054788a33c01f363027666f83bb5c261d7d4e3aa76e5"
+    },
+    {
+      "path": "gemini_pupper/web/tsconfig.json",
+      "sha256": "8641deb29adfd1958488d1951f0d5ddf3013f498aa67ce0f621e347f0ef608d2"
+    },
+    {
+      "path": "gemini_pupper/web/types.ts",
+      "sha256": "019f08290f79ed7e521e7bfb864891a68663208c36eddd4e29656c9d250b292b"
+    },
+    {
+      "path": "gemini_pupper/web/vite.config.ts",
+      "sha256": "b22319974b9b76e844ce09e4526db577042cda11e15726f9e23c9b20f0b0668c"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/artifact_manifest.json",
+      "sha256": "f5290064d4bd99677a4c79f8ce839b8d95a267f114d17e217b56a584aaa306ac"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/policy.json",
+      "sha256": "a1be106405c02f92f323a468898552b31fd1f30d1093f6e21185b15567a430fb"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/trick.yaml",
+      "sha256": "7bb137186d2c3a8a3a4d7f5386f85c731075ce83c985760861aedb051cf80326"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/walk_limits.json",
+      "sha256": "f20a32e1d7465374a360fa77423b79fc7105d8199f2b06d80727e2cf4f89515a"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/walk_policy.json",
+      "sha256": "052dc8bbb18279deea8eccf58c894123fcb4b3ae7fe8f35560c324ff0378afe0"
+    },
+    {
+      "path": "gemini_pupper/tricks/swim/policy.json",
+      "sha256": "110de063dd48b0ad0f837c0108fb95fde822401cd3fe556b7dce10b53ed1e5f7"
+    },
+    {
+      "path": "gemini_pupper/tricks/swim/trick.yaml",
+      "sha256": "1877dc1b50a66da75214264e4a0105f602981b877758f0ed7b14d936c5fafd6e"
+    }
+  ],
+  "final_selected_files": [
+    {
+      "path": "follow_me_pupper/lab/avoidance.py",
+      "sha256": "aabdac0228941b2029f11d174e41dfc3d406a053ada19608b610c29e898a25e0"
+    },
+    {
+      "path": "follow_me_pupper/lab/boxes.py",
+      "sha256": "96a12a08682b68404cf2158b05adbab3f404cd44665d1a15fb514c44f011e466"
+    },
+    {
+      "path": "follow_me_pupper/lab/follow_me.py",
+      "sha256": "fa9478cf124dbe1ad4f6bacedb250251ab48b4445cc8e11bf5e1e87a5b57e076"
+    },
+    {
+      "path": "follow_me_pupper/lab/target_lock.py",
+      "sha256": "15c80ce89bae3ba6d0795d0e726680c0eeee9431b3bf1ac3d5f7f6d6da8a30dd"
+    },
+    {
+      "path": "follow_me_pupper/lab/test.py",
+      "sha256": "94297f61c81c55954d73ef6561baebca5a3ff40c563870b1336cb05f70950041"
+    },
+    {
+      "path": "follow_me_pupper/robot/camera_params.yaml",
+      "sha256": "a6ab2537a1751571139c9a596fe422a3acfc7472fd3ec50c74442359ec9ff5a7"
+    },
+    {
+      "path": "follow_me_pupper/robot/coco.txt",
+      "sha256": "bd17f1ee35d5f3c862a4894605855abbb9dda4b0621fdb0ac4c2c8c7bb7e730a"
+    },
+    {
+      "path": "follow_me_pupper/robot/fisheye_converter.py",
+      "sha256": "703eed7ee0c79974536cb6495780f2ed1ad50add2ec58daffa7e66f5be866385"
+    },
+    {
+      "path": "follow_me_pupper/robot/follow_me.launch.py",
+      "sha256": "f8d211bd8de1c540c0e1d5ca24947c3e5387ec967a5384e144102a950e7fec60"
+    },
+    {
+      "path": "follow_me_pupper/robot/follow_service.py",
+      "sha256": "96bd7658e5c61c5c296b5a2cada6c67a2486272c2dddfcd241cd16802f592c76"
+    },
+    {
+      "path": "follow_me_pupper/robot/karel.py",
+      "sha256": "18c032fe8bf33e4417f95a5b14f52a821e27ab02de64110afa42c5c5032328c4"
+    },
+    {
+      "path": "follow_me_pupper/robot/lab_checks.py",
+      "sha256": "0e935780f788c807ca93dce7976f887da9b0f267ac9d9cd6416b70a21b47cfbf"
+    },
+    {
+      "path": "follow_me_pupper/robot/perception_safety.py",
+      "sha256": "79c84eb7a67432853e8adc145398e549e2208aae6d9c76c90fbb912d63e2e6aa"
+    },
+    {
+      "path": "follow_me_pupper/robot/test_tracking.py",
+      "sha256": "cdc5343cfaddc9056ed111093cd69eb9a239bc8a1e224c6efbb953eefa26f047"
+    },
+    {
+      "path": "follow_me_pupper/robot/viser_camera.py",
+      "sha256": "430bafea0b1117caf2bd9b87292f43d044a54a27f39dc6321c7685cd881674d7"
+    },
+    {
+      "path": "follow_me_pupper/robot/yolo_seg.py",
+      "sha256": "8290bd34a4f0a6406437d65b6085460b9c8289b0f731bf4be522c5fee9df9b87"
+    },
+    {
+      "path": "follow_me_pupper/robot/yolov8n_seg.hef",
+      "sha256": "3e91fd4c8be77a560169185bd8cba7e6a6b9ab8be14ea118d5e9d054df51ca36"
+    },
+    {
+      "path": "foundation/hardware/floor_stock/baseline-expanded.urdf",
+      "sha256": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44"
+    },
+    {
+      "path": "foundation/hardware/floor_stock/shutdown_coordinator.py",
+      "sha256": "0a2e9825b912319bbb1a0bb200be251b297ef6e08bf9a7286f9408b098e8ee12"
+    },
+    {
+      "path": "foundation/hardware/lab6-session.yaml",
+      "sha256": "d7542febd4fd382d3c3e71e0c5a3fb8ea7a5b140f87ff1cb12ead1982d3854c0"
+    },
+    {
+      "path": "foundation/hardware/lab6_session.launch.py",
+      "sha256": "7a96bae86b310fb94d97ece6123f553103d21c9949b8d9d2e188f5ac0d51a2f8"
+    },
+    {
+      "path": "foundation/hardware/persistent_session.py",
+      "sha256": "50cea68016c72773d747754a53b35787648edacf87f17acbf5ebc96309626bde"
+    },
+    {
+      "path": "foundation/hardware/stage_app.py",
+      "sha256": "cef31f55681bc03eeb9c7c04d237ead6ba0425eebfe38824dcbd123e31852973"
+    },
+    {
+      "path": "gemini_pupper/README.md",
+      "sha256": "dc34f9140b56035a16ba9130de0106b5e8bcda5025fb06b7f33fa2a39c029df0"
+    },
+    {
+      "path": "gemini_pupper/conversation_guard.json",
+      "sha256": "ae74676ca1804d84a82ab6ad328f1cb42a3174e95e5a4caaa6704c015c6638ed"
+    },
+    {
+      "path": "gemini_pupper/lab/ball_eye.py",
+      "sha256": "fd2559408155c9c94c0af3706a88d46af6bb646471d4ebf782ddeba8ed351f73"
+    },
+    {
+      "path": "gemini_pupper/lab/ball_lineup.py",
+      "sha256": "09bee2f11fc949f48206c599cff3a85747aa79e03d17d9002e45e73deaca74b0"
+    },
+    {
+      "path": "gemini_pupper/lab/basics.py",
+      "sha256": "77d02596f54c3b4378e428ac64351e0587bd815df699aa90eeff4599bfefecbb"
+    },
+    {
+      "path": "gemini_pupper/lab/chat.py",
+      "sha256": "65e87c7a25454ee206c9ce01d8ad6ee5fd8f487e629ab401056cdcb18b941566"
+    },
+    {
+      "path": "gemini_pupper/lab/part10_kick_seen.py",
+      "sha256": "83ef8f451852233e65ed310644fcf7fb4ef899c961a7d8554b9942d28e9df519"
+    },
+    {
+      "path": "gemini_pupper/lab/part2_walk.py",
+      "sha256": "970f3770261bdfc11895066c24aaa9aee4e1970d977a113e527d2d7cb0421367"
+    },
+    {
+      "path": "gemini_pupper/lab/part3_follow.py",
+      "sha256": "279b1f56026c438f80b6d10e7d3e789d797518d191518b9221d75290fda0f2e9"
+    },
+    {
+      "path": "gemini_pupper/lab/part4_tricks.py",
+      "sha256": "ee095d8f93a288edee18d4f9468cb5db95065bc3821b24c2f6bba3e971be7b79"
+    },
+    {
+      "path": "gemini_pupper/lab/part5_interactive_action.py",
+      "sha256": "20e1dfbf265ae05d595406f0ca957c9070b943036799c6f8cf9dd6327f800b76"
+    },
+    {
+      "path": "gemini_pupper/lab/part9_ball_kick.py",
+      "sha256": "02b69aaced6ab95decf44ec1087fa5a19597d620daada6941bc32a1325e8744b"
+    },
+    {
+      "path": "gemini_pupper/lab/prompt.md",
+      "sha256": "4983ecee89d6551d81446885f93ccb391c9bc90f075e0c6539d6e10d8c572e87"
+    },
+    {
+      "path": "gemini_pupper/lab/test.py",
+      "sha256": "49afc36326516f12e55fa70d8f5108cf90c8bfef19cdcfc6fd3b08d22e466308"
+    },
+    {
+      "path": "gemini_pupper/lab/test_skill_sequences.py",
+      "sha256": "312889607770d435a01bb0cc6a11c49137f36b247609fa4c397995b07a55cd96"
+    },
+    {
+      "path": "gemini_pupper/robot/ball_kick.py",
+      "sha256": "40ed20a1bbc167c3a3fc4c1fc262572bf0571d3419e3b2693a64128fe3bc29cb"
+    },
+    {
+      "path": "gemini_pupper/robot/ball_seek.py",
+      "sha256": "5564f9c962d5a9e3acf5ae549389e6ef73d58f4b2602ca2dc5c961fe603500fa"
+    },
+    {
+      "path": "gemini_pupper/robot/ball_vision.py",
+      "sha256": "a42b14495f17c442d7f53a900a16f550046ad2468d5b0e773ddaa8e754dbe9a4"
+    },
+    {
+      "path": "gemini_pupper/robot/camera_params.yaml",
+      "sha256": "c3d549fe6a30362adfc81c625dc7f5379b3597433f53df0569cb649af9527a13"
+    },
+    {
+      "path": "gemini_pupper/robot/controller_coverage.py",
+      "sha256": "6da12e6e494acc298e3237ae8e695a4d126b4e37c0a9a5c0951635e918f76f26"
+    },
+    {
+      "path": "gemini_pupper/robot/fake_server.py",
+      "sha256": "60194129b0ab0f4f66ea8eb5fa4875ecf1cba766d5d2b229aadc5838b817c468"
+    },
+    {
+      "path": "gemini_pupper/robot/fisheye_converter.py",
+      "sha256": "703eed7ee0c79974536cb6495780f2ed1ad50add2ec58daffa7e66f5be866385"
+    },
+    {
+      "path": "gemini_pupper/robot/gemini_chat.py",
+      "sha256": "b1ef4e372c5f4eae4caba1a84ee1d9853a0b194bab5a8a34a1d382a6e2e7412e"
+    },
+    {
+      "path": "gemini_pupper/robot/get_trick.py",
+      "sha256": "77599a4983cbcae2dbc0f2825cc4e2f403d7b58601f311fbcbb98c753e2b63f8"
+    },
+    {
+      "path": "gemini_pupper/robot/kick_at.py",
+      "sha256": "9a0ad05a27cc6ab7356a3fbfbd4763ea53c4b0d4bd35977cf6fb4932126b11f9"
+    },
+    {
+      "path": "gemini_pupper/robot/kiosk.py",
+      "sha256": "834e3dc6925222107d40007a451ebbfc92ee67c02c3b0dac0f935af77aa6a533"
+    },
+    {
+      "path": "gemini_pupper/robot/launch/gemini_pupper.launch.py",
+      "sha256": "48b9cfe1ba518e93833ec0c5ee20e9839af11810491dfa5898dda10022d5af3f"
+    },
+    {
+      "path": "gemini_pupper/robot/launch/gemini_pupper.yaml",
+      "sha256": "1062909b25bed8e5c2504faeb71e1b9975411796d9a42df19c2a214997c0e244"
+    },
+    {
+      "path": "gemini_pupper/robot/onboard_bootstrap.py",
+      "sha256": "c640f4758c5e08987ef6f2147bdc632836f012b8ca62835665f63613d8d8f373"
+    },
+    {
+      "path": "gemini_pupper/robot/operator_feedback.py",
+      "sha256": "ab05e1be5eeb069c380cc2d62408fdd791940a817b2723530711cf740661ba07"
+    },
+    {
+      "path": "gemini_pupper/robot/preflight.py",
+      "sha256": "3751f6f244f0cb8e39cb248f380433adc1dece37935578a4ea3d9ca4d62c7714"
+    },
+    {
+      "path": "gemini_pupper/robot/robot_api.py",
+      "sha256": "698761142440806c48907ae050c1ada93b8c2e981f8658fad3d08c035334d396"
+    },
+    {
+      "path": "gemini_pupper/robot/runtime_config.py",
+      "sha256": "c96c89458fb905549e73a8beab3b8ae23fb45b94941c40f4eedba6a1a7720913"
+    },
+    {
+      "path": "gemini_pupper/robot/server.py",
+      "sha256": "253b26dc0d080147b9789c1402a519f429b058b980fafa8630f86ce4f0bbe3b6"
+    },
+    {
+      "path": "gemini_pupper/robot/session_processes.py",
+      "sha256": "652569629cfdfcd15b2f8d6a0f3c369c86ff8077609fc9c5926d08039b26825d"
+    },
+    {
+      "path": "gemini_pupper/robot/setup.sh",
+      "sha256": "21fd57becab1b36ceffb1e29cd10a08480a30d60c46bb8a9d5fb3a2a4279dfb9"
+    },
+    {
+      "path": "gemini_pupper/robot/spawn_controllers.py",
+      "sha256": "b3766dff9fe8f6a2265ca19faaee8fa46f27c2a6fbe3037b70e2a57fc77ec697"
+    },
+    {
+      "path": "gemini_pupper/robot/start.sh",
+      "sha256": "9d63a93466254ccbcb34d98fef15fca91bfa7597d30f6184f7f0d2a93ddc407d"
+    },
+    {
+      "path": "gemini_pupper/robot/startup_readiness.py",
+      "sha256": "76c3160d639e81c10adaad3a3e809bc62063af5d2869942286601f5348255143"
+    },
+    {
+      "path": "gemini_pupper/robot/stop.sh",
+      "sha256": "2b43e545583a370b8603909eb86be1ea66bafc41a54b2b2e0330653dd823ba00"
+    },
+    {
+      "path": "gemini_pupper/robot/stop_status.py",
+      "sha256": "ccebd758a101f15023946363114c0b32f3b5717914326cac77605058ca0bb9ca"
+    },
+    {
+      "path": "gemini_pupper/robot/test_tools.py",
+      "sha256": "3b6ebeb007d9df23761de4d10869a20248036003af625a3f9a27fd8ed91fc8c9"
+    },
+    {
+      "path": "gemini_pupper/robot/tool_registry.py",
+      "sha256": "ac80a8860ac838bb0a9c2fff2f54fff39105ddbead04244306a3a8bf56fb73f1"
+    },
+    {
+      "path": "gemini_pupper/robot/trick_quantity.py",
+      "sha256": "c2ba920fd6548f97fb4bc001c4e5f0c14f1215b913736e1f0359b15010db82fe"
+    },
+    {
+      "path": "gemini_pupper/robot/tricks.py",
+      "sha256": "c392d95f11308fd3f8b7a37d1c9df0d7e124dd701ad7dcb27c969d13747aa2f9"
+    },
+    {
+      "path": "gemini_pupper/tricks/leg_kick/artifact_manifest.json",
+      "sha256": "dcc7ed161dfd1063cda0498bdf1ef6388a06b9753a64be7b1ea82dafc094b838"
+    },
+    {
+      "path": "gemini_pupper/tricks/leg_kick/policy.json",
+      "sha256": "9c841f2680d0747cb4fd484bd99218e2f661ac5e4257076f0a8027a76e22fc81"
+    },
+    {
+      "path": "gemini_pupper/tricks/leg_kick/trick.yaml",
+      "sha256": "de482d6d0e8373c34c1e9a7bbc31225fc4e755373147fb719e66b81ee0db5ffa"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/artifact_manifest.json",
+      "sha256": "f5290064d4bd99677a4c79f8ce839b8d95a267f114d17e217b56a584aaa306ac"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/policy.json",
+      "sha256": "a1be106405c02f92f323a468898552b31fd1f30d1093f6e21185b15567a430fb"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/trick.yaml",
+      "sha256": "7bb137186d2c3a8a3a4d7f5386f85c731075ce83c985760861aedb051cf80326"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/walk_limits.json",
+      "sha256": "f20a32e1d7465374a360fa77423b79fc7105d8199f2b06d80727e2cf4f89515a"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/walk_policy.json",
+      "sha256": "052dc8bbb18279deea8eccf58c894123fcb4b3ae7fe8f35560c324ff0378afe0"
+    },
+    {
+      "path": "gemini_pupper/tricks/swim/policy.json",
+      "sha256": "110de063dd48b0ad0f837c0108fb95fde822401cd3fe556b7dce10b53ed1e5f7"
+    },
+    {
+      "path": "gemini_pupper/tricks/swim/trick.yaml",
+      "sha256": "1877dc1b50a66da75214264e4a0105f602981b877758f0ed7b14d936c5fafd6e"
+    },
+    {
+      "path": "gemini_pupper/tricks/walker.yaml",
+      "sha256": "a0b745ea5a3b061b8e9d670ba2c191c500597a234436a6c8b0b1a38db8e8d6c4"
+    },
+    {
+      "path": "gemini_pupper/web/App.tsx",
+      "sha256": "7a650d7d039b92e69a5e29f4182d9a75fce3a4cc56297dea9234f379b7eeb128"
+    },
+    {
+      "path": "gemini_pupper/web/components/DebugPanel.tsx",
+      "sha256": "590a2332980fd1d78b34b8a9834f726009a60a9380d27d73a0eaaf4a673c96dc"
+    },
+    {
+      "path": "gemini_pupper/web/components/DogFace.tsx",
+      "sha256": "b50a01d07d872a5ee2b955b80db12d5d5e01fa9d14e5063d1d01ed335fc92419"
+    },
+    {
+      "path": "gemini_pupper/web/components/ExecutionStatus.tsx",
+      "sha256": "44009b946fcb3640296884becf12b355e97323f47cb8f3ed9136729f0b782a55"
+    },
+    {
+      "path": "gemini_pupper/web/components/Settings.tsx",
+      "sha256": "dfb43a7666582ee4b9a257ebbbc19e4f673affecc32ed6247c5b0e0e79a3f6e1"
+    },
+    {
+      "path": "gemini_pupper/web/constants.ts",
+      "sha256": "49b66c003289c11660b35eaf0cf3e3315eaba4e28bdfc1d90376ea1da580e2a8"
+    },
+    {
+      "path": "gemini_pupper/web/dist/assets/index-Cr13ul_q.js",
+      "sha256": "5945c1c6cb7fc88e1207d2918a117e629373f3d320f8548d1ad3593c2db007e3"
+    },
+    {
+      "path": "gemini_pupper/web/dist/index.html",
+      "sha256": "eb8966221e18895013142170dc2b843fdb3f21a46ccbb49cd75f837529e259f6"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/arc-queued.pcm",
+      "sha256": "1f8d9b0ccf8a17f66fed74a76b2d709d5e9fdf4f11efb58c765f010f1f099176"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/following-stopped.pcm",
+      "sha256": "a3b3db53d3b99d345a9b8724debc5a40bc34cbae570fa042aa858880c752ace2"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/interactive-action-queued.pcm",
+      "sha256": "c9a4d53d74b908d38ada15094d4b1b78220a2aa4d3777df99eab7c5c40b6bc8f"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/left-paw-command-queued.pcm",
+      "sha256": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/move-queued.pcm",
+      "sha256": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/okay.pcm",
+      "sha256": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/physical-count-unsupported.pcm",
+      "sha256": "e294556f0393ef41b0de5b5aaefb755ff486b5c5bde9bfca4e84bd98f734ebbf"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/request-failed.pcm",
+      "sha256": "507d56b2c5aba5c401618940fda631c40ef47551c4404df0233b8673bd887ee6"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/right-paw-command-queued.pcm",
+      "sha256": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/stand-queued.pcm",
+      "sha256": "4e22d8279b7a47665cc40143e3413823addaccf5d797aa26fb4d6265dd15ddea"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/stop-requested.pcm",
+      "sha256": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/trick-queued.pcm",
+      "sha256": "7c483a3049d2954d264e4ea30a52d8478e053f1d5f4f14207c9c7d750ef2fec9"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/turn-queued.pcm",
+      "sha256": "73eabe99e6de558e3ff56ab3bf27599b23b57d6aa404bfc6c5b0de99308450ea"
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/wait-queued.pcm",
+      "sha256": "9b85a84a3c29da07ac7b348fcdb82fd7bb5e1cc1bcbc1ebbef6cd07c182a7991"
+    },
+    {
+      "path": "gemini_pupper/web/images/blue_eyes.png",
+      "sha256": "c1df49e8e58216005a02de2dd68cf509df0195a3d9bb9d7e184e0adcfc9d3c45"
+    },
+    {
+      "path": "gemini_pupper/web/images/fullscreen_icon.svg",
+      "sha256": "5336eab58f9bf876d359a71e39741a8a8b339fe41f2b8c170957a4301ed9a7cd"
+    },
+    {
+      "path": "gemini_pupper/web/images/status_active.svg",
+      "sha256": "fd78d7e68097621c3ebaa67d341e9cea2f3abe41d564a61e4837df607b921d93"
+    },
+    {
+      "path": "gemini_pupper/web/images/status_inactive.svg",
+      "sha256": "9002df0678b198f9a507420ce3ea705faadf9e30ea54e0c3fbe3e7eb49b798b3"
+    },
+    {
+      "path": "gemini_pupper/web/images/status_loading.svg",
+      "sha256": "be6a5e99cad375d2b70d197e3fb5de1015b1edda90f7bd1e93875cd26c3e63ea"
+    },
+    {
+      "path": "gemini_pupper/web/images/status_unknown.svg",
+      "sha256": "c84b9820208e15cc41168ae83776ac204a2c032a52d10710e89b36ec15d2a8b9"
+    },
+    {
+      "path": "gemini_pupper/web/index.html",
+      "sha256": "0cb8172d257f4a447c4ef590c125141c5b8373b382e0e3880c9559dc993f8bf7"
+    },
+    {
+      "path": "gemini_pupper/web/index.tsx",
+      "sha256": "850366f90c85638abab2dd52d1f4a39a59a923c569b9af3e8562fafd5feedae3"
+    },
+    {
+      "path": "gemini_pupper/web/package-lock.json",
+      "sha256": "66df7abef00d4660adf44ce2c679cbe90df3a4a476d17da70b3a965b959156fa"
+    },
+    {
+      "path": "gemini_pupper/web/package.json",
+      "sha256": "1560e3ea507299812fe8ec7ce1de736568bd596bcbf61e614d2f08015328bcde"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/arc-queued.pcm",
+      "sha256": "1f8d9b0ccf8a17f66fed74a76b2d709d5e9fdf4f11efb58c765f010f1f099176"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/following-stopped.pcm",
+      "sha256": "a3b3db53d3b99d345a9b8724debc5a40bc34cbae570fa042aa858880c752ace2"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/interactive-action-queued.pcm",
+      "sha256": "c9a4d53d74b908d38ada15094d4b1b78220a2aa4d3777df99eab7c5c40b6bc8f"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/left-paw-command-queued.pcm",
+      "sha256": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/move-queued.pcm",
+      "sha256": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/okay.pcm",
+      "sha256": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/physical-count-unsupported.pcm",
+      "sha256": "e294556f0393ef41b0de5b5aaefb755ff486b5c5bde9bfca4e84bd98f734ebbf"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/request-failed.pcm",
+      "sha256": "507d56b2c5aba5c401618940fda631c40ef47551c4404df0233b8673bd887ee6"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/right-paw-command-queued.pcm",
+      "sha256": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/stand-queued.pcm",
+      "sha256": "4e22d8279b7a47665cc40143e3413823addaccf5d797aa26fb4d6265dd15ddea"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/stop-requested.pcm",
+      "sha256": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/trick-queued.pcm",
+      "sha256": "7c483a3049d2954d264e4ea30a52d8478e053f1d5f4f14207c9c7d750ef2fec9"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/turn-queued.pcm",
+      "sha256": "73eabe99e6de558e3ff56ab3bf27599b23b57d6aa404bfc6c5b0de99308450ea"
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/wait-queued.pcm",
+      "sha256": "9b85a84a3c29da07ac7b348fcdb82fd7bb5e1cc1bcbc1ebbef6cd07c182a7991"
+    },
+    {
+      "path": "gemini_pupper/web/rehearsal/build.mjs",
+      "sha256": "58f04fe1fa4f823fb66949e22925c204442be41ca2b04f804469aabd8cbb5258"
+    },
+    {
+      "path": "gemini_pupper/web/rehearsal/fakeOnly.ts",
+      "sha256": "85929a8dfca46f0bf0991ead8d6856e5a742b8d4374e9355c9e3b73bb1798909"
+    },
+    {
+      "path": "gemini_pupper/web/rehearsal/index.html",
+      "sha256": "3181ba85140d7ae541a20ea791ab27f246b20eff418fa04427409fe1eb1f4e04"
+    },
+    {
+      "path": "gemini_pupper/web/rehearsal/main.ts",
+      "sha256": "c19b6f58f4e5283849226c16b35e6f5bb56a63e4a0c506607936b5a03440fa32"
+    },
+    {
+      "path": "gemini_pupper/web/rehearsal/mockGoogle.ts",
+      "sha256": "66f411b31c455a6421eef46763562581c5ae989e88d221dd9a16a8ef79d30b43"
+    },
+    {
+      "path": "gemini_pupper/web/services/acceptedJobs.ts",
+      "sha256": "9bc4be495ed1cd1986e778a1099921de3e88f6462596040cbdcef8e0ac5d0ad7"
+    },
+    {
+      "path": "gemini_pupper/web/services/audioUtils.ts",
+      "sha256": "1d535c0835a3f1edc48ecec1d95142965d1b7a186a1481307d1dfc865894891e"
+    },
+    {
+      "path": "gemini_pupper/web/services/conversationOutput.ts",
+      "sha256": "97259aedc4823332d97a4566d71108e5b850050ba02ad17f3fdfcf274d75615a"
+    },
+    {
+      "path": "gemini_pupper/web/services/executionStatus.ts",
+      "sha256": "46abc7ded2d1d31519175d823eea96500159b2951c556e8d81a8a14f516ce71b"
+    },
+    {
+      "path": "gemini_pupper/web/services/followHandoff.ts",
+      "sha256": "f8ef5a7663fab3a2d7e720169ba3af24baa6f544cbf32e2cca9f48996b24ec1a"
+    },
+    {
+      "path": "gemini_pupper/web/services/geminiLive.ts",
+      "sha256": "6abdd4c314a40c9f185cef53e2bf7b51997cd76c592af07c5427b3e4096369c6"
+    },
+    {
+      "path": "gemini_pupper/web/services/manualControls.ts",
+      "sha256": "6b53e15c61af0d5dc6ee58903fa9bc291a21669266e3155c81929fe3f4b4711d"
+    },
+    {
+      "path": "gemini_pupper/web/services/onboardBootstrap.ts",
+      "sha256": "778c961a2d24968304464f4e9319e6f60743f7f6885557c592c9a20edefe2d58"
+    },
+    {
+      "path": "gemini_pupper/web/services/operatorFeedback.ts",
+      "sha256": "bafcf6ea4d2cbc3808c328a608401b18335df001829213e5ec6ab9945c41de53"
+    },
+    {
+      "path": "gemini_pupper/web/services/receiptAudioCache.ts",
+      "sha256": "e61eb4a8915c8b54ce32160dffd6618635e822aec09b9f3c7fd183cd7933abc0"
+    },
+    {
+      "path": "gemini_pupper/web/services/receiptAudioManifest.json",
+      "sha256": "7e2b8dd54a4c4fa31136d2d158639f813011975129aa69fedfc3c32b4f51fef2"
+    },
+    {
+      "path": "gemini_pupper/web/services/receiptAudioPreload.ts",
+      "sha256": "b2f320c0de01d5b9f7484b0fba50fe9968b4e7c1abb15a78e0d220c5d94eab85"
+    },
+    {
+      "path": "gemini_pupper/web/services/robotBridge.ts",
+      "sha256": "4de8834487d43140c777d0982e90bfa08a65e10423ab7b0b35621e03d74e439c"
+    },
+    {
+      "path": "gemini_pupper/web/services/timingCapture.ts",
+      "sha256": "7ee9aeb715dcb1400091e4f1fed4fe4c7a2c3a9bd6dcbe3416d065e30c55c8d2"
+    },
+    {
+      "path": "gemini_pupper/web/tsconfig.json",
+      "sha256": "8641deb29adfd1958488d1951f0d5ddf3013f498aa67ce0f621e347f0ef608d2"
+    },
+    {
+      "path": "gemini_pupper/web/types.ts",
+      "sha256": "019f08290f79ed7e521e7bfb864891a68663208c36eddd4e29656c9d250b292b"
+    },
+    {
+      "path": "gemini_pupper/web/vite.config.ts",
+      "sha256": "b22319974b9b76e844ce09e4526db577042cda11e15726f9e23c9b20f0b0668c"
+    }
+  ],
+  "payload_files": [
+    {
+      "path": "foundation/hardware/persistent_session.py",
+      "sha256": "50cea68016c72773d747754a53b35787648edacf87f17acbf5ebc96309626bde",
+      "bytes": 32119,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/lab/basics.py",
+      "sha256": "202f98446ae2717b7ee1e55414636e11bf4fedb764824020f21c0fceb480111b",
+      "bytes": 6139,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/lab/part2_walk.py",
+      "sha256": "dd1d6f4b2ad13739344ac31c49971734ad24ddd50ee9aa74c6bcb9571ac4a5f7",
+      "bytes": 24432,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/lab/part3_follow.py",
+      "sha256": "279b1f56026c438f80b6d10e7d3e789d797518d191518b9221d75290fda0f2e9",
+      "bytes": 5444,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/lab/part4_tricks.py",
+      "sha256": "a579aeb1aaf9dfa23d25dbcb6ea7e63f7b05abade1830998f1ee9e3b297276ec",
+      "bytes": 14505,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/lab/part5_interactive_action.py",
+      "sha256": "eeec4cc97a71f2bfc94fec5ff35b991f699772ee1a7f7136a7e816e4284e6407",
+      "bytes": 11259,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/robot/kiosk.py",
+      "sha256": "834e3dc6925222107d40007a451ebbfc92ee67c02c3b0dac0f935af77aa6a533",
+      "bytes": 10383,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/robot/robot_api.py",
+      "sha256": "f5aa2308aa2346c3a5141a62d742753f93daccda20b60dd6ded75cd4e88d3ea6",
+      "bytes": 106146,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/robot/server.py",
+      "sha256": "aad17a23b6eeca42a46343e1006b45b3b7da98fccc6c08b7a0d4123205a572dd",
+      "bytes": 25248,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/robot/test_tools.py",
+      "sha256": "1d05ed05d02ff6bd61fec4c8d664d17b23582e542a4093655682f6b71f88af13",
+      "bytes": 81335,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/robot/tool_registry.py",
+      "sha256": "5cc662a59b56d37565af738fa8ee7ed469b0b4e2d9dc360ac15ef45d4616142f",
+      "bytes": 11530,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/App.tsx",
+      "sha256": "7a650d7d039b92e69a5e29f4182d9a75fce3a4cc56297dea9234f379b7eeb128",
+      "bytes": 31045,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/components/DebugPanel.tsx",
+      "sha256": "590a2332980fd1d78b34b8a9834f726009a60a9380d27d73a0eaaf4a673c96dc",
+      "bytes": 29395,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/components/ExecutionStatus.tsx",
+      "sha256": "44009b946fcb3640296884becf12b355e97323f47cb8f3ed9136729f0b782a55",
+      "bytes": 6116,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/assets/index-Cr13ul_q.js",
+      "sha256": "5945c1c6cb7fc88e1207d2918a117e629373f3d320f8548d1ad3593c2db007e3",
+      "bytes": 768396,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/index.html",
+      "sha256": "eb8966221e18895013142170dc2b843fdb3f21a46ccbb49cd75f837529e259f6",
+      "bytes": 1345,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/arc-queued.pcm",
+      "sha256": "1f8d9b0ccf8a17f66fed74a76b2d709d5e9fdf4f11efb58c765f010f1f099176",
+      "bytes": 56190,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/following-stopped.pcm",
+      "sha256": "a3b3db53d3b99d345a9b8724debc5a40bc34cbae570fa042aa858880c752ace2",
+      "bytes": 74880,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/interactive-action-queued.pcm",
+      "sha256": "c9a4d53d74b908d38ada15094d4b1b78220a2aa4d3777df99eab7c5c40b6bc8f",
+      "bytes": 97922,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/left-paw-command-queued.pcm",
+      "sha256": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634",
+      "bytes": 90242,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/move-queued.pcm",
+      "sha256": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623",
+      "bytes": 52830,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/okay.pcm",
+      "sha256": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa",
+      "bytes": 33602,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/physical-count-unsupported.pcm",
+      "sha256": "e294556f0393ef41b0de5b5aaefb755ff486b5c5bde9bfca4e84bd98f734ebbf",
+      "bytes": 167522,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/request-failed.pcm",
+      "sha256": "507d56b2c5aba5c401618940fda631c40ef47551c4404df0233b8673bd887ee6",
+      "bytes": 163230,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/right-paw-command-queued.pcm",
+      "sha256": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd",
+      "bytes": 90242,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/stand-queued.pcm",
+      "sha256": "4e22d8279b7a47665cc40143e3413823addaccf5d797aa26fb4d6265dd15ddea",
+      "bytes": 63362,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/stop-requested.pcm",
+      "sha256": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9",
+      "bytes": 61922,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/trick-queued.pcm",
+      "sha256": "7c483a3049d2954d264e4ea30a52d8478e053f1d5f4f14207c9c7d750ef2fec9",
+      "bytes": 58082,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/turn-queued.pcm",
+      "sha256": "73eabe99e6de558e3ff56ab3bf27599b23b57d6aa404bfc6c5b0de99308450ea",
+      "bytes": 57602,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/dist/receipt-audio/wait-queued.pcm",
+      "sha256": "9b85a84a3c29da07ac7b348fcdb82fd7bb5e1cc1bcbc1ebbef6cd07c182a7991",
+      "bytes": 58082,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/public/receipt-audio/following-stopped.pcm",
+      "sha256": "a3b3db53d3b99d345a9b8724debc5a40bc34cbae570fa042aa858880c752ace2",
+      "bytes": 74880,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/services/acceptedJobs.ts",
+      "sha256": "9bc4be495ed1cd1986e778a1099921de3e88f6462596040cbdcef8e0ac5d0ad7",
+      "bytes": 3856,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/services/followHandoff.ts",
+      "sha256": "f8ef5a7663fab3a2d7e720169ba3af24baa6f544cbf32e2cca9f48996b24ec1a",
+      "bytes": 1614,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/services/geminiLive.ts",
+      "sha256": "6abdd4c314a40c9f185cef53e2bf7b51997cd76c592af07c5427b3e4096369c6",
+      "bytes": 86612,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/services/receiptAudioCache.ts",
+      "sha256": "e61eb4a8915c8b54ce32160dffd6618635e822aec09b9f3c7fd183cd7933abc0",
+      "bytes": 5705,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/services/receiptAudioManifest.json",
+      "sha256": "7e2b8dd54a4c4fa31136d2d158639f813011975129aa69fedfc3c32b4f51fef2",
+      "bytes": 6496,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/services/robotBridge.ts",
+      "sha256": "4de8834487d43140c777d0982e90bfa08a65e10423ab7b0b35621e03d74e439c",
+      "bytes": 12471,
+      "mode": 420
+    },
+    {
+      "path": "gemini_pupper/web/services/timingCapture.ts",
+      "sha256": "7ee9aeb715dcb1400091e4f1fed4fe4c7a2c3a9bd6dcbe3416d065e30c55c8d2",
+      "bytes": 14682,
+      "mode": 420
+    }
+  ],
+  "verification_file": {
+    "path": "SHA256SUMS",
+    "sha256": "21efc9a23cef60977a8479ed6d2ece95b89b60a886584ec7a61b626a22d511c8"
+  },
+  "archive": {
+    "name": "lab6-application.tar.gz",
+    "sha256": "fb729f27d29447e33404acb984433e290dead95a6a8522e3b184856ed1d59cfe",
+    "bytes": 1249938,
+    "regular_members": 39,
+    "symlinks": 0,
+    "strip_components": 0
+  },
+  "current_browser_build_inputs": {
+    "gemini_pupper/web/App.tsx": "7a650d7d039b92e69a5e29f4182d9a75fce3a4cc56297dea9234f379b7eeb128",
+    "gemini_pupper/web/components/DebugPanel.tsx": "590a2332980fd1d78b34b8a9834f726009a60a9380d27d73a0eaaf4a673c96dc",
+    "gemini_pupper/web/components/DogFace.tsx": "b50a01d07d872a5ee2b955b80db12d5d5e01fa9d14e5063d1d01ed335fc92419",
+    "gemini_pupper/web/components/ExecutionStatus.tsx": "44009b946fcb3640296884becf12b355e97323f47cb8f3ed9136729f0b782a55",
+    "gemini_pupper/web/components/Settings.tsx": "dfb43a7666582ee4b9a257ebbbc19e4f673affecc32ed6247c5b0e0e79a3f6e1",
+    "gemini_pupper/web/constants.ts": "49b66c003289c11660b35eaf0cf3e3315eaba4e28bdfc1d90376ea1da580e2a8",
+    "gemini_pupper/web/images/blue_eyes.png": "c1df49e8e58216005a02de2dd68cf509df0195a3d9bb9d7e184e0adcfc9d3c45",
+    "gemini_pupper/web/images/fullscreen_icon.svg": "5336eab58f9bf876d359a71e39741a8a8b339fe41f2b8c170957a4301ed9a7cd",
+    "gemini_pupper/web/images/status_active.svg": "fd78d7e68097621c3ebaa67d341e9cea2f3abe41d564a61e4837df607b921d93",
+    "gemini_pupper/web/images/status_inactive.svg": "9002df0678b198f9a507420ce3ea705faadf9e30ea54e0c3fbe3e7eb49b798b3",
+    "gemini_pupper/web/images/status_loading.svg": "be6a5e99cad375d2b70d197e3fb5de1015b1edda90f7bd1e93875cd26c3e63ea",
+    "gemini_pupper/web/images/status_unknown.svg": "c84b9820208e15cc41168ae83776ac204a2c032a52d10710e89b36ec15d2a8b9",
+    "gemini_pupper/web/index.html": "0cb8172d257f4a447c4ef590c125141c5b8373b382e0e3880c9559dc993f8bf7",
+    "gemini_pupper/web/index.tsx": "850366f90c85638abab2dd52d1f4a39a59a923c569b9af3e8562fafd5feedae3",
+    "gemini_pupper/web/package-lock.json": "66df7abef00d4660adf44ce2c679cbe90df3a4a476d17da70b3a965b959156fa",
+    "gemini_pupper/web/package.json": "1560e3ea507299812fe8ec7ce1de736568bd596bcbf61e614d2f08015328bcde",
+    "gemini_pupper/web/public/receipt-audio/arc-queued.pcm": "1f8d9b0ccf8a17f66fed74a76b2d709d5e9fdf4f11efb58c765f010f1f099176",
+    "gemini_pupper/web/public/receipt-audio/following-stopped.pcm": "a3b3db53d3b99d345a9b8724debc5a40bc34cbae570fa042aa858880c752ace2",
+    "gemini_pupper/web/public/receipt-audio/interactive-action-queued.pcm": "c9a4d53d74b908d38ada15094d4b1b78220a2aa4d3777df99eab7c5c40b6bc8f",
+    "gemini_pupper/web/public/receipt-audio/left-paw-command-queued.pcm": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634",
+    "gemini_pupper/web/public/receipt-audio/move-queued.pcm": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623",
+    "gemini_pupper/web/public/receipt-audio/okay.pcm": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa",
+    "gemini_pupper/web/public/receipt-audio/physical-count-unsupported.pcm": "e294556f0393ef41b0de5b5aaefb755ff486b5c5bde9bfca4e84bd98f734ebbf",
+    "gemini_pupper/web/public/receipt-audio/request-failed.pcm": "507d56b2c5aba5c401618940fda631c40ef47551c4404df0233b8673bd887ee6",
+    "gemini_pupper/web/public/receipt-audio/right-paw-command-queued.pcm": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd",
+    "gemini_pupper/web/public/receipt-audio/stand-queued.pcm": "4e22d8279b7a47665cc40143e3413823addaccf5d797aa26fb4d6265dd15ddea",
+    "gemini_pupper/web/public/receipt-audio/stop-requested.pcm": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9",
+    "gemini_pupper/web/public/receipt-audio/trick-queued.pcm": "7c483a3049d2954d264e4ea30a52d8478e053f1d5f4f14207c9c7d750ef2fec9",
+    "gemini_pupper/web/public/receipt-audio/turn-queued.pcm": "73eabe99e6de558e3ff56ab3bf27599b23b57d6aa404bfc6c5b0de99308450ea",
+    "gemini_pupper/web/public/receipt-audio/wait-queued.pcm": "9b85a84a3c29da07ac7b348fcdb82fd7bb5e1cc1bcbc1ebbef6cd07c182a7991",
+    "gemini_pupper/web/rehearsal/build.mjs": "58f04fe1fa4f823fb66949e22925c204442be41ca2b04f804469aabd8cbb5258",
+    "gemini_pupper/web/rehearsal/fakeOnly.ts": "85929a8dfca46f0bf0991ead8d6856e5a742b8d4374e9355c9e3b73bb1798909",
+    "gemini_pupper/web/rehearsal/index.html": "3181ba85140d7ae541a20ea791ab27f246b20eff418fa04427409fe1eb1f4e04",
+    "gemini_pupper/web/rehearsal/main.ts": "c19b6f58f4e5283849226c16b35e6f5bb56a63e4a0c506607936b5a03440fa32",
+    "gemini_pupper/web/rehearsal/mockGoogle.ts": "66f411b31c455a6421eef46763562581c5ae989e88d221dd9a16a8ef79d30b43",
+    "gemini_pupper/web/services/acceptedJobs.ts": "9bc4be495ed1cd1986e778a1099921de3e88f6462596040cbdcef8e0ac5d0ad7",
+    "gemini_pupper/web/services/audioUtils.ts": "1d535c0835a3f1edc48ecec1d95142965d1b7a186a1481307d1dfc865894891e",
+    "gemini_pupper/web/services/conversationOutput.ts": "97259aedc4823332d97a4566d71108e5b850050ba02ad17f3fdfcf274d75615a",
+    "gemini_pupper/web/services/executionStatus.ts": "46abc7ded2d1d31519175d823eea96500159b2951c556e8d81a8a14f516ce71b",
+    "gemini_pupper/web/services/followHandoff.ts": "f8ef5a7663fab3a2d7e720169ba3af24baa6f544cbf32e2cca9f48996b24ec1a",
+    "gemini_pupper/web/services/geminiLive.ts": "6abdd4c314a40c9f185cef53e2bf7b51997cd76c592af07c5427b3e4096369c6",
+    "gemini_pupper/web/services/manualControls.ts": "6b53e15c61af0d5dc6ee58903fa9bc291a21669266e3155c81929fe3f4b4711d",
+    "gemini_pupper/web/services/onboardBootstrap.ts": "778c961a2d24968304464f4e9319e6f60743f7f6885557c592c9a20edefe2d58",
+    "gemini_pupper/web/services/operatorFeedback.ts": "bafcf6ea4d2cbc3808c328a608401b18335df001829213e5ec6ab9945c41de53",
+    "gemini_pupper/web/services/receiptAudioCache.ts": "e61eb4a8915c8b54ce32160dffd6618635e822aec09b9f3c7fd183cd7933abc0",
+    "gemini_pupper/web/services/receiptAudioManifest.json": "7e2b8dd54a4c4fa31136d2d158639f813011975129aa69fedfc3c32b4f51fef2",
+    "gemini_pupper/web/services/receiptAudioPreload.ts": "b2f320c0de01d5b9f7484b0fba50fe9968b4e7c1abb15a78e0d220c5d94eab85",
+    "gemini_pupper/web/services/robotBridge.ts": "4de8834487d43140c777d0982e90bfa08a65e10423ab7b0b35621e03d74e439c",
+    "gemini_pupper/web/services/timingCapture.ts": "7ee9aeb715dcb1400091e4f1fed4fe4c7a2c3a9bd6dcbe3416d065e30c55c8d2",
+    "gemini_pupper/web/tsconfig.json": "8641deb29adfd1958488d1951f0d5ddf3013f498aa67ce0f621e347f0ef608d2",
+    "gemini_pupper/web/types.ts": "019f08290f79ed7e521e7bfb864891a68663208c36eddd4e29656c9d250b292b",
+    "gemini_pupper/web/vite.config.ts": "b22319974b9b76e844ce09e4526db577042cda11e15726f9e23c9b20f0b0668c"
+  },
+  "selected_native_unchanged": {
+    "native": {
+      "path": "/home/pi/pupper-foundation-session-20261029/static-idle-native-20261102/install/lib/libneural_controller.so",
+      "sha256": "37938659ad5c721012a50142054e5b34286eaaa970f3068c5ce23b1caa7afe68"
+    },
+    "imu": {
+      "path": "/home/pi/pupper-foundation-session-20261029/imu-startup-trace-20261102/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so",
+      "sha256": "1dd92b65851bf9dae53aac28b3e20f6f81c70edadb28dd84dcbadcb9606ff429"
+    }
+  },
+  "inherited_skill_files_unchanged": [
+    {
+      "path": "gemini_pupper/tricks/spider_walk/artifact_manifest.json",
+      "sha256": "f5290064d4bd99677a4c79f8ce839b8d95a267f114d17e217b56a584aaa306ac"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/policy.json",
+      "sha256": "a1be106405c02f92f323a468898552b31fd1f30d1093f6e21185b15567a430fb"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/trick.yaml",
+      "sha256": "7bb137186d2c3a8a3a4d7f5386f85c731075ce83c985760861aedb051cf80326"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/walk_limits.json",
+      "sha256": "f20a32e1d7465374a360fa77423b79fc7105d8199f2b06d80727e2cf4f89515a"
+    },
+    {
+      "path": "gemini_pupper/tricks/spider_walk/walk_policy.json",
+      "sha256": "052dc8bbb18279deea8eccf58c894123fcb4b3ae7fe8f35560c324ff0378afe0"
+    },
+    {
+      "path": "gemini_pupper/tricks/swim/policy.json",
+      "sha256": "110de063dd48b0ad0f837c0108fb95fde822401cd3fe556b7dce10b53ed1e5f7"
+    },
+    {
+      "path": "gemini_pupper/tricks/swim/trick.yaml",
+      "sha256": "1877dc1b50a66da75214264e4a0105f602981b877758f0ed7b14d936c5fafd6e"
+    }
+  ],
+  "compatibility": {
+    "skill_selection": [
+      "sit_stay_shake",
+      "spider_walk",
+      "swim"
+    ],
+    "motion_mode": "class_run",
+    "follower": "lab5",
+    "policies": "Inherited exact R4 assets, additionally verified; no policy payload or installation."
+  },
+  "revision": {
+    "changed_baseline_selected_source": [
+      "foundation/hardware/persistent_session.py",
+      "gemini_pupper/lab/basics.py",
+      "gemini_pupper/lab/part2_walk.py",
+      "gemini_pupper/lab/part3_follow.py",
+      "gemini_pupper/lab/part4_tricks.py",
+      "gemini_pupper/lab/part5_interactive_action.py",
+      "gemini_pupper/robot/kiosk.py",
+      "gemini_pupper/robot/robot_api.py",
+      "gemini_pupper/robot/server.py",
+      "gemini_pupper/robot/test_tools.py",
+      "gemini_pupper/robot/tool_registry.py",
+      "gemini_pupper/web/App.tsx",
+      "gemini_pupper/web/components/DebugPanel.tsx",
+      "gemini_pupper/web/components/ExecutionStatus.tsx",
+      "gemini_pupper/web/services/geminiLive.ts",
+      "gemini_pupper/web/services/receiptAudioCache.ts",
+      "gemini_pupper/web/services/receiptAudioManifest.json",
+      "gemini_pupper/web/services/robotBridge.ts"
+    ],
+    "added_files": [
+      "gemini_pupper/web/public/receipt-audio/following-stopped.pcm",
+      "gemini_pupper/web/services/followHandoff.ts",
+      "gemini_pupper/web/services/acceptedJobs.ts",
+      "gemini_pupper/web/services/timingCapture.ts"
+    ],
+    "final_freeze_sha256": "032af230974b73101d88b668b1f249cd660d520fed0a4cdeca0140ebd1bb049d",
+    "final_freeze_source_checkout_head": "cdae59825be048e79a79076f65b11a2ad9da30a1",
+    "reviewed_source_pins": {
+      "follow_me_pupper/lab/avoidance.py": "aabdac0228941b2029f11d174e41dfc3d406a053ada19608b610c29e898a25e0",
+      "follow_me_pupper/lab/boxes.py": "96a12a08682b68404cf2158b05adbab3f404cd44665d1a15fb514c44f011e466",
+      "follow_me_pupper/lab/follow_me.py": "fa9478cf124dbe1ad4f6bacedb250251ab48b4445cc8e11bf5e1e87a5b57e076",
+      "follow_me_pupper/lab/target_lock.py": "15c80ce89bae3ba6d0795d0e726680c0eeee9431b3bf1ac3d5f7f6d6da8a30dd",
+      "follow_me_pupper/lab/test.py": "94297f61c81c55954d73ef6561baebca5a3ff40c563870b1336cb05f70950041",
+      "follow_me_pupper/robot/camera_params.yaml": "a6ab2537a1751571139c9a596fe422a3acfc7472fd3ec50c74442359ec9ff5a7",
+      "follow_me_pupper/robot/coco.txt": "bd17f1ee35d5f3c862a4894605855abbb9dda4b0621fdb0ac4c2c8c7bb7e730a",
+      "follow_me_pupper/robot/fisheye_converter.py": "703eed7ee0c79974536cb6495780f2ed1ad50add2ec58daffa7e66f5be866385",
+      "follow_me_pupper/robot/follow_me.launch.py": "f8d211bd8de1c540c0e1d5ca24947c3e5387ec967a5384e144102a950e7fec60",
+      "follow_me_pupper/robot/follow_service.py": "96bd7658e5c61c5c296b5a2cada6c67a2486272c2dddfcd241cd16802f592c76",
+      "follow_me_pupper/robot/karel.py": "18c032fe8bf33e4417f95a5b14f52a821e27ab02de64110afa42c5c5032328c4",
+      "follow_me_pupper/robot/lab_checks.py": "0e935780f788c807ca93dce7976f887da9b0f267ac9d9cd6416b70a21b47cfbf",
+      "follow_me_pupper/robot/perception_safety.py": "79c84eb7a67432853e8adc145398e549e2208aae6d9c76c90fbb912d63e2e6aa",
+      "follow_me_pupper/robot/test_tracking.py": "cdc5343cfaddc9056ed111093cd69eb9a239bc8a1e224c6efbb953eefa26f047",
+      "follow_me_pupper/robot/viser_camera.py": "430bafea0b1117caf2bd9b87292f43d044a54a27f39dc6321c7685cd881674d7",
+      "follow_me_pupper/robot/yolo_seg.py": "8290bd34a4f0a6406437d65b6085460b9c8289b0f731bf4be522c5fee9df9b87",
+      "follow_me_pupper/robot/yolov8n_seg.hef": "3e91fd4c8be77a560169185bd8cba7e6a6b9ab8be14ea118d5e9d054df51ca36",
+      "foundation/hardware/floor_stock/baseline-expanded.urdf": "4858c01f6ce722455b2c9fa554e158bef2215bc1c3e75b2b005fdf9b89aaed44",
+      "foundation/hardware/floor_stock/shutdown_coordinator.py": "0a2e9825b912319bbb1a0bb200be251b297ef6e08bf9a7286f9408b098e8ee12",
+      "foundation/hardware/lab6-session.yaml": "d7542febd4fd382d3c3e71e0c5a3fb8ea7a5b140f87ff1cb12ead1982d3854c0",
+      "foundation/hardware/lab6_session.launch.py": "02c2efb0888db3edcbc25c1b1c88952fade496e1520b3c48f6bdb6f582308044",
+      "foundation/hardware/persistent_session.py": "50cea68016c72773d747754a53b35787648edacf87f17acbf5ebc96309626bde",
+      "foundation/hardware/stage_app.py": "cef31f55681bc03eeb9c7c04d237ead6ba0425eebfe38824dcbd123e31852973",
+      "gemini_pupper/README.md": "2de89b51c859635c7ad5ca3123728f6997dc6b1fe84366e417cf6f3367b609e7",
+      "gemini_pupper/conversation_guard.json": "ae74676ca1804d84a82ab6ad328f1cb42a3174e95e5a4caaa6704c015c6638ed",
+      "gemini_pupper/lab/basics.py": "202f98446ae2717b7ee1e55414636e11bf4fedb764824020f21c0fceb480111b",
+      "gemini_pupper/lab/chat.py": "65e87c7a25454ee206c9ce01d8ad6ee5fd8f487e629ab401056cdcb18b941566",
+      "gemini_pupper/lab/part2_walk.py": "dd1d6f4b2ad13739344ac31c49971734ad24ddd50ee9aa74c6bcb9571ac4a5f7",
+      "gemini_pupper/lab/part3_follow.py": "279b1f56026c438f80b6d10e7d3e789d797518d191518b9221d75290fda0f2e9",
+      "gemini_pupper/lab/part4_tricks.py": "a579aeb1aaf9dfa23d25dbcb6ea7e63f7b05abade1830998f1ee9e3b297276ec",
+      "gemini_pupper/lab/part5_interactive_action.py": "eeec4cc97a71f2bfc94fec5ff35b991f699772ee1a7f7136a7e816e4284e6407",
+      "gemini_pupper/lab/part8_secrets.py": "75eb160afd591460be0c964b0c63244ea0ce14c7d482f99dac6db9ddfec5c75c",
+      "gemini_pupper/lab/prompt.md": "15d97cb1c58ba9dd19ecef8a3b1dc6f3d1d058e0bc223b74f1f49e76998ffa84",
+      "gemini_pupper/lab/test.py": "49afc36326516f12e55fa70d8f5108cf90c8bfef19cdcfc6fd3b08d22e466308",
+      "gemini_pupper/lab/test_skill_sequences.py": "8e454d8e127e89dd2bd5af7353904d3f13c9c024c7ab9158da1c33e58edc0fb9",
+      "gemini_pupper/robot/camera_params.yaml": "c3d549fe6a30362adfc81c625dc7f5379b3597433f53df0569cb649af9527a13",
+      "gemini_pupper/robot/controller_coverage.py": "6da12e6e494acc298e3237ae8e695a4d126b4e37c0a9a5c0951635e918f76f26",
+      "gemini_pupper/robot/fake_server.py": "60194129b0ab0f4f66ea8eb5fa4875ecf1cba766d5d2b229aadc5838b817c468",
+      "gemini_pupper/robot/fisheye_converter.py": "703eed7ee0c79974536cb6495780f2ed1ad50add2ec58daffa7e66f5be866385",
+      "gemini_pupper/robot/gemini_chat.py": "a1b800d4f1983a43f9b9ef4fed8bb00b3634eba864bd1c862cce94f025276331",
+      "gemini_pupper/robot/get_trick.py": "37f60f0bd3e8769621ae3318a856f4404222c29d177d0b1fdc8ffc5e4dcffada",
+      "gemini_pupper/robot/kiosk.py": "834e3dc6925222107d40007a451ebbfc92ee67c02c3b0dac0f935af77aa6a533",
+      "gemini_pupper/robot/launch/gemini_pupper.launch.py": "48b9cfe1ba518e93833ec0c5ee20e9839af11810491dfa5898dda10022d5af3f",
+      "gemini_pupper/robot/launch/gemini_pupper.yaml": "1062909b25bed8e5c2504faeb71e1b9975411796d9a42df19c2a214997c0e244",
+      "gemini_pupper/robot/onboard_bootstrap.py": "c640f4758c5e08987ef6f2147bdc632836f012b8ca62835665f63613d8d8f373",
+      "gemini_pupper/robot/operator_feedback.py": "9b600ae3c384b1f29c7ed7958ebb4132375e64c8fe972d7f73c6629b26394cca",
+      "gemini_pupper/robot/preflight.py": "52581517317caa63b409ae073a497221b8a4a0c48c5fa756ce5576b13a687343",
+      "gemini_pupper/robot/robot_api.py": "f5aa2308aa2346c3a5141a62d742753f93daccda20b60dd6ded75cd4e88d3ea6",
+      "gemini_pupper/robot/runtime_config.py": "c96c89458fb905549e73a8beab3b8ae23fb45b94941c40f4eedba6a1a7720913",
+      "gemini_pupper/robot/secret_gate.py": "18707a3ccf0d76bd1669a629a90c6b445e1990a71582de44fce31d15e6e7c3aa",
+      "gemini_pupper/robot/server.py": "aad17a23b6eeca42a46343e1006b45b3b7da98fccc6c08b7a0d4123205a572dd",
+      "gemini_pupper/robot/session_processes.py": "652569629cfdfcd15b2f8d6a0f3c369c86ff8077609fc9c5926d08039b26825d",
+      "gemini_pupper/robot/setup.sh": "21fd57becab1b36ceffb1e29cd10a08480a30d60c46bb8a9d5fb3a2a4279dfb9",
+      "gemini_pupper/robot/spawn_controllers.py": "b3766dff9fe8f6a2265ca19faaee8fa46f27c2a6fbe3037b70e2a57fc77ec697",
+      "gemini_pupper/robot/start.sh": "9d63a93466254ccbcb34d98fef15fca91bfa7597d30f6184f7f0d2a93ddc407d",
+      "gemini_pupper/robot/startup_readiness.py": "76c3160d639e81c10adaad3a3e809bc62063af5d2869942286601f5348255143",
+      "gemini_pupper/robot/stop.sh": "2b43e545583a370b8603909eb86be1ea66bafc41a54b2b2e0330653dd823ba00",
+      "gemini_pupper/robot/stop_status.py": "ccebd758a101f15023946363114c0b32f3b5717914326cac77605058ca0bb9ca",
+      "gemini_pupper/robot/test_tools.py": "1d05ed05d02ff6bd61fec4c8d664d17b23582e542a4093655682f6b71f88af13",
+      "gemini_pupper/robot/tool_registry.py": "5cc662a59b56d37565af738fa8ee7ed469b0b4e2d9dc360ac15ef45d4616142f",
+      "gemini_pupper/robot/trick_quantity.py": "c2ba920fd6548f97fb4bc001c4e5f0c14f1215b913736e1f0359b15010db82fe",
+      "gemini_pupper/robot/tricks.py": "efc79594b097ee4688568c5db940c67960cac5dfc66f7407653d28ae1d337e8c",
+      "gemini_pupper/web/App.tsx": "7a650d7d039b92e69a5e29f4182d9a75fce3a4cc56297dea9234f379b7eeb128",
+      "gemini_pupper/web/components/DebugPanel.tsx": "590a2332980fd1d78b34b8a9834f726009a60a9380d27d73a0eaaf4a673c96dc",
+      "gemini_pupper/web/components/DogFace.tsx": "b50a01d07d872a5ee2b955b80db12d5d5e01fa9d14e5063d1d01ed335fc92419",
+      "gemini_pupper/web/components/ExecutionStatus.tsx": "44009b946fcb3640296884becf12b355e97323f47cb8f3ed9136729f0b782a55",
+      "gemini_pupper/web/components/Settings.tsx": "dfb43a7666582ee4b9a257ebbbc19e4f673affecc32ed6247c5b0e0e79a3f6e1",
+      "gemini_pupper/web/constants.ts": "49b66c003289c11660b35eaf0cf3e3315eaba4e28bdfc1d90376ea1da580e2a8",
+      "gemini_pupper/web/dist/assets/index-Cr13ul_q.js": "5945c1c6cb7fc88e1207d2918a117e629373f3d320f8548d1ad3593c2db007e3",
+      "gemini_pupper/web/dist/index.html": "eb8966221e18895013142170dc2b843fdb3f21a46ccbb49cd75f837529e259f6",
+      "gemini_pupper/web/dist/receipt-audio/arc-queued.pcm": "1f8d9b0ccf8a17f66fed74a76b2d709d5e9fdf4f11efb58c765f010f1f099176",
+      "gemini_pupper/web/dist/receipt-audio/following-stopped.pcm": "a3b3db53d3b99d345a9b8724debc5a40bc34cbae570fa042aa858880c752ace2",
+      "gemini_pupper/web/dist/receipt-audio/interactive-action-queued.pcm": "c9a4d53d74b908d38ada15094d4b1b78220a2aa4d3777df99eab7c5c40b6bc8f",
+      "gemini_pupper/web/dist/receipt-audio/left-paw-command-queued.pcm": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634",
+      "gemini_pupper/web/dist/receipt-audio/move-queued.pcm": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623",
+      "gemini_pupper/web/dist/receipt-audio/okay.pcm": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa",
+      "gemini_pupper/web/dist/receipt-audio/physical-count-unsupported.pcm": "e294556f0393ef41b0de5b5aaefb755ff486b5c5bde9bfca4e84bd98f734ebbf",
+      "gemini_pupper/web/dist/receipt-audio/request-failed.pcm": "507d56b2c5aba5c401618940fda631c40ef47551c4404df0233b8673bd887ee6",
+      "gemini_pupper/web/dist/receipt-audio/right-paw-command-queued.pcm": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd",
+      "gemini_pupper/web/dist/receipt-audio/stand-queued.pcm": "4e22d8279b7a47665cc40143e3413823addaccf5d797aa26fb4d6265dd15ddea",
+      "gemini_pupper/web/dist/receipt-audio/stop-requested.pcm": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9",
+      "gemini_pupper/web/dist/receipt-audio/trick-queued.pcm": "7c483a3049d2954d264e4ea30a52d8478e053f1d5f4f14207c9c7d750ef2fec9",
+      "gemini_pupper/web/dist/receipt-audio/turn-queued.pcm": "73eabe99e6de558e3ff56ab3bf27599b23b57d6aa404bfc6c5b0de99308450ea",
+      "gemini_pupper/web/dist/receipt-audio/wait-queued.pcm": "9b85a84a3c29da07ac7b348fcdb82fd7bb5e1cc1bcbc1ebbef6cd07c182a7991",
+      "gemini_pupper/web/images/blue_eyes.png": "c1df49e8e58216005a02de2dd68cf509df0195a3d9bb9d7e184e0adcfc9d3c45",
+      "gemini_pupper/web/images/fullscreen_icon.svg": "5336eab58f9bf876d359a71e39741a8a8b339fe41f2b8c170957a4301ed9a7cd",
+      "gemini_pupper/web/images/status_active.svg": "fd78d7e68097621c3ebaa67d341e9cea2f3abe41d564a61e4837df607b921d93",
+      "gemini_pupper/web/images/status_inactive.svg": "9002df0678b198f9a507420ce3ea705faadf9e30ea54e0c3fbe3e7eb49b798b3",
+      "gemini_pupper/web/images/status_loading.svg": "be6a5e99cad375d2b70d197e3fb5de1015b1edda90f7bd1e93875cd26c3e63ea",
+      "gemini_pupper/web/images/status_unknown.svg": "c84b9820208e15cc41168ae83776ac204a2c032a52d10710e89b36ec15d2a8b9",
+      "gemini_pupper/web/index.html": "0cb8172d257f4a447c4ef590c125141c5b8373b382e0e3880c9559dc993f8bf7",
+      "gemini_pupper/web/index.tsx": "850366f90c85638abab2dd52d1f4a39a59a923c569b9af3e8562fafd5feedae3",
+      "gemini_pupper/web/package-lock.json": "66df7abef00d4660adf44ce2c679cbe90df3a4a476d17da70b3a965b959156fa",
+      "gemini_pupper/web/package.json": "1560e3ea507299812fe8ec7ce1de736568bd596bcbf61e614d2f08015328bcde",
+      "gemini_pupper/web/public/receipt-audio/arc-queued.pcm": "1f8d9b0ccf8a17f66fed74a76b2d709d5e9fdf4f11efb58c765f010f1f099176",
+      "gemini_pupper/web/public/receipt-audio/following-stopped.pcm": "a3b3db53d3b99d345a9b8724debc5a40bc34cbae570fa042aa858880c752ace2",
+      "gemini_pupper/web/public/receipt-audio/interactive-action-queued.pcm": "c9a4d53d74b908d38ada15094d4b1b78220a2aa4d3777df99eab7c5c40b6bc8f",
+      "gemini_pupper/web/public/receipt-audio/left-paw-command-queued.pcm": "8f64ef4c6233a3b7eae4246f6c966a32f515ff0aeec6b263d7826c6281d76634",
+      "gemini_pupper/web/public/receipt-audio/move-queued.pcm": "a6fa8f52de936710ada7c7f75e8fc3f8ca4375187c2388151e479a6565771623",
+      "gemini_pupper/web/public/receipt-audio/okay.pcm": "ad0e977a03564e1e59239dccfb6bdf1047c35f471869d53b3cf207cd9c4ff5aa",
+      "gemini_pupper/web/public/receipt-audio/physical-count-unsupported.pcm": "e294556f0393ef41b0de5b5aaefb755ff486b5c5bde9bfca4e84bd98f734ebbf",
+      "gemini_pupper/web/public/receipt-audio/request-failed.pcm": "507d56b2c5aba5c401618940fda631c40ef47551c4404df0233b8673bd887ee6",
+      "gemini_pupper/web/public/receipt-audio/right-paw-command-queued.pcm": "5f92d5191be2d0b60acfbbf422b1ce49f28fa5653d687c3aaf7c94cad7ec44bd",
+      "gemini_pupper/web/public/receipt-audio/stand-queued.pcm": "4e22d8279b7a47665cc40143e3413823addaccf5d797aa26fb4d6265dd15ddea",
+      "gemini_pupper/web/public/receipt-audio/stop-requested.pcm": "16dcbac7bc5661389e75509cb2369cfef5fcd595669bbeb03bb435ee42ff5ac9",
+      "gemini_pupper/web/public/receipt-audio/trick-queued.pcm": "7c483a3049d2954d264e4ea30a52d8478e053f1d5f4f14207c9c7d750ef2fec9",
+      "gemini_pupper/web/public/receipt-audio/turn-queued.pcm": "73eabe99e6de558e3ff56ab3bf27599b23b57d6aa404bfc6c5b0de99308450ea",
+      "gemini_pupper/web/public/receipt-audio/wait-queued.pcm": "9b85a84a3c29da07ac7b348fcdb82fd7bb5e1cc1bcbc1ebbef6cd07c182a7991",
+      "gemini_pupper/web/rehearsal/build.mjs": "58f04fe1fa4f823fb66949e22925c204442be41ca2b04f804469aabd8cbb5258",
+      "gemini_pupper/web/rehearsal/fakeOnly.ts": "85929a8dfca46f0bf0991ead8d6856e5a742b8d4374e9355c9e3b73bb1798909",
+      "gemini_pupper/web/rehearsal/index.html": "3181ba85140d7ae541a20ea791ab27f246b20eff418fa04427409fe1eb1f4e04",
+      "gemini_pupper/web/rehearsal/main.ts": "c19b6f58f4e5283849226c16b35e6f5bb56a63e4a0c506607936b5a03440fa32",
+      "gemini_pupper/web/rehearsal/mockGoogle.ts": "66f411b31c455a6421eef46763562581c5ae989e88d221dd9a16a8ef79d30b43",
+      "gemini_pupper/web/services/acceptedJobs.ts": "9bc4be495ed1cd1986e778a1099921de3e88f6462596040cbdcef8e0ac5d0ad7",
+      "gemini_pupper/web/services/audioUtils.ts": "1d535c0835a3f1edc48ecec1d95142965d1b7a186a1481307d1dfc865894891e",
+      "gemini_pupper/web/services/conversationOutput.ts": "97259aedc4823332d97a4566d71108e5b850050ba02ad17f3fdfcf274d75615a",
+      "gemini_pupper/web/services/executionStatus.ts": "46abc7ded2d1d31519175d823eea96500159b2951c556e8d81a8a14f516ce71b",
+      "gemini_pupper/web/services/followHandoff.ts": "f8ef5a7663fab3a2d7e720169ba3af24baa6f544cbf32e2cca9f48996b24ec1a",
+      "gemini_pupper/web/services/geminiLive.ts": "6abdd4c314a40c9f185cef53e2bf7b51997cd76c592af07c5427b3e4096369c6",
+      "gemini_pupper/web/services/manualControls.ts": "6b53e15c61af0d5dc6ee58903fa9bc291a21669266e3155c81929fe3f4b4711d",
+      "gemini_pupper/web/services/onboardBootstrap.ts": "778c961a2d24968304464f4e9319e6f60743f7f6885557c592c9a20edefe2d58",
+      "gemini_pupper/web/services/operatorFeedback.ts": "bafcf6ea4d2cbc3808c328a608401b18335df001829213e5ec6ab9945c41de53",
+      "gemini_pupper/web/services/receiptAudioCache.ts": "e61eb4a8915c8b54ce32160dffd6618635e822aec09b9f3c7fd183cd7933abc0",
+      "gemini_pupper/web/services/receiptAudioManifest.json": "7e2b8dd54a4c4fa31136d2d158639f813011975129aa69fedfc3c32b4f51fef2",
+      "gemini_pupper/web/services/receiptAudioPreload.ts": "b2f320c0de01d5b9f7484b0fba50fe9968b4e7c1abb15a78e0d220c5d94eab85",
+      "gemini_pupper/web/services/robotBridge.ts": "4de8834487d43140c777d0982e90bfa08a65e10423ab7b0b35621e03d74e439c",
+      "gemini_pupper/web/services/timingCapture.ts": "7ee9aeb715dcb1400091e4f1fed4fe4c7a2c3a9bd6dcbe3416d065e30c55c8d2",
+      "gemini_pupper/web/tsconfig.json": "8641deb29adfd1958488d1951f0d5ddf3013f498aa67ce0f621e347f0ef608d2",
+      "gemini_pupper/web/types.ts": "019f08290f79ed7e521e7bfb864891a68663208c36eddd4e29656c9d250b292b",
+      "gemini_pupper/web/vite.config.ts": "b22319974b9b76e844ce09e4526db577042cda11e15726f9e23c9b20f0b0668c"
+    },
+    "native_imu_model_build_changes": false,
+    "hardware_validated": false
+  },
+  "ballkick_overlay": {
+    "note": "Ball-kick trial release (2026-11-18, Tej): software-lab6-20261103-r6 plus branch tej/gemini-ball-kick (uncommitted, from b03d0c8) under gemini_pupper/{lab,robot,tests,tricks}; Optional Lab 3 gate removed; tricks/secret_dance parked; web sources and bundle unchanged from r6.",
+    "put": [
+      "gemini_pupper/README.md",
+      "gemini_pupper/docs/kick-ball.md",
+      "gemini_pupper/lab/basics.py",
+      "gemini_pupper/lab/part2_walk.py",
+      "gemini_pupper/lab/part4_tricks.py",
+      "gemini_pupper/lab/part5_interactive_action.py",
+      "gemini_pupper/lab/part9_ball_kick.py",
+      "gemini_pupper/lab/prompt.md",
+      "gemini_pupper/lab/test_skill_sequences.py",
+      "gemini_pupper/robot/ball_kick.py",
+      "gemini_pupper/robot/ball_vision.py",
+      "gemini_pupper/robot/gemini_chat.py",
+      "gemini_pupper/robot/get_trick.py",
+      "gemini_pupper/robot/operator_feedback.py",
+      "gemini_pupper/robot/preflight.py",
+      "gemini_pupper/robot/robot_api.py",
+      "gemini_pupper/robot/server.py",
+      "gemini_pupper/robot/test_tools.py",
+      "gemini_pupper/robot/tool_registry.py",
+      "gemini_pupper/robot/tricks.py",
+      "gemini_pupper/tests/fixtures/structured-feedback.json",
+      "gemini_pupper/tests/test_ball_kick_approach.py",
+      "gemini_pupper/tests/test_ball_vision.py",
+      "gemini_pupper/tests/test_command_epoch.py",
+      "gemini_pupper/tests/test_controller_fault_status.py",
+      "gemini_pupper/tests/test_foundation.py",
+      "gemini_pupper/tests/test_gemini_chat_dispatch.py",
+      "gemini_pupper/tests/test_job_timeline.py",
+      "gemini_pupper/tests/test_kick_ball_tool.py",
+      "gemini_pupper/tests/test_observed_controller_mode.py",
+      "gemini_pupper/tests/test_operator_feedback.py",
+      "gemini_pupper/tests/test_shake_hand.py",
+      "gemini_pupper/tests/test_status_inventory.py",
+      "gemini_pupper/tests/test_stop_receipts.py",
+      "gemini_pupper/tests/test_submission_marker.py",
+      "gemini_pupper/tests/test_swim_twice.py",
+      "gemini_pupper/tests/test_transition_status_transport.py",
+      "gemini_pupper/tricks/leg_kick/artifact_manifest.json",
+      "gemini_pupper/tricks/leg_kick/policy.json",
+      "gemini_pupper/tricks/leg_kick/trick.yaml"
+    ],
+    "removed": [
+      "gemini_pupper/lab/part8_secrets.py",
+      "gemini_pupper/robot/secret_gate.py",
+      "gemini_pupper/tests/test_locked_status_diagnostics.py",
+      "gemini_pupper/tests/test_secret_gate_resets.py",
+      "gemini_pupper/tricks/secret_dance/artifact_manifest.json",
+      "gemini_pupper/tricks/secret_dance/policy.json",
+      "gemini_pupper/tricks/secret_dance/trick.yaml"
+    ],
+    "update_u1": "2026-11-18 app-only update: robot/ball_vision.py plane fit by eigh (SVD was 1 s per frame on the Pi), box fallback refuses edge-touching, low-fill and < 0.40 m boxes, max_blobs 8; tests/test_ball_vision.py adds the floor-mat case. Also: one-colour blobs with no other-colour blob near them are not fitted (CPU), and part9 detects at most 6 frames per second (was 12). Blobs larger than the ball at 0.30 m are not fitted (CPU).",
+    "update_u2": "2026-11-18 app-only update: robot/ball_kick.py calibrate 0 mode (fixed walker model, camera only near the ball).",
+    "update_u3": "2026-11-18 app-only update: lab/part9_ball_kick.py kick_in_place (operator-only tool), robot/tool_registry.py OPERATOR_ONLY_TOOLS, new robot/ball_seek.py (camera stop-and-look seek, line-up and kick client)."
+  },
+  "kickfast_overlay": {
+    "note": "Fast-kick release u4 (2026-11-19, Tej): u3 plus branch tej/gemini-ball-kick at 07ed0fd and the fast walker start (tricks/walker.yaml, stand-first). New prepare and start-native necessary. u5 = u4 plus the launch profile that applies tricks/walker.yaml in the walking motion mode.",
+    "changed": [
+      "gemini_pupper/lab/part9_ball_kick.py",
+      "gemini_pupper/robot/ball_seek.py",
+      "gemini_pupper/robot/robot_api.py",
+      "gemini_pupper/robot/test_tools.py",
+      "gemini_pupper/robot/tool_registry.py",
+      "gemini_pupper/robot/tricks.py",
+      "gemini_pupper/tricks/leg_kick/artifact_manifest.json",
+      "gemini_pupper/tricks/leg_kick/trick.yaml",
+      "foundation/hardware/lab6_session.launch.py"
+    ],
+    "added": [
+      "gemini_pupper/robot/kick_at.py",
+      "gemini_pupper/tricks/walker.yaml"
+    ]
+  },
+  "kickseen_overlay": {
+    "note": "Camera kick release u6 (2026-11-20, Tej): u5 plus lab/ball_eye.py, lab/ball_lineup.py, lab/part10_kick_seen.py and robot/tool_registry.py from the worktree of branch tej/gemini-ball-kick (not committed). Tools kick_seen and look_ball, detector fc. No controller, trick or launch file changes.",
+    "changed": [
+      "gemini_pupper/robot/tool_registry.py"
+    ],
+    "added": [
+      "gemini_pupper/lab/ball_eye.py",
+      "gemini_pupper/lab/ball_lineup.py",
+      "gemini_pupper/lab/part10_kick_seen.py"
+    ]
+  }
+}

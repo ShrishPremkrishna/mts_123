@@ -1,0 +1,14 @@
+{
+  "staged_utc": "2026-11-04T21:24:43.469285+00:00",
+  "baseline_preserved": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r5",
+  "new": "/home/pi/pupper-foundation-session-20261029/software-lab6-20261103-r6",
+  "archive_sha256": "fb729f27d29447e33404acb984433e290dead95a6a8522e3b184856ed1d59cfe",
+  "manifest_sha256": "bfbf56a378810981f474793b51b2dd3bdf4b07606d03a8ede118e2011ebbe041",
+  "stage_script_sha256": "cef31f55681bc03eeb9c7c04d237ead6ba0425eebfe38824dcbd123e31852973",
+  "verified_archive_members": 39,
+  "verified_baseline_files": 132,
+  "verified_final_selected_files": 137,
+  "native_driver_policy_or_gains_changed": false,
+  "started": false,
+  "scope": "Separate inherited checkout plus reviewed application overlay; no install/build/start/Stop/profile/homing action."
+}

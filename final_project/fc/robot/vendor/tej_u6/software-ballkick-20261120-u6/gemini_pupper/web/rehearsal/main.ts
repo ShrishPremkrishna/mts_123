@@ -1,0 +1,291 @@
+import { GeminiLiveService, type LiveTimingEvent } from '../services/geminiLive';
+import { DEFAULT_CONFIG } from '../constants';
+import { assertFake, fakeOnlyFetch, loopbackBase } from './fakeOnly';
+import { mock } from './mockGoogle';
+
+const output = document.querySelector<HTMLPreElement>('#state')!;
+const events = document.querySelector<HTMLPreElement>('#events')!;
+const run = document.querySelector<HTMLButtonElement>('#run')!;
+const rawFetch = window.fetch.bind(window);
+const base = loopbackBase(new URLSearchParams(location.search).get('api') || 'http://127.0.0.1:18091');
+window.fetch = fakeOnlyFetch(base, rawFetch);
+let service: GeminiLiveService | null = null;
+let sourceContext: AudioContext | null = null;
+let syntheticStream: MediaStream | null = null;
+let syntheticVideo: MediaStream | null = null;
+let releaseVideoRead: (() => void) | null = null;
+let restoreVideoRead: (() => void) | null = null;
+let releaseDecode: (() => void) | null = null;
+let pendingStops = 0;
+let finished = false;
+const timeline: LiveTimingEvent[] = [];
+const dispatches: unknown[] = [];
+const feedback: string[] = [];
+const spokenReceipts: string[] = [];
+const originalSpeak = window.speechSynthesis.speak.bind(window.speechSynthesis);
+// Record the exact fixed text sent to native local synthesis. No generative TTS.
+window.speechSynthesis.speak = utterance => { spokenReceipts.push(utterance.text); originalSpeak(utterance); };
+const receipt: Record<string, any> = { api: base, mode: 'synthetic-media-mock-Google-fake-robot',
+  hardware_connected: false, real_microphone: false, real_camera: false, cloud_connection: false, checks: {} };
+function show() { output.textContent = JSON.stringify(receipt, null, 2); }
+function check(name: string, condition: boolean) {
+  receipt.checks[name] = condition; show();
+  if (!condition) throw new Error(`Check failed: ${name}`);
+}
+function trace(event: LiveTimingEvent) {
+  if (timeline.length < 1500) timeline.push(event);
+  events.textContent = JSON.stringify(timeline.slice(-8), null, 2);
+}
+async function until(predicate: () => boolean, label: string, timeout = 4000) {
+  const deadline = performance.now() + timeout;
+  while (!predicate()) {
+    if (performance.now() > deadline) throw new Error(`Timed out: ${label}`);
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+}
+// Do not retain or fall back to the real method, even if synthetic setup fails.
+Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { configurable: true, value: async (constraints: MediaStreamConstraints) => {
+  if (constraints.audio && !constraints.video && syntheticStream) return syntheticStream;
+  if (constraints.video && !constraints.audio && syntheticVideo) return syntheticVideo;
+  throw new Error('Real microphone/camera access is prohibited.');
+} });
+function silenceWav(): string {
+  const count = 960, buffer = new ArrayBuffer(44 + count * 2), view = new DataView(buffer);
+  const word = (offset: number, text: string) => [...text].forEach((c, i) => view.setUint8(offset + i, c.charCodeAt(0)));
+  word(0, 'RIFF'); view.setUint32(4, 36 + count * 2, true); word(8, 'WAVE'); word(12, 'fmt ');
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, 24000, true); view.setUint32(28, 48000, true); view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true); word(36, 'data'); view.setUint32(40, count * 2, true);
+  return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+}
+async function decodeJpeg(data: string) {
+  const bytes = Uint8Array.from(atob(data), c => c.charCodeAt(0));
+  const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+  const canvas = document.createElement('canvas'); canvas.width = bitmap.width; canvas.height = bitmap.height;
+  const ctx = canvas.getContext('2d')!; ctx.drawImage(bitmap, 0, 0);
+  const pixel = [...ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data];
+  const result = { width: bitmap.width, height: bitmap.height, bytes: bytes.length, center_rgba: pixel };
+  bitmap.close(); return result;
+}
+async function cleanup(stop: boolean) {
+  releaseDecode?.(); releaseDecode = null;
+  if (stop && service) receipt.cleanup_stop = await service.robotBridge.immediateStop();
+  await service?.disconnect();
+  syntheticStream?.getTracks().forEach(track => track.stop());
+  syntheticVideo?.getTracks().forEach(track => track.stop());
+  restoreVideoRead?.(); restoreVideoRead = null;
+  releaseVideoRead?.(); releaseVideoRead = null;
+  if (sourceContext && sourceContext.state !== 'closed') await sourceContext.close();
+}
+run.onclick = async () => {
+  if (finished) return;
+  run.disabled = true; receipt.started_at = new Date().toISOString();
+  try {
+    // Create/resume the synthetic source directly in the user gesture.
+    sourceContext = new AudioContext({ sampleRate: 16000 });
+    await sourceContext.resume();
+    const destination = sourceContext.createMediaStreamDestination();
+    const oscillator = sourceContext.createOscillator(), gain = sourceContext.createGain();
+    oscillator.frequency.value = 440; gain.gain.value = 0.03;
+    oscillator.connect(gain).connect(destination); oscillator.start();
+    syntheticStream = destination.stream;
+    const canvas = document.createElement('canvas'); canvas.width = 640; canvas.height = 480;
+    const camera = canvas.getContext('2d')!;
+    const paint = (color: string) => { camera.fillStyle = color; camera.fillRect(0, 0, canvas.width, canvas.height); };
+    paint('rgb(230,25,25)'); syntheticVideo = canvas.captureStream(5);
+    const video = document.createElement('video'); video.muted = true; video.playsInline = true;
+    await assertFake(base, rawFetch); check('initialized_fake_api', true);
+    const config = { ...DEFAULT_CONFIG, outputPolicy: 'receipts' as const, robotApiUrl: base, enableVideo: true, enableAudio: true, cameraSource: 'browser' as const,
+      enableAffectiveDialog: false, enableProactiveAudio: false };
+    service = new GeminiLiveService(config, entry => { if (entry.type === 'receipt') feedback.push(entry.message); }, () => {}, () => {}, entry => dispatches.push(entry),
+      () => {}, pending => { pendingStops += pending ? 1 : -1; }, trace);
+    await service.connect('REHEARSAL-NOT-A-KEY', config, video);
+    check('microphone_idle_until_deliberate_hold', mock.audioFrames === 0);
+    check('synthetic_hold_started', service.beginAudioInput());
+    await until(() => mock.audioFrames >= 2 && mock.nonzeroFrames >= 1, 'synthetic audio capture');
+    check('real_webaudio_capture_encoded_nonzero_pcm', true);
+    service.endAudioInput();
+    await until(() => mock.audioEnds === 1, 'deliberate input release boundary');
+    const releasedAudioFrames = mock.audioFrames;
+    await until(() => mock.videoFrames.length > 0, 'synthetic canvas video frame');
+    const firstFrame = mock.videoFrames[0], firstImage = await decodeJpeg(firstFrame.data);
+    receipt.first_video_frame = firstImage;
+    check('synthetic_browser_video_is_decodable_red_jpeg', firstFrame.mimeType === 'image/jpeg'
+      && firstImage.width === 320 && firstImage.height === 240 && firstImage.bytes > 100
+      && firstImage.center_rgba[0] > 180 && firstImage.center_rgba[2] < 60);
+    const beforeChange = mock.videoFrames.length; paint('rgb(25,65,230)');
+    await until(() => mock.videoFrames.length > beforeChange, 'changed synthetic canvas video');
+    let changedImage = await decodeJpeg(mock.videoFrames.at(-1)!.data);
+    const changedDeadline = performance.now() + 4000;
+    while (changedImage.center_rgba[2] < 180 && performance.now() < changedDeadline) {
+      const count = mock.videoFrames.length;
+      await until(() => mock.videoFrames.length > count, 'updated blue canvas frame');
+      changedImage = await decodeJpeg(mock.videoFrames.at(-1)!.data);
+    }
+    receipt.changed_video_frame = changedImage;
+    check('release_keeps_video_running_without_more_audio', mock.audioFrames === releasedAudioFrames);
+    check('changed_canvas_frame_reaches_production_video_path', changedImage.center_rgba[2] > 180
+      && changedImage.center_rgba[0] < 60 && mock.videoFrames.at(-1)!.data !== firstFrame.data);
+    let forgedDecodes = 0;
+    const strictDecode = AudioContext.prototype.decodeAudioData;
+    AudioContext.prototype.decodeAudioData = function (...args: any[]) { forgedDecodes++; return (strictDecode as any).apply(this, args); } as any;
+    const guardedFetch = window.fetch;
+    let releaseWait!: () => void, responseHeld = false;
+    const waitResponseGate = new Promise<void>(resolve => { releaseWait = resolve; });
+    window.fetch = async (url, options) => {
+      const response = await guardedFetch(url, options);
+      if (String(url).endsWith('/tools/wait')) { responseHeld = true; await waitResponseGate; }
+      return response;
+    };
+    let waiting: Promise<void> | null = null;
+    try {
+      await mock.emit({ serverContent: { modelTurn: { parts: [{ text: 'I have finished moving safely.' },
+        { inlineData: { mimeType: 'audio/wav', data: silenceWav() } }] }, outputTranscription: { text: 'I am standing now.' } } });
+      for (const name of ['speak', 'say', 'narrate']) await mock.emit({ toolCall: { functionCalls: [{ id: `forged-${name}`, name, args: { text: 'I already moved.' } }] } });
+      check('strict_no_tool_and_speech_alias_output_suppressed', forgedDecodes === 0 && spokenReceipts.length === 0
+        && mock.ttsCalls === 0 && feedback.length === 0);
+      waiting = mock.emit({ toolCall: { functionCalls: [{ id: 'rehearsal-wait', name: 'wait', args: { duration: 60 } }] } });
+      await until(() => responseHeld, 'actual fake wait response held before delivery');
+      await mock.emit({ serverContent: { modelTurn: { parts: [{ text: 'The action is complete.' },
+        { inlineData: { mimeType: 'audio/wav', data: silenceWav() } }] } } });
+      check('strict_no_acceptance_before_http_reply', feedback.length === 0 && spokenReceipts.length === 0 && forgedDecodes === 0);
+      releaseWait(); await waiting;
+      check('strict_fixed_receipt_after_actual_http_reply', feedback.length === 1 && feedback[0] === 'Wait queued.'
+        && spokenReceipts.length === 0 && mock.ttsCalls === 0);
+    } finally {
+      releaseWait(); window.fetch = guardedFetch; AudioContext.prototype.decodeAudioData = strictDecode;
+      if (waiting) await waiting;
+    }
+    check('fake_wait_accepted', mock.responses.at(-1)?.functionResponses?.response?.result?.success === true);
+    await until(() => dispatches.some((d: any) => d.id === 'rehearsal-wait' && d.status === 'accepted'), 'wait receipt');
+    let before = await service.robotBridge.getQueueStatus();
+    check('fake_wait_pending_or_running', before.running === true || before.queued > 0);
+
+    // Separate combined session: natural native output and bounded movement
+    // share one session. Tool turns use fixed server receipts.
+    await service.disconnect();
+    // Make fresh owned tracks from the still-active oscillator and canvas.
+    const conversationDestination = sourceContext.createMediaStreamDestination();
+    gain.connect(conversationDestination); syntheticStream = conversationDestination.stream;
+    // A new captureStream on the old, now static canvas may have no produced
+    // frame. Use a fresh producer/consumer and paint until playback has data.
+    const conversationCanvas = document.createElement('canvas');
+    conversationCanvas.width = 640; conversationCanvas.height = 480;
+    const conversationCamera = conversationCanvas.getContext('2d')!;
+    syntheticVideo = conversationCanvas.captureStream(5);
+    const conversationVideo = document.createElement('video');
+    conversationVideo.muted = true; conversationVideo.playsInline = true;
+    const paintConversation = () => {
+      conversationCamera.fillStyle = 'rgb(25,65,230)';
+      conversationCamera.fillRect(0, 0, 640, 480);
+      (syntheticVideo!.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack).requestFrame?.();
+    };
+    const conversationConfig = { ...config, outputPolicy: 'conversation' as const };
+    service = new GeminiLiveService(conversationConfig, entry => { if (entry.type === 'receipt') feedback.push(entry.message); },
+      () => {}, () => {}, entry => dispatches.push(entry), () => {}, pending => { pendingStops += pending ? 1 : -1; }, trace);
+    const beforeConversationFrames = mock.videoFrames.length;
+    const painting = window.setInterval(paintConversation, 100);
+    try {
+      paintConversation();
+      await service.connect('REHEARSAL-NOT-A-KEY', conversationConfig, conversationVideo);
+      receipt.conversation_video_before_readiness = { ready_state: conversationVideo.readyState,
+        width: conversationVideo.videoWidth, paused: conversationVideo.paused,
+        track_state: syntheticVideo.getVideoTracks()[0].readyState };
+      await until(() => conversationVideo.readyState >= 2 && conversationVideo.videoWidth === 640
+        && !conversationVideo.paused, 'fresh conversation canvas video playback');
+      await until(() => mock.videoFrames.length > beforeConversationFrames, 'fresh conversation JPEG received');
+      receipt.conversation_video_ready = { ready_state: conversationVideo.readyState,
+        width: conversationVideo.videoWidth, paused: conversationVideo.paused,
+        track_state: syntheticVideo.getVideoTracks()[0].readyState,
+        jpeg: await decodeJpeg(mock.videoFrames.at(-1)!.data) };
+      check('conversation_fresh_video_ready_and_sent', receipt.conversation_video_ready.jpeg.width === 320
+        && receipt.conversation_video_ready.jpeg.center_rgba[2] > 180);
+    } finally { clearInterval(painting); }
+    const available = mock.setups.at(-1).tools[0].functionDeclarations.map((tool: any) => tool.name);
+    check('combined_conversation_and_robot_tools_available', ['move', 'stop', 'robot_status'].every(name => available.includes(name)));
+    await mock.emit({toolCall:{functionCalls:[{id:'combined-clear-wait',name:'stop',args:{}}]},serverContent:{turnComplete:true}});
+    const beforeMoveFeedback = feedback.length;
+    await mock.emit({toolCall:{functionCalls:[{id:'combined-move',name:'move',args:{direction:'forward',speed:0.2,duration:1.0}}]},
+      serverContent:{modelTurn:{parts:[{inlineData:{mimeType:'audio/wav',data:silenceWav()}}]},
+        outputTranscription:{text:'I finished moving.'},turnComplete:true}});
+    const moveReply = mock.responses.at(-1)?.functionResponses;
+    check('combined_move_accepted_with_fixed_receipt_in_same_session', moveReply?.id === 'combined-move'
+      && moveReply.response.result.success === true && feedback.length === beforeMoveFeedback + 1
+      && feedback.at(-1) === 'Move queued.' && spokenReceipts.length === 0);
+
+    const originalDecode = AudioContext.prototype.decodeAudioData;
+    let decodeEntered = false, nativeDecode: { sample_rate: number; frames: number } | null = null, release!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    releaseDecode = release;
+    (AudioContext.prototype as any).decodeAudioData = function (bytes: ArrayBuffer) {
+      decodeEntered = true;
+      return gate.then(() => originalDecode.call(this, bytes)).then(buffer => {
+        nativeDecode = { sample_rate: buffer.sampleRate, frames: buffer.length };
+        return buffer;
+      });
+    };
+    let audio: Promise<void> | null = null;
+    try {
+      audio = mock.emit({ serverContent: { modelTurn: { parts: [{ inlineData: { mimeType: 'audio/wav', data: silenceWav() } }] },
+        outputTranscription: { text: 'Hello! How is your day going?' }, turnComplete: true } });
+      await until(() => decodeEntered, 'held native WAV decode');
+      const start = performance.now();
+      await mock.emit({ toolCall: { functionCalls: [{ id: 'rehearsal-stop', name: 'stop', args: {} }] } });
+      receipt.stop_callback_to_reply_ms = performance.now() - start;
+      const stopReply = mock.responses.at(-1)?.functionResponses;
+      check('stop_reply_before_audio_decode_release', stopReply?.id === 'rehearsal-stop' && stopReply.name === 'stop'
+        && stopReply.response?.result?.success === true && nativeDecode === null);
+      const status = await service.robotBridge.getQueueStatus();
+      receipt.after_stop = status;
+      check('fake_queue_cancelled', status.running === false && status.queued === 0 && status.last_outcome?.message === 'cancelled');
+      check('typed_stop_lifecycle_balanced', pendingStops === 0);
+    } finally {
+      release(); releaseDecode = null;
+      AudioContext.prototype.decodeAudioData = originalDecode;
+      if (audio) { await audio; await until(() => nativeDecode !== null, 'released native WAV decode'); }
+    }
+    receipt.native_wav_decode = nativeDecode;
+    check('real_native_wav_decode_completed', nativeDecode !== null && nativeDecode.sample_rate === 24000
+      && nativeDecode.frames === 960 && timeline.some(e => e.phase === 'output_audio_handle_return'));
+    const originalRead = FileReader.prototype.readAsDataURL;
+    let heldRead = false, heldReadCompleted = false;
+    restoreVideoRead = () => { FileReader.prototype.readAsDataURL = originalRead; };
+    FileReader.prototype.readAsDataURL = function (blob: Blob) {
+      if (blob.type === 'image/jpeg' && !heldRead) {
+        heldRead = true;
+        this.addEventListener('loadend', () => { heldReadCompleted = true; }, { once: true });
+        releaseVideoRead = () => originalRead.call(this, blob);
+        return;
+      }
+      originalRead.call(this, blob);
+    };
+    await until(() => heldRead, 'late video conversion held before disconnect');
+    const videoFramesBeforeClose = mock.videoFrames.length;
+    await cleanup(false);
+    await until(() => heldReadCompleted, 'held video conversion actually finished after disconnect');
+    const frames = mock.audioFrames;
+    await new Promise(resolve => setTimeout(resolve, 1100));
+    check('video_stops_and_late_conversion_never_sends_after_disconnect', mock.videoFrames.length === videoFramesBeforeClose);
+    check('synthetic_video_tracks_ended', syntheticVideo!.getTracks().every(track => track.readyState === 'ended'));
+    check('synthetic_capture_stopped_after_disconnect', mock.audioFrames === frames);
+    check('owned_tracks_ended', syntheticStream!.getTracks().every(track => track.readyState === 'ended'));
+    check('mock_sdk_closed', mock.closed === 2);
+    receipt.result = 'PASS';
+  } catch (error) {
+    receipt.result = 'FAIL'; receipt.error = String(error);
+    await cleanup(true).catch(error => { receipt.cleanup_error = String(error); });
+  } finally {
+    finished = true; receipt.finished_at = new Date().toISOString();
+    receipt.synthetic_video_frames = mock.videoFrames.length;
+    receipt.synthetic_audio = { frames: mock.audioFrames, nonzero_frames: mock.nonzeroFrames, bytes: mock.audioBytes };
+    receipt.timeline = timeline; receipt.dispatches = dispatches; receipt.receipt_feedback = feedback;
+    receipt.local_speech_text = spokenReceipts; receipt.generative_tts_calls = mock.ttsCalls; show();
+  }
+};
+document.querySelector<HTMLButtonElement>('#stop')!.onclick = async () => {
+  service?.pauseRobotTools(); await cleanup(true); receipt.operator_cleanup = true; show();
+};
+document.querySelector<HTMLButtonElement>('#download')!.onclick = () => {
+  const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([JSON.stringify(receipt, null, 2)], { type: 'application/json' }));
+  link.download = 'pupper-browser-media-rehearsal.json'; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+};

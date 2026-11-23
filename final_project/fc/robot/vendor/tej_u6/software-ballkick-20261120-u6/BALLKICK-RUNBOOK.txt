@@ -1,0 +1,29 @@
+Ball-kick trial runbook (2026-11-18). Prepared: release software-ballkick-20261118, run
+supervised-console-runs/20261118-ballkick (prepare passed; 133 kick tests + 166 desk checks passed on this Pi).
+Full plan: gemini_pupper/docs/kick-ball.md (stages R2-R7). Each motion step needs the operator's go.
+
+  B=/home/pi/pupper-foundation-session-20261029/software-ballkick-20261118-u2   (API runs on this update release)
+  K=$B/ballkick-calib.py      (run with /home/pi/pupper-foundation-session-20261029/venv/bin/python3)
+
+Before motion: area clear (2 m around, 3 m ahead), R3 in reach, CPU < 80 C (vcgencmd measure_temp),
+vcgencmd get_throttled = 0x0.
+
+R2  Robot ON THE STAND.  bash $B/ballkick-session.sh start-native   (homes the legs, up to 90 s)
+    then                 bash $B/ballkick-session.sh start-api
+    check                bash $B/ballkick-session.sh status ; python3 $K call robot_status
+R3  Robot on the floor, standing:  python3 $K call stand_up   (wait about 5 s)
+    For each measured ball centre (x forward, y left from base_link, metres), 3 orientations:
+      python3 $K measure 0.50 -0.046 3     python3 $K measure 0.50 0.040 3
+      python3 $K measure 0.76 0 3          python3 $K measure 1.0 0 3
+      python3 $K measure 1.0 0.3 3         python3 $K measure 1.5 -0.4 3
+    Snapshot of the last look: supervised-console-runs/20261118-ballkick/ball_snapshot.jpg
+    python3 $K fit            (read the residuals: <= 1 cm at 0.50 m)  then  python3 $K fit --write
+R4  Dry run: add "dry_run: true" to ~/.config/gemini-pupper/ball_kick.yaml, then
+      python3 $K call kick_ball '{"side": "right"}'      (ruler check: ball 0.258 m ahead, on the paw line)
+R5  Remove dry_run.  python3 $K call kick_ball '{"side": "right"}'
+R6  python3 $K call kick_ball '{"side": "left"}'          (first left kick on hardware)
+R7  Voice: from a terminal in the Pi desktop session:  bash $B/ballkick-session.sh kiosk
+      say: "Go find the ball, walk over to it, and kick it."
+Stop:  python3 $K call stop   (or the app's Stop; R3 latches the native e-stop)
+End:   bash $B/ballkick-session.sh stop-api ; bash $B/ballkick-session.sh shutdown
+Logs:  supervised-console-runs/20261118-ballkick/robot.log (grep kick_ball), telemetry/ (mcap)

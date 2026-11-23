@@ -1,0 +1,14 @@
+{
+  "staged_utc": "2026-11-03T00:22:30.847936+00:00",
+  "baseline_preserved": "/home/pi/pupper-foundation-session-20261029/software-ws1-product-20261102",
+  "new": "/home/pi/pupper-foundation-session-20261029/software-ws1-media-20261102",
+  "archive_sha256": "c5d8f32aa29c8e918be8ddf2e488e9e023038ec0e801871d00836e44fa34e59a",
+  "manifest_sha256": "4e537397b82488b4e5936a1c553b952714d1e7d50c61b9ff2f792b2b4bb9ad8a",
+  "stage_script_sha256": "ae973ea6e22a8cec14ea057dc0672f42d8d09f1f8de7fd816155a785d70e61aa",
+  "verified_archive_members": 23,
+  "verified_baseline_files": 101,
+  "verified_final_selected_files": 101,
+  "native_driver_policy_or_gains_changed": false,
+  "started": false,
+  "scope": "Separate inherited checkout plus reviewed application overlay; no install/build/start/Stop/profile/homing action."
+}

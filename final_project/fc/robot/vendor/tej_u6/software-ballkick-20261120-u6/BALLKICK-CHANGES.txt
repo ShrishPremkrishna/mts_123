@@ -1,0 +1,5 @@
+Ball-kick trial overlay on software-lab6-20261103-r6 (2026-11-18, Tej): branch tej/gemini-ball-kick, uncommitted, from b03d0c8.
+Overlay files: 40. Parked (moved, not deleted): see parked/.
+a6965e62571be11cb6839a2fb81139455a8675ae24803babf139ad1e428dc220  /tmp/ballkick/ballkick-overlay.tar.gz
+4a8c840cbd532f1e85be4f6d215eac2ca2bff6d66032be922135956a5e2b5861  /home/pi/pupper-foundation-session-20261029/software-ballkick-20261118/ballkick-app-manifest.json
+U1 update: ball_vision.py fix (see app-stage-manifest.json ballkick_overlay.update_u1)
