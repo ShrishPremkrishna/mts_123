@@ -1,0 +1,4 @@
+[
+  {"id": "blue", "team": "blue", "tag": 10, "host": "mts", "profile": "stock"},
+  {"id": "red",  "team": "red",  "tag": 11, "host": "",    "profile": "stock"}
+]

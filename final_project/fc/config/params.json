@@ -1,0 +1,11 @@
+{
+  "loop_hz": 30,
+  "role_mode": "auto",
+  "contact_mode": "push",
+  "max_vx": 0.30,
+  "max_vy": 0.15,
+  "max_wz": 1.0,
+  "accel_vx": 0.6,
+  "accel_wz": 3.0,
+  "ttl_s": 0.25
+}
