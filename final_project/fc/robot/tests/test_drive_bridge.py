@@ -291,3 +291,206 @@ def test_safe_summary_handles_missing_or_broken_health():
     assert db.safe_summary(None) is None
     assert db.safe_summary(Broken())["level"] == "unknown"
     assert db.safe_summary(Good()) == {"level": "warn", "tilt_deg": 3.0}
+
+
+def test_ack_carries_hold_fields():
+    c = core()
+    c.on_packet(pkt(seq=1), 0.0)
+    ack = json.loads(c.make_ack(1, "stock", None, c.snapshot(0.0), hold="imu_stale", imu_hold=True, mux_ok=True))
+    assert db.verify(KEY, ack) and (ack["hold"], ack["imu_hold"], ack["mux_ok"]) == ("imu_stale", True, True)
+    plain = json.loads(c.make_ack(1, "stock", None, c.snapshot(0.0)))
+    assert (plain["hold"], plain["imu_hold"], plain["mux_ok"]) == (None, False, None)
+
+
+# ---------------------------------------------------------------- hold (IMU / mux) in the publish path
+
+def test_hold_publishes_zero_while_fresh_then_normal_expiry():
+    c = core()
+    c.on_packet(pkt(seq=1, vx=0.3, ttl=0.25), 0.0)
+    assert c.tick(0.02, hold=True) == (0.0, 0.0, 0.0)
+    assert c.tick(0.04, hold=False) == (0.3, 0.0, 0.0)       # released: command resumes
+    assert c.tick(0.06, hold=True) == (0.0, 0.0, 0.0)
+    assert c.tick(0.30, hold=True) == (0.0, 0.0, 0.0)        # expired: one zero
+    assert c.tick(0.32, hold=True) is None                   # then silence
+    assert c.stats["held"] == 2 and c.stats["pub"] == 1
+
+
+def test_commanding_zero_true_under_hold():
+    c = core()
+    c.on_packet(pkt(seq=1, vx=0.3), 0.0)
+    assert not c.commanding_zero(0.1) and c.commanding_zero(0.1, hold=True)
+
+
+# ---------------------------------------------------------------- ImuGuard
+
+def bad(cause):
+    return {"level": "bad", "bad_cause": cause}
+
+
+def test_imu_guard_holds_on_stale_or_tilt_and_releases_after_1s_good():
+    for cause in ("stale", "tilt"):
+        g = db.ImuGuard(clear_s=1.0)
+        assert not g.update(0.0, {"level": "ok"})
+        assert g.update(0.1, bad(cause)) and g.cause == cause
+        assert g.update(0.2, {"level": "warn"})              # good for 0 s
+        assert g.update(1.1, {"level": "ok"})                # 0.9 s
+        assert not g.update(1.2, {"level": "ok"})            # 1.0 s -> release
+        assert g.cause is None
+
+
+def test_imu_guard_good_run_restarts_on_bad_or_unknown():
+    g = db.ImuGuard(clear_s=1.0)
+    g.update(0.0, bad("stale"))
+    g.update(0.5, {"level": "ok"})
+    g.update(1.0, bad("stale"))                              # relapse: clock restarts
+    assert g.update(1.9, {"level": "ok"}) and g.update(2.5, {"level": "ok"})
+    g.update(2.6, {"level": "unknown"})                      # broken summary: keeps hold, resets run
+    assert g.update(3.0, {"level": "ok"}) and g.update(3.9, {"level": "ok"})
+    assert not g.update(4.0, {"level": "ok"})
+
+
+def test_imu_guard_ignores_other_bad_causes_and_missing_health():
+    g = db.ImuGuard()
+    assert not g.update(0.0, {"level": "bad", "bad_cause": None})
+    assert not g.update(0.1, None) and not g.update(0.2, {"level": "warn", "reasons": ["no IMU samples"]})
+
+
+def test_imu_guard_with_real_imu_health_stale_stream():
+    import imu_health
+    clock = [0.0]
+    h = imu_health.ImuHealth({}, clock=lambda: clock[0])
+    g = db.ImuGuard()
+    for i in range(100):                                     # 100 Hz, level, moving gyro values
+        clock[0] = i * 0.01
+        h.update(clock[0], (0.0, 0.0, 0.0, 1.0), (0.0, 0.0, 0.001 * (i % 3)), True)
+    assert not g.update(clock[0], h.summary())
+    clock[0] += 0.6                                          # stream froze for 600 ms
+    s = h.summary()
+    assert s["level"] == "bad" and s["bad_cause"] == "stale" and g.update(clock[0], s)
+
+
+# ---------------------------------------------------------------- MuxGuard
+
+def test_mux_guard_unseen_until_graph_shows_one_mux():
+    m = db.MuxGuard()
+    assert m.check(0.0, None) == "mux_unseen"
+    m.on_graph(0, 0)
+    assert m.check(0.1, None) == "mux_unseen" and not m.emergency(0.1)   # never seen: no emergency
+    m.on_graph(1, 1)
+    assert m.check(0.2, None) is None
+
+
+def test_mux_guard_contention_and_missing_subscription_hold_without_emergency():
+    m = db.MuxGuard()
+    m.on_graph(1, 1)
+    m.check(0.0, None)
+    m.on_graph(2, 1)
+    assert m.check(0.1, None) == "cmd_vel_publishers=2" and not m.emergency(0.1)
+    m.on_graph(1, 0)
+    assert m.check(0.2, None) == "mux_not_subscribed" and not m.emergency(0.2)
+
+
+def test_mux_guard_gone_triggers_one_emergency_window():
+    m = db.MuxGuard()
+    m.on_graph(1, 1)
+    assert m.check(0.0, None) is None
+    m.on_graph(0, 0)
+    assert m.check(1.0, None) == "no_cmd_vel_publisher"
+    assert m.emergency(1.0) and m.emergency(1.0 + db.EMERGENCY_S - 0.01) and not m.emergency(1.0 + db.EMERGENCY_S)
+    m.check(5.0, None)                                        # still gone: no new window
+    assert not m.emergency(5.0)
+    m.on_graph(1, 1)
+    assert m.check(6.0, None) is None                         # mux back
+
+
+def test_mux_guard_stall_only_while_publishing():
+    m = db.MuxGuard(stall_s=0.5)
+    m.on_graph(1, 1)
+    m.on_cmd_vel(0.0)
+    assert m.check(2.0, None) is None                         # bridge idle: quiet /cmd_vel is normal
+    assert m.check(2.0, 1.9) is None                          # just started publishing
+    m.on_cmd_vel(2.3)
+    assert m.check(2.6, 1.9) is None                          # mux forwarding
+    assert m.check(2.8, 1.9) == "mux_stalled" and m.emergency(2.8)
+    m.on_cmd_vel(2.9)
+    assert m.check(2.95, 1.9) is None                         # traffic resumed (held zeros keep it flowing)
+
+
+def test_mux_guard_with_core_hold_end_to_end():
+    """Mux dies mid-drive: the bridge holds zero, and the emergency window opens once."""
+    c, m = core(), db.MuxGuard()
+    m.on_graph(1, 1)
+    since, outs = None, []
+    for i in range(100):                                      # 50 Hz for 2 s, laptop at 50 Hz too
+        now = i * 0.02
+        c.on_packet(pkt(seq=i + 1, vx=0.2, t=1000.0 + now), now)
+        if i < 50:
+            m.on_cmd_vel(now)                                 # mux alive for the first second
+        hold = m.check(now, since) is not None
+        outs.append(c.tick(now, hold=hold))
+        since = (since if since is not None else now) if c.publishing else None
+    assert all(o == (0.2, 0.0, 0.0) for o in outs[:70])       # ~0.5 s stall detection
+    assert outs[-1] == (0.0, 0.0, 0.0) and m.why == "mux_stalled"
+    assert m.emergency(1.5) and not m.emergency(1.5 + db.EMERGENCY_S + 0.5)
+
+
+# ---------------------------------------------------------------- replay state persistence
+
+def test_replay_state_roundtrip_rejects_old_session_after_restart(tmp_path):
+    path = str(tmp_path / "state.json")
+    c = core()
+    assert c.on_packet(pkt(seq=10, sid="s1", t=1000.0), 0.0)[0]
+    assert c.on_packet(pkt(seq=1, sid="s2", t=1010.0), 0.1)[0]
+    assert c.on_packet(pkt(seq=2, sid="s2", t=1010.1), 0.2)[0]
+    db.save_replay_state(path, c.replay_state())
+    assert oct(os.stat(path).st_mode & 0o777) == "0o600"
+
+    fresh = core()                                            # bridge restarted
+    fresh.restore_replay(db.load_replay_state(path))
+    assert fresh.on_packet(pkt(seq=11, sid="s1", t=1010.2), 0.0) == (False, 11, "old_sid")
+    assert fresh.on_packet(pkt(seq=2, sid="s2", t=1010.1), 0.0) == (False, 2, "old_seq")
+    assert fresh.on_packet(pkt(seq=5, sid="rec", t=1007.0), 0.0) == (False, 5, "stale_t")
+    assert fresh.on_packet(pkt(seq=3, sid="s2", t=1010.2), 0.1) == (True, 3, None)   # running laptop continues
+    assert fresh.on_packet(pkt(seq=1, sid="s3", t=1020.0), 0.2) == (True, 1, None)   # restarted laptop
+
+
+def test_without_state_a_restart_would_accept_the_replay():
+    c = core()
+    c.on_packet(pkt(seq=10, sid="s1", t=1000.0), 0.0)
+    c.on_packet(pkt(seq=1, sid="s2", t=1010.0), 0.1)
+    assert core().on_packet(pkt(seq=10, sid="s1", t=1000.0), 0.0)[0]     # the hole persistence closes
+
+
+def test_replay_state_bounded_and_missing_file(tmp_path):
+    c = core()
+    for i in range(db.MAX_RETIRED_SIDS + 10):
+        assert c.on_packet(pkt(seq=1, sid="s%d" % i, t=1000.0 + i), i * 0.1)[0]
+    st = c.replay_state()
+    assert len(st["retired"]) == db.MAX_RETIRED_SIDS and st["sid"] == "s%d" % (db.MAX_RETIRED_SIDS + 9)
+    path = str(tmp_path / "s.json")
+    db.save_replay_state(path, st)
+    assert len(json.load(open(path))["retired"]) == db.MAX_RETIRED_SIDS
+    assert db.load_replay_state(str(tmp_path / "none.json")) is None
+    assert core().replay_state() == {"newest_t": None, "sid": None, "last_seq": -1, "retired": []}
+
+
+@pytest.mark.parametrize("content", [
+    "not json", "[]", '{"newest_t": "x", "sid": null, "last_seq": -1, "retired": []}',
+    '{"newest_t": 1.0, "sid": "bad sid!", "last_seq": -1, "retired": []}',
+    '{"newest_t": 1.0, "sid": null, "last_seq": true, "retired": []}',
+    '{"newest_t": 1.0, "sid": null, "last_seq": 3, "retired": [5]}',
+    '{"newest_t": 1.0, "sid": null, "last_seq": 3}',
+])
+def test_replay_state_malformed_fails_closed(tmp_path, content):
+    path = tmp_path / "s.json"
+    path.write_text(content)
+    with pytest.raises(ValueError, match="reset-replay"):
+        db.load_replay_state(str(path))
+
+
+def test_replay_state_overwrite_keeps_0600(tmp_path):
+    path = tmp_path / "s.json"
+    path.write_text("{}")
+    os.chmod(path, 0o644)
+    db.save_replay_state(str(path), core().replay_state())
+    assert os.stat(path).st_mode & 0o777 == 0o600 and db.load_replay_state(str(path))["last_seq"] == -1

@@ -7,13 +7,54 @@ gamepad `/teleop_cmd_vel` wins) → `/cmd_vel` → walker. Contract: [../SPEC.md
 
 | File | What |
 | --- | --- |
-| `drive_bridge.py` | rclpy node. 50 Hz Twist while the newest packet is younger than its ttl (0.25 s default, 0.5 s cap), then one zero and silence. Accepts only HMAC-signed packets for its `--robot-id` (key `link.key`, 0600), rejects malformed/replayed packets, clamps to \|vx\|≤0.5, \|vy\|≤0.3, \|wz\|≤2.0. Signed ack (seq, `imu`, profile, stats) to accepted packets only. |
-| `fcctl.sh` | Runs on the Pi from `~/fc-v1/robot/`: `status`, `start <profile> --confirm`, `stop`, `bridge start\|stop`, `imu-test <seconds>`, plus `walk`/`rest`. |
+| `drive_bridge.py` | rclpy node. 50 Hz Twist while the newest packet is younger than its ttl (0.25 s default, 0.5 s cap), then one zero and silence. Accepts only HMAC-signed packets for its `--robot-id` (key `link.key`, 0600), rejects malformed/replayed packets (replay state survives restarts), clamps to \|vx\|≤0.5, \|vy\|≤0.3, \|wz\|≤2.0. Holds zero on a bad IMU or a missing/stalled mux (below). Signed ack (seq, `imu`, profile, `hold`, `imu_hold`, `mux_ok`, stats) to accepted packets only. |
+| `fcctl.sh` | Runs on the Pi from `~/fc-v1/robot/`: `status` (incl. `mux_alive`, `mux_ok`, `ros.mux`), `start <profile> --confirm`, `stop`, `bridge start\|stop`, `imu-test <seconds>`, plus `walk`/`rest`. |
 | `profiles/stock.sh` | Class platform: monorepo `ros2 launch neural_controller launch.py teleop:=False` + teleop→`/teleop_cmd_vel` + `cmd_vel_mux_node`. Domain 0. |
 | `profiles/tej_u6.sh` | Tej's `software-ballkick-20261120-u6` via his `kickseen6` kit (prepare + start-native), fresh run dir, no HTTP API; + teleop→`/teleop_cmd_vel`. Domain 168. |
 | `stage.sh <host>` | Laptop: rsync this dir (minus `vendor/`) to `<host>:~/fc-v1/robot/`, print changes; copy `fc/config/link.key` (0600) and write `robot_id` from the `robots.json` entry for `<host>` (or `FC_ROBOT_ID`). |
 | `keygen.py` | Laptop, once: `python -m fc.robot.keygen` writes `fc/config/link.key` (0600, gitignored). |
 | `vendor/tej_u6/` | Text sources/configs/manifests of u6, the kit, its driver source and gateway source (3.5 MB). Full archive with binaries: `~/workspace/pupper-foundation-artifacts/tej_u6_20261120.tar.gz` (+ `.sha256`). |
+
+## Velocity topology (one mux, one `/cmd_vel` publisher)
+
+Checked on mts 2026-11-23 by reading the installed launch files (no stack started):
+
+| Profile | Who starts the mux | `/cmd_vel` publishers | mux inputs, priority order (500 ms timeout) |
+| --- | --- | --- | --- |
+| `stock` | `stock.sh` (`ros2 run cmd_vel_mux cmd_vel_mux_node`). The Pi's installed `neural_controller/launch/launch.py` (identical to its `src/` copy) starts **no** mux, and `teleop:=False` really drops its teleop node. A laptop monorepo copy that starts a mux is a different revision. | `cmd_vel_mux` only | 0 `/teleop_cmd_vel` ← our `teleop_twist_joy` (gamepad); 1 `/llm_cmd_vel` ← `fc_drive_bridge` only; 2 `/person_following_cmd_vel` ← nobody |
+| `tej_u6` | Tej's `lab6_session.launch.py` (a "required" node: its exit shuts the whole session down). `tej_u6.sh` starts no second one. | `cmd_vel_mux` only | 0 `/teleop_cmd_vel` ← our `teleop_twist_joy` (`FC_TELEOP=0` drops it); 1 `/llm_cmd_vel` ← `fc_drive_bridge` only (his HTTP API, the other publisher, is not started); 2 `/person_following_cmd_vel` ← his Lab 5 follower |
+
+The joystick input needs |value| > 0.05 to take over, so the gamepad's idle zeros do not mask the bridge.
+`start` reports READY only when the live graph (rclpy, `fcctl.sh status` → `ros.mux`) shows exactly
+`/cmd_vel ← [cmd_vel_mux]`, the mux subscribed to `/llm_cmd_vel`, nothing but the bridge publishing
+`/llm_cmd_vel`, and at most one `/teleop_cmd_vel` publisher; `stock` also requires the launch, teleop and
+mux processes alive. Otherwise the start fails with the problem in `starter.log`.
+
+## Bridge holds (defence in depth; the laptop also stops)
+
+While held, the bridge publishes zero instead of the command (so the mux input stays alive) and acks
+carry `hold` (reason), `imu_hold`, `mux_ok`, and `bridge.mux` (`why`, publisher/subscriber counts).
+
+- **IMU** (`--imu-stop`, default on): ImuHealth `bad` with `bad_cause` `stale` or `tilt` → `hold:
+  "imu_stale"|"imu_tilt"`, `imu_hold: true`, released after 1 s of `ok`/`warn`. Zero velocity does not cure a
+  false tilt: lay the robot down with R3.
+- **Mux** (`--mux-guard`, default on): `mux_unseen` (not yet discovered), `cmd_vel_publishers=N` (N≠1),
+  `mux_not_subscribed`, `no_cmd_vel_publisher`, or `mux_stalled` (bridge publishing ≥0.5 s with no `/cmd_vel`;
+  the mux republishes at 20 Hz). The last two mean the mux was lost: a dead mux leaves the walker on its
+  last command, so the bridge then also publishes zero **directly on `/cmd_vel`** for 2 s (a temporary
+  second publisher, created only then). A SIGKILLed mux stays in the ROS graph for a while (DDS lease);
+  the stall check catches it in about 0.5 s. Its ghost also means a mux restarted within ~20 s shows as
+`cmd_vel_publishers=2` (held, and `start` refuses READY) until the lease expires (seen on mts 2026-11-23,
+domain 77). Without a bridge, R3 is still the only stop for a dead mux.
+- `fcctl.sh bridge start --no-imu-stop` / `--no-mux-guard` turn them off (floor escape hatch; note it).
+
+## Replay state
+
+The bridge saves the newest accepted laptop `t`, the current sid + seq and up to 64 retired sids to
+`~/fc-v1/run/bridge_state.json` (0600, at most 1 Hz and on exit) and reloads it on start, so a restart does
+not reopen old sessions (a SIGKILL can lose the last second). Only laptop times are compared, never the Pi
+clock. If the laptop clock steps back more than 2 s, or the file is damaged, packets are refused / the
+bridge will not start: `fcctl.sh bridge stop; fcctl.sh bridge start --reset-replay`.
 
 ## Operating
 
@@ -27,14 +68,20 @@ ssh mts ~/fc-v1/robot/fcctl.sh bridge start
 ssh mts ~/fc-v1/robot/fcctl.sh stop         # bridge zero -> deactivate leg controllers (robot goes limp) -> stack down
 ```
 
-State lives in `~/fc-v1/run/` (pidfiles with process start times, `active` = profile + run dir); each start
+State lives in `~/fc-v1/run/` (pidfiles with process start times, `active` = profile + run dir, `lock`,
+`bridge_state.json`); each start
 gets `~/fc-v1/runs/<UTC>-<profile>/` with all logs. `start` refuses if any `ros2_control_node`,
 `persistent_session.py` or `ros2 launch` is already running. `stop` only signals processes fcctl recorded
 (tej_u6: Tej's own `session.sh shutdown` on our run dir) and never SIGKILLs. `FC_TELEOP=0` drops the added
 teleop node; `FC_STATUS_BATTERY=1` makes `status` read the battery ADC (shared I2C bus, off by default).
+The `lock` (fd 9) serialises `start`/`stop`/`bridge start`; spawned processes never inherit it, and `start`
+releases it once the detached starter runs, so `stop` works during homing (it stops the starter first).
 
-Bridge-only test without a robot: `FC_ROS_DOMAIN_ID=77 fcctl.sh bridge start --profile stock`.
-`bridge start` also takes `--robot-id ID` (default: `robot_id` file) and `--allow-from IP[,IP]`.
-If the laptop clock steps back more than 2 s, packets are refused as stale until `bridge stop`/`start`.
+Bridge-only test without a robot: `FC_ROS_DOMAIN_ID=77 fcctl.sh bridge start --profile stock` (with no
+mux in domain 77 every command is held as `mux_unseen`; start a lone `cmd_vel_mux_node` there to see
+`/cmd_vel`). `bridge start` also takes `--robot-id ID` (default: `robot_id` file), `--allow-from IP[,IP]`,
+`--reset-replay`, `--no-imu-stop`, `--no-mux-guard`.
 
-Tests (no ROS): `.venv/bin/python -m pytest final_project/fc/robot/tests`.
+Tests (no ROS): `.venv/bin/python -m pytest -q fc/robot/tests` from `final_project/`. `test_fcctl.py` (fake
+profile: lock, stop during homing, topology gate) needs Linux and is skipped on the Mac; run it with
+`docker run --rm --network none -v "$PWD/fc/robot:/src:ro" ros:jazzy-ros-base bash -c 'cd /src && python3 -m pytest -q -p no:cacheprovider tests/test_fcctl.py'`.

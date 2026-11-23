@@ -6,6 +6,9 @@
 # (start-api); our drive_bridge publishes /llm_cmd_vel instead, which nothing else publishes without it.
 # Additive: a teleop_twist_joy node remapped to /teleop_cmd_vel so the gamepad sticks override the bridge
 # (his launch has no teleop node; disable with FC_TELEOP=0).
+# His launch already starts the one cmd_vel_mux (lab6_session.launch.py, mux is a "required" node:
+# its exit tears the session down). The Lab 5 follower publishes /person_following_cmd_vel (lowest).
+# READY requires the live graph to show exactly one /cmd_vel publisher (cmd_vel_mux).
 # Physical: start-native homes the legs. Gateway starts LATCHED: press Options, then X
 # (neural_controller_default) on the DualSense to stand; R3 = e-stop.
 # Sourced by fcctl.sh, which provides fc_spawn / fc_alive / fc_signal_group / fc_log.
@@ -55,6 +58,8 @@ profile_start() {
     fc_spawn teleop "$run/teleop.log" ros2 run teleop_twist_joy teleop_node --ros-args \
       --params-file "$TEJ_YAML" -r cmd_vel:=/teleop_cmd_vel
   fi
+  profile_env
+  fc_topology_wait 30 || { fc_log "velocity topology wrong (see above): refusing READY"; return 1; }
   return 0
 }
 

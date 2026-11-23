@@ -2,6 +2,9 @@
 #   ros2 launch neural_controller launch.py teleop:=False      (the launch that walked 25 min on 2026-11-19)
 #   + teleop_twist_joy remapped to /teleop_cmd_vel             (gamepad -> mux priority 0)
 #   + cmd_vel_mux_node (500 ms timeout, deadband 0.05)         (mux -> /cmd_vel -> walker)
+# The launch.py INSTALLED on the Pi starts no cmd_vel_mux and honours teleop:=False (checked on mts
+# 2026-11-23: install/.../launch.py == src/.../launch.py; a laptop monorepo copy that starts a mux is a
+# different revision). READY also requires the live graph to show exactly one /cmd_vel publisher.
 # Stock driver (no 100 ms stale-IMU kill), stock estop_controller (X = neural_controller_default,
 # R3 = e-stop, Options = resume), default_policy.json sha ecf3a4ab (same policy as tej_u6).
 # Sourced by fcctl.sh, which provides fc_spawn / fc_alive / fc_signal_group / fc_log.
@@ -38,11 +41,14 @@ profile_start() {
   local deadline=$((SECONDS + 100))
   while [ $SECONDS -lt $deadline ]; do
     fc_alive launch || { fc_log "launch exited before ready"; return 1; }
+    fc_alive teleop || { fc_log "teleop exited before ready; see teleop.log"; return 1; }
+    fc_alive mux || { fc_log "cmd_vel_mux exited before ready; see mux.log"; return 1; }
     if grep -q "process has died" "$run/robot.log"; then fc_log "a launch process died"; return 1; fi
     if grep -q "Finished homing" "$run/robot.log" &&
        grep -q "Configured and activated.*imu_sensor_broadcaster" "$run/robot.log" &&
        grep -q "Loaded.*neural_controller_default" "$run/robot.log"; then
-      return 0
+      fc_topology_wait $((deadline > SECONDS ? deadline - SECONDS : 1)) && return 0
+      fc_log "velocity topology wrong (see above): refusing READY"; return 1
     fi
     sleep 0.5
   done

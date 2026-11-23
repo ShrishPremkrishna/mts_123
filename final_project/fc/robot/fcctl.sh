@@ -3,9 +3,10 @@
 #   status                      one JSON line
 #   start <profile> --confirm   start a robot stack (HOMES THE LEGS: robot on the stand)
 #   stop                        stop what fcctl started (bridge, walker, stack) and only that
-#   bridge start [--profile P] [--robot-id ID] [--allow-from IP[,IP]] | bridge stop
+#   bridge start [--profile P] [--robot-id ID] [--allow-from IP[,IP]] [--reset-replay]
+#                [--no-imu-stop] [--no-mux-guard] | bridge stop
 #                               (robot id defaults to ~/fc-v1/robot/robot_id, written by stage.sh;
-#                                key: ~/fc-v1/robot/link.key, 0600)
+#                                key: ~/fc-v1/robot/link.key, 0600; replay state: run/bridge_state.json)
 #   imu-test <seconds>          delegates to imu_test.py (IMU lane) if present
 #   walk | rest                 activate / deactivate the profile's walker controller (optional;
 #                               the gamepad X / R3 do the same)
@@ -28,12 +29,13 @@ die() { fc_log "$*"; printf '{"ok":false,"error":"%s"}\n' "${*//\"/\'}"; exit 1;
 _starttime() { awk '{print $22}' "/proc/$1/stat" 2>/dev/null; }
 
 # fc_spawn ROLE LOG CMD... : detached session leader; pidfile holds "pid starttime".
+# 9>&- : the child must not inherit the fcctl lock (fd 9), or every later stop/bridge start is refused.
 fc_spawn() {
   local role=$1 log=$2; shift 2
   local pidfile=$FC_RUN/$role.pid
   rm -f "$pidfile"
   # bash -c (not a background job) so the child keeps default SIGINT handling.
-  setsid -f bash -c 'echo $$ > "$1.tmp"; shift; exec "$@"' fc_spawn "$pidfile" "$@" >> "$log" 2>&1 < /dev/null
+  setsid -f bash -c 'echo $$ > "$1.tmp"; shift; exec "$@"' fc_spawn "$pidfile" "$@" >> "$log" 2>&1 < /dev/null 9>&-
   local i pid
   for i in $(seq 40); do
     if [ -s "$pidfile.tmp" ]; then
@@ -53,6 +55,19 @@ fc_pid() {  # prints pid if ROLE's recorded process is still the same process
   echo "$pid"
 }
 fc_alive() { fc_pid "$1" > /dev/null; }
+
+# A starter killed between setsid and writing the pidfile leaves only ROLE.pid.tmp: adopt those.
+fc_adopt_orphans() {
+  local f pid role
+  for f in "$FC_RUN"/*.pid.tmp; do
+    [ -f "$f" ] || continue
+    role=$(basename "$f" .pid.tmp); pid=$(cat "$f" 2>/dev/null)
+    if [[ "$pid" =~ ^[0-9]+$ ]] && [ -d "/proc/$pid" ] && [ ! -f "$FC_RUN/$role.pid" ]; then
+      echo "$pid $(_starttime "$pid")" > "$FC_RUN/$role.pid"; fc_log "adopted $role (pid $pid)"
+    fi
+    rm -f "$f"
+  done
+}
 
 # fc_signal_group ROLE SIG TIMEOUT : signal ROLE's process group, wait, escalate once to TERM.
 fc_signal_group() {
@@ -92,9 +107,10 @@ foreign_stack() {  # robot processes fcctl did not start
 }
 
 lock() { exec 9> "$FC_RUN/lock"; flock -n 9 || die "another fcctl command is running"; }
+unlock() { exec 9>&-; }
 
 # ---------------------------------------------------------------- ROS queries (rclpy, no daemon)
-rosq() {  # rosq probe | rosq switch "<activate...>" "<deactivate...>"
+rosq() {  # rosq probe [CMD_TOPIC] | rosq switch "<activate...>" "<deactivate...>"
   timeout 15 python3 - "$@" <<'PY'
 import json, sys, time
 import rclpy
@@ -117,6 +133,25 @@ if sys.argv[1] == "probe":
     while time.monotonic() < end:
         rclpy.spin_once(node, timeout_sec=0.1)
     out["nodes"] = sorted({n for n, _ in node.get_node_names_and_namespaces()} - {"fcctl_query"})
+    # Velocity topology: exactly one /cmd_vel publisher (the mux), the mux listening on our topic,
+    # nothing but our bridge publishing our topic, at most one gamepad teleop.
+    topic = sys.argv[2] if len(sys.argv) > 2 else "/llm_cmd_vel"
+    names = lambda infos: sorted(i.node_name for i in infos)
+    cv = names(node.get_publishers_info_by_topic("/cmd_vel"))
+    cs = names(node.get_subscriptions_info_by_topic(topic))
+    cp = names(node.get_publishers_info_by_topic(topic))
+    tp = names(node.get_publishers_info_by_topic("/teleop_cmd_vel"))
+    problems = []
+    if cv != ["cmd_vel_mux"]:
+        problems.append("/cmd_vel publishers %s (want exactly cmd_vel_mux)" % cv)
+    if "cmd_vel_mux" not in cs:
+        problems.append("cmd_vel_mux not subscribed to " + topic)
+    if [n for n in cp if n != "fc_drive_bridge"]:
+        problems.append("%s publishers %s (want only fc_drive_bridge)" % (topic, cp))
+    if len(tp) > 1:
+        problems.append("/teleop_cmd_vel publishers %s (want at most one)" % tp)
+    out["mux"] = {"ok": not problems, "alive": "cmd_vel_mux" in cv, "problems": problems,
+                  "cmd_vel_pubs": cv, "topic": topic, "topic_subs": cs, "topic_pubs": cp, "teleop_pubs": tp}
     out["controllers"] = controllers()
 else:
     want_on = sys.argv[2].split() if len(sys.argv) > 2 else []
@@ -142,6 +177,25 @@ node.destroy_node(); rclpy.try_shutdown()
 PY
 }
 
+# fc_topology_wait SECONDS : (profile env sourced) wait until rosq reports the velocity topology ok.
+fc_topology_wait() {
+  local end=$((SECONDS + $1)) verdict last=""
+  while :; do
+    verdict=$(rosq probe "$PROFILE_CMD_TOPIC" 2>/dev/null | python3 -c '
+import json, sys
+try:
+    m = json.loads(sys.stdin.read())["mux"]
+except Exception:
+    print("BAD no probe"); sys.exit()
+print(("OK /cmd_vel<-%s %s->%s teleop=%s" % (m["cmd_vel_pubs"], m["topic"], m["topic_subs"], m["teleop_pubs"]))
+      if m["ok"] else "BAD " + "; ".join(m["problems"]))')
+    if [ "${verdict%% *}" = OK ]; then fc_log "topology ${verdict#OK }"; return 0; fi
+    [ "$verdict" != "$last" ] && { fc_log "topology not ok: ${verdict#BAD }"; last=$verdict; }
+    [ $SECONDS -lt $end ] || return 1
+    sleep 1
+  done
+}
+
 # ---------------------------------------------------------------- commands
 cmd_status() {
   local prof run alive=false stack=false foreign=false q='null' bpid=''
@@ -149,7 +203,7 @@ cmd_status() {
   if [ -n "$prof" ] && load_profile "$prof" > /dev/null && profile_alive "$run"; then alive=true; fi
   pgrep -f ros2_control_node > /dev/null && stack=true
   foreign_stack && foreign=true
-  if $alive; then profile_env; q=$(rosq probe 2>/dev/null) || q='null'; [ -n "$q" ] || q='null'; fi
+  if $alive; then profile_env; q=$(rosq probe "$PROFILE_CMD_TOPIC" 2>/dev/null) || q='null'; [ -n "$q" ] || q='null'; fi
   bpid=$(fc_pid bridge || true)
   local temp thr batt='null'
   temp=$(vcgencmd measure_temp 2>/dev/null | sed -n "s/temp=\([0-9.]*\).*/\1/p")
@@ -164,13 +218,16 @@ cmd_status() {
 import json, os, sys, time
 prof, run, alive, stack, foreign, bpid, temp, thr, q, batt, load, starter = sys.argv[1:13]
 ready = bool(run) and os.path.exists(os.path.join(run, "READY"))
+ros = json.loads(q) if q and q != "null" else None
+mux = (ros or {}).get("mux") or {}
 failed = bool(run) and os.path.exists(os.path.join(run, "FAILED"))
 print(json.dumps({
     "ok": True, "t": round(time.time(), 3), "host": os.uname().nodename,
     "profile": prof or None, "run_dir": run or None,
     "profile_alive": alive == "true", "starting": bool(starter), "ready": ready, "start_failed": failed,
     "ros2_control_node": stack == "true", "foreign_stack": foreign == "true",
-    "ros": json.loads(q) if q and q != "null" else None,
+    "mux_alive": mux.get("alive"), "mux_ok": mux.get("ok"),   # null = not probed (no live profile)
+    "ros": ros,
     "bridge": {"pid": int(bpid) if bpid else None, "alive": bool(bpid)},
     "temp_c": float(temp) if temp else None, "throttled": thr or None,
     "battery": json.loads(batt) if batt != "null" else None,
@@ -200,6 +257,7 @@ cmd_start() {
   fc_log "!!! HOMING: starting '$name' moves the legs. Robot ON THE STAND, R3 in reach."
   fc_log "temp $(vcgencmd measure_temp 2>/dev/null) $(vcgencmd get_throttled 2>/dev/null) run $run"
   fc_spawn starter "$run/starter.log" bash "$HERE/fcctl.sh" _starter "$name" "$run" || die "could not spawn starter"
+  unlock   # the starter now owns the start; 'stop' must work during homing
   local end=$((SECONDS + 160)) shown=0
   while [ $SECONDS -lt $end ]; do
     if [ -f "$run/starter.log" ]; then
@@ -228,13 +286,14 @@ cmd__starter() {  # internal: runs detached so an ssh drop cannot interrupt homi
 }
 
 cmd_bridge() {
-  local sub=${1:-} prof="" rid="" allow=""
+  local sub=${1:-} prof="" rid="" allow="" extra=()
   shift || true
   while [ $# -gt 0 ]; do
     case "$1" in
       --profile) prof=${2:-}; shift 2 || shift ;;
       --robot-id) rid=${2:-}; shift 2 || shift ;;
       --allow-from) allow=${2:-}; shift 2 || shift ;;
+      --reset-replay|--no-imu-stop|--no-mux-guard) extra+=("$1"); shift ;;
       *) die "unknown bridge option '$1'" ;;
     esac
   done
@@ -252,16 +311,17 @@ cmd_bridge() {
       [ -n "${FC_ROS_DOMAIN_ID:-}" ] && export ROS_DOMAIN_ID=$FC_ROS_DOMAIN_ID
       fc_spawn bridge "$FC_LOGS/bridge.log" python3 -u "$HERE/drive_bridge.py" --profile "$prof" \
         --topic "$PROFILE_CMD_TOPIC" --imu-topic "$PROFILE_IMU_TOPIC" --port "${FC_BRIDGE_PORT:-9870}" \
-        --robot-id "$rid" --key-file "$HERE/link.key" ${allow:+--allow-from "$allow"}
+        --robot-id "$rid" --key-file "$HERE/link.key" --state-file "$FC_RUN/bridge_state.json" \
+        ${allow:+--allow-from "$allow"} "${extra[@]}"
       sleep 1.5
-      fc_alive bridge || die "bridge exited (missing/loose link.key?); see $FC_LOGS/bridge.log"
-      printf '{"ok":true,"bridge_pid":%s,"profile":"%s","robot_id":"%s","topic":"%s","domain":%s}\n' "$(fc_pid bridge)" "$prof" "$rid" "$PROFILE_CMD_TOPIC" "$ROS_DOMAIN_ID"
+      fc_alive bridge || die "bridge exited (missing/loose link.key? bad state file?); see $FC_LOGS/bridge.log"
+      printf '{"ok":true,"bridge_pid":%s,"profile":"%s","robot_id":"%s","topic":"%s","domain":%s}\n' "$(fc_pid bridge)" "$prof" "$rid" "$PROFILE_CMD_TOPIC" "${ROS_DOMAIN_ID:-0}"
       ;;
     stop)
       fc_signal_group bridge INT 5 || die "bridge did not stop"
       echo '{"ok":true,"bridge":"stopped"}'
       ;;
-    *) die "usage: bridge start [--profile P] [--robot-id ID] [--allow-from IP[,IP]] | bridge stop" ;;
+    *) die "usage: bridge start [--profile P] [--robot-id ID] [--allow-from IP[,IP]] [--reset-replay] [--no-imu-stop] [--no-mux-guard] | bridge stop" ;;
   esac
 }
 
@@ -280,6 +340,7 @@ cmd_stop() {
   if [ -z "$prof" ]; then echo "{\"ok\":$([ $rc = 0 ] && echo true || echo false),\"stopped\":null}"; return $rc; fi
   load_profile "$prof"
   fc_signal_group starter TERM 3 || rc=1
+  fc_adopt_orphans
   if profile_alive "$run"; then
     fc_log "deactivating leg controllers (robot will go limp / sit)"
     profile_env
@@ -315,5 +376,5 @@ case "${1:-}" in
   bridge) shift; cmd_bridge "$@" ;;
   walk|rest) cmd_walk "$1" ;;
   imu-test) shift; cmd_imu_test "$@" ;;
-  *) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
