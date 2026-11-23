@@ -516,6 +516,11 @@ cmd_ready() {
   if [[ "$st" == *'"walker_active":true'* ]]; then
     emit standing true "already standing on $PROFILE_WALKER"
   else
+    if [ -z "$confirm" ]; then  # standing takes load: always an explicit operator action
+      emit needs_confirm false "homed but not standing: standing up MOVES THE ROBOT. Clear the area, then rerun with --confirm" \
+        ",\"profile\":\"$name\",\"exit\":3,\"done\":true"
+      exit 3
+    fi
     emit standing_up true "activating $PROFILE_WALKER (software stand: the request the gamepad X sends)"
     sw=$(rosq switch "$PROFILE_WALKER" "$PROFILE_LEG_CONTROLLERS" 2>> "$FC_LOGS/ready.log")
     st=$(_legs "$sw")
