@@ -152,3 +152,46 @@ def test_hard_stop_result_is_bounded_and_tied_to_owned_gateway(newer_same_gatewa
     result = asyncio.run(runner.await_gateway_stop(caller, receive, lambda: True))
     assert result["confirmed"] == newer_same_gateway and result["uncertain"] != newer_same_gateway
     assert sent == ["native", "gateway"]
+
+
+def test_motion_expiry_at_encoder_publishes_neutral_without_poisoning_session():
+    path, now, out, *_ = path_fixture()
+    original_ns = path.core.deadline.monotonic_ns
+
+    def publication_time():
+        now[0] = 10.006  # command was live at the path check, expires before encoding
+        return original_ns()
+
+    path.core.deadline.monotonic_ns = publication_time
+    reason = path.write(Command(.2, 0., 0., 10.005))
+    neutral = runner.protocol.decode(out[-1])
+    assert reason == "motion command expired before publication"
+    assert neutral.is_zero and neutral.issued_mono_ns == 10_006_000_000
+    assert not path.core.executor.external_holds[path.core.robot_id]
+    path.core.deadline.monotonic_ns = original_ns
+    for _ in range(3):
+        now[0] += .0005
+        assert path.write(Command(.2, 0., 0., 10.005)) == reason
+        assert runner.protocol.decode(out[-1]).is_zero
+        assert not path.core.executor.external_holds[path.core.robot_id]
+    now[0] += .001
+    assert path.write(Command(.2, 0., 0., 10.009)) is None
+    fresh = runner.protocol.decode(out[-1])
+    assert fresh.vx == .2 and fresh.expires_mono_ns == 10_009_000_000
+
+
+def test_expired_motion_does_not_hide_a_failed_neutral_publication():
+    path, now, _, *_ = path_fixture()
+
+    def publication_time():
+        now[0] = 10.006
+        return 10_006_000_000
+
+    def broken_transport(payload):
+        assert runner.protocol.decode(payload).is_zero
+        raise OSError("neutral transport failed")
+
+    path.core.deadline.monotonic_ns = publication_time
+    path.publish = broken_transport
+    with pytest.raises(OSError, match="neutral transport failed"):
+        path.write(Command(.2, 0., 0., 10.005))

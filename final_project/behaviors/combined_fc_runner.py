@@ -209,6 +209,7 @@ class GuardedPath:
 
     def write(self, command):
         """Publish one command; return a hold reason if camera evidence lapsed at the send boundary."""
+        motion_deadline = command.expires_at
         moving = any((command.vx, command.vy, command.wz))
         if moving and self.balance is not None:
             self.sync_balance()
@@ -237,6 +238,15 @@ class GuardedPath:
         if hold and payload is None:
             raise RuntimeError(reason or "camera hold could not publish zero")
         if moving and (reason or not actuating):
+            encoded_at = self.core.deadline.last_issued_ns / 1e9
+            if (payload is not None and reason == "original command expired before publication"
+                    and command.expires_at == motion_deadline
+                    and encoded_at < min(self.frame_deadline, native_deadline)
+                    and (self.balance is None or encoded_at < self.balance.deadline_ns / 1e9)):
+                # The encoder already published genuine neutral. An ordinary
+                # motion lease can expire between the check and encoding; it
+                # neither renews movement nor poisons the standing session.
+                return "motion command expired before publication"
             # The encoder already substituted and published zero if sensor
             # evidence expired in the instructions since check(). Other faults propagate.
             if (payload is not None and reason == "original command expired before publication"
