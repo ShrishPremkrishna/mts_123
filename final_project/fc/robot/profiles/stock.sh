@@ -13,6 +13,9 @@ PROFILE_DESC="pupperv3-monorepo neural_controller launch.py + teleop->mux"
 PROFILE_CMD_TOPIC=/llm_cmd_vel
 PROFILE_IMU_TOPIC=/imu_sensor_broadcaster/imu
 PROFILE_WALKER=neural_controller_default
+# fcctl ready stands it in software: the stock estop_controller X sends exactly this SwitchController request
+# (activate the walker, deactivate the other leg controllers, BEST_EFFORT) straight to controller_manager.
+PROFILE_STAND_HINT="press X on the gamepad"
 PROFILE_LEG_CONTROLLERS="neural_controller neural_controller_default neural_controller_default_alt neural_controller_three_legged neural_controller_student"
 MONO=/home/pi/pupperv3-monorepo
 STOCK_CONFIG=$MONO/ros2_ws/install/neural_controller/share/neural_controller/launch/config.yaml

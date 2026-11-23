@@ -17,6 +17,10 @@ PROFILE_DESC="Tej software-ballkick-20261120-u6 via kickseen6 kit (no API)"
 PROFILE_CMD_TOPIC=/llm_cmd_vel
 PROFILE_IMU_TOPIC=/imu_sensor_broadcaster/imu
 PROFILE_WALKER=neural_controller_default
+# Tej's Stop gateway owns /controller_manager/switch_controller, starts LATCHED and refuses any software
+# activation until a physical Options press (joy_utils stop_arbiter.hpp submit(); no software release API
+# in u6). Options alone activates controller_names[0] = neural_controller_default. fcctl ready then waits.
+PROFILE_STAND_HINT="press Options on the gamepad (Stop gateway latched; Options releases it and stands the walker)"
 PROFILE_LEG_CONTROLLERS="neural_controller neural_controller_default neural_controller_default_alt neural_controller_three_legged neural_controller_student gemini_walk trick_leg_kick trick_sit_stay_shake trick_spider_walk walk_spider_walk trick_swim"
 TEJ_BASE=/home/pi/pupper-foundation-session-20261029
 TEJ_KIT=$TEJ_BASE/kickseen-kit-20261120
