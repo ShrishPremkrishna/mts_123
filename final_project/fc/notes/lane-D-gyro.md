@@ -28,11 +28,13 @@ Run `python3 imu_test.py --mode M --seconds N --condition LABEL`. It prints one 
 That run wrote only to the BNO: a soft reset, a product-ID request and set-feature commands. All of that is RAM state, cleared by the driver's own reset at its next start. No tare, calibration, DCD-save or FRS command was sent. Its leftover empty `/tmp/control_board_hardware.lock` is harmless; the reader now removes it.
 
 ## Heading hold off (no rebuild)
-`heading_hold.kp = 0` in the policy JSON disables the hold (`neural_controller.cpp:291-319`, verified). Build the overlays on the Pi with `python3 imu/heading_hold.py u6|stock <dir>`; the kp=0 policy has sha `9f5a3e98…`.
-- **u6**: in the prepare script, pass `--launch/--config/--urdf` from `~/fc-v1/imu/overlays/u6-hh0/foundation/hardware/`. A dry run of profile generation pointed `gemini_walk` and `neural_controller_default` at the kp=0 policy.
-- **stock**: `ros2 launch ~/fc-v1/imu/overlays/stock-hh0/launch_hh0.py`.
+`heading_hold.kp = 0` in the policy JSON disables the hold (`neural_controller.cpp:291-319`, verified); the kp=0 policy has sha `9f5a3e98…`.
+Profiles `stock_hh0` / `tej_u6_hh0` (fc/robot/README.md) build and verify a fresh overlay in `<run>/hh0/` at every start and refuse to start if that fails. `status` reports `heading_hold`.
+- **u6**: prepare gets `--launch/--config/--urdf` from the overlay's `foundation/hardware/`; kit-script sha pins are still enforced.
+- **stock**: `ros2 launch <run>/hh0/launch_hh0.py teleop:=False`.
 
-This needs one straight-walk floor check.
+Files-only dry run on mts 2026-11-23 (`~/fc-v1/tmp/hh0-dryrun-20261123T115639Z/`, no stack started): u6 `persistent_session.py prepare` succeeded with native `37938659` and imu `1dd92b65`, and its generated config points `neural_controller_default` and `gemini_walk` at the kp=0 policy. Evaluating the stock launch description points `neural_controller_default(_alt)` at the policy; `neural_controller` (legacy) is unchanged.
+Still needed: one straight-walk floor check per stack.
 
 ## Stale-IMU tolerance
 - **stock**: no driver change. ImuHealth `stale_ms` plus a bridge stop catches a frozen IMU.
