@@ -1,0 +1,235 @@
+{
+  "schema": "pupper_fc.phase2_reconciliation.v1",
+  "date_local": "2026-11-22",
+  "timezone": "America/Los_Angeles",
+  "updated_utc": "2026-11-23T05:15:53.052800+00:00",
+  "phase": 2,
+  "product_changes": false,
+  "motion_or_robot_service_changes": false,
+  "checkout": "/Users/shrish/workspace/cs123",
+  "branch": "codex/pupper-fc-phase2",
+  "revisions": {
+    "main": "836d2fbefbf28face265b89a8524842224ec1699",
+    "tej_overhead_kick": "28f3e8ce6f7dbd219ca2c6ef57ccecc575343676",
+    "match": "3e5f81f1ae05eb78e79203a95ace319f389f231d"
+  },
+  "report": "foundation/results/fc-phase2-reconciliation-20261122.md",
+  "evidence_dir": "outputs/pupper-fc-reconcile-20261122",
+  "fixes": [
+    {
+      "id": "F1",
+      "deliverable": "Preserve original capture times per robot/ball/image, sample intervals and calibration revision. Reject invalid stamps; expire or recompute onboard corrections after motion/loss.",
+      "no_motion_verification": "Replayed old/future/duplicate samples never become fresh; the reproduced 1.2-second-old robot sample is classified correctly.",
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "F2",
+      "deliverable": "Explicit loss/reacquisition behavior. Bound prediction by time and uncertainty, separate it from measurement, and require qualified current close-ball and heading evidence at kick commitment.",
+      "no_motion_verification": "Lost-tag sequences show a reason and deterministic recovery; prediction does not authorize an unjustified kick or reset its own age. Physical budgets remain to be measured.",
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "F3",
+      "deliverable": "Carry cancellation and deadlines through polling, sampling and onboard calls. Check deadline after blocking responses, report acknowledged Stop, bind a run to one command epoch, and require deliberate rearm through the selected native gateway. Expose any physical Options-button requirement until that path is reconciled.",
+      "no_motion_verification": "Inject stalls, Stop and server replacement; no late result or fresh epoch silently restarts old intent. Missing job IDs are rejected, although the recovered server normally supplies them.",
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "F4",
+      "deliverable": "Keep unknown IMU/standing state distinct from healthy/standing. Replace private dated helper paths and text-substring readiness with selected-release capabilities and typed results.",
+      "no_motion_verification": "Missing helper, parse failure, stale health and active-controller-only responses cannot become Play/kick readiness.",
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "F5",
+      "deliverable": "Protect calibration learning. No learning without an actual attempted action and genuine before/after measurements. Reset dependent estimates on tag/camera remount or field revision.",
+      "no_motion_verification": "No-kick and predicted-start cases leave saved calibration unchanged. Preserve suspect old calibration for comparison rather than overwriting it.",
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "F6",
+      "deliverable": "Compare projection-corrected FC proposals with existing Ball Eye. Retain same-frame outline validation; promote accepted fixes only; use one capture owner.",
+      "no_motion_verification": "Synthetic projection and outlier regressions; frozen-frame comparison once captures arrive. Actual detection accuracy requires T2/T3.",
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "F7",
+      "deliverable": "One measured field/ball/camera/tag profile, including physical goal posts beyond marker lines. Wire the existing corner solver into app setup and use the same goals in planning/scoring.",
+      "no_motion_verification": "Geometry/recalibration fixtures; invalidation of old targets and learned shifts. Tape/camera accuracy requires T1.",
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "F8",
+      "deliverable": "Pair the Mac application with a reproducible Pi release including Ball Eye model/config identity and native library identity. Reuse current main's report-publication/timing fixes.",
+      "no_motion_verification": "Build and device-free native checks on the powered Pi; exact source/model/install manifest and protocol checks. No whole-branch transplantation.",
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "F9",
+      "deliverable": "Separate joint, IMU report and admission faults. Capture four-report validity, age, sequence, selector reason, generation/deadline and callback timestamps at failure.",
+      "no_motion_verification": "Replay each known fault class; logs name the actual predicate. The new snapshot supports T4/T5 instead of guessing the cause.",
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "F10",
+      "deliverable": "Continuous observed approach through the existing executor; keep one exclusive finite foot-kick handoff and a single timing/paw configuration.",
+      "no_motion_verification": "Recorded/replayed observations, command expiry, Stop, handoff and native receipts. Determine physical responsiveness in T6/T7.",
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "F11",
+      "deliverable": "UI operations and experiment results for every test below; automatic timing, source identity, raw observations, failures and recording closure.",
+      "no_motion_verification": "Complete browser walkthrough with labeled replay inputs, disconnects, loss, retries and export; verify available recordings can reopen after orderly closure.",
+      "status": "proposed_not_implemented"
+    },
+    {
+      "id": "F12",
+      "deliverable": "Consolidate branches and current documentation after selected fixes are integrated. Preserve unique teammate work and the useful bridge geometry; retain numerical/physical evidence limits.",
+      "no_motion_verification": "One current entry point and traceable release; no duplicated camera/motion controllers or obsolete success claims.",
+      "status": "proposed_not_implemented"
+    }
+  ],
+  "physical_tests": [
+    {
+      "id": "T1",
+      "name": "T1 Geometry and mounting",
+      "setup_question": "Motors inactive. Measure printed square, rigid tag height/offset/heading, ball diameter, camera mount, a field baseline and actual front-post centers. Check east/west robot orientations and targets at floor, ball and tag heights.",
+      "measurements": "Separate floor-fit repeatability from absolute raised-object accuracy. Save one per-robot/field profile; two-foot mouths remain adjustable.",
+      "status": "pending_physical_test"
+    },
+    {
+      "id": "T2",
+      "name": "T2 Far-tag and color comparison",
+      "setup_question": "Motors inactive. Near/middle/far positions at four cardinal headings; current mounting versus larger rigid flat tag. Record the same short image bursts for main decoder, bounded fallback and existing color/nose tracker.",
+      "measurements": "Detection rate, false IDs, longest gap, pixel dimensions, x/y/yaw error, jitter and processing age. Hold phone lens/crop/focus settings fixed; vary one factor at a time. Needed before selecting camera or marker changes.",
+      "status": "pending_physical_test"
+    },
+    {
+      "id": "T3",
+      "name": "T3 Close-ball detector comparison",
+      "setup_question": "Motors inactive. Actual ball at x=.22,.249,.27,.30,.40,.60 m, both paw lines and small lateral offsets. Include direct acquisition at the kick point versus approach/retention, empty floor, pink distractors and changed light.",
+      "measurements": "Compare current FC, corrected projection and Ball Eye on identical raw captures. Measure misses/false positives, x/y error, box-versus-outline method, latency and rejection reason. Required error margin comes from the measured physical kick window, not an assumed 1 cm claim.",
+      "status": "pending_physical_test"
+    },
+    {
+      "id": "T4",
+      "name": "T4 IMU drift discrimination",
+      "setup_question": "Qualified sensor-only reader, motors disabled, externally fixed body/reference. Compare documented cool and naturally warm starts; collect RV, GameRV, calibrated gyro and uncalibrated gyro/bias with native timestamps and status. Keep other settings fixed.",
+      "measurements": "Two bounded captures up to 20 minutes each cover the reported 5\u20138 minute onset. Compare gravity error, yaw drift, gyro residual and report timing against external truth. Record CPU and sensor/board temperature if available, without equating them. Stop on unexpected actuation, lost recording or thermal warning. Do not reset mid-run and call that a fix.",
+      "status": "pending_physical_test"
+    },
+    {
+      "id": "T5",
+      "name": "T5 Home and first Stand",
+      "setup_question": "After F9 and device-free replay, one supported trial with the current selected source-defined transition. Preserve gains, limits and policy.",
+      "measurements": "Capture joint values, all four report predicates, generation/deadline, activation callbacks and external view. Stop at the first fault; identify joint geometry versus missing qualification versus proof expiry. Then qualify Stop/re-Stand only after the first transition is valid.",
+      "status": "pending_physical_test"
+    },
+    {
+      "id": "T6",
+      "name": "T6 Directional motion and tracking loss",
+      "setup_question": "Once standing is stable, short repeated reciprocal forward/lateral/turn/arc commands with independent start/end body orientation. Controlled tag occlusion and network loss at bounded speed.",
+      "measurements": "Actual speed, drift, turn coupling, response/braking time, source age and reacquisition behavior. Separate gait direction from tag yaw before fitting corrections. Verify stopped motion and deliberate recovery; command success alone is insufficient.",
+      "status": "pending_physical_test"
+    },
+    {
+      "id": "T7",
+      "name": "T7 Foot contact and timing",
+      "setup_question": "Known ball placements and goal direction, stable IMU, synchronized overhead/onboard video. First establish one complete UI-driven stationary-ball attempt, then repeat both feet.",
+      "measurements": "Contact, heading at contact, ball travel/direction/end position, clip timing, controller restoration and first stable resumed step. Log every miss/abort. Start with five exploratory attempts, then a proposed ten per foot once geometry is fixed; set qualification thresholds before qualification. Compare conservative and faster transitions with all other variables held constant.",
+      "status": "pending_physical_test"
+    },
+    {
+      "id": "T8",
+      "name": "T8 Rolling interception and standing defense",
+      "setup_question": "Measured motion model; marked ball rolls toward and away from the goal, reachable and unreachable interception paths. Test one robot in a defense test mode while normal one-robot play remains offense.",
+      "measurements": "Arrival prediction error, standing block coverage, retreat-to-goal choice and fallback. A near-stopped-ball kick is not evidence of fast moving-ball contact.",
+      "status": "pending_physical_test"
+    },
+    {
+      "id": "T9",
+      "name": "T9 Full UI and second robot",
+      "setup_question": "Restart the complete application, use all screens, record a run, Stop/recover, then commission the second robot when available. Exercise both offense and independent defense decisions.",
+      "measurements": "One command to launch; all subsequent operator/test workflows in UI. Overhead plus one onboard feed per participant; correct identities, role changes, opposing-robot interactions, collision/clearance and score/reset behavior. Match readiness requires physical commissioning of both robots.",
+      "status": "pending_physical_test"
+    }
+  ],
+  "git_evidence_search": {
+    "remote_branch_tips_checked": 23,
+    "named_mac_outputs_found": [],
+    "scope": "Fetched branch tips; no claim about GitHub attachments or Tej Mac"
+  },
+  "software_checks": {
+    "existing_bridge_tests": 21,
+    "scope": "software and mocked reproductions only; no hardware capability claim",
+    "results": [
+      "bridge-repros.json",
+      "perception/default-mount-shape-reproduction.json",
+      "perception/sample-age-reproduction.json",
+      "perception/capture-age-reproduction.json"
+    ]
+  },
+  "recordings": [
+    {
+      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261120-kickseen4/telemetry/telemetry_0.mcap",
+      "size": 406074088,
+      "sha256": "ca80b70b12677074f8caa84cebb933aaa8fb64ddd1523bed7191d168d8343509",
+      "has_metadata": true
+    },
+    {
+      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261120-kickseen5/telemetry/telemetry_0.mcap",
+      "size": 122490880,
+      "sha256": "92b3fd56a10cfbfef5d971920a448e76f8bc98a6900959f916efac698ed9085d",
+      "has_metadata": false
+    },
+    {
+      "path": "/home/pi/pupper-foundation-session-20261029/supervised-console-runs/20261120-kickseen6/telemetry/telemetry_0.mcap",
+      "size": 738877440,
+      "sha256": "62390a1c7d381cdf55f26403c77ca4167e90a1cb4f9e6f7fcad0d635dfb1a834",
+      "has_metadata": false
+    }
+  ],
+  "recording_analysis": {
+    "imu_messages": 727895,
+    "all_selected_records": 1468082,
+    "available_files_read_to_eof": [
+      4,
+      5,
+      6
+    ],
+    "unclean_recording_completeness_unknown": [
+      5,
+      6
+    ]
+  },
+  "preservation": {
+    "collection_entries_checked": 207,
+    "mismatches": [],
+    "raw_mcap_full_archive_complete": false,
+    "raw_mcap_note": "Original 3 files hashed on Pi; selected-message analyses complete. Full local archive transfer interrupted; partial tar retained as partial."
+  },
+  "independent_reviews": {
+    "successful_opus_5_5_high": 4,
+    "successful_fable_5_2_high": 1,
+    "timed_out_initial_attempts": 2,
+    "owned_processes": "all completed or terminated with identity checks",
+    "records": [
+      "bridge-opus-review.json",
+      "perception/opus-review.json",
+      "perception/opus-balleye-supplement.json",
+      "imu-opus-final-review.json",
+      "fable-high-review.json",
+      "fable-high-adjudication.json"
+    ]
+  },
+  "external_primary_sources": [
+    "https://www.ceva-ip.com/wp-content/uploads/BNO080_085-Datasheet.pdf",
+    "https://www.ceva-ip.com/wp-content/uploads/SH-2-Reference-Manual.pdf"
+  ],
+  "remaining_evidence": [
+    "Tej Mac overhead logs, original images/video, calibration and arena configuration",
+    "Ball Eye training/version provenance",
+    "Full raw MCAP local preservation after interrupted copy"
+  ],
+  "next": "Stay in Phase 2. Reconcile further user evidence; use fix/test register for the later implementation plan."
+}

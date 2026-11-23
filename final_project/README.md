@@ -1,5 +1,13 @@
 # Pupper FC
 
+## Current investigation — November 22, 2026
+
+Shrish has kept the project in Phase 2. The [Tej reconciliation](../foundation/results/fc-phase2-reconciliation-20261122.md) records source-backed diagnoses, 12 proposed software work packages and nine physical-test batches. Four kick playbacks are independently corroborated by Pi logs; the reported three contacts and one net goal still need Tej's Mac camera evidence. Late IMU/joint deterioration is recorded, but its physical cause and the separate FC startup faults remain unresolved. No fixes were deployed or robot motion performed in this investigation.
+
+The agreed product remains the complete Home/Field/Robot/Settings/Play flow, all tests through the UI, overhead plus one onboard feed per participant, variable marker-derived field size, adjustable two-foot goals, foot kicks, measured interception and independent opponent roles with standing defense. The [current checkpoint](../foundation/results/interruption-recovery.json) owns access, pending evidence and next actions. The dated material below is earlier implementation evidence, not the current assignment.
+
+## Earlier implementation snapshot
+
 Pupper FC aims to have two autonomous Puppers play soccer in an approximately 8 × 12-foot arena. Overhead perception estimates robot and ball positions in a calibrated field with known goal locations. The immediate demo needs one to two minutes of responsive play, useful goal-directed shots and automatic offense/defense. The demo shot uses Tej’s leg-kick policy. The combined single-robot release steers using a measured field pose, hands the legs to the selected kick, and restores walking. Both feet have scored in simulation. The Pi completed walk–kick–walk for each foot on memory-backed joints, then latched Stop and deactivated both leg controllers. The physical robot homed on the stand with the verified build loaded. At standby both motion controllers were inactive and the gamepad, camera and IMU were live. The next supervised check is walker activation and Stop on the stand. Tej owns physical kick qualification, and mounted field tracking remains open. [Pi qualification](../foundation/results/pi-combined-walk-kick-20261119.json)
 
 ## Current agreement and owner steering — November 19, 2026
