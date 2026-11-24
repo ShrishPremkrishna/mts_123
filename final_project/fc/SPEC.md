@@ -97,7 +97,9 @@ Each run writes `fc/runs/<UTC timestamp>-<test>/` (gitignored): `params.json`,
   `.latest() -> World | None`, `.jpeg() -> bytes | None` (annotated frame).
 - `fc.robot.imu_health.ImuHealth(params: dict)`;
   `.update(t, quat_xyzw, gyro_xyz, cmd_zero: bool)`, `.summary() -> dict` with
-  `tilt_deg, pulse_density, bias_x, stale_ms, level` (ok|warn|bad).
+  `tilt_deg, pulse_density, bias_x, stale_ms, frozen_ms, gap_max_ms, level` (ok|warn|bad).
+  `stale_ms` = since the last message arrived; `frozen_ms` = since the values last changed
+  (bad only past 2 s while commanded to move; identical values at zero command are normal).
 - `RobotCfg.cam_url` (optional, default ""): onboard camera MJPEG URL for the Play screen.
 - Pi control (run by the app over ssh): `~/fc-v1/robot/fcctl.sh` with
   `status` (prints one JSON line, incl. `phase` off|starting|homed|standing|ready|fault),

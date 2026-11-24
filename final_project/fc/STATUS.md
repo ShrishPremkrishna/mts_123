@@ -39,6 +39,7 @@ the baseline is already hot. Governor `ondemand`, mostly at 2.4 GHz. Running bes
 | Lie-down abortable: the bridge stays up parked during the lowering; R3's list includes it via the overlay | **device-free** |
 | IMU clean for 10 min standing, and for 10 min with motors off (at < 75 °C) | **robot**, Nov 23 (`imu-test`) |
 | IMU health hold stops motion on a gyro fault | **robot**, Nov 24 (caught the 14° lean) |
+| IMU stale = no message for 500 ms (was: values unchanged 500 ms, which held a robot standing still in run 20261124T055737Z-push_ball while messages arrived at 250 Hz); frozen values bad only after 2 s while commanded; `gap_max_ms` shows callback starvation | **device-free**; staged, not yet run on the robot |
 | Lean stack (default for `stock`): overlay launch skips `foxglove_bridge` and the onboard `camera_node`; `--camera on` keeps the camera, `--lean off` = stock node list. `fcctl status` / `fc.ctl pi` show lean, CPU governor/MHz, fan and the top 5 processes by CPU | **device-free** (overlay checked against the Pi's installed launch.py; tests incl. fcctl in Docker). Not yet started on the robot |
 | ROS status probe: settling graph probe (`robot/rosq.py`) | **robot** bug, fix **device-free** |
 | E-STOP over the link, latched until Ready; fallen-robot cutoff at 45° | **robot** (link E-STOP on stand) + **device-free** |

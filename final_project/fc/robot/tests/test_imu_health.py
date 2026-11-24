@@ -126,12 +126,55 @@ def test_bad_holds_then_clears():
     assert h.summary(now=t)["level"] == "ok"
 
 
-def test_frozen_stream_goes_stale():
+def test_identical_samples_standing_still_are_not_stale():
+    """Run 20261124T055737Z-push_ball: messages kept arriving while the quantized values
+    repeated for > 500 ms at zero command. That is not a stale stream."""
     h = ImuHealth()
     t = feed(h, 0, 2, LEVEL, (0, 0, 0))
-    t = feed(h, t, t + 0.6, quat_roll(1), (0.001, 0, 0), jitter=False)  # identical samples
+    t = feed(h, t, t + 0.6, quat_roll(1), (0.0, 0, 0), jitter=False)  # identical samples, arriving
     s = h.summary(now=t)
-    assert s["stale_ms"] > 500 and s["level"] == "bad" and s["bad_cause"] == "stale"
+    assert s["stale_ms"] < 10 and s["frozen_ms"] > 500 and s["level"] == "ok"
+    t = feed(h, t, t + 0.6, quat_roll(1), (0.0, 0, 0), jitter=False)
+    s = h.summary(now=t)
+    assert s["frozen_ms"] > 1000 and s["level"] == "warn" and s["bad_cause"] is None
+    t = feed(h, t, t + 5.0, quat_roll(1), (0.0, 0, 0), jitter=False)   # standing for long: never bad
+    assert h.summary(now=t)["level"] == "warn"
+
+
+def test_frozen_values_while_commanded_go_bad():
+    h = ImuHealth()
+    t = feed(h, 0, 2, LEVEL, (0, 0, 0))
+    t = feed(h, t, t + 1.5, quat_roll(1), (0.001, 0, 0), cmd_zero=False, jitter=False)
+    assert h.summary(now=t)["level"] == "warn"
+    t = feed(h, t, t + 0.6, quat_roll(1), (0.001, 0, 0), cmd_zero=False, jitter=False)
+    s = h.summary(now=t)
+    assert s["level"] == "bad" and s["bad_cause"] == "stale" and "frozen" in s["reasons"][0]
+
+
+def test_frozen_clock_restarts_when_command_starts():
+    h = ImuHealth()
+    t = feed(h, 0, 3, quat_roll(1), (0.0, 0, 0), jitter=False)            # standing, frozen 3 s
+    t = feed(h, t, t + 1.0, quat_roll(1), (0.0, 0, 0), cmd_zero=False, jitter=False)
+    assert h.summary(now=t)["level"] == "warn"                            # 1 s commanded, not 4 s
+
+
+def test_staleness_is_time_since_arrival():
+    h = ImuHealth()
+    t = feed(h, 0, 1, LEVEL, (0, 0, 0))
+    assert h.summary(now=t + 0.1)["level"] == "ok"
+    assert h.summary(now=t + 0.3)["level"] == "warn"
+    s = h.summary(now=t + 0.6)
+    assert s["level"] == "bad" and s["bad_cause"] == "stale" and s["stale_ms"] > 500
+
+
+def test_arrival_gap_is_reported():
+    """A starved callback (late burst after a pause) shows as gap_max_ms, then ages out."""
+    h = ImuHealth()
+    t = feed(h, 0, 1, LEVEL, (0, 0, 0))
+    t = feed(h, t + 0.3, t + 1.3, LEVEL, (0, 0, 0))
+    assert h.summary(now=t)["gap_max_ms"] == pytest.approx(300, abs=10)
+    t = feed(h, t, t + 11, LEVEL, (0, 0, 0))
+    assert h.summary(now=t)["gap_max_ms"] == 0.0
 
 
 def test_missing_updates_go_stale_on_wall_clock():

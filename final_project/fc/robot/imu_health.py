@@ -8,14 +8,23 @@ false tilt. This monitor watches the three things that matter:
   tilt_deg       body tilt from the quaternion (angle between body z and world z)
   pulse_density  fraction of recent samples that are an isolated negative raw-X pulse
   bias_x         median raw-X rate over the window (rad/s)
-  stale_ms       time since the IMU sample last changed (frozen or missing stream)
+  stale_ms       time since the last IMU message ARRIVED (missing stream / starved callback)
+  frozen_ms      time since the sample values last CHANGED (arriving but frozen stream)
+  gap_max_ms     largest inter-arrival gap over the window (callback starvation shows here)
 
 and reduces them to one level:
 
   bad   tilt > bad_tilt_deg for tilt_hold_s while the command is zero
         (robot told to stand still, IMU says it is leaning: lie down), or the
-        stream froze for stale_bad_ms.
-  warn  pulse_density, |bias_x|, tilt or staleness past their warn limits.
+        no message arrived for stale_bad_ms, or the values stayed identical for
+        frozen_bad_ms while the robot was commanded to move.
+  warn  pulse_density, |bias_x|, tilt, staleness or frozen values past their warn limits.
+
+Why arrival vs change (2026-11-24, run 20261124T055737Z-push_ball): standing still
+on the stock walker, messages kept arriving at ~250 Hz (summary n +63 in 250 ms)
+while the quantized values stayed identical for > 500 ms; the old "unchanged"
+test called that a stale stream and held the robot. Identical values at zero
+command are normal; while walking they are not.
   ok    otherwise.
 
 Pure stdlib (runs on the Pi's system python3). Thresholds are params; defaults
@@ -43,8 +52,11 @@ DEFAULTS = {
     "warn_tilt_deg": 6.0,        # tilt with zero command, held tilt_hold_s
     "bad_tilt_deg": 10.0,        # tilt with zero command, held tilt_hold_s -> bad
     "tilt_hold_s": 2.0,          # real tilts (kick, pick-up) in kickseen6 lasted <= 1.3 s
-    "stale_warn_ms": 200.0,      # sample unchanged this long (normal repeats reach ~90 ms)
+    "stale_warn_ms": 200.0,      # no message for this long (normal gap ~4 ms at 250 Hz)
     "stale_bad_ms": 500.0,
+    "frozen_warn_ms": 1000.0,    # values identical this long (any command): warn only
+    "frozen_bad_ms": 2000.0,     # values identical this long while commanded to move: bad
+    "gap_note_ms": 50.0,         # inter-arrival gaps above this are remembered for gap_max_ms
     "hold_s": 3.0,               # a level persists this long after its condition clears
 }
 
@@ -91,6 +103,8 @@ class ImuHealth:
         self._last_wall = None
         self._last_sample = None
         self._last_change_t = None
+        self._last_zero_t = None     # last update with a zero command
+        self._gaps = deque()         # (t, gap_s) for gaps > gap_note_ms within window_s
         self._tilt = float("nan")
         self._tilt_since = None      # start of the current zero-command over-limit tilt run
         self._tilt_warn_since = None
@@ -108,6 +122,12 @@ class ImuHealth:
         if sample != self._last_sample or self._last_change_t is None:
             self._last_change_t = t
             self._last_sample = sample
+        if cmd_zero:
+            self._last_zero_t = t
+        if self._last_t is not None and t - self._last_t > p["gap_note_ms"] / 1000.0:
+            self._gaps.append((t, t - self._last_t))
+        while self._gaps and self._gaps[0][0] < t - p["window_s"]:
+            self._gaps.popleft()
         self._last_t = t
         self._last_wall = self._clock()
 
@@ -153,20 +173,32 @@ class ImuHealth:
         p = self.p
         if self._last_t is None:
             return {"tilt_deg": None, "pulse_density": None, "bias_x": None,
-                    "stale_ms": None, "level": "warn", "reasons": ["no IMU samples"], "n": 0}
+                    "stale_ms": None, "frozen_ms": None, "gap_max_ms": None,
+                    "level": "warn", "reasons": ["no IMU samples"], "n": 0}
         if now is None:
             now = self.now()
-        stale_ms = max(0.0, (now - self._last_change_t) * 1000.0)
+        stale_ms = max(0.0, (now - self._last_t) * 1000.0)
+        frozen_ms = max(0.0, (now - self._last_change_t) * 1000.0)
+        moving_since = self._last_change_t if self._last_zero_t is None else max(self._last_change_t,
+                                                                                 self._last_zero_t)
+        frozen_moving_ms = max(0.0, (now - moving_since) * 1000.0)
+        gap_max_ms = max((g for _, g in self._gaps), default=0.0) * 1000.0
         density = self._pulse_n / len(self._win) if self._win else 0.0
         bias = statistics.median(r[1] for r in self._win) if self._win else 0.0
 
         level, reasons, cause = "ok", [], None
         if stale_ms > p["stale_bad_ms"]:
             level, cause = "bad", "stale"
-            reasons.append("IMU unchanged for %.0f ms" % stale_ms)
+            reasons.append("no IMU message for %.0f ms" % stale_ms)
+        elif frozen_moving_ms > p["frozen_bad_ms"]:
+            level, cause = "bad", "stale"
+            reasons.append("IMU values frozen %.0f ms while commanded" % frozen_moving_ms)
         elif stale_ms > p["stale_warn_ms"]:
             level = "warn"
-            reasons.append("IMU unchanged for %.0f ms" % stale_ms)
+            reasons.append("no IMU message for %.0f ms" % stale_ms)
+        elif frozen_ms > p["frozen_warn_ms"]:
+            level = "warn"
+            reasons.append("IMU values unchanged for %.0f ms" % frozen_ms)
         if abs(bias) > p["warn_bias"] and len(self._win) >= 50:
             self._flag("warn", now, "raw-X bias %+.3f rad/s" % bias)
         for lv in ("bad", "warn"):
@@ -181,6 +213,8 @@ class ImuHealth:
             "pulse_density": round(density, 3),
             "bias_x": round(bias, 4),
             "stale_ms": round(stale_ms, 1),
+            "frozen_ms": round(frozen_ms, 1),
+            "gap_max_ms": round(gap_max_ms, 1),
             "level": level,
             "bad_cause": cause,     # "tilt" (lie down) | "stale" (stop; IMU frozen) | None
             "reasons": reasons,
