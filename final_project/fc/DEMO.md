@@ -1,120 +1,90 @@
-# G. Demo plan: Pupper FC, Dec 3 (written Nov 23)
+# Pupper FC demo plan (Dec 3, 2026)
 
-Sources: `fc/` SPEC, README, RUNBOOK, lane notes, old `DEMO.md`. Nothing here is measured on a robot yet; thresholds are targets.
+Updated Nov 23. Current state: [STATUS.md](STATUS.md). Floor steps: [RUNBOOK.md](RUNBOOK.md). Gate numbers are
+targets until measured on the floor. Wording on stage: the robot **shoots by running through the ball**. There is
+no leg kick in this demo (maybe a later iteration).
 
-## What wins the room
+## What the demo must prove
 
-A robotics engineer asks three things in two minutes: *Is it really deciding by itself? Does it survive being messed with? Does this person know its limits?* So the demo is built on four proofs:
+1. **Nobody is driving.** Hands empty; one button on the laptop, then nobody touches it.
+2. **Glass box.** The Play screen shows what each robot sees, wants (target cross, path) and why (role, phase,
+   ticker). The audience can predict the next move.
+3. **It adapts.** A judge moves the ball; the robot re-plans (and, from stage 3, switches role by itself).
+4. **It fails safe, and we count our help.** Cover a tag: it stops within 0.5 s. A referee-touch counter stays on screen.
 
-1. **Nobody is driving.** Shrish's hands are empty. Nobody touches the laptop after one button.
-2. **Glass box.** The screen shows what the robot believes (outline), what it wants (target cross, path), and why (role + phase in plain words). The audience can predict the next move.
-3. **It adapts.** A judge puts the ball anywhere. Roles flip on screen.
-4. **It fails safe, and we count our touches.** Blind it and it stops in 0.5 s. A "referee touches" counter stays on screen.
+Facts the script relies on: fast gait **0.75 m/s** commanded (walker speed cap raised to 0.8 by preset
+`fast-play-robot`; ~0.73 m/s in sim, unmeasured on the floor), trot near the ball, shot = contact at speed
+(`contact_vx` 0.4 → 0.6 → 0.75, highest that passes). Field 2.63 × 1.93 m, **1.0 m goal mouths**, fence on all
+sides. Safety: STOP (space), E-STOP over the link (Esc), gamepad R3, fallen-robot cutoff at 45°, gentle lie-down on `down`.
 
-Toy signals: dead air while a slow robot walks, gimmicks talking over the presenter, fumbling after a fall.
+## Stages and gates
 
-**Two hard facts shape everything.** (a) The robot walks 0.3 m/s, so every spoken line must be said *while* it walks. (b) In sim a 1v1 match gives about one goal per minute in total, and the goalie is good (0.36 m body in a 0.61 m mouth). A cold kickoff has roughly a 1-in-4 chance of no goal in the slot. So the first goal is staged, and the wow is the role flip, not the score.
+Each stage is its own demo. Film the hero take the day a stage passes. Live variant = the highest stage whose gate
+holds in counted sets on Dec 1–2. Decide **Wed Dec 2, 8 pm**; never upgrade on the day.
 
-## 1. Run of show (Variant A, two robots, 120 s)
-
-People: **Shrish** talks, hands free. **Referee** has the ball, a stick, and the gamepad (R3 = e-stop). **Operator** sits at the laptop (space = stop, fallback keys). Robots are homed, standing, bridge up and health green *before* the slot. Ball staged 0.7 m in front of red's goal, blue 0.5 m behind it, red out of position at midfield.
-
-| Time | Robots | Screen | Shrish says |
+| Stage | Pass (on the floor) | Target date | If not |
 |---|---|---|---|
-| 0:00–0:08 | Operator presses **Play**. Blue walks at the ball. | Overhead view, outlines, target cross, chips "BLUE attack / getting behind ball", "RED defend". Timer starts. | "Two robot dogs, one laptop, nobody driving. Hands are empty." |
-| 0:08–0:28 | Blue pushes, red runs back to its line. | Path line, phase "pushing". Latency chip "camera to legs 0.15 s". | "A camera overhead finds robots and ball 30 times a second. Each robot picks a job, attack or goalie, and a spot to walk to: that cross. Commands expire in a quarter second, so if anything dies, the dog stops." |
-| 0:28–0:35 | **Goal** (or save). Robots pause 2 s. | GOAL flash, 1–0, short crowd sound. | "One–nil." (If saved: "Red read that.") |
-| 0:35–1:05 | **Wow 1.** Referee hands the ball to a judge: "anywhere you like." Play resumes by itself when the ball rests. Roles flip. | Chips swap colour. Ticker: "red is 1.2 s closer, red attacks". | "Nobody assigns roles. Each robot estimates who reaches the ball first. Watch the labels flip." |
-| 1:05–1:20 | **Wow 2.** Referee holds a card over the attacker's tag for 2 s, then removes it. | Red banner "BLUE: can't see itself, stopped". Clears. | "If it can't see, it stops. Half a second, measured. Then it carries on." |
-| 1:20–1:45 | Play continues to goal 2 or a wall ball. Referee taps a stuck ball with the stick. | "Referee touches: 1". | "On the floor this week: N of M goals, median T seconds. The sim, loaded with our measured lag and heading error, predicted P. It can't dig a ball out of a corner yet, so the referee does, and we count it." |
-| 1:45–2:00 | Operator hits space. Robots stop. | End card: 3 measured numbers, name, repo QR. | "Same brain runs the sim and the dogs. The brain is about 550 lines of Python on a stock walking policy. I'm Shrish. I built the control stack. Thanks." |
+| G0 loop | Five stops pass; `step` `latency_s` ≤ 0.35; heading bias < 5° | Tue 24 (S1) | 0.35–0.55: set `act_lag_s`, lower `k_turn`, carry on. Above: a bug; fix first |
+| G-fast | 0.75 bursts ×6, no fall; real ball at contact 0.4 → 0.6 → 0.75, 0 falls in 10 | Wed 25 (S2) | Use the highest clean contact speed |
+| **1. Shootout** | Static ball, 3 spots: ≥ 8/10 goals, median ≤ 20 s | Wed 25 (S2) | Fix the top failure; no keeper work below 6/10 |
+| **2. Keeper** (vs human) | ≥ 7/10 hand-rolled shots saved; midfield → on the line ≤ 4 s | Wed 25 (S3) | Narrow to penalty saves |
+| **3. Switch** (solo, vs human) | Right role on ≥ 8/10 ball moves, moving within 1.5 s, ≤ 1 wrong flip/min; rolling-ball goal ≥ 6/10 | Fri 27 (S4) | Show Shootout and Keeper as two acts |
+| Robot 2 | In hand Wed 25; passes G0 by Sat 28 night | Sat 28 | Lock stage 3 or lower; stop robot-2 work |
+| **4. Match** (two robots) | Goal within 90 s in ≥ 4/5; 0 falls in 10 match-minutes | Sun 29 | Stage 3 live, match as film |
 
-Rules: no goal by 0:40, go to Wow 1 anyway. Behind time, cut Wow 2 first. Stop at 1:55 whatever is happening.
+Stage 3 uses the solo role rule (defend while the ball threatens our goal, attack otherwise) and the interception
+lead, both in the brain since `bc8e68a` and sim-only so far. Fallback: red's tag (id 11) on a box a human moves.
 
-## 2. Variants
+Calendar: Thu 26 sim retune, no floor. Sat 28 hardware freeze. Sun 29 feature freeze, film day. Mon 30 counted sets,
+timed run-throughs. Tue Dec 1 param freeze, 5 run-throughs, venue drill. Wed 2 video in by noon, rehearse ×5, no
+code, charge. Thu 3 two warm-up goals, demo. Between sessions build only the last session's top failure and the next
+gate's test. **Do not build:** leg kick, headbutt tuning, commentator, retraining, corner extraction, self-righting,
+celebrations, more UI.
 
-**B. One robot (most likely). "Robot vs humans."**
-- 0:00–0:35 solo goal from the staged spot, same lines.
-- 0:35–1:10 judge places the ball on the wrong side; robot orbits and scores. This is Wow 1.
-- 1:10–1:20 tag-cover stop.
-- 1:20–1:45 operator presses **Goalie** (say so: "one button, I'm switching its job"). Referee rolls three slow shots. Saves are the fastest, most visual thing the robot does.
-- 1:45–2:00 numbers and close.
+## Run of show (120 s each)
 
-If robot 2 arrives but robot 1's gyro is still faulty, the healthy robot is the star of B.
+People: **Shrish** talks, hands free. **Referee** has the ball, a stick and the gamepad (R3). **Operator** at the
+laptop (space, Esc). Robots homed, standing, bridge up, health green *before* the slot. Every variant opens and closes the same way:
 
-**C. Robots unreliable.**
-- 0:00–0:35 live: the single most reliable primitive (goalie saves, or click-to-point plus tag-cover stop).
-- 0:35–1:35 the film's hero cut: real speed, uncut, overlay beside it.
-- 1:35–2:00 the honest story: "The gyro on this robot has a fault on one axis. We traced it to the chip with the motors off. Our monitor catches it and stops the robot."
+- **0:00–0:10** Operator presses Play. "One laptop, an overhead camera, nobody driving. My hands are empty."
+- **1:45–2:00** Operator hits space. End card: 3 measured numbers (attempts as well as goals), repo QR. "Same
+  brain runs the sim and the robot: a few hundred lines of Python on the stock walking policy. I'm Shrish. Thanks."
 
-**Decision rule (Dec 2, 8 pm, from Dec 1–2 counts; never upgrade on the day).**
+| Time | 1. Shootout | 2. Keeper | 3. Switch | 4. Match |
+|---|---|---|---|---|
+| 0:10–0:40 | Ball at a marked spot. Robot runs behind it and shoots through it. "The camera finds robot and ball 30 times a second; that cross is where it wants to be." | Robot on its line. Referee rolls a shot; robot crabs across and blocks. "It projects the ball's path to the goal line." | Human rolls at our goal: robot defends. Ball rests: robot attacks. "Nobody picks its job. It reads the ball." | Play from start spots. Blue attacks, red defends. "Each robot estimates who reaches the ball first. Watch the labels." |
+| 0:40–1:10 | Judge places the ball anywhere, including the wrong side. Robot orbits and scores. | Two more shots, one from a judge. Score the saves on screen. | Judge rolls and places the ball. Role chips flip on screen. | Judge moves the ball mid-play. Roles flip. |
+| 1:10–1:25 | Card over the robot's tag 2 s. Banner: "can't see itself, stopped." Remove; it carries on. | same | same | same, on the attacker |
+| 1:25–1:45 | Numbers line: "This week: N of M goals, median T s. Sim with our measured lag predicted P." Referee touch if a ball sticks. | Same line with saves. | Same line with role accuracy. | Play to goal 2 or a wall ball; referee touch, counter +1. |
 
-| Run | Needs all of |
-|---|---|
-| A | Each robot: solo push ≥ 8/10 in ≤ 30 s. 1v1: a goal within 90 s in ≥ 4/5 matches; roles flip on a moved ball ≥ 8/10; 0 falls in 10 match-minutes. Both robots: 3 sessions of 10 min in a row with no `imu_bad`. 5 timed run-throughs: ≥ 4 clean. |
-| B | Push ≥ 7/10 in ≤ 30 s. Moved-ball goal ≥ 6/10 in ≤ 40 s. Goalie ≥ 7/10. Tag-cover stop and resume 10/10. 3 sessions of 5 min with no `imu_bad`. Run-throughs ≥ 4/5 clean. |
-| C | Anything less. |
+Rules: no goal by 0:40, move on anyway. Behind time, cut the tag cover first. Stop at 1:55 whatever happens.
 
-"Clean" = no fall, no unscripted laptop touch, ends by 2:00. A degrades to B live (referee lifts the dead robot out), B to C (operator plays the film). Both must be one key.
-
-## 3. Failures on stage
+## Failures on stage
 
 | Event | Action | Line |
 |---|---|---|
-| Fall | Referee: R3, lift it out. No restart (homing needs the stand and 100 s). Other robot plays on, or film. | "No get-up yet. That's the next thing I'd build. Blue plays on." |
-| `imu_bad` stop | App has already zeroed it. Referee: R3. Continue as B or film. | "That's the health monitor. This gyro has a known fault. It stopped rather than walk on bad data." |
-| Tracking lost | Wait 3 s, hands off. Then referee checks the tag for shadow or tilt. | "It lost sight of itself, so it stopped." |
-| Ball stuck, robots tangled | Referee stick, counter +1. Announced as a rule, like a throw-in. | "Referee touch, that's one." |
-| App crash | Bridge stops robots in 0.25 s. One relaunch (must be < 10 s, scripted). Else film. | "Laptop goes quiet, robots stop. You just saw it." |
+| Fall | The fallen cutoff drops it (or referee R3). Lift it out; other robot plays on, else drop a stage or play film. Re-arm with Ready only if rehearsed. | "No get-up yet. It cut its own motors." |
+| `imu_bad` / tracking lost | App has already zeroed it. Wait 3 s hands off; referee checks the tag for shadow or tilt. | "It lost sight of itself, so it stopped." |
+| Ball stuck in a corner or robots tangled | Referee stick, counter +1, announced as a rule. | "Referee touch, that's one." |
+| App crash | Bridge stops the robot within 0.25 s. One scripted relaunch (< 10 s), else film. | "Laptop goes quiet, robot stops. You just saw it." |
+| E-STOP not confirmed | R3. | — |
 
-Never debug on stage. Never press Play twice to hide a fault.
+Never debug on stage. Never press Play twice to hide a fault. Keep one key each to drop a robot and to play the film.
 
-## 4. Must be true by Dec 1, and the daily plan
+## Video (due Dec 2 noon, ≤ 2:50, real speed, sim labelled)
 
-Besides the table above:
-- **Venue.** Where is it, is our field there, setup minutes, projector input, slot order, Wi-Fi. Assume the worst: own router, own camera boom, corner tags to recalibrate. Cold setup drill ≤ 8 min.
-- **IMU.** Verdict from the 600 s tests, and whether heat triggers it. Robot start to slot ≤ 4 min. Replacement fitted by Nov 28 or not at all.
-- **R3 recovery.** Does X stand it back up after R3? Unknown; test Nov 25.
-- **Liveliness.** One A/B: preset `fast` and a smaller marked field (`field.json`) against goals per minute and falls. Try the field in `sim_eval` first.
+Uncut autonomous goal with hands visible; the same clip beside the Play screen; ball moved, robot re-plans; keeper
+saves; role switch; safety (tag cover, laptop killed); sim and real side by side; results card with attempts; one
+failure and the limit it shows. Record every session: fixed wide phone plus screen capture.
 
-**Record every session from today**: fixed wide camera plus screen capture. The robot may die any day; footage insures C and the video.
+## Owner to-do (Shrish)
 
-| Day | Work |
-|---|---|
-| Nov 24 | Runbook 0–6: IMU verdict, five stops, step calibration, goto. Ask staff: board, robot 2, venue, lab access over Thanksgiving. |
-| Nov 25 | Push ×10, goalie ×10, R3 drill. Fix the top failure. First goal on film. |
-| Nov 26 | No floor. Features 1–5 below. Sim retuned with measured lag and bias. |
-| Nov 27 | Variant B end to end: moved ball ×10, tag cover ×10, first timed run-through. `fast` and small-field A/B. |
-| Nov 28 | Robot 2: stage, runbook 0–6, first 1v1. **Not playing under the brain tonight means A is dead.** Hardware freeze. |
-| Nov 29 | Film day 1. Feature freeze. |
-| Nov 30 | Pickups, counted trial sets, rough cut. |
-| Dec 1 | Final counts, 5 timed run-throughs, edit. Param freeze. |
-| Dec 2 | Submit video by noon. Pack-and-setup drill. 5 rehearsals with the script aloud. Decide variant 8 pm. Charge. No code. |
-| Dec 3 | Early setup, calibrate, light check, two warm-up goals at most. |
-
-**Video shots (≤ 2:50, real speed, sim labelled):**
-1. Uncut 25 s autonomous goal, wide, hands visible.
-2. The same clip beside the Play screen.
-3. Ball moved mid-approach, robot re-plans.
-4. Role flip (two robots, else labelled sim).
-5. Three goalie saves.
-6. Safety: tag cover, laptop killed, stop in 0.5 s.
-7. Sim and real side by side, same brain.
-8. Results card with attempts as well as goals.
-9. One failure clip and the limit it shows.
-
-## 5. Software still needed, ranked
-
-| # | Feature | Verdict |
-|---|---|---|
-| 1 | Play screen + one-button Ready (in progress): big role chips, target cross, path, plain-words phase | Must. It is the glass box. |
-| 2 | Goal flow without a reset: flash, score, 2 s pause, auto-resume when the ball rests in the field | Must. Removes every laptop touch and all dead time. |
-| 3 | Plain-words stop banner from existing health data | Must. Turns failures into the safety story. |
-| 4 | Decision ticker from real brain transitions ("red 1.2 s closer, attacks") | Do. This is the true commentary. |
-| 5 | Match timer, referee-touch counter, drop-a-robot key, play-film key, end card | Do. Each is minutes. |
-| 6 | Staged-kickoff preset (start poses via goto) | Do if #2 lands early. |
-| 7 | Log replay onto the Play screen | Skip. Screen-record every run instead. |
-| 8 | Robot goal celebration (spin) | Skip. Costs seconds, adds fall risk. Screen flash is enough. |
-| 9 | Gemini live commentator voice | **Don't.** It talks over Shrish, lags events, can call things wrong, needs venue internet, and reads as garnish to control engineers. #4 is the truthful version. |
-| 10 | Onboard camera feeds | Skip unless free. Not in the control loop; adds Pi heat. |
-| 11 | Headbutt, self-righting, corner extraction | No. 25% in sim; unproven; the referee rule covers it. |
+- [ ] **Tue 24 before noon**, one message to Theresa, JC and Ankush: a second Pupper Wed 25 → Dec 3, or fixed
+      checkout slots; ours installs into one folder only (`~/fc-v1`). Staff are reachable only until **Wed 25** evening.
+- [ ] **Wed 25**: collect robot 2 and a second DualSense; run `provision.sh --check` (no motion) while help exists ([PROVISION.md](robot/provision/PROVISION.md)).
+- [ ] Ask for **Coda access Nov 26–29** and whether the field may stay up. Confirm demo room, projector input, slot, Wi-Fi.
+- [ ] **Balls**: 3–4 identical, ~18 cm, **≤ 150 g**, matte pink or orange. Weigh them.
+- [ ] **Fence**: foam board or 1×4s, ≤ 12 cm high, ~7 m, **corners cut at 45°**. Required: the sim assumes walls.
+- [ ] **Goals**: widen the mouths to 1.0 m (already in `config/field.json`).
+- [ ] **Tags**: rigid 16 cm tags ×2 (blue 10, red 11), same mount geometry.
+- [ ] Cold setup drill at the venue ≤ 8 min (own router, camera boom, corner tags).

@@ -4,13 +4,25 @@
 > process (overhead camera → brain → signed UDP) drives each robot's stock walker through a small Pi
 > bridge. Floor plan: [fc/RUNBOOK.md](fc/RUNBOOK.md); contract: [fc/SPEC.md](fc/SPEC.md). The previous FC
 > stack below is historical; the Codex Phase 2–4 rebuild is archived at tags `archive/codex-fc-20261123`
-> and `archive/codex-fc-unaccepted-20261123`. Nothing in `fc/` has run on the physical robot yet.
+> and `archive/codex-fc-unaccepted-20261123`. First live run Nov 23–24 (homing, stand, IMU); no laptop-driven motion yet: see [fc/STATUS.md](fc/STATUS.md).
 > Demo UI: Play screen at `/` (match flow, decision ticker, stop banners, per-run overhead video; tests at
 > `/ops`), launched with `fc/run.sh` ([lane E note](fc/notes/lane-E-play.md)); sim and synthetic camera only so far.
 
+## Start here
+
+- [fc/STATUS.md](fc/STATUS.md): what works, how it was verified, what is next. Read first.
+- [fc/DEMO.md](fc/DEMO.md): the demo plan (Shootout → Keeper → Switch → Match), gates, dates, run of show.
+- [fc/RUNBOOK.md](fc/RUNBOOK.md): floor session steps.
+- [fc/SPEC.md](fc/SPEC.md): the module and wire contract.
+
+## Historical (pre-Nov 23)
+
+Everything below describes the earlier FC stack (leg-kick shot, Codex-era executor and evidence). It is kept for
+reference and does not describe `fc/` or assign current work.
+
 Pupper FC aims to have two autonomous Puppers play soccer in an approximately 8 × 12-foot arena. Overhead perception estimates robot and ball positions in a calibrated field with known goal locations. The immediate demo needs one to two minutes of responsive play, useful goal-directed shots and automatic offense/defense. The demo shot uses Tej’s leg-kick policy. The combined single-robot release steers using a measured field pose, hands the legs to the selected kick, and restores walking. Both feet have scored in simulation. The Pi completed walk–kick–walk for each foot on memory-backed joints, then latched Stop and deactivated both leg controllers. The physical robot homed on the stand with the verified build loaded. At standby both motion controllers were inactive and the gamepad, camera and IMU were live. The next supervised check is walker activation and Stop on the stand. Tej owns physical kick qualification, and mounted field tracking remains open. [Pi qualification](../foundation/results/pi-combined-walk-kick-20261119.json)
 
-## Current agreement and owner steering — November 19, 2026
+### Current agreement and owner steering — November 19, 2026
 
 Shrish and the project lead own the single-robot software loop. Tej owns physical kick and recovery trials. Ryan’s mounted camera and the second robot are later blocks. The [current software rehearsal](pupper_fc/README.md#one-robot-software-rehearsal) exercises continuous metric position and heading targets, speed changes, slowing into either paw, single-shot handoff and resumption of walking. [Watch the simulated approach at three speeds](pupper_fc/media/three-speed-approach.mp4).
 
@@ -53,7 +65,7 @@ timings, evidence limits and the integration decision. Mounted tracking follows 
 
 The [plan](PLAN.md) records outcomes, proposals, integration responsibilities and acceptance evidence. Working notes cover [movement](handoffs/MOVEMENT.md), [shooting](handoffs/SHOOTING.md) and [perception](handoffs/PERCEPTION.md).
 
-## Implementation and evidence — through November 19, 2026
+### Implementation and evidence — through November 19, 2026
 
 Active development follows the dedicated `main` worktree. Use `git worktree list` to locate it when other projects share the repository. The sibling `cs123-foundation` checkout preserves earlier engineering work and its November 4 checkpoint; it is not the current FC handoff.
 

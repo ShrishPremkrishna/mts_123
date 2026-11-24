@@ -11,7 +11,8 @@ first failed step and fix it. Keep sessions under 10 minutes and let the Pi cool
 - **R3 on the gamepad**: the same drop, and the only stop if the laptop, link or mux is gone.
 
 The bridge also drops a robot that tilts past 45° (fallen cutoff); the card then says "E-STOPPED by the robot".
-`down` lies the robot down (also a drop) and stops the stack. If it reports **STILL STANDING**, use R3 or support
+`down` lowers the robot to its belly under position control (stock gentle lie-down; sim-verified only, so keep a
+hand near it the first time; u6 still drops) and stops the stack. If it reports **STILL STANDING**, use R3 or support
 the robot; never `down --force`.
 
 ## Setup
