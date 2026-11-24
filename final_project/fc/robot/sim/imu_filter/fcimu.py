@@ -3,7 +3,11 @@ fc/robot/imu/stock-imu-filter.patch, the single source) through fcimu_shim.cpp."
 import ctypes, os, subprocess, numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 PATCH = os.path.join(HERE, '..', '..', 'imu', 'stock-imu-filter.patch')
-CACHE = os.environ.get('FCIMU_CACHE', os.path.join(os.environ.get('TMPDIR', '/tmp'), 'fcimu_build'))
+CACHE = os.environ.get('FCIMU_CACHE', os.path.join(os.path.expanduser('~'), '.cache', 'fcimu_build'))
+os.makedirs(CACHE, mode=0o700, exist_ok=True)
+_st = os.stat(CACHE)
+if _st.st_uid != os.getuid() or (_st.st_mode & 0o022):
+    raise RuntimeError(f'refusing to build/load from {CACHE}: not owned by you or writable by others')
 INC = os.path.join(CACHE, 'include'); HDR = os.path.join(INC, 'rt', 'fc_imu_filter.hpp'); LIB = os.path.join(CACHE, 'libfcimu.so')
 
 
