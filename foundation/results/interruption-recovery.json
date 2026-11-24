@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "fc-v1",
   "mode": "fc_v1_floor_testing",
-  "updated_utc": "2026-11-24T01:07:53+00:00",
+  "updated_utc": "2026-11-24T08:15:00+00:00",
   "current_report": "final_project/fc/STATUS.md",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -17,7 +17,9 @@
     "fc_runbook": "final_project/fc/RUNBOOK.md",
     "fc_spec": "final_project/fc/SPEC.md",
     "fc_robot": "final_project/fc/robot/README.md",
-    "fc_fast_gait": "final_project/fc/notes/fast-gait.md"
+    "fc_fast_gait": "final_project/fc/notes/fast-gait.md",
+    "fc_imu_rca": "final_project/fc/notes/rca-20261124-shaking.md",
+    "fc_imu_filter": "final_project/fc/notes/imu-filter.md"
   },
   "environment": {
     "python": ".venv-fc/bin/python",
@@ -39,12 +41,12 @@
       "physical_robot": "Shrish, in person: operator for every floor session; owner of robot 2, balls, fence, goals, tags, room access.",
       "software": "Claude main session as overseer; focused subagents with disjoint file ownership per task."
     },
-    "goal_status": "First live run Nov 23-24: homing 17 s, software stand 5 s, IMU clean 10 min standing and 10 min motors off; down dropped the robot (gentle lie-down added since, sim-verified only). No laptop-driven motion yet.",
+    "goal_status": "S1 floor session Nov 24 on mts (robot): homing, software stand, gentle lie-down, link E-STOP, dead-man 0.32 s, goto x3 within 7 cm; slow goals 5/13 (26-44 s); fast-light goals 3/7 (15.9-21.7 s), 0 falls. Limiting factor: robot-tag visibility (small paper tag). IMU filter v2 on mts behind FC_IMU_FILTER (stock profile default since 51c16f4). Detail: final_project/fc/STATUS.md.",
     "pending_archives": [],
     "processes": "none"
   },
   "hardware_session": {
-    "status": "Nov 23-24 first live run on mts (stock profile via fcctl): homed and stood; IMU clean; old down dropped the robot; ROS status-probe bug fixed. Not a live check: run fcctl status and restage (fc/robot/stage.sh mts) before S1.",
+    "status": "Nov 24 S1 on mts (stock profile, lean stack): see fc/STATUS.md. Operator-approved Pi changes (pciex1 off, GUI off, fan curve; IMU filter driver swap) with undo in fc/robot/README.md. Not a live check: run fcctl status and restage (fc/robot/stage.sh mts) before the next session.",
     "observed_utc": "2026-11-24",
     "ssh": "mts",
     "pi_install": "~/fc-v1 only",
@@ -77,22 +79,30 @@
   },
   "next": [
     {
-      "id": "s1_floor",
-      "action": "Tue Nov 24, S1 floor session (fc/STATUS.md): RUNBOOK 1-5 with latency_s written down, goto x3, push x5 slow; then fast-play-robot steps, contact ladder 0.4/0.6, goalie x5, down (first real gentle lie-down). Copy measured lag/gains/bias into sim_* and rerun sim_eval."
+      "id": "robot_tag",
+      "action": "Before the next floor session: rigid flat robot tag >= 15 cm on blue; measure height/offset into eye_tag_height / eye_tag_offset_x. Tag visibility is the top failure (fast timeouts saw the tag 46-89% of frames, goals 95-100%)."
+    },
+    {
+      "id": "restage_imu",
+      "action": "Restage mts (fc/robot/stage.sh mts) so stock.sh carries FC_IMU_FILTER=1 by default (51c16f4); confirm 'FC_IMU_FILTER on' in robot.log at start; 5-min stand check before floor."
+    },
+    {
+      "id": "next_floor",
+      "action": "Next floor session (Shrish operates): fast-light pushes x5 logging tag-seen fraction; goalie x5 with saves counted by hand (camera-mode save counting not implemented); solo role switching vs a human; check fast-gait heading offset (~8 deg right of slow)."
     },
     {
       "id": "owner_asks",
-      "action": "Shrish: robot 2 ask to staff by Tue 24 noon, collect Wed 25; Coda access Nov 26-29; light balls <=150 g; fence with 45 deg corners; rigid 16 cm tags x2; goals at 1.0 m."
+      "action": "Shrish, staff reachable until Wed 25 evening: robot 2 (still not available) and a replacement BNO085/control board; Coda access Nov 26-29; light balls <=150 g; fence with 45 deg corners; rigid tags >= 15 cm x2; goals at 1.0 m."
     },
     {
       "id": "staged_plan",
-      "action": "Follow fc/DEMO.md gates: G0 and G-fast, then Shootout (Wed 25), Keeper (Wed 25), Switch (Fri 27), robot 2 G0 by Sat 28, Match (Sun 29). Between sessions build only the last session's top failure and the next gate's test."
+      "action": "Follow fc/DEMO.md gates: Shootout (>= 8/10, median <= 20 s; now 3/7 fast), Keeper, Switch (Fri 27), robot 2 G0 by Sat 28, Match (Sun 29). Between sessions build only the last session's top failure (tag visibility) and the next gate's test."
     }
   ],
   "legacy_branches": [
     "pupper-foundation"
   ],
-  "context_review_date": "2026-11-23",
+  "context_review_date": "2026-11-24",
   "alignment": {
     "confirmed_2026_11_23": "Staged plan Shootout -> Keeper -> Switch -> Match adopted with its gates and dates (advisor reconciliation). Shot = hitting the ball at speed; leg kick maybe a later iteration. Goals widened to 1.0 m. Owner is getting light balls, a fence with 45 deg corners and rigid tags.",
     "do_not_build": "leg-kick integration, headbutt tuning, commentator, retraining, corner extraction, self-righting, celebrations, more UI."
