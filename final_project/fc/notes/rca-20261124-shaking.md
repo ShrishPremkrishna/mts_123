@@ -1,6 +1,38 @@
 # RCA: blue (`mts`) seizing/shaking while standing, 2026-11-24 ~06:00 UTC
 
-Written 2026-11-24 ~06:11 UTC from laptop evidence. `mts` was powered off for a battery swap and had not answered ssh by 06:11, so **no Pi log has been read yet**. The section "Pi checks still owed" lists what would confirm or rule out each cause.
+Written 2026-11-24 ~06:11 UTC from laptop evidence. Updated ~06:45 UTC with read-only Pi evidence after the battery swap (stack off; the only device access was one battery ADC read).
+
+**Bottom line:** the Pi logs confirm that the stack ran normally and only zero was commanded. They refute a driver/walker stall, a controller switch and a Pi-rail brownout up to the last flushed log line. They cannot see the shaking itself: the last ~15–30 s before power-off were never written to disk. The IMU (BNO output content) remains the leading cause. Battery on the motor rail in the final seconds is not excluded until the old pack is measured.
+
+## Pi evidence (read 06:34–06:45 UTC, read-only)
+
+**Clock anchors:**
+- `robot.log` covers 05:51:23 to **06:00:18.5**; its last 3 KB are NUL bytes, a page never flushed at power-off.
+- `bridge.log` ends at bridge `up_s` 171 (~06:00:15).
+- `~/fc-v1/run/bridge_state.json` was last written at 06:00:26.9. The bridge was alive and receiving then, and the app's last ack was ~06:00:35.
+- The journal for boot −1 ends at **05:58:47**. journald had not synced the last ~100 s, so power was cut uncleanly.
+- The shaking (tilt > 10° from ~06:00:17) therefore falls almost entirely in this unwritten window.
+
+**Walker and driver (`robot.log`):**
+- `neural_controller_default` activated at 05:57:19. No other leg controller was activated after that.
+- After activation there are no WARN/ERROR/emergency-stop lines.
+- 8942 policy steps from 05:57:21 to 06:00:18.5, at a steady 50 Hz. No step gap exceeds 40 ms. Inference ≤ 3.6 ms.
+- `IMU measurement age` stayed ≤ 19.8 ms the whole time, including the 05:57:51, 05:58:58 and 05:59:29 "unchanged ~500 ms" windows.
+- So the driver kept receiving fresh BNO reports at ~100 Hz. Those reports carried bit-identical quaternion+gyro values. That is not a reader stall or a starved callback. It is the BNO's output content: either a fusion/output freeze, or quantization while very still. Today's history argues against plain quantization (see cause 1).
+
+**Bridge (`~/fc-v1/logs/bridge.log`):**
+- Four `hold None -> imu_stale` / `-> None` pairs, matching the app events.
+- `estop` 0, never parked. Commands came only from the laptop session `1feb1a4f…`.
+- The `imu_tilt` transition (06:00:19) is in the lost tail.
+- The bridge log does not record IMU values, so no tilt or bias series exists on the Pi.
+
+**Power:**
+- `journalctl -b -1 -k` and `-b -2 -k`: **zero** under-voltage lines, and no I²C/SPI errors (the only I²C errors are the absent touchscreen at boot).
+- `battery_monitor` (10 s poll; it warns below 16.5 V and schedules shutdown below 15.5 V) logged nothing and scheduled no shutdown in boot −1, up to 05:58:47.
+- The status op at 05:58:00 read `throttled 0x0`, 63 °C.
+- Now, on the new pack: **19.31 V (85 %)**, `throttled=0x0`, EXT5V 4.95 V, 41 °C.
+
+**Not available anywhere:** joint positions/currents, motor temperatures or IMU values during the event. The stock stack records no bag and logs only inference time and IMU age.
 
 ## Timeline (UTC = local PST + 8 h)
 
@@ -29,11 +61,22 @@ This combines hypotheses (b) and (c).
   - **Freezes:** the three ~0.5 s identical-value windows came first. Every earlier run today (16 runs, all standing segments) stayed ≤ 33 ms unchanged. The ks4/ks6 replays topped out at ~90 ms. In this same run the values changed every ≤ 8 ms for 2 s while the robot stood perfectly still, then froze. A new BNO behaviour fits that better than ordinary quantization.
   - **Detector blind spot:** pulse density stays low when the body is shaking, because a pulse needs raw Y/Z quiet. The fault can hide from that metric during the very event.
   - **No guard:** nothing in the stock stack acts on a 10° false tilt. The walker's own e-stop is `max_body_angle` 1.5 rad (86°). Our bridge only holds zero, and zero speed does not stop a policy reacting to a bad orientation.
+- **Pi update:**
+  - **Confirmed:** fresh reports kept arriving with IMU age ≤ 20 ms while their values repeated. The anomaly is in what the BNO reported, not in delivery.
+  - **Refuted:** a software stall in the driver, the walker or the bridge.
 - **Against / unknown:**
   - A steady −0.03 rad/s median could also be a slow real lean. The camera cannot measure tilt.
-  - The stock driver may report fresh `time_since_measurement` while the values repeat. The parent noted "IMU age 6–8 ms" in the walker log. That would mean the BNO kept sending identical reports, which is still a BNO-side anomaly but not a starved reader.
+  - No IMU values were recorded on the Pi.
 
-### 2. Battery sag or brownout. Confidence: low-medium (untested; no voltage data at all)
+### 2. Battery sag or brownout. Confidence: low (Pi update)
+**Pi update:**
+- No kernel under-voltage and no battery_monitor warning or shutdown through 05:58:47.
+- `throttled 0x0` at 05:58:00.
+- The walker loop stayed perfectly regular until 06:00:18.5.
+- The IMU anomalies began at 05:57:51, while the Pi rail was demonstrably clean.
+- Still open: the last ~15–30 s (the journal is lost), and the motor rail itself, which the Pi does not monitor. Measure the removed pack.
+
+Original analysis:
 - **For:**
   - The battery had served a long session: ~1 h of stack earlier plus a re-home and stand.
   - Undervoltage on the motor side can make joints weak or erratic.
@@ -55,23 +98,19 @@ This combines hypotheses (b) and (c).
   - Lean removes only foxglove/camera nodes.
   - The bridge sent only zeros and never switched controllers.
   - No laptop op ran after 05:58:00.
-- **Decides it:** a second controller in `robot.log` or a controller-manager switch after 05:58.
+- **Decides it:** a second controller in `robot.log` or a controller-manager switch after 05:58. **Pi update: neither occurred up to 06:00:18.5. Refuted for that window.**
 
 ### 4. Motor/joint fault or hot motors. Confidence: low
 - **Against:** mostly standing, light load, short floor time. Symptoms started with IMU flags, not current faults.
-- **Decides it:** driver fault/over-current lines in `robot.log`, and a physical check of motor temperatures and cables.
+- **Decides it:** driver fault/over-current lines in `robot.log`, and a physical check of motor temperatures and cables. **Pi update: no driver fault lines, but the stock driver may not log motor faults. Physical check still owed.**
 
 ### 5. Something the laptop sent. Ruled out
 Last command zero, no ops after 05:58:00, no e-stop.
 
-## Pi checks still owed (read-only)
-Read-only script: `scratchpad/pi_ro.sh` from this session. The same commands are listed here.
-- `journalctl --list-boots`
-- `journalctl -b -1 -k | grep -iE "volt|throttl|i2c|spi"`
-- `journalctl -b -1 -u battery_monitor`
-- the end of `journalctl -b -1`, to see whether it shut down cleanly or lost power
-- `~/fc-v1/runs/20261124T055116Z-stock/robot.log` around 05:57–06:01: IMU errors, NaN, motor/CAN faults, controller switches, `imu_latency_seconds`
-- the bridge log in the same run dir
+## Pi checks
+Done 06:34–06:45 UTC; results are in "Pi evidence" above. Still owed:
+- the voltage of the **removed** pack;
+- motor temperatures and cable/IMU-mount inspection (physical).
 
 ## Before powering motion again
 1. **Physical:**
@@ -98,4 +137,8 @@ Read-only script: `scratchpad/pi_ro.sh` from this session. The same commands are
 4. **Battery in status, polled continuously:**
    - Read it in the bridge, or from `battery_monitor`'s journal, not on the shared I²C bus from fcctl.
    - Hold or lie down below ~16.5 V.
-5. **Log IMU health transitions on the Pi.** The laptop only records during runs, and the incident fell between runs. The app should also log `lk` continuously while a robot is standing.
+5. **Make Pi logs survive a power cut.**
+   - Every log lost its last 15–100 s here: journald was ~100 s behind, and `robot.log`/`bridge.log` lost their unflushed tail.
+   - The bridge should `flush()` + `os.fsync()` its log on every hold or level transition.
+   - It should also write a small rolling IMU record (tilt, bias_x, frozen_ms, gyro RMS at 5 Hz) to `~/fc-v1/runs/<run>/imu.jsonl`, fsynced every second.
+6. **Log IMU health transitions on the Pi.** The laptop only records during runs, and the incident fell between runs. The app should also log `lk` continuously while a robot is standing.
