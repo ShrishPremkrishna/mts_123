@@ -23,8 +23,16 @@ PROFILE_DESC="fake"; PROFILE_CMD_TOPIC=/llm_cmd_vel; PROFILE_IMU_TOPIC=/imu
 PROFILE_WALKER=w; PROFILE_LEG_CONTROLLERS="w"
 profile_env() { export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}; }
 rosq() {  # fake graph: FAKE_TOPO=good|bad; walker state in $FC_ROOT/fake_walker; FAKE_SWITCH=refuse = latched gateway
+  # FAKE_DEACT=ignore: deactivation answered ok but the walker stays active; FAKE_CTL=down: manager unreachable
   local f=$FC_ROOT/fake_walker w=inactive
   [ -f "$f" ] && w=$(cat "$f")
+  if [ "${FAKE_CTL:-up}" = down ]; then
+    if [ "$1" = switch ]; then echo '{"ok":false,"error":"controller_manager not reachable"}'; else echo '{"mux":{"ok":true,"alive":true,"problems":[]},"controllers":null}'; fi
+    return
+  fi
+  if [ "$1" = switch ] && [ -z "$2" ] && [ "${FAKE_DEACT:-ok}" = ignore ]; then
+    echo '{"ok":true,"deactivate":["w"],"controllers":{"w":"'$w'"}}'; return
+  fi
   if [ "$1" = switch ]; then
     if [ -n "$2" ] && [ "${FAKE_SWITCH:-ok}" = refuse ]; then
       echo '{"ok":false,"error":"no answer (gateway latched or manager busy)","controllers":{"w":"'$w'"}}'; return
@@ -39,7 +47,8 @@ rosq() {  # fake graph: FAKE_TOPO=good|bad; walker state in $FC_ROOT/fake_walker
   fi
 }
 profile_start() {
-  fc_spawn launch "$1/robot.log" sleep 300
+  # the fake launch carries "ros2_control_node" in its command line (stop treats that as motors driven)
+  fc_spawn launch "$1/robot.log" bash -c 'sleep 300; true' ros2_control_node
   fc_spawn mux "$1/mux.log" sleep 300
   sleep "${FAKE_HOME_S:-0}"
   fc_topology_wait 2
@@ -224,7 +233,7 @@ def test_ready_homes_then_stops_for_the_floor(fc):
     assert rc == 0 and phases(out) == ["begin", "starting", "homed"], out
     assert out[-1]["done"] and out[-1]["next"] == "ready"
     assert fc("status")["phase"] == "homed" and (fc.root / "fake_walker").exists() is False
-    rc, out = fc.lines("ready")
+    rc, out = fc.lines("ready", "--confirm")
     assert rc == 0 and phases(out) == ["begin", "homed", "standing_up", "standing", "bridge", "ready"], out
 
 
@@ -244,6 +253,33 @@ def test_ready_full_path_then_down(fc):
     assert fc("status")["phase"] == "off"
 
 
+def test_down_never_stops_a_robot_not_confirmed_lying(fc):
+    assert fc.lines("ready", "fake", "--confirm", "--stand-now")[0] == 0
+    launch_pid = (fc.root / "run" / "launch.pid").read_text()
+    rc, out = fc.lines("down", extra_env={"FAKE_DEACT": "ignore"})
+    assert rc == 1 and out[-1]["phase"] == "error" and out[-1]["at"] == "lying_down" and out[-1]["done"], out
+    assert "R3" in out[-1]["msg"] and out[-1]["stack"] == "running"
+    assert "lying_down" not in phases(out)[:-1] and "down" not in phases(out)
+    assert (fc.root / "run" / "launch.pid").read_text() == launch_pid      # stack untouched
+    st = fc("status")
+    assert st["phase"] == "standing" and st["profile_alive"] and not st["bridge"]["alive"], st
+    stop = fc("stop", extra_env={"FAKE_DEACT": "ignore"})                     # stop refuses the same way
+    assert stop["ok"] is False and stop["left_running"] == "stack" and "R3" in stop["error"], stop
+    assert fc("status")["profile_alive"] is True
+    rc, out = fc.lines("down", "--force", extra_env={"FAKE_DEACT": "ignore"})  # explicit unsafe override
+    assert rc == 0 and phases(out) == ["begin", "bridge_stopped", "lying_down", "down"], out
+    assert out[2]["ok"] is False and "UNSAFE" in out[2]["msg"]
+    assert fc("status")["phase"] == "off"
+
+
+def test_stop_refuses_when_controller_state_unknown(fc):
+    assert fc.lines("ready", "fake", "--confirm", "--stand-now")[0] == 0
+    stop = fc("stop", extra_env={"FAKE_CTL": "down"})
+    assert stop["ok"] is False and "not answering" in stop["error"], stop
+    assert fc("status")["profile_alive"] is True
+    assert fc("stop")["ok"]                                                    # manager back: lies down, stops
+
+
 def test_ready_is_idempotent(fc):
     assert fc.lines("ready", "fake", "--confirm", "--stand-now")[0] == 0
     rc, out = fc.lines("ready")                                           # profile defaults to the running one
@@ -258,7 +294,7 @@ def test_down_keep_stack_then_ready_without_homing(fc):
     assert rc == 0 and out[-1]["stack"] == "kept"
     st = fc("status")
     assert st["phase"] == "homed" and st["bridge"]["alive"] is False, st
-    rc, out = fc.lines("ready")                                           # no --confirm needed: already homed
+    rc, out = fc.lines("ready", "--confirm")                                           # no --confirm needed: already homed
     assert rc == 0 and phases(out) == ["begin", "homed", "standing_up", "standing", "bridge", "ready"], out
     assert (fc.root / "run" / "launch.pid").read_text() == launch_pid   # same stack, no re-homing
 
@@ -266,7 +302,7 @@ def test_down_keep_stack_then_ready_without_homing(fc):
 def test_ready_waits_for_gamepad_when_gateway_refuses(fc):
     assert fc("start", "fake", "--confirm")["ok"]
     assert fc("status")["phase"] == "homed"
-    p = subprocess.Popen(["bash", str(fc.robot / "fcctl.sh"), "ready"], env={**fc.env, "FAKE_SWITCH": "refuse",
+    p = subprocess.Popen(["bash", str(fc.robot / "fcctl.sh"), "ready", "--confirm"], env={**fc.env, "FAKE_SWITCH": "refuse",
                          "FC_READY_SETTLE_S": "0"}, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
     seen = []
     for line in p.stdout:
@@ -282,7 +318,7 @@ def test_ready_waits_for_gamepad_when_gateway_refuses(fc):
 
 def test_ready_operator_timeout(fc):
     assert fc("start", "fake", "--confirm")["ok"]
-    rc, out = fc.lines("ready", extra_env={"FAKE_SWITCH": "refuse", "FC_READY_OPERATOR_S": "2"})
+    rc, out = fc.lines("ready", "--confirm", extra_env={"FAKE_SWITCH": "refuse", "FC_READY_OPERATOR_S": "2"})
     assert rc == 4 and out[-1]["phase"] == "error" and out[-1]["at"] == "waiting_operator" and out[-1]["done"]
     assert fc("status")["phase"] == "homed" and not (fc.root / "run" / "bridge.pid").exists()
 
@@ -327,7 +363,7 @@ def test_boot_modes(fc):
     assert st["phase"] == "homed" and st["boot"]["result"] == "homed" and st["boot"]["profile"] == "fake"
     assert fc("boot")["result"] == "skipped"                              # never homes twice
     assert lock_holders(fc.root) == [] and lock_holders(fc.root, "ready.lock") == []
-    rc, out = fc.lines("ready")                                           # Ready after boot: stand + bridge only
+    rc, out = fc.lines("ready", "--confirm")                                           # Ready after boot: stand + bridge only
     assert rc == 0 and phases(out)[1:3] == ["homed", "standing_up"], out
     (fc.root / "boot.env").write_text("FC_BOOT_MODE=stand\n")
     assert fc("boot")["result"] == "failed"

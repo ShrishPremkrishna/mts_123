@@ -6,10 +6,14 @@
 #                               gamepad), start the bridge. Not running: homes (needs --confirm) and stops
 #                               at "homed" (move it to the floor, run ready again) unless --stand-now.
 #                               Progress as JSON lines on stdout; the last one has "done":true.
-#   down [--keep-stack]         bridge stop, lie down (leg controllers off), stop the stack; JSON lines
+#   down [--keep-stack] [--force]
+#                               bridge stop, lie down (leg controllers off = damped collapse, same as R3),
+#                               confirm none active, stop the stack; JSON lines. Not confirmed: abort, stack
+#                               left running, exit 1 (--force = UNSAFE: stops a possibly standing robot)
 #   boot                        run by fc-boot.service at power-on (boot/README.md); never by hand
 #   start <profile> --confirm   start a robot stack (HOMES THE LEGS: robot on the stand)
-#   stop                        stop what fcctl started (bridge, walker, stack) and only that
+#   stop [--force]              stop what fcctl started (bridge, walker, stack) and only that; refuses
+#                               (stack left running) if a leg controller cannot be confirmed inactive
 #   bridge start [--profile P] [--robot-id ID] [--allow-from IP[,IP]] [--reset-replay]
 #                [--no-imu-stop] [--no-mux-guard] | bridge stop
 #                               (robot id defaults to ~/fc-v1/robot/robot_id, written by stage.sh;
@@ -138,71 +142,31 @@ lock() { exec 9> "$FC_RUN/lock"; flock -n 9 || die "another fcctl command is run
 unlock() { exec 9>&-; }
 
 # ---------------------------------------------------------------- ROS queries (rclpy, no daemon)
-rosq() {  # rosq probe [CMD_TOPIC] | rosq switch "<activate...>" "<deactivate...>"
-  timeout 15 python3 - "$@" <<'PY'
-import json, sys, time
-import rclpy
-from controller_manager_msgs.srv import ListControllers, SwitchController
-rclpy.init()
-node = rclpy.create_node("fcctl_query")
-def call(srv, name, req, wait=3.0):
-    cli = node.create_client(srv, name)
-    if not cli.wait_for_service(timeout_sec=wait):
-        return None
-    fut = cli.call_async(req)
-    rclpy.spin_until_future_complete(node, fut, timeout_sec=wait)
-    return fut.result()
-def controllers():
-    res = call(ListControllers, "/controller_manager/list_controllers", ListControllers.Request())
-    return None if res is None else {c.name: c.state for c in res.controller}
-out = {}
-if sys.argv[1] == "probe":
-    end = time.monotonic() + 1.5
-    while time.monotonic() < end:
-        rclpy.spin_once(node, timeout_sec=0.1)
-    out["nodes"] = sorted({n for n, _ in node.get_node_names_and_namespaces()} - {"fcctl_query"})
-    # Velocity topology: exactly one /cmd_vel publisher (the mux), the mux listening on our topic,
-    # nothing but our bridge publishing our topic, at most one gamepad teleop.
-    topic = sys.argv[2] if len(sys.argv) > 2 else "/llm_cmd_vel"
-    names = lambda infos: sorted(i.node_name for i in infos)
-    cv = names(node.get_publishers_info_by_topic("/cmd_vel"))
-    cs = names(node.get_subscriptions_info_by_topic(topic))
-    cp = names(node.get_publishers_info_by_topic(topic))
-    tp = names(node.get_publishers_info_by_topic("/teleop_cmd_vel"))
-    problems = []
-    if cv != ["cmd_vel_mux"]:
-        problems.append("/cmd_vel publishers %s (want exactly cmd_vel_mux)" % cv)
-    if "cmd_vel_mux" not in cs:
-        problems.append("cmd_vel_mux not subscribed to " + topic)
-    if [n for n in cp if n != "fc_drive_bridge"]:
-        problems.append("%s publishers %s (want only fc_drive_bridge)" % (topic, cp))
-    if len(tp) > 1:
-        problems.append("/teleop_cmd_vel publishers %s (want at most one)" % tp)
-    out["mux"] = {"ok": not problems, "alive": "cmd_vel_mux" in cv, "problems": problems,
-                  "cmd_vel_pubs": cv, "topic": topic, "topic_subs": cs, "topic_pubs": cp, "teleop_pubs": tp}
-    out["controllers"] = controllers()
-else:
-    want_on = sys.argv[2].split() if len(sys.argv) > 2 else []
-    want_off = sys.argv[3].split() if len(sys.argv) > 3 else []
-    states = controllers()
-    if states is None:
-        out = {"ok": False, "error": "controller_manager not reachable"}
-    else:
-        req = SwitchController.Request()
-        req.activate_controllers = [c for c in want_on if states.get(c) != "active"]
-        req.deactivate_controllers = [c for c in want_off if states.get(c) == "active" and c not in want_on]
-        req.strictness = SwitchController.Request.BEST_EFFORT
-        if not req.activate_controllers and not req.deactivate_controllers:
-            out = {"ok": True, "changed": False}
-        else:
-            res = call(SwitchController, "/controller_manager/switch_controller", req, wait=5.0)
-            out = {"ok": bool(res and res.ok), "activate": list(req.activate_controllers),
-                   "deactivate": list(req.deactivate_controllers),
-                   "error": None if res else "no answer (gateway latched or manager busy)"}
-        out["controllers"] = controllers()
-print(json.dumps(out))
-node.destroy_node(); rclpy.try_shutdown()
-PY
+# rosq probe [CMD_TOPIC] | rosq controllers | rosq switch "<activate...>" "<deactivate...>" -> one compact JSON line.
+# probe waits until the DDS graph settles (2-8 s; a fixed 1.5 s spin missed the mux, see rosq.py).
+rosq() { timeout 25 python3 "$HERE/rosq.py" "$@"; }
+
+# _legs_down JSON : the controller manager answered and no leg controller is active (robot limp/lying).
+_legs_down() { local st; st=$(_legs "$1"); [[ "$st" == *'"reachable":true'* && "$st" == *'"active_legs":[]'* ]]; }
+
+# fc_lie_down : deactivate the leg controllers (the stock R3 action: kp=0, kd=estop_kd, i.e. a damped
+# collapse), then CONFIRM from a fresh controller list that none is active. 0 = confirmed; 1 = not confirmed
+# (LIE_WHY says why). LIE_JSON = the switch result. Never decides on the switch reply alone.
+fc_lie_down() {
+  local q i st
+  LIE_WHY=""
+  LIE_JSON=$(rosq switch "" "$PROFILE_LEG_CONTROLLERS" 2>> "$FC_LOGS/ready.log")
+  q=$LIE_JSON
+  _legs_down "$q" && return 0
+  for i in 1 2 3; do
+    sleep 1
+    q=$(rosq controllers 2>> "$FC_LOGS/ready.log")
+    _legs_down "$q" && return 0
+  done
+  st=$(_legs "$q")
+  if [[ "$st" != *'"reachable":true'* ]]; then LIE_WHY="controller manager not answering, state unknown"
+  else LIE_WHY="leg controller still active: $(python3 -c 'import json,sys; print(" ".join(json.loads(sys.argv[1])["active_legs"]))' "$st" 2>/dev/null)"; fi
+  return 1
 }
 
 # fc_topology_wait SECONDS : (profile env sourced) wait until rosq reports the velocity topology ok.
@@ -282,6 +246,7 @@ print(json.dumps({
     "heading_hold": hh or None, "heading_hold_overlay": overlay,   # "on"/"off" per profile; null = no profile
     "ros2_control_node": stack == "true", "foreign_stack": foreign == "true",
     "mux_alive": mux.get("alive"), "mux_ok": mux.get("ok"),   # null = not probed (no live profile)
+    "dds": (ros or {}).get("dds"), "discovery": (ros or {}).get("discovery"),
     "ros": ros,
     "bridge": {"pid": int(bpid) if bpid else None, "alive": bool(bpid)},
     "temp_c": float(temp) if temp else None, "throttled": thr or None,
@@ -387,7 +352,12 @@ cmd_walk() {  # walk | rest
   else rosq switch "" "$PROFILE_LEG_CONTROLLERS"; fi
 }
 
+# stop [--force] : never cuts motor power under a standing robot. If the stack has a leg controller that
+# cannot be confirmed inactive (and ros2_control_node runs and the profile reached READY), it refuses and
+# leaves the stack running. --force overrides: UNSAFE, a standing robot then drops with the motors off.
 cmd_stop() {
+  local force=0
+  case "${1:-}" in --force) force=1 ;; "") ;; *) die "usage: stop [--force]" ;; esac
   lock
   local rc=0 prof run deact='null'
   fc_signal_group bridge INT 5 || rc=1   # bridge publishes one zero Twist on exit
@@ -397,11 +367,24 @@ cmd_stop() {
   fc_signal_group starter TERM 3 || rc=1
   fc_adopt_orphans
   if profile_alive "$run"; then
-    fc_log "deactivating leg controllers (robot will go limp / sit)"
+    fc_log "deactivating leg controllers (damped collapse, same as R3) and confirming before stopping"
     profile_env
-    deact=$(rosq switch "" "$PROFILE_LEG_CONTROLLERS" 2>/dev/null) || deact='null'
-    [ -n "$deact" ] || deact='null'
-    sleep 1
+    if fc_lie_down; then
+      sleep 1
+    elif ! pgrep -f ros2_control_node > /dev/null; then
+      fc_log "ros2_control_node not running: motors are not driven; stopping"
+    elif [ ! -f "$run/READY" ]; then
+      fc_log "lie-down not confirmed ($LIE_WHY) but the stack never reached READY (homing/loading); stopping"
+    elif [ $force = 1 ]; then
+      fc_log "--force: stopping although not confirmed lying ($LIE_WHY). UNSAFE if it is standing."
+    else
+      fc_log "STILL STANDING? $LIE_WHY: stack left running. Use R3 or support the robot, then stop again (--force = unsafe)"
+      printf '{"ok":false,"stopped":null,"run_dir":"%s","error":"%s","left_running":"stack","deactivate":%s}\n' \
+        "$run" "$(jesc "not confirmed lying ($LIE_WHY): use R3 or support the robot; stack left running (stop --force is unsafe)")" \
+        "$(_raw_json "$LIE_JSON")"
+      return 1
+    fi
+    deact=$(_raw_json "$LIE_JSON")
   fi
   profile_stop "$run" || rc=1
   local left=""
@@ -555,18 +538,28 @@ cmd_ready() {
   # 4. verify the whole chain once more
   st=$(_legs "$(rosq probe "$PROFILE_CMD_TOPIC" 2>> "$FC_LOGS/ready.log")")
   [[ "$st" == *'"walker_active":true'* ]] || ready_fail verify "walker no longer active (R3 / gamepad?)" 1
-  [[ "$st" == *'"mux_ok":true'* ]] || ready_fail verify "velocity topology not ok: fcctl.sh status" 1
+  if [[ "$st" != *'"mux_ok":true'* ]]; then  # one probe can be a partial DDS view: recheck for up to 15 s
+    fc_topology_wait 15 2>> "$FC_LOGS/ready.log" ||
+      ready_fail verify "velocity topology not ok: $(rosq probe "$PROFILE_CMD_TOPIC" 2> /dev/null | python3 -c 'import json,sys
+try: print("; ".join(json.load(sys.stdin)["mux"]["problems"]))
+except Exception: print("probe failed")') (fcctl.sh status)" 1
+  fi
   fc_alive bridge || ready_fail verify "bridge exited; see ~/fc-v1/logs/bridge.log" 1
   emit ready true "ready to play" ",\"profile\":\"$name\",\"run_dir\":\"$run\",\"done\":true"
 }
 
+# down [--keep-stack] [--force] : bridge zero, lie down (leg controllers off = damped collapse, same as R3),
+# CONFIRM no leg controller is active, then stop the stack. Not confirmed -> abort, stack left running, exit 1
+# (--force stops anyway: UNSAFE, a standing robot drops with the motors off).
 cmd_down() {
-  local keep=0
+  local keep=0 force=0 a
   READY_T0=$(_now)
-  case "${1:-}" in --keep-stack) keep=1 ;; "") ;; *) ready_fail args "usage: down [--keep-stack]" 2 ;; esac
+  for a in "$@"; do
+    case "$a" in --keep-stack) keep=1 ;; --force) force=1 ;; *) ready_fail args "usage: down [--keep-stack] [--force]" 2 ;; esac
+  done
   exec 8> "$FC_RUN/ready.lock"
   flock -n 8 || ready_fail args "another 'ready' or 'down' is running" 1
-  emit begin true "down$([ $keep = 1 ] && echo ' --keep-stack')"
+  emit begin true "down$([ $keep = 1 ] && echo ' --keep-stack')$([ $force = 1 ] && echo ' --force')"
   local b; b=$(bash "$HERE/fcctl.sh" bridge stop 2>> "$FC_LOGS/ready.log" 8>&- | grep '^{' | tail -1)
   if [[ "$b" == *'"ok":true'* ]]; then emit bridge_stopped true "bridge stopped (sent one zero)"
   else emit bridge_stopped false "bridge stop: $(_json_field "$b" error)"; fi
@@ -577,17 +570,23 @@ cmd_down() {
   load_profile "$prof"
   if profile_alive "$run"; then
     profile_env
-    local r; r=$(rosq switch "" "$PROFILE_LEG_CONTROLLERS" 2>> "$FC_LOGS/ready.log")
-    if [[ "$r" == *'"ok":true'* ]]; then emit lying_down true "leg controllers off: damped collapse to the floor" ",\"switch\":$(_raw_json "$r")"
-    else emit lying_down false "leg controller deactivation not confirmed: $(_json_field "$r" error) (R3 lies it down)"; fi
-    sleep "${FC_DOWN_SETTLE_S:-1.5}"
+    if fc_lie_down; then
+      emit lying_down true "leg controllers off (confirmed): damped collapse, the same as R3" ",\"switch\":$(_raw_json "$LIE_JSON")"
+      sleep "${FC_DOWN_SETTLE_S:-1.5}"
+    elif [ $force = 1 ]; then
+      emit lying_down false "NOT confirmed lying ($LIE_WHY); --force: continuing (UNSAFE)" ",\"switch\":$(_raw_json "$LIE_JSON")"
+    else
+      emit error false "still standing? lie-down not confirmed ($LIE_WHY): use R3 or support the robot. Stack left running; down --force is unsafe" \
+        ",\"at\":\"lying_down\",\"switch\":$(_raw_json "$LIE_JSON"),\"stack\":\"running\",\"exit\":1,\"done\":true"
+      exit 1
+    fi
   fi
   if [ $keep = 1 ]; then
     emit down true "lying down, stack kept homed: ready stands it again without homing" ',"stack":"kept","done":true'; exit 0
   fi
-  local s; s=$(bash "$HERE/fcctl.sh" stop 2>> "$FC_LOGS/ready.log" 8>&- | grep '^{' | tail -1)
+  local s; s=$(bash "$HERE/fcctl.sh" stop $([ $force = 1 ] && echo --force) 2>> "$FC_LOGS/ready.log" 8>&- | grep '^{' | tail -1)
   if [[ "$s" == *'"ok":true'* ]]; then emit down true "stack stopped" ",\"stop\":$(_raw_json "$s"),\"done\":true"
-  else emit down false "stop incomplete: $(_json_field "$s" left_running) still running (fcctl.sh status)" ",\"stop\":$(_raw_json "$s"),\"exit\":1,\"done\":true"; exit 1; fi
+  else emit down false "stop incomplete: $(_json_field "$s" error) $(_json_field "$s" left_running) still running (fcctl.sh status)" ",\"stop\":$(_raw_json "$s"),\"exit\":1,\"done\":true"; exit 1; fi
 }
 
 # boot: run by fc-boot.service at power-on (boot/README.md). Settings: ~/fc-v1/boot.env (outside robot/, so
@@ -651,12 +650,12 @@ case "${1:-}" in
   status) cmd_status ;;
   start) shift; cmd_start "$@" ;;
   _starter) shift; cmd__starter "$@" ;;
-  stop) cmd_stop ;;
+  stop) shift; cmd_stop "$@" ;;
   ready) shift; cmd_ready "$@" ;;
   down) shift; cmd_down "$@" ;;
   boot) cmd_boot ;;
   bridge) shift; cmd_bridge "$@" ;;
   walk|rest) cmd_walk "$1" ;;
   imu-test) shift; cmd_imu_test "$@" ;;
-  *) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

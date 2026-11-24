@@ -8,6 +8,7 @@ gamepad `/teleop_cmd_vel` wins) → `/cmd_vel` → walker. Contract: [../SPEC.md
 | File | What |
 | --- | --- |
 | `drive_bridge.py` | rclpy node. 50 Hz Twist while the newest packet is younger than its ttl (0.25 s default, 0.5 s cap), then one zero and silence. Accepts only HMAC-signed packets for its `--robot-id` (key `link.key`, 0600), rejects malformed/replayed packets (replay state survives restarts), clamps to \|vx\|≤0.5, \|vy\|≤0.3, \|wz\|≤2.0. Holds zero on a bad IMU or a missing/stalled mux (below). Signed ack (seq, `imu`, profile, `hold`, `imu_hold`, `mux_ok`, stats) to accepted packets only. |
+| `rosq.py` | fcctl's rclpy queries (no ros2 daemon): `probe` (velocity topology + controllers + host DDS participant count), `controllers`, `switch`. `probe` waits until the graph settles (2-8 s) and names the reason when the mux is missing (process running but undiscovered vs no process). |
 | `fcctl.sh` | Runs on the Pi from `~/fc-v1/robot/`: `status` (incl. `phase`/`light`, `mux_alive`, `mux_ok`, `ros.mux`), `ready [profile] [--confirm]`, `down [--keep-stack]`, `start <profile> --confirm`, `stop`, `bridge start\|stop`, `imu-test <seconds>`, plus `walk`/`rest` and `boot` (service only). |
 | `readiness.py` | Pure: the `status` phase (`off/starting/homed/standing/ready/fault`) and the controller check `ready` uses. |
 | `boot/` | Power-on service, prepared and **not installed**: `fc-boot.service`, `install.sh` (install/uninstall/status/print). What it does, rollback and the homing-posture evidence: [boot/README.md](boot/README.md). |
@@ -28,6 +29,20 @@ Checked on mts 2026-11-23 by reading the installed launch files (no stack starte
 | --- | --- | --- | --- |
 | `stock` | `stock.sh` (`ros2 run cmd_vel_mux cmd_vel_mux_node`). The Pi's installed `neural_controller/launch/launch.py` (identical to its `src/` copy) starts **no** mux, and `teleop:=False` really drops its teleop node. A laptop monorepo copy that starts a mux is a different revision. | `cmd_vel_mux` only | 0 `/teleop_cmd_vel` ← our `teleop_twist_joy` (gamepad); 1 `/llm_cmd_vel` ← `fc_drive_bridge` only; 2 `/person_following_cmd_vel` ← nobody |
 | `tej_u6` | Tej's `lab6_session.launch.py` (a "required" node: its exit shuts the whole session down). `tej_u6.sh` starts no second one. | `cmd_vel_mux` only | 0 `/teleop_cmd_vel` ← our `teleop_twist_joy` (`FC_TELEOP=0` drops it); 1 `/llm_cmd_vel` ← `fc_drive_bridge` only (his HTTP API, the other publisher, is not started); 2 `/person_following_cmd_vel` ← his Lab 5 follower |
+
+**Graph queries need time (2026-11-23, mts).** Each `rosq` call is a new DDS participant and discovers a
+stack-sized graph in random order over seconds. The old fixed 1.5 s spin produced `ready`'s verify failure
+"/cmd_vel publishers []" with the mux running (a fresh-shell `ros2 node list` also shows a partial graph
+right after it spawns its daemon). Repro in domain 42 on mts, 10 stand-in nodes with stack-like endpoint
+counts and the Pi loaded: 3 of 12 fixed-1.5 s probes saw no mux; with the settling probe 12 of 12 did. Not
+the cause (checked): DDS islands. Under `ROS_LOCALHOST_ONLY=1` rmw_fastrtps (Jazzy) uses SHM + UDP with
+`maxInitialPeersRange = 32` and 127.0.0.1 as the only initial peer (no multicast), the live stack used
+participant ids 0-11, and long-lived participants all saw each other in the repro. Remaining limit: Fast DDS
+allocates participant ids host-wide (UDP port 7000+id, across domains); two participants with ids >= 32 would
+never meet, so `status` reports `dds.participants`/`max_id` and warns from id 28. Two robots on one Wi-Fi do
+not cross-talk in this mode (only 127.0.0.1 is ever contacted); profiles keep it unchanged (Tej's kit forces
+`ROS_LOCALHOST_ONLY=1` itself, so all processes share one mode). `ready`'s verify step now rechecks the
+topology for up to 15 s before failing and reports the probe's problem text.
 
 The joystick input needs |value| > 0.05 to take over, so the gamepad's idle zeros do not mask the bridge.
 `start` reports READY only when the live graph (rclpy, `fcctl.sh status` → `ros.mux`) shows exactly
@@ -107,8 +122,28 @@ JSON object per line on stdout (logs go to stderr), for example (stack already h
 - Exit code 0 only on success. Already-done steps are skipped ("already standing", "bridge already
   running"), so pressing Ready twice is harmless; a second concurrent `ready`/`down` is refused.
 
-`down [--keep-stack]`: `begin`, `bridge_stopped`, `lying_down` (leg controllers off: damped collapse, the same
-as `stop`), `down` (`done`; `"stack":"kept"` with `--keep-stack`, else the `stop` result in `stop`).
+`down [--keep-stack] [--force]`: `begin`, `bridge_stopped`, `lying_down`, `down` (`done`; `"stack":"kept"`
+with `--keep-stack`, else the `stop` result in `stop`).
+
+**Lying down is a drop, not a controlled descent** (source, 2026-11-23; observed on mts the same day: the
+robot collapsed on `down`). `lying_down` deactivates the leg controllers, exactly what stock R3 does
+(`joy_utils/src/estop_controller.cpp`): `neural_controller::on_deactivate` writes position/velocity/kp = 0
+and kd = `estop_kd` (0.1 for `neural_controller_default`), and the driver sends those buffers unchanged, so
+the legs only damp the fall. Stopping the stack afterwards disables the motors (fully limp). Nothing in the
+stock stack or u6 lowers the robot gently (u6 `lie_down` is the same deactivation). Support or lower the
+robot by hand, or accept the damped drop. Proposal for a gentle lie-down (not implemented, needs a sim check
+of the lying pose): load `forward_command_controller` position/kp/kd instances at start (inactive), then
+on `down`: zero velocity, read `/joint_states`, publish that pose at kp 7.5 / kd 0.25, STRICT switch walker
+-> forward controllers, ramp to a lying pose over 2-3 s, ramp kp to 0, only then deactivate/stop (the
+monorepo `animation_controller_py` pattern).
+
+`down` and `stop` never stop a stack whose leg controllers are not **confirmed** inactive by a fresh
+`list_controllers` after the deactivation (the switch reply alone is not trusted). Not confirmed (walker
+still active, or the manager does not answer while `ros2_control_node` runs after READY): `down` ends with
+`error`, `at:"lying_down"`, `"stack":"running"`, exit 1, and `stop` returns `ok:false`,
+`left_running:"stack"`; the message says "use R3 or support the robot". `--force` overrides (UNSAFE: a
+standing robot then drops with the motors off). Before 2026-11-23 `down` always reported "deactivation not
+confirmed": it matched `"ok":true` against rosq's spaced JSON (`"ok": true`); rosq now prints compact JSON.
 
 `status` adds `phase`, `light`, `phase_detail`, `walker`, `walker_active`, `active_legs`, `boot`:
 
@@ -163,5 +198,6 @@ mux in domain 77 every command is held as `mux_unseen`; start a lone `cmd_vel_mu
 
 Tests (no ROS): `.venv/bin/python -m pytest -q fc/robot/tests` from `final_project/`. `test_fcctl.py` (fake
 profile: lock, stop during homing, topology gate, heading-hold overlay gate, `ready`/`down` incl. a refusing
-gateway and operator timeout, status phases, boot modes) needs Linux and is skipped on the Mac; run it with (`--init` reaps zombies; without it pytest is PID 1 and `stop` waits on dead pids)
+gateway and operator timeout, `down`/`stop` refusing to stop a robot not confirmed lying, status phases, boot
+modes) needs Linux and is skipped on the Mac; run it with (`--init` reaps zombies; without it pytest is PID 1 and `stop` waits on dead pids)
 `docker run --rm --init --network none -v "$PWD/fc/robot:/src:ro" ros:jazzy-ros-base bash -c 'cd /src && python3 -m pytest -q -p no:cacheprovider tests/test_fcctl.py'`.
