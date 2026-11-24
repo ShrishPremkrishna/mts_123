@@ -32,8 +32,11 @@
   "eye_yaw_offset_deg": 7.0,
   "eye_latency_s": 0.12,
   "goal_line_margin_m": 0.0,
-  "push_turn_scale": 1.0,
+  "push_turn_scale": 0.5,
   "aim_y_frac": 0.0,
   "clear_margin": 0.06,
-  "k_turn": 1.0
+  "k_turn": 1.0,
+  "push_lat_tol": 0.12,
+  "push_max_heading_deg": 40,
+  "contact_vx": 0.2
 }
