@@ -16,12 +16,17 @@ PROFILE_WALKER=neural_controller_default
 # fcctl ready stands it in software: the stock estop_controller X sends exactly this SwitchController request
 # (activate the walker, deactivate the other leg controllers, BEST_EFFORT) straight to controller_manager.
 PROFILE_STAND_HINT="press X on the gamepad"
-PROFILE_LEG_CONTROLLERS="neural_controller neural_controller_default neural_controller_default_alt neural_controller_three_legged neural_controller_student"
+PROFILE_LEG_CONTROLLERS="neural_controller neural_controller_default neural_controller_default_alt neural_controller_three_legged neural_controller_student neural_controller_liedown"
+# Gentle lie-down (fcctl down): an inactive second NeuralController instance that lowers the body to a lying
+# pose before the legs are switched off (stack_overlay.py --liedown, sim/liedown_sim.py). Loaded by default;
+# FC_LIEDOWN=0 starts without it (then down drops like R3, and with no other option the launch is unchanged).
+PROFILE_LIEDOWN=neural_controller_liedown
 MONO=/home/pi/pupperv3-monorepo
 STOCK_CONFIG=$MONO/ros2_ws/install/neural_controller/share/neural_controller/launch/config.yaml
-# Heading hold (the walker's yaw hold, see imu/heading_hold.py): on, unless a variant (stock_hh0.sh,
-# tej_u6_hh0.sh) set FC_HEADING_HOLD=0 before sourcing this file. Off = profile_start first builds and
-# verifies a fresh kp=0 policy overlay in RUN_DIR/hh0 (fcctl.sh fc_hh_overlay) and refuses if it cannot.
+# Heading hold (the walker's yaw hold, see imu/heading_hold.py): on, unless an alias (stock_hh0.sh) set
+# FC_HEADING_HOLD=0 before sourcing this file, or fcctl got --heading-hold off. Stack options (heading hold
+# off, --speed-cap, the lie-down controller) = profile_start first builds and verifies a fresh overlay in
+# RUN_DIR/overlay (fcctl.sh fc_stack_overlay -> stack_overlay.py) and refuses to start if it cannot.
 case "${FC_HEADING_HOLD:-1}" in
   1) PROFILE_HEADING_HOLD=on ;;
   0) PROFILE_HEADING_HOLD=off; PROFILE_DESC+=" + heading hold OFF (kp=0 overlay)" ;;
@@ -44,12 +49,13 @@ profile_start() {
   local run=$1
   profile_env
   [ -f "$STOCK_CONFIG" ] || { fc_log "missing $STOCK_CONFIG"; return 1; }
-  local launch=(neural_controller launch.py)
-  if [ "$PROFILE_HEADING_HOLD" = off ]; then
-    # launch_hh0.py = the installed launch.py (checked byte-identical) reading an overlay config.yaml whose
-    # neural_controller_default(_alt) model_path is the kp=0 policy; teleop keeps $STOCK_CONFIG (unchanged).
-    fc_hh_overlay stock "$run" || return 1
-    launch=("$run/hh0/launch_hh0.py")
+  local launch=(neural_controller launch.py) liedown=on
+  [ "${FC_LIEDOWN:-1}" = 0 ] && liedown=off
+  if [ "$liedown" = on ] || fc_stack_options_set; then
+    # launch_fc.py = the installed launch.py (checked byte-identical to src) reading the overlay config.yaml
+    # (+ the lie-down spawner); teleop keeps $STOCK_CONFIG (unchanged).
+    fc_stack_overlay stock "$run" "$liedown" || return 1
+    launch=("$OVERLAY_LAUNCH")
   fi
   fc_spawn launch "$run/robot.log" ros2 launch "${launch[@]}" teleop:=False
   fc_spawn teleop "$run/teleop.log" ros2 run teleop_twist_joy teleop_node --ros-args \
@@ -64,7 +70,8 @@ profile_start() {
     if grep -q "process has died" "$run/robot.log"; then fc_log "a launch process died"; return 1; fi
     if grep -q "Finished homing" "$run/robot.log" &&
        grep -q "Configured and activated.*imu_sensor_broadcaster" "$run/robot.log" &&
-       grep -q "Loaded.*neural_controller_default" "$run/robot.log"; then
+       grep -q "Loaded.*neural_controller_default" "$run/robot.log" &&
+       { [ "$liedown" = off ] || grep -q "Loaded.*neural_controller_liedown" "$run/robot.log"; }; then
       fc_topology_wait $((deadline > SECONDS ? deadline - SECONDS : 1)) && return 0
       fc_log "velocity topology wrong (see above): refusing READY"; return 1
     fi

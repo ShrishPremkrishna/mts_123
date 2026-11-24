@@ -1,7 +1,7 @@
 """Heading-hold-off profiles (stock_hh0, tej_u6_hh0) and the overlay builder imu/heading_hold.py.
 
 Pure: fake source trees (the u6 launch dir is the vendored real one), bash with stubbed fcctl helpers.
-No ROS, no robot, nothing written outside tmp_path. fcctl.sh's fc_hh_overlay/status are covered in
+No ROS, no robot, nothing written outside tmp_path. fcctl.sh's fc_stack_overlay/status are covered in
 test_fcctl.py (Linux only).
 """
 import hashlib
@@ -191,6 +191,8 @@ fc_log() { echo "LOG $*" >&2; }
 fc_alive() { return 1; }
 fc_spawn() { echo "SPAWN $*"; }
 fc_topology_wait() { return 0; }
+STACK_SPEED_CAP=${STACK_SPEED_CAP:-}
+fc_stack_options_set() { [ -n "$STACK_SPEED_CAP" ] || [ "${PROFILE_HEADING_HOLD:-on}" = off ]; }
 '''
 
 
@@ -237,7 +239,7 @@ def test_presets_name_existing_profiles():
 
 
 def test_u6_derive_respects_pins_and_changes_only_launch_inputs(tmp_path):
-    hw = "/home/pi/fc-v1/runs/20261123T120000Z-tej_u6_hh0/hh0/foundation/hardware"
+    hw = "/home/pi/fc-v1/runs/20261123T120000Z-tej_u6_hh0/overlay/foundation/hardware"
     out = sh(f'''
 source "{PROFILES}/tej_u6_hh0.sh"
 _tej_derive "{KIT}/kickseen6-prepare.sh" "$TEJ_PREPARE_SHA" prep.sh /x/session "{hw}" || exit 3
@@ -270,7 +272,7 @@ def test_overlay_failure_refuses_before_anything_starts(prof, tmp_path):
 source "{PROFILES}/{prof}.sh"
 STOCK_CONFIG=$PWD/teleop.yaml; touch "$STOCK_CONFIG"
 profile_env() {{ :; }}
-fc_hh_overlay() {{ echo "OVERLAY $*"; return 1; }}
+fc_stack_overlay() {{ echo "OVERLAY $*"; return 1; }}
 bash() {{ echo "RAN $*"; return 0; }}
 mkdir run; profile_start "$PWD/run"; echo "rc=$?"''', tmp_path)
     assert "OVERLAY" in out.stdout and "rc=1" in out.stdout, out
@@ -282,19 +284,32 @@ def test_stock_hh0_launches_overlay(tmp_path):
 source "{PROFILES}/stock_hh0.sh"
 STOCK_CONFIG=$PWD/teleop.yaml; touch "$STOCK_CONFIG"
 profile_env() {{ :; }}
-fc_hh_overlay() {{ echo "OVERLAY $1"; mkdir -p "$2/hh0"; }}
+fc_stack_overlay() {{ echo "OVERLAY $1 $3"; mkdir -p "$2/overlay"; OVERLAY_LAUNCH=$2/overlay/launch_fc.py; }}
 mkdir run; profile_start "$PWD/run"; echo "rc=$?"''', tmp_path)
     spawns = [l for l in out.stdout.splitlines() if l.startswith("SPAWN")]
-    assert "OVERLAY stock" in out.stdout and "rc=1" in out.stdout          # fc_alive stub: "exited"
-    assert spawns[0] == f"SPAWN launch {tmp_path}/run/robot.log ros2 launch {tmp_path}/run/hh0/launch_hh0.py teleop:=False"
+    assert "OVERLAY stock on" in out.stdout and "rc=1" in out.stdout          # fc_alive stub: "exited"
+    assert spawns[0] == f"SPAWN launch {tmp_path}/run/robot.log ros2 launch {tmp_path}/run/overlay/launch_fc.py teleop:=False"
+
+
+def test_stock_default_loads_liedown_overlay(tmp_path):
+    out = sh(f'''
+source "{PROFILES}/stock.sh"
+STOCK_CONFIG=$PWD/teleop.yaml; touch "$STOCK_CONFIG"
+profile_env() {{ :; }}
+fc_stack_overlay() {{ echo "OVERLAY $1 $3 hh=$PROFILE_HEADING_HOLD"; OVERLAY_LAUNCH=$2/overlay/launch_fc.py; }}
+mkdir run; profile_start "$PWD/run"''', tmp_path)
+    assert "OVERLAY stock on hh=on" in out.stdout
+    assert "neural_controller_liedown" in sh(f'source "{PROFILES}/stock.sh"; echo $PROFILE_LEG_CONTROLLERS $PROFILE_LIEDOWN',
+                                             tmp_path).stdout
 
 
 def test_stock_unchanged_launch(tmp_path):
     out = sh(f'''
 source "{PROFILES}/stock.sh"
+FC_LIEDOWN=0
 STOCK_CONFIG=$PWD/teleop.yaml; touch "$STOCK_CONFIG"
 profile_env() {{ :; }}
-fc_hh_overlay() {{ echo "OVERLAY"; }}
+fc_stack_overlay() {{ echo "OVERLAY"; }}
 mkdir run; profile_start "$PWD/run"''', tmp_path)
     spawns = [l for l in out.stdout.splitlines() if l.startswith("SPAWN")]
     assert "OVERLAY" not in out.stdout
@@ -306,11 +321,11 @@ def test_tej_u6_hh0_prepares_with_overlay(tmp_path):
 source "{PROFILES}/tej_u6_hh0.sh"
 TEJ_KIT="{KIT}"
 profile_env() {{ :; }}
-fc_hh_overlay() {{ echo "OVERLAY $1"; mkdir -p "$2/hh0/foundation/hardware"; }}
+fc_stack_overlay() {{ echo "OVERLAY $1"; mkdir -p "$2/overlay/foundation/hardware"; OVERLAY_HW=$2/overlay/foundation/hardware; }}
 bash() {{ echo "RAN $*"; return 1; }}                  # stop at prepare: never runs Tej's scripts
 mkdir run; profile_start "$PWD/run"; echo "rc=$?"''', tmp_path)
     assert "OVERLAY u6" in out.stdout and "rc=1" in out.stdout and "prepare failed" in out.stderr, out
     assert (tmp_path / "run" / "prepare.log").read_text() == f"RAN {tmp_path}/run/prepare.sh\n"
     prep = (tmp_path / "run" / "prepare.sh").read_text()
-    assert prep.count(f'"{tmp_path}/run/hh0/foundation/hardware/') == 3
+    assert prep.count(f'"{tmp_path}/run/overlay/foundation/hardware/') == 3
     assert f'RUN_DIR="{tmp_path}/run/session"' in prep

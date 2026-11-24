@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 # fcctl.sh — Pupper FC robot control. Runs ON the Pi from ~/fc-v1/robot/.
 #   status                      one JSON line (incl. "phase": off|starting|homed|standing|ready|fault, "light")
-#   ready [profile] [--confirm [--stand-now]] [--no-bridge]
+#   ready [profile] [--confirm [--stand-now]] [--no-bridge] [STACK OPTIONS]
 #                               homed -> playing: wait READY, stand the walker in software (or wait for the
 #                               gamepad), start the bridge. Not running: homes (needs --confirm) and stops
 #                               at "homed" (move it to the floor, run ready again) unless --stand-now.
+#                               E-stopped (run/estop.json): --confirm re-arms (clears the latch, restands).
 #                               Progress as JSON lines on stdout; the last one has "done":true.
 #   down [--keep-stack] [--force]
-#                               bridge stop, lie down (leg controllers off = damped collapse, same as R3),
-#                               confirm none active, stop the stack; JSON lines. Not confirmed: abort, stack
-#                               left running, exit 1 (--force = UNSAFE: stops a possibly standing robot)
+#                               bridge stop, lie down (stock: lowered under position control by the
+#                               lie-down controller, then leg controllers off; otherwise a damped drop like
+#                               R3), confirm none active, stop the stack; JSON lines. Not confirmed: abort,
+#                               stack left running, exit 1 (--force = UNSAFE: stops a possibly standing robot)
 #   boot                        run by fc-boot.service at power-on (boot/README.md); never by hand
-#   start <profile> --confirm   start a robot stack (HOMES THE LEGS: robot on the stand)
+#   start <profile> --confirm [STACK OPTIONS]
+#                               start a robot stack (HOMES THE LEGS: robot on the stand)
+#   STACK OPTIONS (SPEC v1.1)   --speed-cap <0.30..1.00> (walker max_vx_forward/speed_cap; default 0.49)
+#                               --heading-hold on|off (default on). Built into one verified per-start
+#                               overlay (stack_overlay.py) under the run dir; *_hh0 profiles = --heading-hold off.
 #   stop [--force]              stop what fcctl started (bridge, walker, stack) and only that; refuses
 #                               (stack left running) if a leg controller cannot be confirmed inactive
 #   bridge start [--profile P] [--robot-id ID] [--allow-from IP[,IP]] [--reset-replay]
@@ -21,7 +27,8 @@
 #   imu-test <seconds>          delegates to imu_test.py (IMU lane) if present
 #   walk | rest                 activate / deactivate the profile's walker controller (optional;
 #                               the gamepad X / R3 do the same)
-# Profiles: profiles/<name>.sh (*_hh0 = same stack, heading hold off via a verified kp=0 policy overlay). State: ~/fc-v1/run/ (pidfiles, active), runs: ~/fc-v1/runs/.
+# Profiles: profiles/<name>.sh (*_hh0 = alias: same stack with --heading-hold off). State: ~/fc-v1/run/ (pidfiles, active,
+# estop.json latch), runs: ~/fc-v1/runs/ (stack.json = the start's options/overlay record).
 # Never touches systemd units. Never SIGKILLs a robot stack.
 set -uo pipefail
 
@@ -102,24 +109,70 @@ load_profile() {
   local name=$1
   [[ "$name" =~ ^[a-z0-9_]+$ ]] && [ -f "$HERE/profiles/$name.sh" ] || die "unknown profile '$name' (have: $(cd "$HERE/profiles" && ls *.sh | sed 's/\.sh$//' | tr '\n' ' '))"
   PROFILE=$name
-  # Only the profile file decides heading hold (a variant sets FC_HEADING_HOLD=0 and sources its base).
-  unset FC_HEADING_HOLD PROFILE_HEADING_HOLD
+  # The profile file decides the default heading hold (an alias sets FC_HEADING_HOLD=0 and sources its base).
+  unset FC_HEADING_HOLD PROFILE_HEADING_HOLD PROFILE_LIEDOWN
   # shellcheck disable=SC1090
   source "$HERE/profiles/$name.sh"
   case "${PROFILE_HEADING_HOLD:-}" in on|off|"") ;; *) die "profile '$name': bad heading hold '$PROFILE_HEADING_HOLD' (FC_HEADING_HOLD must be 0 or 1)" ;; esac
+  PROFILE_HH_ALIAS=${FC_HEADING_HOLD+set}   # the profile itself fixed the heading hold (stock_hh0, tej_u6_hh0)
 }
 
-# fc_hh_overlay KIND RUN : build + verify a fresh heading-hold-off overlay (imu/heading_hold.py KIND, lane D)
-# in RUN/hh0, record its JSON in RUN/heading_hold.json. Writes only under FC_ROOT. Any failure returns 1,
-# so the profile refuses to start (before any motion).
-fc_hh_overlay() {
-  local kind=$1 run=$2 res
-  [ ! -e "$run/hh0" ] || { fc_log "heading-hold overlay: $run/hh0 already exists; refusing"; return 1; }
-  res=$(python3 "$HERE/imu/heading_hold.py" "$kind" "$run/hh0" --root "$FC_ROOT") && [ -n "$res" ] ||
-    { fc_log "HEADING-HOLD-OFF OVERLAY ($kind) COULD NOT BE BUILT/VERIFIED: refusing to start (see above)"; return 1; }
-  printf '%s\n' "$res" > "$run/heading_hold.json"
-  fc_log "heading hold OFF: $kind overlay verified in $run/hh0 (policy sha256 $(python3 -c 'import json,sys; print(json.load(sys.stdin)["sha256"][:12])' <<< "$res"))"
+# ---------------------------------------------------------------- stack options (SPEC v1.1)
+# STACK_SPEED_CAP ("" = profile default 0.49) and STACK_HH ("" = profile default) come from --speed-cap /
+# --heading-hold; the detached starter receives them as FC_STACK_SPEED_CAP / FC_STACK_HEADING_HOLD.
+STACK_SPEED_CAP=${FC_STACK_SPEED_CAP:-}
+STACK_HH=${FC_STACK_HEADING_HOLD:-}
+STACK_ERR=""
+# stack_opt OPTION VALUE : 0 = consumed (sets STACK_*), 1 = invalid (STACK_ERR says why)
+stack_opt() {
+  case "$1" in
+    --speed-cap)
+      [[ "${2:-}" =~ ^[0-9]*[.]?[0-9]+$ ]] && awk -v v="$2" 'BEGIN { exit !(v >= 0.30 && v <= 1.00) }' ||
+        { STACK_ERR="--speed-cap needs a number in 0.30..1.00 (got '${2:-}')"; return 1; }
+      STACK_SPEED_CAP=$2 ;;
+    --heading-hold)
+      [[ "${2:-}" =~ ^(on|off)$ ]] || { STACK_ERR="--heading-hold needs on|off (got '${2:-}')"; return 1; }
+      STACK_HH=$2 ;;
+    *) STACK_ERR="unknown stack option '$1'"; return 1 ;;
+  esac
 }
+# apply_stack_opts : after load_profile. Refuses a heading hold that contradicts an alias profile.
+apply_stack_opts() {
+  if [ -n "$STACK_HH" ]; then
+    if [ -n "$PROFILE_HH_ALIAS" ] && [ "$STACK_HH" != "${PROFILE_HEADING_HOLD:-on}" ]; then
+      STACK_ERR="profile '$PROFILE' fixes heading hold ${PROFILE_HEADING_HOLD}; drop --heading-hold $STACK_HH or use the base profile"
+      return 1
+    fi
+    PROFILE_HEADING_HOLD=$STACK_HH
+  fi
+  return 0
+}
+fc_stack_options_set() { [ -n "$STACK_SPEED_CAP" ] || [ "${PROFILE_HEADING_HOLD:-on}" = off ]; }
+
+# fc_stack_overlay KIND RUN [on|off liedown] : build + verify a fresh overlay (stack_overlay.py) in RUN/overlay
+# with the start's options, record its JSON in RUN/stack.json, set OVERLAY_LAUNCH / OVERLAY_HW. Writes only
+# under FC_ROOT. Any failure returns 1, so the profile refuses to start (before any motion).
+fc_stack_overlay() {
+  local kind=$1 run=$2 liedown=${3:-off} res args=()
+  [ ! -e "$run/overlay" ] || { fc_log "stack overlay: $run/overlay already exists; refusing"; return 1; }
+  [ -z "$STACK_SPEED_CAP" ] || args+=(--speed-cap "$STACK_SPEED_CAP")
+  args+=(--heading-hold "${PROFILE_HEADING_HOLD:-on}" --liedown "$liedown")
+  res=$(python3 "$HERE/stack_overlay.py" "$kind" "$run/overlay" --root "$FC_ROOT" "${args[@]}") && [ -n "$res" ] ||
+    { fc_log "STACK OVERLAY ($kind ${args[*]}) COULD NOT BE BUILT/VERIFIED: refusing to start (see above)"; return 1; }
+  printf '%s\n' "$res" > "$run/stack.json"
+  OVERLAY_LAUNCH=$(python3 -c 'import json,sys; print(json.load(sys.stdin)["launch"])' <<< "$res")
+  OVERLAY_HW=$(dirname "$OVERLAY_LAUNCH")
+  fc_log "stack overlay verified in $run/overlay: $kind ${args[*]}"
+}
+# fc_stack_record RUN : the start's options when no overlay is built (stock defaults, nothing changed).
+fc_stack_record() {
+  printf '{"kind":null,"verified":null,"overlay":false,"speed_cap":null,"speed_cap_effective":0.49,"heading_hold":"%s","liedown":null}\n' \
+    "${PROFILE_HEADING_HOLD:-on}" > "$1/stack.json"
+}
+_stack_field() { python3 -c 'import json,sys
+try: v=json.load(open(sys.argv[1])).get(sys.argv[2])
+except Exception: v=None
+print("" if v is None else (json.dumps(v) if isinstance(v,(dict,list)) else v))' "$1" "$2"; }
 
 active_profile() { [ -f "$FC_RUN/active" ] && sed -n 1p "$FC_RUN/active"; }
 active_run() { [ -f "$FC_RUN/active" ] && sed -n 2p "$FC_RUN/active"; }
@@ -169,6 +222,46 @@ fc_lie_down() {
   return 1
 }
 
+# fc_gentle_down RUN : stock gentle lie-down. If this run loaded the lie-down controller (RUN/stack.json) and a
+# leg controller is active, hand the legs to it with ONE STRICT switch (walker off + lie-down on in the same
+# controller-manager cycle, or nothing changes): its init blend lowers the body from the current pose to the
+# lying pose under position control (kp 7.5 / kd 0.25, like standing up), then it holds the pose. The caller
+# waits GENTLE_WAIT s (blend + FC_LIEDOWN_HOLD_S), then deactivates (fc_lie_down): the robot rests on its belly.
+# 0 = lowering started; 1 = not available or refused (GENTLE_WHY; nothing changed: the caller drops as before);
+# 2 = nothing to do (no leg controller active). Sim evidence: sim/liedown_sim.py.
+fc_gentle_down() {
+  local run=$1 ctl init q sw st
+  GENTLE_WHY="" GENTLE_WAIT=0
+  ctl=$(_stack_field "$run/stack.json" liedown | python3 -c 'import json,sys
+try: d=json.loads(sys.stdin.read() or "null"); print("%s %s" % (d["controller"], d["init_s"]))
+except Exception: print("")')
+  q=$(rosq controllers 2>> "$FC_LOGS/ready.log")
+  if [ -z "$ctl" ] || [ -z "${PROFILE_LIEDOWN:-}" ]; then
+    _legs_down "$q" && { GENTLE_WHY="no leg controller active"; return 2; }
+    GENTLE_WHY="no lie-down controller in this run (tej_u6, FC_LIEDOWN=0 or an older start)"; return 1
+  fi
+  read -r ctl init <<< "$ctl"
+  st=$(python3 -c 'import json,sys
+try: c=json.loads(sys.argv[1]).get("controllers") or {}
+except Exception: c={}
+legs=[x for x in sys.argv[3].split() if x != sys.argv[2] and c.get(x) == "active"]
+print("%s %s" % (c.get(sys.argv[2], "missing"), "active" if legs else "none"))' "$q" "$ctl" "$PROFILE_LEG_CONTROLLERS")
+  case "$st" in
+    "missing "*) GENTLE_WHY="$ctl not loaded (controller manager: ${q:0:80})"; return 1 ;;
+    *" none") GENTLE_WHY="no leg controller active"; return 2 ;;
+    "active "*) GENTLE_WHY="$ctl already active with another leg controller"; return 1 ;;
+  esac
+  sw=$(rosq switch "$ctl" "$PROFILE_LEG_CONTROLLERS" strict 2>> "$FC_LOGS/ready.log")
+  st=$(python3 -c 'import json,sys
+try: c=json.loads(sys.argv[1]).get("controllers") or {}
+except Exception: c={}
+others=[x for x in sys.argv[3].split() if x != sys.argv[2] and c.get(x) == "active"]
+print("ok" if c.get(sys.argv[2]) == "active" and not others else "no")' "$sw" "$ctl" "$PROFILE_LEG_CONTROLLERS")
+  if [ "$st" != ok ]; then GENTLE_WHY="STRICT switch to $ctl not accepted ($(_json_field "$sw" error))"; return 1; fi
+  GENTLE_WAIT=$(awk -v a="$init" -v b="${FC_LIEDOWN_HOLD_S:-1.0}" 'BEGIN { print a + b }')
+  return 0
+}
+
 # fc_topology_wait SECONDS : (profile env sourced) wait until rosq reports the velocity topology ok.
 fc_topology_wait() {
   local end=$((SECONDS + $1)) verdict last=""
@@ -208,24 +301,35 @@ cmd_status() {
   local stale=false; active_stale && stale=true
   python3 - "$prof" "$run" "$alive" "$stack" "$foreign" "$bpid" "${temp:-}" "${thr:-}" "$q" "$batt" \
     "$(cat /proc/loadavg)" "$(fc_pid starter || true)" "${PROFILE_HEADING_HOLD:-}" \
-    "${PROFILE_WALKER:-}" "${PROFILE_LEG_CONTROLLERS:-}" "$stale" "$HERE" "$FC_RUN/boot.json" <<'PY'
+    "${PROFILE_WALKER:-}" "${PROFILE_LEG_CONTROLLERS:-}" "$stale" "$HERE" "$FC_RUN/boot.json" "$FC_RUN/estop.json" <<'PY'
 import json, os, sys, time
 prof, run, alive, stack, foreign, bpid, temp, thr, q, batt, load, starter, hh = sys.argv[1:14]
-walker, legs, stale, here, boot_file = sys.argv[14:19]
+walker, legs, stale, here, boot_file, latch_file = sys.argv[14:20]
 sys.path.insert(0, here)
 import readiness
-overlay = None
-try:  # written by fc_hh_overlay when the running profile turned heading hold off
-    with open(os.path.join(run, "heading_hold.json")) as f:
-        o = json.load(f)
-    overlay = {k: o.get(k) for k in ("kind", "verified", "policy", "sha256", "heading_hold")}
+overlay, st_rec = None, None
+try:  # the start's options (fc_stack_overlay / fc_stack_record); older runs have none
+    with open(os.path.join(run, "stack.json")) as f:
+        st_rec = json.load(f)
+    if st_rec.get("policy"):    # heading-hold-off policy of the overlay
+        overlay = {"kind": st_rec.get("kind"), "verified": st_rec.get("verified"), "policy": st_rec.get("policy"),
+                   "sha256": st_rec.get("sha256"), "heading_hold": st_rec.get("hh_policy")}
 except (OSError, ValueError, AttributeError):
-    pass
+    st_rec = None
+if st_rec and st_rec.get("heading_hold") in ("on", "off"):
+    hh = st_rec["heading_hold"]
+estop = None
+if os.path.exists(latch_file):  # the bridge's e-stop latch (fail closed: unreadable still counts)
+    try:
+        with open(latch_file) as f:
+            estop = json.load(f)
+    except (OSError, ValueError):
+        estop = {"reason": "unreadable_latch_file"}
 ready = bool(run) and os.path.exists(os.path.join(run, "READY"))
 ros = json.loads(q) if q and q != "null" else None
 mux = (ros or {}).get("mux") or {}
 failed = bool(run) and os.path.exists(os.path.join(run, "FAILED"))
-ph = readiness.phase({
+ph = readiness.phase({  # noqa
     "profile": prof, "profile_alive": alive == "true", "starting": bool(starter), "ready": ready,
     "start_failed": failed, "stale": stale == "true", "foreign_stack": foreign == "true",
     "ros2_control_node": stack == "true", "ros": ros, "bridge_alive": bool(bpid),
@@ -236,14 +340,23 @@ try:  # written by 'fcctl.sh boot' (fc-boot.service)
         boot = json.load(f)
 except (OSError, ValueError):
     boot = None
+detail = ph["detail"]
+if estop is not None:
+    detail = "E-STOPPED (%s): ready --confirm re-arms; " % estop.get("reason") + detail
 print(json.dumps({
     "ok": True, "t": round(time.time(), 3), "host": os.uname().nodename,
-    "phase": ph["phase"], "light": ph["light"], "phase_detail": ph["detail"],
+    "phase": ph["phase"], "light": ph["light"], "phase_detail": detail,
+    "estopped": estop is not None, "estop": estop,
     "walker": walker or None, "walker_active": ctl["walker_active"] if ctl else None,
     "active_legs": ctl["active_legs"] if ctl else None, "boot": boot,
     "profile": prof or None, "run_dir": run or None,
     "profile_alive": alive == "true", "starting": bool(starter), "ready": ready, "start_failed": failed,
-    "heading_hold": hh or None, "heading_hold_overlay": overlay,   # "on"/"off" per profile; null = no profile
+    "heading_hold": (hh or None) if prof else None, "heading_hold_overlay": overlay,   # "on"/"off"; null = no profile
+    # walker forward/jump-slot cap of the running stack: the start's --speed-cap, else the stock 0.49
+    "speed_cap": ((st_rec or {}).get("speed_cap_effective") or 0.49) if prof else None,
+    "speed_cap_source": ("overlay" if (st_rec or {}).get("speed_cap") is not None else "default") if prof else None,
+    "liedown": bool((st_rec or {}).get("liedown")) if prof else None,   # gentle lie-down controller loaded
+    "stack": st_rec,
     "ros2_control_node": stack == "true", "foreign_stack": foreign == "true",
     "mux_alive": mux.get("alive"), "mux_ok": mux.get("ok"),   # null = not probed (no live profile)
     "dds": (ros or {}).get("dds"), "discovery": (ros or {}).get("discovery"),
@@ -257,12 +370,21 @@ PY
 }
 
 cmd_start() {
-  local name=${1:-} confirm=${2:-}
-  [ -n "$name" ] || die "usage: start <profile> --confirm"
+  local name="" confirm=""
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --confirm) confirm=$1; shift ;;
+      --speed-cap|--heading-hold) stack_opt "$1" "${2:-}" || die "$STACK_ERR"; shift 2 ;;
+      -*) die "unknown start option '$1' (start <profile> --confirm [--speed-cap X] [--heading-hold on|off])" ;;
+      *) [ -z "$name" ] || die "one profile only"; name=$1; shift ;;
+    esac
+  done
+  [ -n "$name" ] || die "usage: start <profile> --confirm [--speed-cap X] [--heading-hold on|off]"
   [ "$confirm" = "--confirm" ] || die "start homes the legs: put the robot on the stand, then rerun with --confirm"
   [ -z "${FC_ROS_DOMAIN_ID:-}" ] || die "FC_ROS_DOMAIN_ID is for bridge tests only; unset it to start a stack"
   lock
   load_profile "$name"
+  apply_stack_opts || die "$STACK_ERR"
   local prev; prev=$(active_profile || true)
   if [ -n "$prev" ]; then
     ( load_profile "$prev" && profile_alive "$(active_run)" ) && die "profile '$prev' is running; fcctl.sh stop first"
@@ -276,7 +398,8 @@ cmd_start() {
   printf '%s\n%s\n%s\n' "$name" "$run" "$(boot_id)" > "$FC_RUN/active"
   fc_log "!!! HOMING: starting '$name' moves the legs. Robot ON THE STAND, R3 in reach."
   fc_log "temp $(vcgencmd measure_temp 2>/dev/null) $(vcgencmd get_throttled 2>/dev/null) run $run"
-  fc_spawn starter "$run/starter.log" bash "$HERE/fcctl.sh" _starter "$name" "$run" || die "could not spawn starter"
+  FC_STACK_SPEED_CAP=$STACK_SPEED_CAP FC_STACK_HEADING_HOLD=$STACK_HH \
+    fc_spawn starter "$run/starter.log" bash "$HERE/fcctl.sh" _starter "$name" "$run" || die "could not spawn starter"
   unlock   # the starter now owns the start; 'stop' must work during homing
   local end=$((SECONDS + 160)) shown=0
   while [ $SECONDS -lt $end ]; do
@@ -290,7 +413,10 @@ cmd_start() {
   done
   if [ -f "$run/READY" ]; then
     fc_log "ready. Next: on the floor 'fcctl.sh ready' (stands + bridge), or press X (tej_u6: Options) and 'fcctl.sh bridge start'."
-    printf '{"ok":true,"profile":"%s","run_dir":"%s","walker":"%s","cmd_topic":"%s","heading_hold":"%s"}\n' "$name" "$run" "$PROFILE_WALKER" "$PROFILE_CMD_TOPIC" "${PROFILE_HEADING_HOLD:-}"
+    printf '{"ok":true,"profile":"%s","run_dir":"%s","walker":"%s","cmd_topic":"%s","heading_hold":"%s","speed_cap":%s,"liedown":%s}\n' \
+      "$name" "$run" "$PROFILE_WALKER" "$PROFILE_CMD_TOPIC" "${PROFILE_HEADING_HOLD:-}" \
+      "$(_stack_field "$run/stack.json" speed_cap_effective | grep -E '^[0-9.]+$' || echo null)" \
+      "$([ -n "$(_stack_field "$run/stack.json" liedown)" ] && echo true || echo false)"
   else
     fc_log "start failed or timed out; logs in $run. Run 'fcctl.sh stop' to clean up what was started."
     printf '{"ok":false,"profile":"%s","run_dir":"%s","error":"start failed"}\n' "$name" "$run"
@@ -301,6 +427,8 @@ cmd_start() {
 cmd__starter() {  # internal: runs detached so an ssh drop cannot interrupt homing
   local name=$1 run=$2
   load_profile "$name"
+  apply_stack_opts || { fc_log "$STACK_ERR"; touch "$run/FAILED"; return 1; }
+  fc_stack_record "$run"     # overwritten by fc_stack_overlay when the profile builds an overlay
   if profile_start "$run"; then touch "$run/READY"; fc_log "profile $name ready"
   else touch "$run/FAILED"; fc_log "profile $name failed"; fi
 }
@@ -329,13 +457,20 @@ cmd_bridge() {
       load_profile "$prof"
       profile_env
       [ -n "${FC_ROS_DOMAIN_ID:-}" ] && export ROS_DOMAIN_ID=$FC_ROS_DOMAIN_ID
+      # vx ceiling = the running stack's walker cap (stack.json speed_cap_effective: --speed-cap, else 0.49);
+      # a run without stack.json (older start) keeps the historic 0.5
+      local maxvx; maxvx=$(_stack_field "$(active_run)/stack.json" speed_cap_effective 2>/dev/null | grep -E '^[0-9.]+$' || echo 0.5)
       fc_spawn bridge "$FC_LOGS/bridge.log" python3 -u "$HERE/drive_bridge.py" --profile "$prof" \
         --topic "$PROFILE_CMD_TOPIC" --imu-topic "$PROFILE_IMU_TOPIC" --port "${FC_BRIDGE_PORT:-9870}" \
         --robot-id "$rid" --key-file "$HERE/link.key" --state-file "$FC_RUN/bridge_state.json" \
-        ${allow:+--allow-from "$allow"} "${extra[@]}"
+        --max-vx "$maxvx" --walker "$PROFILE_WALKER" --legs "$PROFILE_LEG_CONTROLLERS" \
+        --latch-file "$FC_RUN/estop.json" ${allow:+--allow-from "$allow"} "${extra[@]}"
       sleep 1.5
       fc_alive bridge || die "bridge exited (missing/loose link.key? bad state file?); see $FC_LOGS/bridge.log"
-      printf '{"ok":true,"bridge_pid":%s,"profile":"%s","robot_id":"%s","topic":"%s","domain":%s}\n' "$(fc_pid bridge)" "$prof" "$rid" "$PROFILE_CMD_TOPIC" "${ROS_DOMAIN_ID:-0}"
+      [ -f "$FC_RUN/estop.json" ] && fc_log "bridge started LATCHED (run/estop.json): it publishes only zero until 'ready --confirm'"
+      printf '{"ok":true,"bridge_pid":%s,"profile":"%s","robot_id":"%s","topic":"%s","domain":%s,"max_vx":%s,"estopped":%s}\n' \
+        "$(fc_pid bridge)" "$prof" "$rid" "$PROFILE_CMD_TOPIC" "${ROS_DOMAIN_ID:-0}" "$maxvx" \
+        "$([ -f "$FC_RUN/estop.json" ] && echo true || echo false)"
       ;;
     stop)
       fc_signal_group bridge INT 5 || die "bridge did not stop"
@@ -367,8 +502,15 @@ cmd_stop() {
   fc_signal_group starter TERM 3 || rc=1
   fc_adopt_orphans
   if profile_alive "$run"; then
-    fc_log "deactivating leg controllers (damped collapse, same as R3) and confirming before stopping"
     profile_env
+    local g=0
+    if [ -f "$run/READY" ]; then fc_gentle_down "$run"; g=$?; else g=1; GENTLE_WHY="stack never reached READY"; fi
+    case $g in
+      0) fc_log "lowering under position control (lie-down controller, ${GENTLE_WAIT} s)"; sleep "$GENTLE_WAIT"
+         fc_log "lowered; deactivating leg controllers (resting on its belly)" ;;
+      2) fc_log "no leg controller active; confirming before stopping" ;;
+      *) fc_log "gentle lie-down unavailable ($GENTLE_WHY): deactivating leg controllers, a standing robot WILL DROP (damped, same as R3)" ;;
+    esac
     if fc_lie_down; then
       sleep 1
     elif ! pgrep -f ros2_control_node > /dev/null; then
@@ -428,14 +570,16 @@ _wait_start() {
 }
 
 cmd_ready() {
-  local name="" confirm="" stand_now="" bridge=1 a
+  local name="" confirm="" stand_now="" bridge=1 a rearmed=0
   READY_T0=$(_now)
-  for a in "$@"; do
+  while [ $# -gt 0 ]; do
+    a=$1; shift
     case "$a" in
       --confirm) confirm=1 ;;
       --stand-now) stand_now=1 ;;
       --no-bridge) bridge=0 ;;
-      -*) ready_fail args "unknown option '$a' (ready [profile] [--confirm [--stand-now]] [--no-bridge])" 2 ;;
+      --speed-cap|--heading-hold) stack_opt "$a" "${1:-}" || ready_fail args "$STACK_ERR" 2; shift ;;
+      -*) ready_fail args "unknown option '$a' (ready [profile] [--confirm [--stand-now]] [--no-bridge] [--speed-cap X] [--heading-hold on|off])" 2 ;;
       *) [ -z "$name" ] || ready_fail args "one profile only" 2; name=$a ;;
     esac
   done
@@ -451,7 +595,25 @@ cmd_ready() {
   _profile_ok "$name" || ready_fail args "unknown profile '$name' (have: $(cd "$HERE/profiles" && ls *.sh | sed 's/\.sh$//' | tr '\n' ' '))" 2
   [ -z "$cur" ] || [ "$cur" = "$name" ] || ready_fail profile "profile '$cur' is running, not '$name': fcctl.sh down first" 1
   load_profile "$name"
+  apply_stack_opts || ready_fail args "$STACK_ERR" 2
   emit begin true "profile $name" ",\"profile\":\"$name\",\"walker\":\"$PROFILE_WALKER\""
+
+  # 0. e-stop latch (SPEC v1.1): only a confirmed Ready re-arms. Stop the latched bridge, clear the latch;
+  # step 2 then cycles the walker (an e-stopped controller can still read "active" while limp).
+  if [ -f "$FC_RUN/estop.json" ]; then
+    local why; why=$(_stack_field "$FC_RUN/estop.json" reason)
+    if [ -z "$confirm" ]; then
+      emit needs_confirm false "E-STOPPED (${why:-unknown}): the legs were switched off and the bridge is latched. Check the robot, then rerun with --confirm to re-arm" \
+        ",\"profile\":\"$name\",\"estop\":\"$(jesc "${why:-unknown}")\",\"exit\":3,\"done\":true"
+      exit 3
+    fi
+    if fc_alive bridge; then
+      bash "$HERE/fcctl.sh" bridge stop > /dev/null 2>> "$FC_LOGS/ready.log" 8>&- || ready_fail rearm "latched bridge did not stop; see ~/fc-v1/logs/bridge.log" 1
+    fi
+    mv -f "$FC_RUN/estop.json" "$FC_LOGS/estop-$(date -u +%Y%m%dT%H%M%SZ).json" 2>/dev/null || rm -f "$FC_RUN/estop.json"
+    rearmed=1
+    emit rearmed true "e-stop (${why:-unknown}) cleared by the operator; standing up again" ",\"estop\":\"$(jesc "${why:-unknown}")\""
+  fi
 
   # 1. stack up and homed
   local run
@@ -462,7 +624,15 @@ cmd_ready() {
       _wait_start "$run" 200 || ready_fail starting "start failed or timed out; see $run/starter.log, then fcctl.sh down" 1
     fi
     [ -f "$run/READY" ] || ready_fail starting "profile running but never READY; fcctl.sh down, then ready $name --confirm" 1
-    emit homed true "homed (already running)" ",\"run_dir\":\"$run\""
+    # Requested stack options must match the running stack (changing them means a new start = homing).
+    local have_cap have_hh
+    have_cap=$(_stack_field "$run/stack.json" speed_cap_effective); have_cap=${have_cap:-0.49}
+    have_hh=$(_stack_field "$run/stack.json" heading_hold); have_hh=${have_hh:-${PROFILE_HEADING_HOLD:-on}}
+    if { [ -n "$STACK_SPEED_CAP" ] && ! awk -v a="$STACK_SPEED_CAP" -v b="$have_cap" 'BEGIN { exit !((a - b) ^ 2 < 1e-6) }'; } ||
+       { [ -n "$STACK_HH" ] && [ "$STACK_HH" != "$have_hh" ]; }; then
+      ready_fail profile "running stack has speed cap $have_cap / heading hold $have_hh, requested ${STACK_SPEED_CAP:-$have_cap} / ${STACK_HH:-$have_hh}: fcctl.sh down first (the next start homes the legs)" 1
+    fi
+    emit homed true "homed (already running)" ",\"run_dir\":\"$run\",\"speed_cap\":$have_cap,\"heading_hold\":\"$have_hh\""
   else
     if [ -z "$confirm" ]; then
       emit needs_confirm false "stack not running: starting it HOMES THE LEGS. Put the robot on the stand, then rerun with --confirm" \
@@ -471,7 +641,10 @@ cmd_ready() {
     fi
     emit starting true "starting $name: HOMING THE LEGS (robot on the stand)"
     local out=$FC_RUN/ready_start.out spid beat=$SECONDS rc res
-    bash "$HERE/fcctl.sh" start "$name" --confirm > "$out" 2>> "$FC_LOGS/ready.log" 8>&- &
+    local sopts=()
+    [ -z "$STACK_SPEED_CAP" ] || sopts+=(--speed-cap "$STACK_SPEED_CAP")
+    [ -z "$STACK_HH" ] || sopts+=(--heading-hold "$STACK_HH")
+    bash "$HERE/fcctl.sh" start "$name" --confirm "${sopts[@]}" > "$out" 2>> "$FC_LOGS/ready.log" 8>&- &
     spid=$!
     while kill -0 "$spid" 2> /dev/null; do
       sleep 0.5
@@ -496,6 +669,11 @@ cmd_ready() {
   local st sw
   st=$(_legs "$(rosq probe "$PROFILE_CMD_TOPIC" 2>> "$FC_LOGS/ready.log")")
   [[ "$st" == *'"reachable":true'* ]] || ready_fail stand "controller manager not answering" 1
+  if [ "$rearmed" = 1 ] && [[ "$st" != *'"active_legs":[]'* ]]; then
+    # after an e-stop a leg controller may still read active while limp (its estop flag clears only on activation)
+    st=$(_legs "$(rosq switch "" "$PROFILE_LEG_CONTROLLERS" 2>> "$FC_LOGS/ready.log")")
+    [[ "$st" == *'"active_legs":[]'* ]] || ready_fail rearm "could not deactivate the e-stopped leg controllers: R3, then fcctl.sh down" 1
+  fi
   if [[ "$st" == *'"walker_active":true'* ]]; then
     emit standing true "already standing on $PROFILE_WALKER"
   else
@@ -570,8 +748,21 @@ cmd_down() {
   load_profile "$prof"
   if profile_alive "$run"; then
     profile_env
+    local g=1 gentle=false
+    if [ -f "$run/READY" ]; then fc_gentle_down "$run"; g=$?; else GENTLE_WHY="stack never reached READY"; fi
+    case $g in
+      0) gentle=true
+         emit lowering true "lowering the body under position control (lie-down controller, ${GENTLE_WAIT} s)" ',"gentle":true'
+         sleep "$GENTLE_WAIT" ;;
+      2) ;;
+      *) emit lowering true "gentle lie-down unavailable ($GENTLE_WHY): switching the legs off, a standing robot WILL DROP (damped, like R3). Support it if needed" ',"gentle":false' ;;
+    esac
     if fc_lie_down; then
-      emit lying_down true "leg controllers off (confirmed): damped collapse, the same as R3" ",\"switch\":$(_raw_json "$LIE_JSON")"
+      if [ "$gentle" = true ]; then
+        emit lying_down true "lowered, then leg controllers off (confirmed): resting on its belly" ",\"gentle\":true,\"switch\":$(_raw_json "$LIE_JSON")"
+      else
+        emit lying_down true "leg controllers off (confirmed): damped collapse, the same as R3" ",\"gentle\":false,\"switch\":$(_raw_json "$LIE_JSON")"
+      fi
       sleep "${FC_DOWN_SETTLE_S:-1.5}"
     elif [ $force = 1 ]; then
       emit lying_down false "NOT confirmed lying ($LIE_WHY); --force: continuing (UNSAFE)" ",\"switch\":$(_raw_json "$LIE_JSON")"

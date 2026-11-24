@@ -7,15 +7,17 @@ gamepad `/teleop_cmd_vel` wins) → `/cmd_vel` → walker. Contract: [../SPEC.md
 
 | File | What |
 | --- | --- |
-| `drive_bridge.py` | rclpy node. 50 Hz Twist while the newest packet is younger than its ttl (0.25 s default, 0.5 s cap), then one zero and silence. Accepts only HMAC-signed packets for its `--robot-id` (key `link.key`, 0600), rejects malformed/replayed packets (replay state survives restarts), clamps to \|vx\|≤0.5, \|vy\|≤0.3, \|wz\|≤2.0. Holds zero on a bad IMU or a missing/stalled mux (below). Signed ack (seq, `imu`, profile, `hold`, `imu_hold`, `mux_ok`, stats) to accepted packets only. |
-| `rosq.py` | fcctl's rclpy queries (no ros2 daemon): `probe` (velocity topology + controllers + host DDS participant count), `controllers`, `switch`. `probe` waits until the graph settles (2-8 s) and names the reason when the mux is missing (process running but undiscovered vs no process). |
+| `drive_bridge.py` | rclpy node. 50 Hz Twist while the newest packet is younger than its ttl (0.25 s default, 0.5 s cap), then one zero and silence. Accepts only HMAC-signed packets for its `--robot-id` (key `link.key`, 0600), rejects malformed/replayed packets (replay state survives restarts), clamps to \|vx\|≤0.5, \|vy\|≤0.3, \|wz\|≤2.0. Holds zero on a bad IMU or a missing/stalled mux (below). Signed ack (seq, `imu`, profile, `hold`, `imu_hold`, `mux_ok`, `estopped`, stats) to accepted packets only. vx ceiling = the stack's speed cap (`--max-vx`, at most 1.0). E-stop + fallen cutoff: [below](#e-stop-and-fallen-cutoff-spec-v11). |
+| `rosq.py` | fcctl's rclpy queries (no ros2 daemon): `probe` (velocity topology + controllers + host DDS participant count), `controllers`, `switch` (BEST_EFFORT, or `strict` for the lie-down handover). `probe` waits until the graph settles (2-8 s) and names the reason when the mux is missing (process running but undiscovered vs no process). |
 | `fcctl.sh` | Runs on the Pi from `~/fc-v1/robot/`: `status` (incl. `phase`/`light`, `mux_alive`, `mux_ok`, `ros.mux`), `ready [profile] [--confirm]`, `down [--keep-stack]`, `start <profile> --confirm`, `stop`, `bridge start\|stop`, `imu-test <seconds>`, plus `walk`/`rest` and `boot` (service only). |
 | `readiness.py` | Pure: the `status` phase (`off/starting/homed/standing/ready/fault`) and the controller check `ready` uses. |
 | `boot/` | Power-on service, prepared and **not installed**: `fc-boot.service`, `install.sh` (install/uninstall/status/print). What it does, rollback and the homing-posture evidence: [boot/README.md](boot/README.md). |
 | `profiles/stock.sh` | Class platform: monorepo `ros2 launch neural_controller launch.py teleop:=False` + teleop→`/teleop_cmd_vel` + `cmd_vel_mux_node`. Domain 0. |
 | `profiles/tej_u6.sh` | Tej's `software-ballkick-20261120-u6` via his `kickseen6` kit (prepare + start-native), fresh run dir, no HTTP API; + teleop→`/teleop_cmd_vel`. Domain 168. |
-| `profiles/stock_hh0.sh`, `profiles/tej_u6_hh0.sh` | The same stacks with the walker's heading hold off: set `FC_HEADING_HOLD=0` and source the base profile. Its `profile_start` first runs `fc_hh_overlay` (`imu/heading_hold.py`, lane D): a fresh kp=0 policy overlay in `<run>/hh0/`, re-read and verified (only `heading_hold.kp` and the policy path differ from the sources; refuses to write outside `~/fc-v1`). Any failure refuses the start before motion. stock: `ros2 launch <run>/hh0/launch_hh0.py` (src and installed launch/config/policy must be identical). tej_u6: kit scripts still checked against their sha pins; only prepare's `--launch/--config/--urdf` point at `<run>/hh0/foundation/hardware/`. `status` reports `heading_hold` (`on`/`off`) and `heading_hold_overlay` (policy sha). |
-| `stage.sh <host>` | Laptop: rsync this dir (minus `vendor/`, `provision/`) to `<host>:~/fc-v1/robot/`, print changes; copy `fc/config/link.key` (0600) and write `robot_id` from the `robots.json` entry for `<host>` (or `FC_ROBOT_ID`). |
+| `profiles/stock_hh0.sh`, `profiles/tej_u6_hh0.sh` | Aliases of the base profile with `--heading-hold off` (set `FC_HEADING_HOLD=0`, source the base; `--heading-hold on` with an alias is refused). |
+| `stack_overlay.py` | The one per-start overlay builder (generalises `imu/heading_hold.py`, whose kp=0 policy helper it reuses): `--speed-cap`, `--heading-hold off`, and (stock) the lie-down controller, in `<run>/overlay/`, re-read and verified (YAML parsed and compared with the source plus exactly the intended edits; launch text compared; policies compared; gains/limits never wider). Any failure refuses the start before motion. Details: [Stack options](#stack-options-spec-v11). |
+| `sim/liedown_sim.py` | Laptop only (not staged): MuJoCo check of the gentle lie-down. [Gentle lie-down](#gentle-lie-down-stock-down-and-stop). |
+| `stage.sh <host>` | Laptop: rsync this dir (minus `vendor/`, `provision/`, `sim/`) to `<host>:~/fc-v1/robot/`, print changes; copy `fc/config/link.key` (0600) and write `robot_id` from the `robots.json` entry for `<host>` (or `FC_ROBOT_ID`). |
 | `provision/` | Laptop: `provision.sh [--check] <host> <id> <team> <tag>` takes a new Pi to game-ready (read-only probe + readiness report; stages via `stage.sh`; writes only `~/fc-v1/` unless `--fix-clone-identity`). Second-robot plan, clone vs class card, and per-robot calibration: [provision/PROVISION.md](provision/PROVISION.md). Not staged to the Pi. |
 | `camstream.py` | Optional, not run by any script yet: front camera as 320 px MJPEG on :8090 (`/stream.mjpg`, `/frame.jpg`, `/health`) for the laptop Play screen (`cam_url` in robots.json). Default source subscribes read-only to camera_ros `/camera/image_raw/compressed` (same ROS env/domain as the profile); `--source picamera2` opens the sensor only when no camera node runs. Not yet run on a Pi. |
 | `keygen.py` | Laptop, once: `python -m fc.robot.keygen` writes `fc/config/link.key` (0600, gitignored). |
@@ -82,10 +84,10 @@ bridge will not start: `fcctl.sh bridge stop; fcctl.sh bridge start --reset-repl
 python -m fc.robot.keygen                   # laptop, once (from final_project/)
 fc/robot/stage.sh mts                       # laptop
 ssh mts bash ~/fc-v1/robot/fcctl.sh status
-ssh mts bash ~/fc-v1/robot/fcctl.sh start stock --confirm   # ROBOT ON THE STAND: homes the legs
+ssh mts bash ~/fc-v1/robot/fcctl.sh start stock --confirm --speed-cap 0.80   # ROBOT ON THE STAND: homes the legs
 #   move the robot to the floor, then:
-ssh mts bash ~/fc-v1/robot/fcctl.sh ready   # stands the walker (tej_u6: waits for Options), starts the bridge
-ssh mts bash ~/fc-v1/robot/fcctl.sh down    # bridge zero -> leg controllers off (robot lies down) -> stack down
+ssh mts bash ~/fc-v1/robot/fcctl.sh ready --confirm  # stands the walker (tej_u6: waits for Options), starts the bridge
+ssh mts bash ~/fc-v1/robot/fcctl.sh down    # bridge zero -> lowered to its belly (stock) -> legs off -> stack down
 ```
 
 `ready stock --confirm` with nothing running does the start (homing) itself and then stops at `homed`
@@ -122,20 +124,36 @@ JSON object per line on stdout (logs go to stderr), for example (stack already h
 - Exit code 0 only on success. Already-done steps are skipped ("already standing", "bridge already
   running"), so pressing Ready twice is harmless; a second concurrent `ready`/`down` is refused.
 
-`down [--keep-stack] [--force]`: `begin`, `bridge_stopped`, `lying_down`, `down` (`done`; `"stack":"kept"`
-with `--keep-stack`, else the `stop` result in `stop`).
+`down [--keep-stack] [--force]`: `begin`, `bridge_stopped`, `lowering`, `lying_down`, `down` (`done`;
+`"stack":"kept"` with `--keep-stack`, else the `stop` result in `stop`). `lowering` has `"gentle":true` (lowered
+under position control first) or `"gentle":false` with a "WILL DROP" message (no lie-down controller: u6,
+`FC_LIEDOWN=0`, or the STRICT handover refused); it is omitted when no leg controller is active.
+`ready` adds `rearmed` after an e-stop (below) and `homed` carries the running `speed_cap`/`heading_hold`.
 
-**Lying down is a drop, not a controlled descent** (source, 2026-11-23; observed on mts the same day: the
-robot collapsed on `down`). `lying_down` deactivates the leg controllers, exactly what stock R3 does
-(`joy_utils/src/estop_controller.cpp`): `neural_controller::on_deactivate` writes position/velocity/kp = 0
-and kd = `estop_kd` (0.1 for `neural_controller_default`), and the driver sends those buffers unchanged, so
-the legs only damp the fall. Stopping the stack afterwards disables the motors (fully limp). Nothing in the
-stock stack or u6 lowers the robot gently (u6 `lie_down` is the same deactivation). Support or lower the
-robot by hand, or accept the damped drop. Proposal for a gentle lie-down (not implemented, needs a sim check
-of the lying pose): load `forward_command_controller` position/kp/kd instances at start (inactive), then
-on `down`: zero velocity, read `/joint_states`, publish that pose at kp 7.5 / kd 0.25, STRICT switch walker
--> forward controllers, ramp to a lying pose over 2-3 s, ramp kp to 0, only then deactivate/stop (the
-monorepo `animation_controller_py` pattern).
+## Gentle lie-down (stock `down` and `stop`)
+
+Deactivating the leg controllers (= stock R3: `neural_controller::on_deactivate` writes position/velocity/kp = 0,
+kd = `estop_kd` 0.1) **drops** the robot (seen on mts 2026-11-23). Stock starts now also load an inactive
+`neural_controller_liedown`: a second instance of the installed `neural_controller/NeuralController` plugin
+(no rebuild) whose policy is `legacy_walk_policy.json` with only `default_joint_pos` replaced by the lying pose
+(per leg abduction/hip/knee 0 / ±1.6 / ±0.3, left legs mirrored, front = back), `init_duration` 2.5 s and a
+100000 s fade-in (the policy never acts). `down`/`stop` hand the legs to it in **one STRICT switch** (walker off
++ lie-down on in the same controller-manager cycle, or nothing changes); its own init blend (the code path every
+stand-up uses, reversed) moves the joints linearly from the measured pose to the lying pose at
+init_kps/init_kds 7.5/0.25, then holds at the JSON kp/kd 5.0/0.25 (below the walker's 5.5). After 2.5 + 1.0 s
+(`FC_LIEDOWN_HOLD_S`) the usual confirmed deactivation follows; the body already rests on its belly. R3 still
+works during the lowering (the instance subscribes `/emergency_stop` like every neural controller). Not for u6
+(pinned kit, latched Stop gateway): `down` drops as before with the warning. `FC_LIEDOWN=0 fcctl.sh start stock
+--confirm` starts without it (with no other option, the stock launch is then unchanged).
+
+Sim evidence (2026-11-23, `FORCE_CPU=1 .venv/bin/python final_project/fc/robot/sim/liedown_sim.py`, pupper-mjlab
+full-hull model at 520 Hz, the real gains; 14 cases: blend 1.5/2.5/3.5 s, friction ×0.5/×1.5, +0.3 kg, kp ×0.85,
+±3° pitch, random ±0.1 rad start poses, combined harsh): body 15.8 → 3.1 cm resting on the belly hull in every
+case, max tilt 3.8°, peak descent 0.18 m/s, torque ≤ 1.8 Nm (limit 3), **0.0 cm** further drop after
+deactivation, re-stand from that pose tilt ≤ 4°. Baseline R3 from standing: 7.7 cm drop, impact 0.37 m/s. A
+crouch pose (knee at its limit) also tested well but relies on the knee stop for support after deactivation,
+which the sim cannot vouch for; the belly pose does not. Not modelled: motor latency/backlash, the walker
+stepping while standing, the real knee mechanics. **Floor test before relying on it** (below).
 
 `down` and `stop` never stop a stack whose leg controllers are not **confirmed** inactive by a fresh
 `list_controllers` after the deactivation (the switch reply alone is not trusted). Not confirmed (walker
@@ -145,7 +163,9 @@ still active, or the manager does not answer while `ros2_control_node` runs afte
 standing robot then drops with the motors off). Before 2026-11-23 `down` always reported "deactivation not
 confirmed": it matched `"ok":true` against rosq's spaced JSON (`"ok": true`); rosq now prints compact JSON.
 
-`status` adds `phase`, `light`, `phase_detail`, `walker`, `walker_active`, `active_legs`, `boot`:
+`status` adds `phase`, `light`, `phase_detail`, `walker`, `walker_active`, `active_legs`, `boot`, and (SPEC v1.1)
+`speed_cap` (effective walker cap), `speed_cap_source` (`overlay`|`default`), `heading_hold`, `liedown` (lie-down
+controller loaded), `stack` (the run's `stack.json`), `estopped`, `estop` (latch file content):
 
 | phase | light | meaning |
 | --- | --- | --- |
@@ -180,6 +200,60 @@ still read `standing`/`ready` until R3 (which deactivates) or `down`.
 
 Power-on autostart and the homing-posture finding: [boot/README.md](boot/README.md).
 
+## Stack options (SPEC v1.1)
+
+`fcctl.sh start <profile> --confirm [--speed-cap X] [--heading-hold on|off]` and the same options on `ready`
+(any order, also after `--confirm`). Values outside 0.30..1.00 / on|off are refused before anything starts.
+`stack_overlay.py` builds one verified overlay in `<run>/overlay/`; `<run>/stack.json` records the options either
+way (no overlay = stock defaults: cap 0.49, hold on).
+
+- **Speed cap** (fast-gait.md: the walker clips to the policy's ±1.5, then `max_vx_forward` 0.49, then the
+  jump-slot cap = `speed_cap` if > 0, else the JSON walk cap 0.49, on vx and vy): sets `max_vx_forward` and
+  `speed_cap` to X. `max_vx_backward` (0.3) and wz (±2.0) are unchanged. stock: `neural_controller_default` and
+  its chord partner `_default_alt` in the overlay config.yaml. tej_u6: `neural_controller_default` and
+  `gemini_walk`, set in the launch file's in-memory baseline (inserted before `session_skill_controllers`, which
+  raises if `max_vx_forward` is missing). **u6 limits:** `lab6-session.yaml` stays byte-identical (Tej's launch
+  pins its sha), the kit scripts stay sha-checked, his trick controllers derived from that baseline inherit the
+  cap, and the Stop gateway is untouched.
+- **Bridge ceiling**: `bridge start` passes `--max-vx` = the run's effective cap (0.49 by default, 0.5 for runs
+  without `stack.json`), so a 0.75 command reaches the walker only when the stack was started with
+  `--speed-cap ≥ 0.75`. vy 0.3 and wz 2.0 ceilings unchanged.
+- **Heading hold off**: the kp=0 policy copy (lane D), walkers pointed at it.
+- `ready` on a running stack with different options fails at `profile` ("down first": a new start re-homes).
+- stock: src and installed launch/config/policies must be identical (the overlay is built from `src/`).
+
+## E-stop and fallen cutoff (SPEC v1.1)
+
+The bridge keeps a persistent `/controller_manager/switch_controller` + `list_controllers` client and an
+`/emergency_stop` publisher, and polls the controller states at 2 Hz. A signed, admitted packet with
+`"estop": true` (same auth/robot/replay rules), or a quaternion tilt > `--fallen-tilt-deg` (45) held
+`--fallen-hold-s` (0.5 s), triggers the stock R3 action once: publish `std_msgs/Empty` on `/emergency_stop` (every
+active neural controller zeroes kp, kd = 0.1, at its next update) and send `SwitchController(deactivate = active
+leg controllers + walker, BEST_EFFORT)` (only profile leg names, so u6's gateway accepts it), re-listing at
+20 Hz until no leg controller is active (resend after 1 s, 3 tries). Then it **latches**: zero only, acks
+`"estopped": true` (`hold: "estopped"`, `bridge.estop_reason` `link`|`fallen`), repeated estop packets are acked
+and change nothing. `run/estop.json` (0600; reason, tilt, R3 timings) survives bridge restarts (a restarted
+bridge starts latched; unreadable = latched). Only `fcctl.sh ready ... --confirm` re-arms: it stops the latched
+bridge, moves the latch to `logs/estop-<UTC>.json`, deactivates a leg controller that still reads active (its
+estop flag clears only on activation), stands and restarts the bridge. `ready` without `--confirm` returns
+`needs_confirm` (exit 3) naming the reason. `down`/`stop` leave the latch alone.
+
+Latency (2026-11-23, `tests/test_estop_ros.py`, real rclpy Jazzy in docker on the Mac, fake manager, 5 trials):
+packet sent → `/emergency_stop` received median 1.2 ms (max 1.8), → SwitchController received median 7.3 ms
+(max 7.5; one 5 ms main-loop spin). Fallen: SwitchController 511 ms after the tilt passed 45°. Not yet measured
+on the Pi. A carried robot tilted past 45° for 0.5 s with the bridge up also trips it (harmless: it goes limp;
+re-arm with Ready).
+
+## Floor tests still needed (operator)
+
+1. Gentle lie-down on mts: `ready stock --confirm` (new start, loads the lie-down controller; `status.liedown`
+   true), stand, `down --keep-stack`, watch: slow lowering to the belly (~2.5 s), no tip, no drop at the end; then
+   `ready --confirm` stands again. Hand under the robot the first time; R3 aborts.
+2. Link e-stop from the UI while walking slowly: legs off within a frame, UI shows estopped, Ready re-arms.
+3. Fallen cutoff: tip the standing robot over by hand (bridge up) -> legs off after ~0.5 s, `status.estop.reason`
+   `fallen`.
+4. `--speed-cap 0.75` bursts per fast-gait.md (stock first; tej_u6 overlay launch not yet run).
+
 State lives in `~/fc-v1/run/` (pidfiles with process start times, `active` = profile + run dir, `lock`,
 `bridge_state.json`); each start
 gets `~/fc-v1/runs/<UTC>-<profile>/` with all logs. `start` refuses if any `ros2_control_node`,
@@ -196,8 +270,11 @@ mux in domain 77 every command is held as `mux_unseen`; start a lone `cmd_vel_mu
 `/cmd_vel`). `bridge start` also takes `--robot-id ID` (default: `robot_id` file), `--allow-from IP[,IP]`,
 `--reset-replay`, `--no-imu-stop`, `--no-mux-guard`.
 
-Tests (no ROS): `.venv/bin/python -m pytest -q fc/robot/tests` from `final_project/`. `test_fcctl.py` (fake
-profile: lock, stop during homing, topology gate, heading-hold overlay gate, `ready`/`down` incl. a refusing
+Tests (no ROS): `.venv/bin/python -m pytest -q fc/robot/tests` from `final_project/` (incl. `test_stack_overlay.py`;
+the e-stop ROS test `test_estop_ros.py` skips without rclpy: run it in `cs123-ros-jazzy-slew-check`, command in its
+docstring). `test_fcctl.py` (fake
+profile: lock, stop during homing, topology gate, stack-overlay gate and options, e-stop latch/re-arm, gentle
+lie-down and its fallback, `ready`/`down` incl. a refusing
 gateway and operator timeout, `down`/`stop` refusing to stop a robot not confirmed lying, status phases, boot
 modes) needs Linux and is skipped on the Mac; run it with (`--init` reaps zombies; without it pytest is PID 1 and `stop` waits on dead pids)
 `docker run --rm --init --network none -v "$PWD/fc/robot:/src:ro" ros:jazzy-ros-base bash -c 'cd /src && python3 -m pytest -q -p no:cacheprovider tests/test_fcctl.py'`.

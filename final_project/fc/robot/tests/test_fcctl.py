@@ -124,7 +124,7 @@ def test_start_then_bridge_start_then_stop(fc):
     assert argv[argv.index("--state-file") + 1] == str(fc.root / "run" / "bridge_state.json")
     assert "--reset-replay" in argv and "--no-mux-guard" in argv and argv[argv.index("--robot-id") + 1] == "blue"
     assert lock_holders(fc.root) == []
-    assert fc("status")["heading_hold"] is None                # fake profile declares nothing
+    assert fc("status")["heading_hold"] == "on"                # recorded default (stack.json)
     stop = fc("stop")
     assert stop["ok"] and stop["left_running"] == "", stop
     assert not (fc.root / "run" / "active").exists()
@@ -177,28 +177,38 @@ def test_adopts_orphan_pid_tmp(fc):
     os.remove(fc.root / "run" / "teleop.pid")
 
 
-# Heading-hold-off variants (stock_hh0 / tej_u6_hh0) call fc_hh_overlay first in profile_start.
-FAKE_HH0_PROFILE = FAKE_PROFILE.replace("profile_start() {\n", 'profile_start() {\n  fc_hh_overlay u6 "$1" || return 1\n') + \
-    "\nPROFILE_HEADING_HOLD=off\n"
+# Profiles with stack options (stock/tej_u6 + --speed-cap/--heading-hold, *_hh0 aliases) call fc_stack_overlay
+# first in profile_start, like the real ones (profiles/stock.sh: `fc_stack_options_set`).
+FAKE_HH0_PROFILE = FAKE_PROFILE.replace("profile_start() {\n", 'profile_start() {\n  fc_stack_overlay u6 "$1" || return 1\n') + \
+    "\nFC_HEADING_HOLD=0; PROFILE_HEADING_HOLD=off\n"
+FAKE_OPT_PROFILE = FAKE_PROFILE.replace("profile_start() {\n", 'profile_start() {\n  if fc_stack_options_set; then fc_stack_overlay u6 "$1" || return 1; fi\n') + \
+    "\nPROFILE_HEADING_HOLD=on\n"
 FAKE_HH_TOOL = r"""
 import json, os, sys
-kind, out, root = sys.argv[1], sys.argv[2], sys.argv[4]
+kind, out = sys.argv[1], sys.argv[2]
+a = sys.argv[3:]
+root = a[a.index("--root") + 1]
+cap = float(a[a.index("--speed-cap") + 1]) if "--speed-cap" in a else None
+hold = a[a.index("--heading-hold") + 1]
 assert os.path.realpath(out).startswith(os.path.realpath(root) + "/")
 os.makedirs(out)
-print(json.dumps({"kind": kind, "verified": True, "policy": out + "/p.json", "sha256": "9f5a3e98" + "0" * 56,
-                  "heading_hold": {"kp": 0.0}}))
+open(os.path.join(os.path.dirname(out), "overlay_argv.json"), "w").write(json.dumps(a))
+print(json.dumps({"kind": kind, "verified": True, "speed_cap": cap, "speed_cap_effective": cap or 0.49,
+                  "heading_hold": hold, "liedown": None, "launch": out + "/launch_fc.py", "config": out + "/c.yaml",
+                  "policy": out + "/p.json" if hold == "off" else None,
+                  "sha256": "9f5a3e98" + "0" * 56 if hold == "off" else None, "hh_policy": {"kp": 0.0}}))
 """
 
 
 def test_overlay_failure_refuses_start(fc):
-    # The real imu/heading_hold.py: no Tej tree here, so it must fail loudly and nothing may be spawned.
+    # The real stack_overlay.py: no Tej tree here, so it must fail loudly and nothing may be spawned.
     (fc.robot / "profiles" / "fakehh.sh").write_text(FAKE_HH0_PROFILE)
     start = fc("start", "fakehh", "--confirm")
     assert start["ok"] is False
     run_dir = sorted((fc.root / "runs").iterdir())[-1]
     log = (run_dir / "starter.log").read_text()
-    assert "COULD NOT BE BUILT" in log and "heading_hold: " in log, log
-    assert not (fc.root / "run" / "launch.pid").exists() and not (run_dir / "heading_hold.json").exists()
+    assert "COULD NOT BE BUILT" in log and "stack_overlay: " in log, log
+    assert not (fc.root / "run" / "launch.pid").exists() and not (run_dir / "overlay" / "launch_fc.py").exists()
     assert fc("status")["heading_hold"] == "off"
     assert fc("stop")["ok"]
     assert lock_holders(fc.root) == []
@@ -206,7 +216,7 @@ def test_overlay_failure_refuses_start(fc):
 
 def test_status_reports_heading_hold_off(fc):
     (fc.robot / "profiles" / "fakehh.sh").write_text(FAKE_HH0_PROFILE)
-    (fc.robot / "imu" / "heading_hold.py").write_text(FAKE_HH_TOOL)
+    (fc.robot / "stack_overlay.py").write_text(FAKE_HH_TOOL)
     start = fc("start", "fakehh", "--confirm")
     assert start["ok"] and start["heading_hold"] == "off", start
     st = fc("status")
@@ -247,7 +257,8 @@ def test_ready_full_path_then_down(fc):
     st = fc("status")
     assert st["phase"] == "ready" and st["light"] == "green" and st["walker_active"] is True, st
     rc, out = fc.lines("down")
-    assert rc == 0 and phases(out) == ["begin", "bridge_stopped", "lying_down", "down"], out
+    assert rc == 0 and phases(out) == ["begin", "bridge_stopped", "lowering", "lying_down", "down"], out
+    assert out[2]["gentle"] is False and "WILL DROP" in out[2]["msg"]          # no lie-down controller here
     assert out[-1]["done"] and out[-1]["stop"]["ok"]
     assert (fc.root / "fake_walker").read_text().strip() == "inactive"
     assert fc("status")["phase"] == "off"
@@ -267,8 +278,8 @@ def test_down_never_stops_a_robot_not_confirmed_lying(fc):
     assert stop["ok"] is False and stop["left_running"] == "stack" and "R3" in stop["error"], stop
     assert fc("status")["profile_alive"] is True
     rc, out = fc.lines("down", "--force", extra_env={"FAKE_DEACT": "ignore"})  # explicit unsafe override
-    assert rc == 0 and phases(out) == ["begin", "bridge_stopped", "lying_down", "down"], out
-    assert out[2]["ok"] is False and "UNSAFE" in out[2]["msg"]
+    assert rc == 0 and phases(out) == ["begin", "bridge_stopped", "lowering", "lying_down", "down"], out
+    assert out[3]["ok"] is False and "UNSAFE" in out[3]["msg"]
     assert fc("status")["phase"] == "off"
 
 
@@ -367,3 +378,139 @@ def test_boot_modes(fc):
     assert rc == 0 and phases(out)[1:3] == ["homed", "standing_up"], out
     (fc.root / "boot.env").write_text("FC_BOOT_MODE=stand\n")
     assert fc("boot")["result"] == "failed"
+
+
+# ---------------------------------------------------------------- SPEC v1.1: stack options, e-stop latch, gentle down
+def test_stack_options_after_confirm_reach_overlay_status_and_bridge(fc):
+    (fc.robot / "profiles" / "fakeopt.sh").write_text(FAKE_OPT_PROFILE)
+    (fc.robot / "stack_overlay.py").write_text(FAKE_HH_TOOL)
+    rc, out = fc.lines("ready", "fakeopt", "--confirm", "--speed-cap", "0.80", "--heading-hold", "off", "--stand-now")
+    assert rc == 0 and out[-1]["phase"] == "ready", out
+    run = sorted((fc.root / "runs").iterdir())[-1]
+    argv = json.loads((run / "overlay_argv.json").read_text())
+    assert argv[argv.index("--speed-cap") + 1] == "0.80" and argv[argv.index("--heading-hold") + 1] == "off"
+    st = fc("status")
+    assert st["speed_cap"] == 0.8 and st["speed_cap_source"] == "overlay" and st["heading_hold"] == "off", st
+    assert st["heading_hold_overlay"]["sha256"].startswith("9f5a3e98") and st["estopped"] is False
+    bargv = json.loads((fc.root / "bridge_argv.json").read_text())
+    assert bargv[bargv.index("--max-vx") + 1] == "0.8" and bargv[bargv.index("--legs") + 1] == "w"
+    assert bargv[bargv.index("--latch-file") + 1] == str(fc.root / "run" / "estop.json")
+    # same options again: no re-home; different options: refused (changing them needs a new start)
+    rc, out = fc.lines("ready", "fakeopt", "--confirm", "--heading-hold", "off", "--speed-cap", "0.8")
+    assert rc == 0 and out[1]["phase"] == "homed" and out[1]["speed_cap"] == 0.8, out
+    rc, out = fc.lines("ready", "fakeopt", "--confirm", "--speed-cap", "0.6")
+    assert rc == 1 and out[-1]["at"] == "profile" and "down first" in out[-1]["msg"], out
+    assert lock_holders(fc.root) == [] and lock_holders(fc.root, "ready.lock") == []
+
+
+def test_default_stack_is_recorded_without_overlay(fc):
+    (fc.robot / "profiles" / "fakeopt.sh").write_text(FAKE_OPT_PROFILE)
+    assert fc("start", "fakeopt", "--confirm")["ok"]
+    run = sorted((fc.root / "runs").iterdir())[-1]
+    assert not (run / "overlay").exists()
+    st = fc("status")
+    assert st["speed_cap"] == 0.49 and st["speed_cap_source"] == "default" and st["heading_hold"] == "on", st
+    assert fc("bridge", "start", "--reset-replay")["max_vx"] == 0.49
+
+
+@pytest.mark.parametrize("args", [["--speed-cap", "0.29"], ["--speed-cap", "1.5"], ["--speed-cap", "fast"],
+                                  ["--heading-hold", "maybe"], ["--speed-cap"]])
+def test_bad_stack_options_refused_before_anything_starts(fc, args):
+    (fc.robot / "profiles" / "fakeopt.sh").write_text(FAKE_OPT_PROFILE)
+    assert fc("start", "fakeopt", "--confirm", *args)["ok"] is False
+    rc, out = fc.lines("ready", "fakeopt", "--confirm", *args)
+    assert rc == 2 and out[-1]["at"] == "args", out
+    assert not (fc.root / "runs").exists() or not any((fc.root / "runs").iterdir())
+
+
+def test_alias_refuses_contradicting_heading_hold(fc):
+    (fc.robot / "profiles" / "fakehh.sh").write_text(FAKE_HH0_PROFILE)
+    (fc.robot / "stack_overlay.py").write_text(FAKE_HH_TOOL)
+    r = fc("start", "fakehh", "--confirm", "--heading-hold", "on")
+    assert r["ok"] is False and "fixes heading hold off" in r["error"], r
+    assert fc("start", "fakehh", "--confirm", "--heading-hold", "off", "--speed-cap", "0.7")["ok"]
+    assert fc("status")["speed_cap"] == 0.7
+
+
+def test_estop_latch_needs_confirmed_ready_to_rearm(fc):
+    assert fc.lines("ready", "fake", "--confirm", "--stand-now")[0] == 0
+    # what the bridge leaves after a link e-stop: latch file; here the walker still reads active (limp)
+    (fc.root / "run" / "estop.json").write_text('{"reason": "link", "r3": {"confirmed": false}}')
+    st = fc("status")
+    assert st["estopped"] is True and st["estop"]["reason"] == "link" and "E-STOPPED" in st["phase_detail"], st
+    rc, out = fc.lines("ready")
+    assert rc == 3 and out[-1]["phase"] == "needs_confirm" and "E-STOPPED (link)" in out[-1]["msg"], out
+    assert (fc.root / "run" / "estop.json").exists() and (fc.root / "run" / "bridge.pid").exists()
+    rc, out = fc.lines("ready", "--confirm")
+    assert rc == 0 and phases(out) == ["begin", "rearmed", "homed", "standing_up", "standing", "bridge", "ready"], out
+    assert not (fc.root / "run" / "estop.json").exists() and list((fc.root / "logs").glob("estop-*.json"))
+    assert fc("status")["estopped"] is False
+
+
+def test_down_and_stop_ignore_the_latch(fc):
+    assert fc.lines("ready", "fake", "--confirm", "--stand-now")[0] == 0
+    (fc.root / "run" / "estop.json").write_text('{"reason": "fallen"}')
+    rc, out = fc.lines("down", "--keep-stack")
+    assert rc == 0 and (fc.root / "run" / "estop.json").exists()          # only ready --confirm clears it
+
+
+FAKE_LIE_PROFILE = r'''
+PROFILE_DESC="fake+liedown"; PROFILE_CMD_TOPIC=/llm_cmd_vel; PROFILE_IMU_TOPIC=/imu
+PROFILE_WALKER=w; PROFILE_LEG_CONTROLLERS="w ld"; PROFILE_LIEDOWN=ld
+profile_env() { export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}; }
+rosq() {  # walker w + lie-down ld; FAKE_STRICT=refuse: the STRICT handover is refused (nothing changes)
+  local fw=$FC_ROOT/fake_walker fl=$FC_ROOT/fake_ld
+  [ -f "$fw" ] || echo inactive > "$fw"; [ -f "$fl" ] || echo inactive > "$fl"
+  echo "$*" >> "$FC_ROOT/fake_rosq.log"
+  if [ "$1" = switch ]; then
+    if [ "$2" = ld ]; then
+      if [ "${FAKE_STRICT:-ok}" = refuse ] || [ "${4:-}" != strict ]; then
+        echo '{"ok":false,"error":"refused","controllers":{"w":"'$(cat $fw)'","ld":"'$(cat $fl)'"}}'; return
+      fi
+      echo active > "$fl"; echo inactive > "$fw"
+    elif [ -n "$2" ]; then echo active > "$fw"; echo inactive > "$fl"
+    else echo inactive > "$fw"; echo inactive > "$fl"; fi
+  fi
+  echo '{"ok":true,"mux":{"ok":true,"alive":true,"problems":[]},"controllers":{"w":"'$(cat $fw)'","ld":"'$(cat $fl)'"}}'
+}
+profile_start() {
+  fc_spawn launch "$1/robot.log" bash -c 'sleep 300; true' ros2_control_node
+  printf '{"kind":"stock","verified":true,"speed_cap":null,"speed_cap_effective":0.49,"heading_hold":"on","liedown":{"controller":"ld","init_s":0.2}}\n' > "$1/stack.json"
+}
+profile_alive() { fc_alive launch; }
+profile_stop() { fc_signal_group launch INT 5; }
+'''
+
+
+def test_down_lowers_with_liedown_controller_then_deactivates(fc):
+    (fc.robot / "profiles" / "fakelie.sh").write_text(FAKE_LIE_PROFILE)
+    assert fc.lines("ready", "fakelie", "--confirm", "--stand-now")[0] == 0
+    assert fc("status")["liedown"] is True
+    (fc.root / "fake_rosq.log").write_text("")
+    rc, out = fc.lines("down", "--keep-stack", extra_env={"FC_LIEDOWN_HOLD_S": "0"})
+    assert rc == 0 and phases(out) == ["begin", "bridge_stopped", "lowering", "lying_down", "down"], out
+    assert out[2]["gentle"] is True and out[3]["gentle"] is True and "belly" in out[3]["msg"]
+    calls = [l for l in (fc.root / "fake_rosq.log").read_text().splitlines() if l.startswith("switch")]
+    assert calls[0] == "switch ld w ld strict" and calls[1].startswith("switch  w ld"), calls   # handover, then off
+    assert (fc.root / "fake_walker").read_text().strip() == (fc.root / "fake_ld").read_text().strip() == "inactive"
+    assert fc("status")["phase"] == "homed"
+    rc, out = fc.lines("ready", "--confirm")                       # stands again on the walker
+    assert rc == 0 and (fc.root / "fake_walker").read_text().strip() == "active"
+
+
+def test_down_falls_back_to_drop_with_clear_message(fc):
+    (fc.robot / "profiles" / "fakelie.sh").write_text(FAKE_LIE_PROFILE)
+    assert fc.lines("ready", "fakelie", "--confirm", "--stand-now")[0] == 0
+    rc, out = fc.lines("down", extra_env={"FAKE_STRICT": "refuse"})
+    assert rc == 0 and phases(out) == ["begin", "bridge_stopped", "lowering", "lying_down", "down"], out
+    assert out[2]["gentle"] is False and "WILL DROP" in out[2]["msg"] and out[3]["gentle"] is False
+    assert fc("status")["phase"] == "off"
+
+
+def test_stop_uses_gentle_lie_down_too(fc):
+    (fc.robot / "profiles" / "fakelie.sh").write_text(FAKE_LIE_PROFILE)
+    assert fc.lines("ready", "fakelie", "--confirm", "--stand-now")[0] == 0
+    (fc.root / "fake_rosq.log").write_text("")
+    stop = fc("stop", extra_env={"FC_LIEDOWN_HOLD_S": "0"})
+    assert stop["ok"], stop
+    assert "switch ld w ld strict" in (fc.root / "fake_rosq.log").read_text()

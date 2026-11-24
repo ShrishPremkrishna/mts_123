@@ -29,9 +29,12 @@ TEJ_YAML=$TEJ_RELEASE/foundation/hardware/lab6-session.yaml
 # sha256 of the kit scripts we derive from (observed on mts 2026-11-23).
 TEJ_PREPARE_SHA=6dea87f4636c15c825e9ebd3f6aae45d03b530dc133fb2d71995c27f09813417
 TEJ_SESSION_SHA=f5913e5b48285b71b981c0265e9efae599ba0312deffb162f6f47fbbfa92f099
-# Heading hold (the walker's yaw hold, see imu/heading_hold.py): on, unless a variant (stock_hh0.sh,
-# tej_u6_hh0.sh) set FC_HEADING_HOLD=0 before sourcing this file. Off = profile_start first builds and
-# verifies a fresh kp=0 policy overlay in RUN_DIR/hh0 (fcctl.sh fc_hh_overlay) and refuses if it cannot.
+# Heading hold: on, unless an alias (tej_u6_hh0.sh) set FC_HEADING_HOLD=0 before sourcing this file, or fcctl got
+# --heading-hold off. Stack options (heading hold off, --speed-cap) = profile_start first builds and verifies a
+# fresh overlay of Tej's launch dir in RUN_DIR/overlay (fcctl.sh fc_stack_overlay -> stack_overlay.py u6).
+# Limits (pinned kit): lab6-session.yaml stays byte-identical (sha-pinned in his launch); the cap is set on
+# neural_controller_default + gemini_walk in the launch file's in-memory baseline, and his trick controllers
+# derived from that baseline inherit it. No gentle lie-down controller: down drops like R3.
 case "${FC_HEADING_HOLD:-1}" in
   1) PROFILE_HEADING_HOLD=on ;;
   0) PROFILE_HEADING_HOLD=off; PROFILE_DESC+=" + heading hold OFF (kp=0 overlay)" ;;
@@ -68,11 +71,11 @@ _tej_derive() {
 
 profile_start() {
   local run=$1 session=$1/session hw=""
-  if [ "$PROFILE_HEADING_HOLD" = off ]; then
-    # Overlay of Tej's pinned launch dir: lab6_session.launch.py + the kp=0 policy (sha-pinned inside it),
-    # byte-identical lab6-session.yaml / URDF. The kit scripts are still checked against their pins.
-    fc_hh_overlay u6 "$run" || return 1
-    hw=$run/hh0/foundation/hardware
+  if fc_stack_options_set; then
+    # Overlay of Tej's pinned launch dir: lab6_session.launch.py patched (kp=0 policy sha-pinned inside it,
+    # speed caps), byte-identical lab6-session.yaml / URDF. The kit scripts are still checked against their pins.
+    fc_stack_overlay u6 "$run" off || return 1
+    hw=$OVERLAY_HW
   fi
   _tej_derive "$TEJ_KIT/kickseen6-prepare.sh" "$TEJ_PREPARE_SHA" "$run/prepare.sh" "$session" "$hw" || return 1
   _tej_derive "$TEJ_KIT/kickseen6-session.sh" "$TEJ_SESSION_SHA" "$run/session.sh" "$session" || return 1

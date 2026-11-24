@@ -2,7 +2,9 @@
 
   rosq.py probe [CMD_TOPIC]     velocity topology + controllers (fcctl status / ready / start)
   rosq.py controllers           controllers only
-  rosq.py switch "<on...>" "<off...>"   SwitchController (BEST_EFFORT), then re-list controllers
+  rosq.py switch "<on...>" "<off...>" [strict]
+                                SwitchController (BEST_EFFORT, or STRICT: all or nothing, used to hand the
+                                legs from the walker to the lie-down controller), then re-list controllers
 
 Why the probe waits for the graph to settle (2026-11-23, mts): every call is a NEW DDS participant, and
 discovery of a stack-sized graph (ros2_control_node alone has hundreds of endpoints) arrives in random order
@@ -181,7 +183,8 @@ def main(argv):
             req = SwitchController.Request()
             req.activate_controllers = [c for c in want_on if states.get(c) != "active"]
             req.deactivate_controllers = [c for c in want_off if states.get(c) == "active" and c not in want_on]
-            req.strictness = SwitchController.Request.BEST_EFFORT
+            strict = len(argv) > 3 and argv[3] == "strict"
+            req.strictness = SwitchController.Request.STRICT if strict else SwitchController.Request.BEST_EFFORT
             if not req.activate_controllers and not req.deactivate_controllers:
                 out = {"ok": True, "changed": False}
             else:
@@ -193,7 +196,7 @@ def main(argv):
                     out["error"] = "switch_controller answered ok=false"
             out["controllers"] = controllers()
     else:
-        print("usage: rosq.py probe [TOPIC] | controllers | switch '<on...>' '<off...>'", file=sys.stderr)
+        print("usage: rosq.py probe [TOPIC] | controllers | switch '<on...>' '<off...>' [strict]", file=sys.stderr)
         return 2
     print(json.dumps(out, separators=(",", ":")))   # compact: fcctl.sh matches '"ok":true'
     node.destroy_node()

@@ -29,7 +29,8 @@ differ from the sources) before printing one JSON line; any failure exits non-ze
 
 How a profile applies it: profiles/stock_hh0.sh and tej_u6_hh0.sh set
 FC_HEADING_HOLD=0 and source the base profile, whose profile_start calls
-fcctl.sh fc_hh_overlay (fresh RUN_DIR/hh0 per start). See fc/robot/README.md.
+fcctl.sh now builds every walker overlay with ../stack_overlay.py (which reuses these helpers); this
+CLI remains for inspection. See fc/robot/README.md.
 """
 from __future__ import annotations
 

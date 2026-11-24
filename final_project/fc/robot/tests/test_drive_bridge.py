@@ -494,3 +494,98 @@ def test_replay_state_overwrite_keeps_0600(tmp_path):
     os.chmod(path, 0o644)
     db.save_replay_state(str(path), core().replay_state())
     assert os.stat(path).st_mode & 0o777 == 0o600 and db.load_replay_state(str(path))["last_seq"] == -1
+
+
+# ---------------------------------------------------------------- SPEC v1.1: e-stop, fallen cutoff, vx ceiling
+
+def test_estop_packet_parses_with_zero_motion_whatever_it_says():
+    c = db.parse_packet(pkt(seq=3, vx=0.4, wz=1.0, estop=True), KEY)
+    assert c.estop is True and (c.vx, c.vy, c.wz) == (0.0, 0.0, 0.0)
+    assert db.parse_packet(pkt(seq=4), KEY).estop is False
+    with pytest.raises(db.PacketError) as e:
+        db.parse_packet(raw(msg(5, estop="yes")), KEY)
+    assert e.value.reason == "bad_estop"
+
+
+def test_estop_latches_publishes_zero_and_acks_estopped_idempotently():
+    c = core()
+    assert c.on_packet(pkt(seq=1, vx=0.3), 0.0)[0] and c.tick(0.01) == (0.3, 0.0, 0.0)
+    ok, seq, _ = c.on_packet(pkt(seq=2, estop=True), 0.02)
+    assert ok and c.estopped and c.estop_reason == "link"
+    assert not c.trip("link")                                    # the R3 action fires once
+    for s in range(3, 8):                                        # the laptop's resend burst: all admitted, no re-trip
+        assert c.on_packet(pkt(seq=s, estop=True), 0.02 + s * 0.02)[0]
+    assert c.stats["estop"] == 6
+    ack = json.loads(c.make_ack(seq, "stock", None, c.snapshot(0.03)))
+    assert ack["estopped"] is True and ack["hold"] == "estopped" and ack["bridge"]["estop_reason"] == "link"
+    assert c.on_packet(pkt(seq=20, vx=0.4), 0.5)[0]              # motion afterwards is admitted but never published
+    assert c.tick(0.51) == (0.0, 0.0, 0.0) and c.commanding_zero(0.51)
+    assert c.tick(0.9) == (0.0, 0.0, 0.0) and c.tick(1.0) is None   # ttl expiry still goes silent
+    assert json.loads(core().make_ack(1, "stock", None, {}))["estopped"] is False
+
+
+def test_estop_packet_still_needs_auth_robot_and_freshness():
+    c = core()
+    assert not c.on_packet(pkt(seq=1, estop=True, key=b"x" * 32), 0.0)[0]
+    assert not c.on_packet(pkt(seq=1, estop=True, robot="red"), 0.0)[0]
+    assert c.on_packet(pkt(seq=5), 0.0)[0] and not c.on_packet(pkt(seq=5, estop=True), 0.1)[0]
+    assert not c.estopped
+
+
+def test_max_vx_follows_stack_speed_cap_with_hard_cap():
+    assert db.parse_packet(pkt(vx=0.9), KEY).vx == db.MAX_VX
+    c = core(max_vx=0.8)
+    assert c.on_packet(pkt(seq=1, vx=0.75), 0.0)[0] and c.cmd.vx == 0.75 and not c.cmd.clamped
+    assert c.on_packet(pkt(seq=2, vx=0.95), 0.1)[0] and c.cmd.vx == 0.8 and c.cmd.clamped
+    for bad in (0.0, 1.2):
+        with pytest.raises(ValueError):
+            core(max_vx=bad)
+
+
+def test_fallen_guard_needs_sustained_tilt():
+    g = db.FallenGuard(45.0, 0.5)
+    assert not g.update(0.0, 60.0) and not g.update(0.4, 60.0)
+    assert not g.update(0.45, 30.0)                              # dip below the limit restarts the run
+    assert not g.update(0.5, 50.0) and not g.update(0.9, 50.0) and g.update(1.0, 50.0)
+    assert not g.update(1.1, float("nan")) and not g.update(1.7, 50.0)
+    assert not db.FallenGuard(0.0).update(9.0, 90.0)             # disabled
+    assert math.isclose(db.quat_tilt_deg((0, 0, 0, 1)), 0.0, abs_tol=1e-9)
+    s = math.sin(math.radians(30))
+    assert math.isclose(db.quat_tilt_deg((s, 0, 0, math.cos(math.radians(30)))), 60.0, abs_tol=1e-6)
+    assert math.isnan(db.quat_tilt_deg((0, 0, 0, 0)))
+
+
+def test_r3_deactivate_list_only_names_profile_legs():
+    legs = ["neural_controller_default", "neural_controller_liedown", "trick"]
+    st = {"neural_controller_liedown": "active", "joint_state_broadcaster": "active", "trick": "inactive"}
+    assert db.r3_deactivate_list(st, "neural_controller_default", legs) == ["neural_controller_liedown",
+                                                                            "neural_controller_default"]
+    assert db.r3_deactivate_list(None, "neural_controller_default", legs) == ["neural_controller_default"]
+
+
+def test_r3_tracker_sends_once_retries_and_confirms():
+    t = db.R3Tracker(["w", "x"], retry_s=1.0, max_tries=3)
+    assert not t.due(0.0) and t.fire(0.0) and not t.fire(0.01)
+    assert t.due(0.0)
+    t.sent(0.002)
+    assert not t.due(0.5)
+    assert not t.on_states(0.3, {"w": "active"}) and t.due(1.1)
+    t.sent(1.1)
+    t.on_response(1.12, True)
+    assert t.on_states(1.15, {"w": "inactive", "x": "unconfigured"}) and t.confirmed and not t.due(5.0)
+    lat = t.latency_ms()
+    assert lat["switch_sent"] == 2.0 and lat["confirmed"] == 1150.0
+    t2 = db.R3Tracker(["w"], retry_s=0.1, max_tries=2)
+    t2.fire(0.0); t2.sent(0.0); t2.sent(0.2)
+    assert not t2.due(9.0)                                       # gives up after max tries (logged by the caller)
+
+
+def test_latch_file_roundtrip_and_fail_closed(tmp_path):
+    p = tmp_path / "estop.json"
+    assert db.read_latch(str(p)) is None
+    db.write_latch(str(p), {"reason": "fallen", "tilt_deg": 70.0})
+    assert db.read_latch(str(p))["reason"] == "fallen" and (p.stat().st_mode & 0o777) == 0o600
+    p.write_text("{broken")
+    assert db.read_latch(str(p)) == {"reason": "unreadable_latch_file"}
+    p.write_text("[1]")
+    assert db.read_latch(str(p))["reason"] == "malformed_latch_file"

@@ -27,6 +27,13 @@ Behaviour:
     the mux on our topic, or /cmd_vel went quiet while we publish (ack `mux_ok: false`).
     If the mux disappears after it was seen, the bridge also publishes zero straight to
     /cmd_vel for EMERGENCY_S (a dead mux otherwise leaves the walker on its last command).
+- E-stop (SPEC v1.1): an admitted packet with "estop": true, or a tilt above --fallen-tilt-deg held
+  for --fallen-hold-s (fallen robot), immediately does the stock R3 action locally: publish
+  std_msgs/Empty on /emergency_stop (every active neural controller zeroes kp, kd = estop_kd) and
+  ask the controller manager to deactivate the active leg controllers (the SwitchController request
+  the stock estop_controller sends on R3, BEST_EFFORT, persistent client). The bridge then LATCHES:
+  it publishes only zero, acks carry "estopped": true, and the latch file (--latch-file, 0600)
+  survives bridge restarts. Only `fcctl.sh ready ... --confirm` removes it (re-arm).
 
 Everything except `main()` is ROS-free so it can be unit tested on the laptop
 (tests/test_drive_bridge.py). fc/link.py imports the signing helpers from here.
@@ -47,8 +54,10 @@ import threading
 import time
 from dataclasses import dataclass
 
-# Hard ceilings (never relaxed here; softer caps live in the laptop params).
+# Hard ceilings (softer caps live in the laptop params). vx follows the stack's walker speed cap
+# (fcctl passes --max-vx from the per-start overlay, SPEC v1.1 --speed-cap) but never above MAX_VX_CAP.
 MAX_VX = 0.5
+MAX_VX_CAP = 1.0
 MAX_VY = 0.3
 MAX_WZ = 2.0
 DEFAULT_TTL = 0.25
@@ -61,8 +70,13 @@ STATE_SAVE_PERIOD_S = 1.0
 IMU_CLEAR_S = 1.0      # ImuHealth must read ok/warn this long before an IMU hold releases
 MUX_STALL_S = 0.5      # publishing this long with no /cmd_vel traffic => mux stalled (it republishes at 20 Hz)
 EMERGENCY_S = 2.0      # direct zero on /cmd_vel for this long after the mux is lost
+FALLEN_TILT_DEG = 45.0  # SPEC v1.1 fallen_tilt_deg
+FALLEN_HOLD_S = 0.5     # tilt must stay above the limit this long (a kick or bump is shorter)
+R3_RETRY_S = 1.0        # resend the deactivation if the legs are not confirmed inactive after this
+R3_MAX_TRIES = 3
 DEFAULT_KEY_FILE = "~/fc-v1/robot/link.key"
 DEFAULT_STATE_FILE = "~/fc-v1/run/bridge_state.json"
+DEFAULT_LATCH_FILE = "~/fc-v1/run/estop.json"
 _ID_RE = re.compile(r"^[A-Za-z0-9_.-]{1,32}$")
 _MAC_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -127,6 +141,7 @@ class Cmd:
     ttl: float
     t: float
     clamped: bool
+    estop: bool = False
 
 
 class PacketError(ValueError):
@@ -144,11 +159,13 @@ def _clamp(value: float, limit: float) -> float:
     return max(-limit, min(limit, float(value)))
 
 
-def parse_packet(data: bytes, key: bytes, default_ttl: float = DEFAULT_TTL, max_ttl: float = MAX_TTL) -> Cmd:
+def parse_packet(data: bytes, key: bytes, default_ttl: float = DEFAULT_TTL, max_ttl: float = MAX_TTL,
+                 max_vx: float = MAX_VX) -> Cmd:
     """Authenticate and validate one datagram; return a clamped Cmd or raise PacketError.
 
     The MAC is checked before any field is trusted. Robot id and replay checks are
-    BridgeCore's job (they need session state)."""
+    BridgeCore's job (they need session state). An e-stop packet ("estop": true) always
+    carries zero motion here, whatever its motion fields say."""
     if len(data) > MAX_DATAGRAM:
         raise PacketError("too_large")
     try:
@@ -174,7 +191,12 @@ def parse_packet(data: bytes, key: bytes, default_ttl: float = DEFAULT_TTL, max_
     ttl = msg.get("ttl", default_ttl)
     if not _number(ttl) or ttl <= 0:
         raise PacketError("bad_ttl", seq)
-    vx, vy, wz = (_clamp(msg["vx"], MAX_VX), _clamp(msg["vy"], MAX_VY), _clamp(msg["wz"], MAX_WZ))
+    estop = msg.get("estop", False)
+    if not isinstance(estop, bool):
+        raise PacketError("bad_estop", seq)
+    if estop:
+        return Cmd(msg["robot"], msg["sid"], seq, 0.0, 0.0, 0.0, min(float(ttl), max_ttl), float(msg["t"]), False, True)
+    vx, vy, wz = (_clamp(msg["vx"], max_vx), _clamp(msg["vy"], MAX_VY), _clamp(msg["wz"], MAX_WZ))
     clamped = (vx, vy, wz) != (float(msg["vx"]), float(msg["vy"]), float(msg["wz"]))
     return Cmd(msg["robot"], msg["sid"], seq, vx, vy, wz, min(float(ttl), max_ttl), float(msg["t"]), clamped)
 
@@ -183,10 +205,16 @@ class BridgeCore:
     """Packet admission (auth, robot id, replay) + ttl dead-man. Pure logic; the caller supplies `now`."""
 
     def __init__(self, key: bytes, robot_id: str, default_ttl: float = DEFAULT_TTL, max_ttl: float = MAX_TTL,
-                 allow_from: frozenset[str] | None = None, replay_window_s: float = REPLAY_WINDOW_S):
+                 allow_from: frozenset[str] | None = None, replay_window_s: float = REPLAY_WINDOW_S,
+                 max_vx: float = MAX_VX):
         self.key, self.robot_id = key, robot_id
         self.default_ttl = default_ttl
         self.max_ttl = max_ttl
+        if not 0.0 < max_vx <= MAX_VX_CAP:
+            raise ValueError("max_vx must be in (0, %.2f]" % MAX_VX_CAP)
+        self.max_vx = max_vx
+        self.estopped = False                # latched: only zero is published until a re-arm (restart)
+        self.estop_reason: str | None = None
         self.allow_from = frozenset(allow_from) if allow_from else None
         self.replay_window_s = replay_window_s
         self.cmd: Cmd | None = None
@@ -197,7 +225,7 @@ class BridgeCore:
         self.newest_t = -math.inf            # newest accepted packet t (sender clock)
         self.retired: list[str] = []         # earlier sids, never accepted again
         self.stats = {"rx": 0, "ok": 0, "bad": 0, "auth": 0, "robot": 0, "replay": 0, "denied": 0,
-                      "sessions": 0, "clamped": 0, "pub": 0, "zero": 0, "held": 0}
+                      "sessions": 0, "clamped": 0, "pub": 0, "zero": 0, "held": 0, "estop": 0}
         self.last_error: str | None = None
 
     def _reject(self, stat_key: str, reason: str, seq: int | None):
@@ -211,7 +239,7 @@ class BridgeCore:
         if self.allow_from is not None and src_ip not in self.allow_from:
             return self._reject("denied", "denied_source", None)
         try:
-            cmd = parse_packet(data, self.key, self.default_ttl, self.max_ttl)
+            cmd = parse_packet(data, self.key, self.default_ttl, self.max_ttl, self.max_vx)
         except PacketError as error:
             return self._reject("auth" if error.reason == "bad_mac" else "bad", error.reason,
                                 None if error.reason == "bad_mac" else error.seq)
@@ -233,7 +261,17 @@ class BridgeCore:
         self.newest_t = max(self.newest_t, cmd.t)
         self.stats["ok"] += 1
         self.stats["clamped"] += int(cmd.clamped)
+        if cmd.estop:
+            self.stats["estop"] += 1
+            self.trip("link")
         return True, cmd.seq, None
+
+    def trip(self, reason: str) -> bool:
+        """Latch the e-stop. True only on the first trip (the caller then does the R3 action once)."""
+        if self.estopped:
+            return False
+        self.estopped, self.estop_reason = True, reason
+        return True
 
     # -- replay state persistence (bridge restart must not reopen old sessions)
     def replay_state(self) -> dict:
@@ -255,11 +293,14 @@ class BridgeCore:
         """Signed reply for an accepted packet. hold: why commands are being replaced by zero."""
         return sign(self.key, {"v": VERSION, "robot": self.robot_id, "sid": self.sid, "ack": seq, "ok": True,
                                "profile": profile, "imu": imu, "bridge": bridge,
-                               "hold": hold, "imu_hold": imu_hold, "mux_ok": mux_ok})
+                               "hold": "estopped" if self.estopped else hold, "imu_hold": imu_hold, "mux_ok": mux_ok,
+                               "estopped": self.estopped})
 
     def tick(self, now: float, hold: bool = False) -> tuple[float, float, float] | None:
         """Called at the publish rate. Returns the Twist to publish, or None for silence.
-        hold: publish zero instead of the fresh command (keeps the mux input alive, refuses motion)."""
+        hold: publish zero instead of the fresh command (keeps the mux input alive, refuses motion).
+        A latched e-stop always holds."""
+        hold = hold or self.estopped
         if self.cmd is not None and now - self.cmd_time < self.cmd.ttl:
             self.publishing = True
             if hold:
@@ -284,14 +325,15 @@ class BridgeCore:
 
     def commanding_zero(self, now: float, hold: bool = False) -> bool:
         """True when the robot is not being asked to move by this bridge (a hold publishes zero)."""
-        if hold or self.cmd is None or now - self.cmd_time >= self.cmd.ttl:
+        if hold or self.estopped or self.cmd is None or now - self.cmd_time >= self.cmd.ttl:
             return True
         return self.cmd.vx == 0.0 and self.cmd.vy == 0.0 and self.cmd.wz == 0.0
 
     def snapshot(self, now: float) -> dict:
         age = None if self.cmd is None else round((now - self.cmd_time) * 1000.0, 1)
         return {**self.stats, "active": self.publishing, "last_seq": None if self.cmd is None else self.cmd.seq,
-                "age_ms": age, "err": self.last_error, "robot_id": self.robot_id}
+                "age_ms": age, "err": self.last_error, "robot_id": self.robot_id, "max_vx": self.max_vx,
+                "estopped": self.estopped, "estop_reason": self.estop_reason}
 
 
 def load_replay_state(path: str) -> dict | None:
@@ -401,6 +443,113 @@ class MuxGuard:
         return now < self._emergency_until
 
 
+def quat_tilt_deg(quat_xyzw) -> float:
+    """Angle between body z and world z, degrees (same formula as imu_health.tilt_deg)."""
+    x, y, z, w = quat_xyzw
+    n = x * x + y * y + z * z + w * w
+    if not (n > 0.0) or not math.isfinite(n):
+        return float("nan")
+    return math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * (x * x + y * y) / n))))
+
+
+class FallenGuard:
+    """Fallen robot: tilt above limit_deg continuously for hold_s. Non-finite tilt or a sample at or
+    below the limit restarts the run. Pure; the caller supplies `now`. limit_deg <= 0 disables it."""
+
+    def __init__(self, limit_deg: float = FALLEN_TILT_DEG, hold_s: float = FALLEN_HOLD_S):
+        self.limit_deg, self.hold_s = limit_deg, hold_s
+        self._since: float | None = None
+        self.tilt: float | None = None
+
+    def update(self, now: float, tilt_deg) -> bool:
+        self.tilt = tilt_deg if _number(tilt_deg) else None
+        if self.limit_deg <= 0 or self.tilt is None or self.tilt <= self.limit_deg:
+            self._since = None
+            return False
+        if self._since is None:
+            self._since = now
+        return now - self._since >= self.hold_s
+
+
+def r3_deactivate_list(states: dict | None, walker: str, legs: list[str]) -> list[str]:
+    """Controllers the R3 action asks to deactivate: the leg controllers active in the latest
+    list_controllers answer, plus the walker (it may have been activated since; the stock manager's
+    BEST_EFFORT skips inactive names). Only names from `legs`, so a Stop gateway that rejects
+    unknown names (tej_u6) still accepts the request."""
+    active = [c for c in legs if (states or {}).get(c) == "active"]
+    if walker in legs and walker not in active:
+        active.append(walker)
+    return active
+
+
+class R3Tracker:
+    """When to (re)send the deactivation and when the legs are confirmed inactive. Pure.
+    fire() -> send now; each list_controllers answer goes to on_states(); due() says resend
+    (no confirmation R3_RETRY_S after the last send, at most R3_MAX_TRIES sends)."""
+
+    def __init__(self, legs: list[str], retry_s: float = R3_RETRY_S, max_tries: int = R3_MAX_TRIES):
+        self.legs, self.retry_s, self.max_tries = list(legs), retry_s, max_tries
+        self.active = False          # an R3 action is in progress or done
+        self.confirmed = False
+        self.tries = 0
+        self.last_send = -math.inf
+        self.times: dict[str, float] = {}
+
+    def fire(self, now: float) -> bool:
+        if self.active:
+            return False
+        self.active, self.times["trip"] = True, now
+        return True
+
+    def sent(self, now: float) -> None:
+        self.tries += 1
+        self.last_send = now
+        self.times.setdefault("switch_sent", now)
+
+    def on_response(self, now: float, ok: bool) -> None:
+        self.times.setdefault("switch_answered", now)
+        self.times["switch_ok"] = bool(ok)
+
+    def on_states(self, now: float, states: dict | None) -> bool:
+        """True when this answer confirms no leg controller is active (first time only)."""
+        if not self.active or self.confirmed or states is None or self.tries == 0:
+            return False
+        if any(states.get(c) == "active" for c in self.legs):
+            return False
+        self.confirmed = True
+        self.times["confirmed"] = now
+        return True
+
+    def due(self, now: float) -> bool:
+        if not self.active or self.confirmed or self.tries >= self.max_tries:
+            return False
+        return self.tries == 0 or now - self.last_send >= self.retry_s
+
+    def latency_ms(self) -> dict:
+        t0 = self.times.get("trip")
+        return {k: round((v - t0) * 1000.0, 1) for k, v in self.times.items()
+                if t0 is not None and isinstance(v, float) and k != "trip"}
+
+
+def read_latch(path: str) -> dict | None:
+    """The e-stop latch file, or None if there is none. Unreadable or malformed = still latched
+    (fail closed): only `fcctl.sh ready ... --confirm` removes it."""
+    path = os.path.expanduser(path)
+    try:
+        with open(path) as f:
+            latch = json.load(f)
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError):
+        return {"reason": "unreadable_latch_file"}
+    return latch if isinstance(latch, dict) else {"reason": "malformed_latch_file"}
+
+
+def write_latch(path: str, latch: dict) -> None:
+    """Atomic 0600 write (tmp + rename), like the replay state."""
+    save_replay_state(path, latch)
+
+
 class RateLoop:
     """Fixed-rate scheduler without drift: next deadline = previous + period."""
 
@@ -462,7 +611,21 @@ def main(argv=None) -> int:
                         help="hold zero while ImuHealth is bad (stale/tilt) (default on)")
     parser.add_argument("--mux-guard", action=argparse.BooleanOptionalAction, default=True,
                         help="hold zero unless exactly one mux forwards our topic to /cmd_vel (default on)")
+    parser.add_argument("--max-vx", type=float, default=MAX_VX,
+                        help="|vx| ceiling, m/s (fcctl: the stack's --speed-cap; at most %.2f)" % MAX_VX_CAP)
+    parser.add_argument("--walker", default="neural_controller_default", help="the profile's walker controller")
+    parser.add_argument("--legs", default="neural_controller_default",
+                        help="space-separated leg controllers the R3 action may deactivate")
+    parser.add_argument("--latch-file", default=DEFAULT_LATCH_FILE, help="e-stop latch (0600); '' disables")
+    parser.add_argument("--fallen-tilt-deg", type=float, default=FALLEN_TILT_DEG,
+                        help="R3 action + latch when the tilt stays above this (0 disables)")
+    parser.add_argument("--fallen-hold-s", type=float, default=FALLEN_HOLD_S)
     args = parser.parse_args(argv)
+    if not (0.0 < args.max_vx <= MAX_VX_CAP):
+        parser.error("--max-vx must be in (0, %.2f]" % MAX_VX_CAP)
+    legs = args.legs.split()
+    if not legs or not all(_ID_RE.match(c) for c in legs + [args.walker]):
+        parser.error("bad --legs/--walker")
     if not (1.0 <= args.rate <= 200.0) or not (0.0 < args.default_ttl <= MAX_TTL):
         parser.error("rate must be 1..200 Hz and default ttl in (0, %.2f] s" % MAX_TTL)
     if not _ID_RE.match(args.robot_id):
@@ -472,7 +635,10 @@ def main(argv=None) -> int:
     except KeyFileError as error:
         parser.error(str(error))
     allow = frozenset(ip.strip() for ip in args.allow_from.split(",") if ip.strip()) or None
-    core = BridgeCore(key, args.robot_id, default_ttl=args.default_ttl, allow_from=allow)
+    core = BridgeCore(key, args.robot_id, default_ttl=args.default_ttl, allow_from=allow, max_vx=args.max_vx)
+    latch0 = read_latch(args.latch_file) if args.latch_file else None
+    if latch0 is not None:   # an e-stop from before this bridge started stays latched
+        core.trip(str(latch0.get("reason", "latched")))
     if args.state_file and not args.reset_replay:
         try:
             saved = load_replay_state(args.state_file)
@@ -489,6 +655,8 @@ def main(argv=None) -> int:
     import rclpy
     from geometry_msgs.msg import Twist
     from rclpy.qos import qos_profile_sensor_data
+    from std_msgs.msg import Empty
+    from controller_manager_msgs.srv import ListControllers, SwitchController
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((args.bind, args.port))  # EADDRINUSE => another bridge owns the port
@@ -499,6 +667,16 @@ def main(argv=None) -> int:
     rclpy.init(signal_handler_options=SignalHandlerOptions.NO)
     node = rclpy.create_node("fc_drive_bridge")
     pub = node.create_publisher(Twist, args.topic, 10)
+    # R3 action, kept ready so an e-stop costs no discovery time: the stock estop_controller publishes
+    # /emergency_stop (active neural controllers zero kp, kd = estop_kd at their next update) and sends
+    # SwitchController(deactivate, BEST_EFFORT) to the manager (tej_u6: to the Stop gateway at the same name).
+    estop_pub = node.create_publisher(Empty, "/emergency_stop", 10)
+    switch_cli = node.create_client(SwitchController, "/controller_manager/switch_controller")
+    list_cli = node.create_client(ListControllers, "/controller_manager/list_controllers")
+    r3 = R3Tracker(legs)
+    r3_lock = threading.Lock()      # estop_pub from the UDP thread and the main loop
+    ctl = {"states": None, "t": None, "pending": None}   # latest list_controllers answer (main thread only)
+    fallen = FallenGuard(args.fallen_tilt_deg, args.fallen_hold_s)
     lock = threading.Lock()
     started = time.monotonic()
     running = threading.Event()
@@ -516,6 +694,31 @@ def main(argv=None) -> int:
     emergency_pub = None            # /cmd_vel publisher, exists only while the mux is lost
     state = {"imu": safe_summary(health), "hold": None, "since": None}   # guarded by lock
 
+    def latch_record(extra=None):
+        rec = {"reason": core.estop_reason, "t_wall": round(time.time(), 3), "pid": os.getpid(),
+               "profile": args.profile, "tilt_deg": fallen.tilt, "r3": {"confirmed": r3.confirmed, "tries": r3.tries,
+                                                                       "latency_ms": r3.latency_ms()}}
+        rec.update(extra or {})
+        return rec
+
+    def save_latch(extra=None):
+        if args.latch_file:
+            try:
+                write_latch(args.latch_file, latch_record(extra))
+            except OSError as error:
+                print(f"[bridge] latch file write failed: {error!r}", file=sys.stderr, flush=True)
+
+    def r3_fire(now):
+        """Called right after core.trip() returned True (UDP thread or IMU callback). Publishes
+        /emergency_stop at once; the main loop sends the deactivation within one spin (<= 5 ms)."""
+        with r3_lock:
+            if not r3.fire(now):
+                return
+            estop_pub.publish(Empty())
+            r3.times["emergency_stop"] = time.monotonic()
+        print(f"[bridge] E-STOP ({core.estop_reason}): /emergency_stop published, deactivating legs; latched",
+              flush=True)
+
     def hold_reason():
         if imu_guard is not None and imu_guard.hold:
             return "imu_" + (imu_guard.cause or "bad")
@@ -523,7 +726,7 @@ def main(argv=None) -> int:
             return mux.why
         return None
 
-    if health is not None:
+    if args.imu_topic and (health is not None or fallen.limit_deg > 0):
         from sensor_msgs.msg import Imu
 
         def on_imu(msg):
@@ -531,10 +734,14 @@ def main(argv=None) -> int:
             now = time.monotonic()
             with lock:
                 zero = core.commanding_zero(now, hold=state["hold"] is not None)
-                try:
-                    health.update(now, (q.x, q.y, q.z, q.w), (w.x, w.y, w.z), zero)
-                except Exception:
-                    pass
+                if health is not None:
+                    try:
+                        health.update(now, (q.x, q.y, q.z, q.w), (w.x, w.y, w.z), zero)
+                    except Exception:
+                        pass
+                tripped = fallen.update(now, quat_tilt_deg((q.x, q.y, q.z, q.w))) and core.trip("fallen")
+            if tripped:
+                r3_fire(now)
 
         node.create_subscription(Imu, args.imu_topic, on_imu, qos_profile_sensor_data)
 
@@ -570,8 +777,12 @@ def main(argv=None) -> int:
                 break
             now = time.monotonic()
             with lock:
-                was, sid = core.publishing, core.sid
+                was, sid, stopped = core.publishing, core.sid, core.estopped
                 ok, seq, error = core.on_packet(data, now, addr[0])
+                tripped = ok and core.estopped and not stopped
+            if tripped:
+                r3_fire(now)            # before the ack: the stop goes out first
+            with lock:
                 reply = core.make_ack(seq, args.profile, state["imu"], bridge_stats(now), hold=state["hold"],
                                       imu_hold=bool(imu_guard and imu_guard.hold),
                                       mux_ok=None if mux is None else mux.why is None) if ok else None
@@ -600,10 +811,48 @@ def main(argv=None) -> int:
     print(f"[bridge] udp {args.bind}:{args.port} -> {args.topic} @ {args.rate:g} Hz, ttl {args.default_ttl}s, "
           f"robot {args.robot_id}, allow {','.join(sorted(allow)) if allow else 'any'}, profile {args.profile}, "
           f"imu {'on ' + args.imu_topic if health else 'off'}, imu-stop {'on' if imu_guard else 'off'}, "
-          f"mux-guard {'on' if mux else 'off'}, replay state {args.state_file or 'off'}"
+          f"mux-guard {'on' if mux else 'off'}, replay state {args.state_file or 'off'}, max vx {core.max_vx}, "
+          f"fallen cutoff {'off' if fallen.limit_deg <= 0 else '%g deg/%g s' % (fallen.limit_deg, fallen.hold_s)}, "
+          f"latch {args.latch_file or 'off'}{' LATCHED (' + str(core.estop_reason) + ')' if core.estopped else ''}"
           f"{' (reset)' if args.reset_replay else ''} newest_t {core.replay_state()['newest_t']}, "
           f"domain {os.environ.get('ROS_DOMAIN_ID', '0')}", flush=True)
+    def on_switch_done(fut):
+        res = fut.result() if fut.done() and not fut.cancelled() and fut.exception() is None else None
+        with r3_lock:
+            r3.on_response(time.monotonic(), bool(res is not None and res.ok))
+        print(f"[bridge] R3 deactivation answered ok={None if res is None else res.ok}", flush=True)
+
+    def on_list_done(fut):
+        if ctl["pending"] is fut:
+            ctl["pending"] = None
+        res = fut.result() if fut.done() and not fut.cancelled() and fut.exception() is None else None
+        if res is None:
+            return
+        now = time.monotonic()
+        ctl["states"], ctl["t"] = {c.name: c.state for c in res.controller}, now
+        with r3_lock:
+            confirmed = r3.on_states(now, ctl["states"])
+        if confirmed:
+            print("[bridge] R3 confirmed: no leg controller active; latency " + json.dumps(r3.latency_ms()), flush=True)
+            save_latch()
+
+    def r3_send(now):
+        req = SwitchController.Request()
+        req.deactivate_controllers = r3_deactivate_list(ctl["states"], args.walker, legs)
+        req.strictness = SwitchController.Request.BEST_EFFORT
+        with r3_lock:
+            r3.sent(now)
+            tries = r3.tries
+        switch_cli.call_async(req).add_done_callback(on_switch_done)
+        if tries > 1:
+            estop_pub.publish(Empty())
+        print(f"[bridge] R3 deactivate {list(req.deactivate_controllers)} (try {tries}, "
+              f"service {'ready' if switch_cli.service_is_ready() else 'NOT discovered'})", flush=True)
+
     rate = RateLoop(args.rate, time.monotonic())
+    ctl_loop = RateLoop(2.0, time.monotonic())        # cached controller states for a fast R3 request
+    r3_loop = RateLoop(20.0, time.monotonic())        # while an R3 action awaits confirmation
+    latch_saved = False
     guard_loop = RateLoop(20.0, time.monotonic())
     graph_loop = RateLoop(5.0, time.monotonic())
     save_loop = RateLoop(1.0 / STATE_SAVE_PERIOD_S, time.monotonic())
@@ -613,6 +862,26 @@ def main(argv=None) -> int:
         while rclpy.ok():
             rclpy.spin_once(node, timeout_sec=min(0.005, rate.period / 4))
             now = time.monotonic()
+            if r3.active:
+                if r3.due(now):
+                    r3_send(now)
+                if not latch_saved:
+                    save_latch()
+                    latch_saved = True
+            elif core.estopped and not latch_saved:   # latched at start (file from before): keep it
+                latch_saved = True
+            fast = r3.active and not r3.confirmed
+            if ctl["pending"] is not None and now - ctl["sent"] > 2.0:   # lost answer: ask again
+                try:
+                    list_cli.remove_pending_request(ctl["pending"])
+                except Exception:
+                    pass
+                ctl["pending"] = None
+            if (ctl_loop.due(now) or (fast and r3_loop.due(now))) and ctl["pending"] is None \
+                    and list_cli.service_is_ready():
+                ctl["sent"] = now
+                ctl["pending"] = list_cli.call_async(ListControllers.Request())
+                ctl["pending"].add_done_callback(on_list_done)
             if mux is not None and graph_loop.due(now):
                 own = 1 if emergency_pub is not None else 0
                 pubs = node.count_publishers("/cmd_vel") - own

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # stage.sh <host> [--dry-run] — copy final_project/fc/robot/ to <host>:~/fc-v1/robot/ and print what changed.
 # Runs on the laptop. Touches only ~/fc-v1/robot/ on the Pi. vendor/ (archived copy of Tej's u6
-# sources, already on the Pi), provision/ (laptop-only) and caches are not staged.
+# sources, already on the Pi), provision/ and sim/ (laptop-only) and caches are not staged.
 # Also places the link auth files the bridge needs (both kept across re-stages):
 #   ~/fc-v1/robot/link.key  (0600) copied from fc/config/link.key (python -m fc.robot.keygen)
 #   ~/fc-v1/robot/robot_id  the id of the robots.json entry whose "host" is <host> (or $FC_ROBOT_ID)
@@ -21,7 +21,7 @@ ssh "$host" 'mkdir -p ~/fc-v1/robot && chmod 700 ~/fc-v1'
 echo "staging $src -> $host:~/fc-v1/robot/ as robot '$robot_id' ${dry:+(dry run)}"
 changes=$(rsync -rlptz --delete --itemize-changes ${dry:+--dry-run} \
   --exclude vendor/ --exclude __pycache__/ --exclude .pytest_cache/ --exclude '*.pyc' \
-  --exclude /link.key --exclude /robot_id --exclude /provision/ \
+  --exclude /link.key --exclude /robot_id --exclude /provision/ --exclude /sim/ \
   "$src" "$host:fc-v1/robot/")
 if [ -z "$changes" ]; then echo "no changes"; else echo "$changes"; fi
 [ -n "$dry" ] && exit 0
