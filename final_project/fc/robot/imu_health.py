@@ -86,9 +86,23 @@ def tilt_deg(quat_xyzw) -> float:
     return math.degrees(math.acos(max(-1.0, min(1.0, cz))))
 
 
+
+def _file_overrides() -> dict:
+    """Operator overrides for floor testing: JSON {key: value} at $FC_IMU_PARAMS or
+    ~/fc-v1/robot/imu_params.json (unknown keys ignored). Missing file = stock thresholds."""
+    import json, os
+    path = os.environ.get("FC_IMU_PARAMS") or os.path.expanduser("~/fc-v1/robot/imu_params.json")
+    try:
+        with open(path) as f:
+            d = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return {k: float(v) for k, v in d.items() if k in DEFAULTS and isinstance(v, (int, float))}
+
 class ImuHealth:
     def __init__(self, params: dict | None = None, clock=time.monotonic):
         p = dict(DEFAULTS)
+        p.update(_file_overrides())
         if params:
             # Accept either bare keys or the fc params.json style "imu_<key>".
             for k in DEFAULTS:
