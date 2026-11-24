@@ -46,6 +46,7 @@ profile_env() {
   source "$MONO/ros2_ws/install/setup.bash"
   set -u
   export ROS_DOMAIN_ID=0 ROS_LOCALHOST_ONLY=1
+  export FC_IMU_FILTER="${FC_IMU_FILTER:-1}"  # IMU filter on by default (fc/notes/imu-filter.md); FC_IMU_FILTER=0 = stock
   unset ROS_AUTOMATIC_DISCOVERY_RANGE RMW_IMPLEMENTATION
 }
 
