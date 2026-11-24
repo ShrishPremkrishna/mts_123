@@ -327,8 +327,8 @@ def bad(cause):
     return {"level": "bad", "bad_cause": cause}
 
 
-def test_imu_guard_holds_on_stale_or_tilt_and_releases_after_1s_good():
-    for cause in ("stale", "tilt"):
+def test_imu_guard_holds_on_stale_frozen_or_tilt_and_releases_after_1s_good():
+    for cause in ("stale", "frozen", "tilt"):
         g = db.ImuGuard(clear_s=1.0)
         assert not g.update(0.0, {"level": "ok"})
         assert g.update(0.1, bad(cause)) and g.cause == cause
@@ -367,6 +367,110 @@ def test_imu_guard_with_real_imu_health_stale_stream():
     clock[0] += 0.6                                          # stream froze for 600 ms
     s = h.summary()
     assert s["level"] == "bad" and s["bad_cause"] == "stale" and g.update(clock[0], s)
+
+
+def test_imu_guard_with_real_imu_health_frozen_but_arriving():
+    """RCA 2026-11-24: messages kept arriving, values bit-identical for ~0.5 s."""
+    import imu_health
+    h = imu_health.ImuHealth({})
+    g = db.ImuGuard()
+    t = 0.0
+    for i in range(150):                                     # 250 Hz, accel noise -> changing
+        t = i * 0.004
+        h.update(t, (0.0, 0.0, 0.0, 1.0), (0.0, 0.0, 0.0), True, (0.0, 0.0, 9.81 + 0.001 * (i % 3)))
+    for i in range(130):                                     # 520 ms of identical samples
+        t += 0.004
+        h.update(t, (0.0, 0.0, 0.0, 1.0), (0.0, 0.0, 0.0), True, (0.0, 0.0, 9.81))
+    s = h.summary(now=t)
+    assert s["stale_ms"] < 10 and s["level"] == "bad" and s["bad_cause"] == "frozen"
+    assert g.update(t, s) and g.cause == "frozen"
+
+
+# ---------------------------------------------------------------- ImuLie (corrupted-IMU lie-down)
+
+def test_imu_lie_fires_after_sustained_bad_with_walker_active():
+    lie = db.ImuLie(sustain_s=0.75, switch_s=1.0, wait_s=3.5)
+    assert lie.step(0.0, bad("tilt"), True) is None
+    assert lie.step(0.7, bad("tilt"), True) is None
+    assert lie.step(0.75, bad("tilt"), True) == "fire" and lie.reason == "imu_tilt"
+    assert lie.step(0.8, bad("tilt"), True) is None           # fires once
+    assert lie.status()["phase"] == "fired"
+
+
+def test_imu_lie_needs_a_continuous_bad_run():
+    lie = db.ImuLie(sustain_s=0.75)
+    lie.step(0.0, bad("frozen"), True)
+    lie.step(0.5, {"level": "warn"}, True)                    # cleared: clock restarts
+    assert lie.step(1.0, bad("frozen"), True) is None
+    assert lie.step(1.7, bad("frozen"), True) is None
+    assert lie.step(1.75, bad("frozen"), True) == "fire" and lie.reason == "imu_frozen"
+
+
+def test_imu_lie_ignores_other_causes_idle_walker_and_latched_or_parked():
+    lie = db.ImuLie(sustain_s=0.5)
+    assert lie.step(0.0, {"level": "bad", "bad_cause": None}, True) is None
+    assert lie.step(2.0, {"level": "bad", "bad_cause": None}, True) is None
+    assert lie.step(3.0, bad("stale"), False) is None         # no walker active (lying, homed)
+    assert lie.step(4.0, bad("stale"), False) is None
+    assert lie.step(5.0, bad("stale"), True, blocked=True) is None   # e-stopped already / fcctl down parked
+    assert lie.step(5.1, bad("stale"), True) == "fire"        # bad run kept counting; walker back -> fire
+    assert lie.reason == "imu_stale"
+
+
+def test_imu_lie_switch_ok_lowers_then_legs_off():
+    lie = db.ImuLie(sustain_s=0.0, switch_s=1.0, wait_s=3.5)
+    assert lie.step(0.0, bad("tilt"), True) == "fire"
+    lie.begin_switch(0.0)
+    assert lie.switch_answer(0.1, True) is None and lie.phase == "lowering"
+    assert lie.step(3.5, None, False) is None                 # health no longer matters while lowering
+    assert lie.step(3.6, None, False) == "r3" and lie.why == "lowered; legs off"
+    assert lie.step(9.0, None, False) is None and lie.phase == "r3"
+
+
+def test_imu_lie_refused_or_unanswered_switch_goes_r3():
+    lie = db.ImuLie(sustain_s=0.0, switch_s=1.0)
+    lie.step(0.0, bad("tilt"), True)
+    lie.begin_switch(0.0)
+    assert lie.switch_answer(0.2, False) == "r3" and "refused" in lie.why
+    lie = db.ImuLie(sustain_s=0.0, switch_s=1.0)
+    lie.step(0.0, bad("tilt"), True)
+    lie.begin_switch(0.0)
+    assert lie.step(0.9, None, True) is None
+    assert lie.step(1.0, None, True) == "r3" and "unanswered" in lie.why
+    assert lie.switch_answer(1.2, True) is None and lie.phase == "r3"   # late ok cannot undo R3
+
+
+def test_imu_lie_no_liedown_controller_r3_at_once_and_estop_during_lowering():
+    lie = db.ImuLie(sustain_s=0.0)
+    lie.step(0.0, bad("frozen"), True)
+    assert lie.r3(0.0, "no lie-down controller") == "r3"        # fired, no switch possible
+    lie = db.ImuLie(sustain_s=0.0)
+    lie.step(0.0, bad("tilt"), True)
+    lie.begin_switch(0.0)
+    lie.switch_answer(0.1, True)
+    assert lie.r3(1.0, "link E-STOP during the lie-down") == "r3"
+    assert lie.r3(1.1, "again") is None
+    assert db.ImuLie().r3(0.0, "idle") is None                  # nothing in progress: no-op
+
+
+def test_walker_active_and_lie_switch_request():
+    legs = ["w", "w_alt", "ld"]
+    assert db.walker_active({"w": "active", "ld": "inactive"}, legs, "ld")
+    assert not db.walker_active({"w": "inactive", "ld": "active"}, legs, "ld")   # already lying
+    assert not db.walker_active(None, legs, "ld")
+    assert db.lie_switch_request({"w_alt": "active", "w": "inactive", "ld": "inactive"}, legs, "ld", "w") == \
+        (["ld"], ["w_alt"])
+    assert db.lie_switch_request(None, legs, "ld", "w") == (["ld"], ["w"])
+
+
+def test_ack_carries_imu_lie():
+    c = db.BridgeCore(KEY, ROBOT)
+    c.on_packet(pkt(seq=1), 0.0)
+    c.trip("imu_tilt")
+    ack = json.loads(c.make_ack(1, "stock", None, c.snapshot(0.0), imu_lie={"phase": "lowering", "reason": "imu_tilt",
+                                                                             "why": None}))
+    assert db.verify(KEY, ack) and ack["imu_lie"]["phase"] == "lowering" and ack["estopped"] is True
+    assert ack["hold"] == "estopped" and c.tick(0.01) == (0.0, 0.0, 0.0)   # latched: zero only
 
 
 # ---------------------------------------------------------------- MuxGuard

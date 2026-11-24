@@ -21,7 +21,7 @@ Behaviour:
   0600 --state-file at most once a second and on exit, and reloaded on start, so a
   bridge restart does not reopen old sessions. Only laptop `t` values are compared.
 - Holds (publishes zero instead of the command, ack `hold`) while:
-  * --imu-stop (default on): ImuHealth is "bad" with bad_cause stale/tilt, until it has
+  * --imu-stop (default on): ImuHealth is "bad" with bad_cause stale/frozen/tilt, until it has
     been ok/warn for IMU_CLEAR_S (ack `imu_hold: true`);
   * --mux-guard (default on): the graph does not show exactly one /cmd_vel publisher and
     the mux on our topic, or /cmd_vel went quiet while we publish (ack `mux_ok: false`).
@@ -34,6 +34,16 @@ Behaviour:
   the stock estop_controller sends on R3, BEST_EFFORT, persistent client). The bridge then LATCHES:
   it publishes only zero, acks carry "estopped": true, and the latch file (--latch-file, 0600)
   survives bridge restarts. Only `fcctl.sh ready ... --confirm` removes it (re-arm).
+- IMU lie-down (--imu-lie, default on with --imu-stop; RCA fc/notes/rca-20261124-shaking.md): zero speed
+  does not stop a walker policy that reacts to a corrupted IMU (it shook the robot). When ImuHealth stays
+  bad (tilt at zero command, frozen values or no messages) for IMU_LIE_SUSTAIN_S while a walker is active,
+  the bridge LATCHES like an e-stop (reason imu_<cause>, latch file, re-arm only via ready --confirm) and
+  takes the legs off the policy: one STRICT switch walker -> --liedown controller (the switch fcctl down
+  uses; its init blend is pure position control and never reads the IMU, and its policy fade-in keeps the
+  policy's share < 1e-3 rad), waits --liedown-wait s, then does the R3 deactivation. If no lie-down
+  controller is loaded, the switch is refused or unanswered within IMU_LIE_SWITCH_S, it does the R3
+  action at once (legs off, damped drop). A link E-STOP or the fallen cutoff during the lowering does R3
+  at once. Acks carry `imu_lie` {phase, reason}.
 - Park (SIGUSR1, sent by `fcctl.sh down`/`stop` before the gentle lie-down): from then on it publishes only
   zero (ack `hold: "parked"`) but keeps admitting packets, so a link E-STOP and the fallen cutoff still do
   the R3 action while the robot is lowered (`--legs` includes the lie-down controller). One-way: fcctl stops
@@ -78,6 +88,10 @@ FALLEN_TILT_DEG = 45.0  # SPEC v1.1 fallen_tilt_deg
 FALLEN_HOLD_S = 0.5     # tilt must stay above the limit this long (a kick or bump is shorter)
 R3_RETRY_S = 1.0        # resend the deactivation if the legs are not confirmed inactive after this
 R3_MAX_TRIES = 3
+IMU_LIE_CAUSES = ("tilt", "frozen", "stale")
+IMU_LIE_SUSTAIN_S = 0.75  # ImuHealth bad this long, walker active => lie down + latch (RCA 2026-11-24)
+IMU_LIE_SWITCH_S = 1.0    # STRICT walker -> lie-down switch must be answered ok within this, else R3
+IMU_LIE_WAIT_S = 3.5      # lie-down blend (stack.json init_s 2.5) + hold 1.0, then legs off (like fcctl down)
 DEFAULT_KEY_FILE = "~/fc-v1/robot/link.key"
 DEFAULT_STATE_FILE = "~/fc-v1/run/bridge_state.json"
 DEFAULT_LATCH_FILE = "~/fc-v1/run/estop.json"
@@ -301,12 +315,13 @@ class BridgeCore:
         self.retired = list(state.get("retired") or [])[-MAX_RETIRED_SIDS:]
 
     def make_ack(self, seq: int, profile: str, imu: dict | None, bridge: dict,
-                 hold: str | None = None, imu_hold: bool = False, mux_ok: bool | None = None) -> bytes:
+                 hold: str | None = None, imu_hold: bool = False, mux_ok: bool | None = None,
+                 imu_lie: dict | None = None) -> bytes:
         """Signed reply for an accepted packet. hold: why commands are being replaced by zero."""
         return sign(self.key, {"v": VERSION, "robot": self.robot_id, "sid": self.sid, "ack": seq, "ok": True,
                                "profile": profile, "imu": imu, "bridge": bridge,
                                "hold": "estopped" if self.estopped else "parked" if self.parked else hold,
-                               "imu_hold": imu_hold, "mux_ok": mux_ok,
+                               "imu_hold": imu_hold, "mux_ok": mux_ok, "imu_lie": imu_lie,
                                "estopped": self.estopped})
 
     def tick(self, now: float, hold: bool = False) -> tuple[float, float, float] | None:
@@ -396,7 +411,7 @@ class ImuGuard:
 
     def update(self, now: float, summary: dict | None) -> bool:
         level = summary.get("level") if isinstance(summary, dict) else None
-        if level == "bad" and summary.get("bad_cause") in ("stale", "tilt"):
+        if level == "bad" and summary.get("bad_cause") in IMU_LIE_CAUSES:
             self.hold, self.cause, self._good_since = True, summary["bad_cause"], None
         elif level in ("ok", "warn"):
             if self._good_since is None:
@@ -454,6 +469,87 @@ class MuxGuard:
     def emergency(self, now: float) -> bool:
         """True while the bridge should publish zero directly on /cmd_vel."""
         return now < self._emergency_until
+
+
+class ImuLie:
+    """Corrupted-IMU response, pure (the caller does the ROS calls). Phases:
+      idle -> (bad IMU_LIE_SUSTAIN_S with a walker active) fire() -> the caller latches and either
+      begin_switch() [lie-down loaded] or r3() [not loaded];
+      switching -> switch_answer(ok) -> lowering, or r3 when refused / unanswered by switch_s;
+      lowering -> after wait_s: r3 (legs off, the robot rests on its belly).
+    step() returns the action due now: "fire" | "r3" | None. Once r3, it stays r3."""
+
+    def __init__(self, sustain_s: float = IMU_LIE_SUSTAIN_S, switch_s: float = IMU_LIE_SWITCH_S,
+                 wait_s: float = IMU_LIE_WAIT_S):
+        self.sustain_s, self.switch_s, self.wait_s = sustain_s, switch_s, wait_s
+        self.phase = "idle"
+        self.reason: str | None = None
+        self.why: str | None = None          # why it went to r3 (or how the lowering ended)
+        self._bad_since: float | None = None
+        self._t: float | None = None         # start of the current phase
+
+    def _bad(self, summary) -> str | None:
+        if isinstance(summary, dict) and summary.get("level") == "bad" \
+                and summary.get("bad_cause") in IMU_LIE_CAUSES:
+            return summary["bad_cause"]
+        return None
+
+    def step(self, now: float, summary, walker_active: bool, blocked: bool = False) -> str | None:
+        """blocked: already latched or parked (fcctl down owns the legs): never fire."""
+        if self.phase == "idle":
+            cause = self._bad(summary)
+            if cause is None:
+                self._bad_since = None
+                return None
+            if self._bad_since is None:
+                self._bad_since = now
+            if walker_active and not blocked and now - self._bad_since >= self.sustain_s:
+                self.phase, self.reason, self._t = "fired", "imu_" + cause, now
+                return "fire"
+            return None
+        if self.phase == "switching" and now - self._t >= self.switch_s:
+            return self.r3(now, "lie-down switch unanswered after %.1f s" % self.switch_s)
+        if self.phase == "lowering" and now - self._t >= self.wait_s:
+            return self.r3(now, "lowered; legs off")
+        return None
+
+    def begin_switch(self, now: float) -> None:
+        if self.phase == "fired":
+            self.phase, self._t = "switching", now
+
+    def switch_answer(self, now: float, ok: bool) -> str | None:
+        if self.phase != "switching":
+            return None
+        if not ok:
+            return self.r3(now, "lie-down switch refused")
+        self.phase, self._t = "lowering", now
+        return None
+
+    def r3(self, now: float, why: str) -> str | None:
+        if self.phase in ("idle", "r3"):
+            return None
+        self.phase, self.why, self._t = "r3", why, now
+        return "r3"
+
+    @property
+    def active(self) -> bool:
+        return self.phase != "idle"
+
+    def status(self) -> dict | None:
+        return None if self.phase == "idle" else {"phase": self.phase, "reason": self.reason, "why": self.why}
+
+
+def walker_active(states: dict | None, legs: list[str], liedown: str | None) -> bool:
+    """A policy-driven leg controller is active in the latest list_controllers answer."""
+    return any((states or {}).get(c) == "active" for c in legs if c != liedown)
+
+
+def lie_switch_request(states: dict | None, legs: list[str], liedown: str, walker: str) -> tuple[list, list]:
+    """(activate, deactivate) for the STRICT walker -> lie-down switch (fcctl fc_gentle_down's)."""
+    off = [c for c in legs if c != liedown and (states or {}).get(c) == "active"]
+    if not off and walker in legs and walker != liedown:
+        off = [walker]
+    return [liedown], off
 
 
 def quat_tilt_deg(quat_xyzw) -> float:
@@ -633,12 +729,22 @@ def main(argv=None) -> int:
     parser.add_argument("--fallen-tilt-deg", type=float, default=FALLEN_TILT_DEG,
                         help="R3 action + latch when the tilt stays above this (0 disables)")
     parser.add_argument("--fallen-hold-s", type=float, default=FALLEN_HOLD_S)
+    parser.add_argument("--imu-lie", action=argparse.BooleanOptionalAction, default=True,
+                        help="sustained bad IMU with a walker active: latch + lie down + legs off (default on; "
+                             "needs --imu-stop)")
+    parser.add_argument("--liedown", default="", help="the run's lie-down controller ('' = none: R3 at once)")
+    parser.add_argument("--liedown-wait", type=float, default=IMU_LIE_WAIT_S,
+                        help="seconds from the lie-down switch to legs off (blend + hold)")
     args = parser.parse_args(argv)
     if not (0.0 < args.max_vx <= MAX_VX_CAP):
         parser.error("--max-vx must be in (0, %.2f]" % MAX_VX_CAP)
     legs = args.legs.split()
     if not legs or not all(_ID_RE.match(c) for c in legs + [args.walker]):
         parser.error("bad --legs/--walker")
+    if args.liedown and (not _ID_RE.match(args.liedown) or args.liedown not in legs):
+        parser.error("--liedown must be one of --legs (the R3 action must be able to switch it off)")
+    if not 0.5 <= args.liedown_wait <= 10.0:
+        parser.error("--liedown-wait must be 0.5..10 s")
     if not (1.0 <= args.rate <= 200.0) or not (0.0 < args.default_ttl <= MAX_TTL):
         parser.error("rate must be 1..200 Hz and default ttl in (0, %.2f] s" % MAX_TTL)
     if not _ID_RE.match(args.robot_id):
@@ -706,6 +812,7 @@ def main(argv=None) -> int:
         except Exception as error:
             node.get_logger().warning(f"ImuHealth init failed: {error!r}; running without IMU health")
     imu_guard = ImuGuard() if (health is not None and args.imu_stop) else None
+    imu_lie = ImuLie(wait_s=args.liedown_wait) if (imu_guard is not None and args.imu_lie) else None
     mux = MuxGuard() if args.mux_guard else None
     emergency_pub = None            # /cmd_vel publisher, exists only while the mux is lost
     state = {"imu": safe_summary(health), "hold": None, "since": None}   # guarded by lock
@@ -713,7 +820,8 @@ def main(argv=None) -> int:
     def latch_record(extra=None):
         rec = {"reason": core.estop_reason, "t_wall": round(time.time(), 3), "pid": os.getpid(),
                "profile": args.profile, "tilt_deg": fallen.tilt, "r3": {"confirmed": r3.confirmed, "tries": r3.tries,
-                                                                       "latency_ms": r3.latency_ms()}}
+                                                                       "latency_ms": r3.latency_ms()},
+               "imu_lie": imu_lie.status() if imu_lie is not None else None, "imu": state.get("imu")}
         rec.update(extra or {})
         return rec
 
@@ -735,6 +843,16 @@ def main(argv=None) -> int:
         print(f"[bridge] E-STOP ({core.estop_reason}): /emergency_stop published, deactivating legs; latched",
               flush=True)
 
+    def lie_r3(now, why):
+        """A lie-down in progress must end in the R3 action now (link E-STOP, fallen, refused switch)."""
+        if imu_lie is None:
+            return
+        with lock:
+            act = imu_lie.r3(now, why)
+        if act == "r3":
+            print(f"[bridge] IMU lie-down -> R3: {why}", flush=True)
+            r3_fire(now)
+
     def hold_reason():
         if imu_guard is not None and imu_guard.hold:
             return "imu_" + (imu_guard.cause or "bad")
@@ -748,16 +866,20 @@ def main(argv=None) -> int:
         def on_imu(msg):
             q, w = msg.orientation, msg.angular_velocity
             now = time.monotonic()
+            a = msg.linear_acceleration
             with lock:
                 zero = core.commanding_zero(now, hold=state["hold"] is not None)
                 if health is not None:
                     try:
-                        health.update(now, (q.x, q.y, q.z, q.w), (w.x, w.y, w.z), zero)
+                        health.update(now, (q.x, q.y, q.z, q.w), (w.x, w.y, w.z), zero, (a.x, a.y, a.z))
                     except Exception:
                         pass
-                tripped = fallen.update(now, quat_tilt_deg((q.x, q.y, q.z, q.w))) and core.trip("fallen")
+                fell = fallen.update(now, quat_tilt_deg((q.x, q.y, q.z, q.w)))
+                tripped = fell and core.trip("fallen")
             if tripped:
                 r3_fire(now)
+            elif fell:
+                lie_r3(now, "fallen during the lie-down")
 
         node.create_subscription(Imu, args.imu_topic, on_imu, qos_profile_sensor_data)
 
@@ -778,6 +900,7 @@ def main(argv=None) -> int:
         snap = core.snapshot(now)
         snap.update(topic=args.topic, up_s=round(now - started, 1), pid=os.getpid(), hold=state["hold"],
                     imu_hold=bool(imu_guard and imu_guard.hold),
+                    imu_lie=None if imu_lie is None else imu_lie.status(),
                     mux=None if mux is None else {"ok": mux.why is None, "why": mux.why,
                                                   "cmd_vel_pubs": mux.pubs, "topic_subs": mux.subs})
         return snap
@@ -798,10 +921,13 @@ def main(argv=None) -> int:
                 tripped = ok and core.estopped and not stopped
             if tripped:
                 r3_fire(now)            # before the ack: the stop goes out first
+            elif ok and core.cmd is not None and core.cmd.estop:
+                lie_r3(now, "link E-STOP during the lie-down")
             with lock:
                 reply = core.make_ack(seq, args.profile, state["imu"], bridge_stats(now), hold=state["hold"],
                                       imu_hold=bool(imu_guard and imu_guard.hold),
-                                      mux_ok=None if mux is None else mux.why is None) if ok else None
+                                      mux_ok=None if mux is None else mux.why is None,
+                                      imu_lie=None if imu_lie is None else imu_lie.status()) if ok else None
             if reply is not None:  # never answer unauthenticated or replayed packets
                 try:
                     sock.sendto(reply, addr)
@@ -851,6 +977,39 @@ def main(argv=None) -> int:
         if confirmed:
             print("[bridge] R3 confirmed: no leg controller active; latency " + json.dumps(r3.latency_ms()), flush=True)
             save_latch()
+
+    def on_lie_switch_done(fut):
+        res = fut.result() if fut.done() and not fut.cancelled() and fut.exception() is None else None
+        ok = bool(res is not None and res.ok)
+        print(f"[bridge] IMU lie-down switch answered ok={ok}", flush=True)
+        if ok:
+            with lock:
+                imu_lie.switch_answer(time.monotonic(), True)
+        else:
+            lie_r3(time.monotonic(), "lie-down switch refused")
+
+    def lie_start(now):
+        """ImuLie fired: latch like an e-stop, then the STRICT walker -> lie-down switch (or R3 now)."""
+        with lock:
+            core.trip(imu_lie.reason)
+        states = ctl["states"]
+        if args.liedown and (states or {}).get(args.liedown) == "inactive" and switch_cli.service_is_ready():
+            req = SwitchController.Request()
+            req.activate_controllers, req.deactivate_controllers = lie_switch_request(
+                states, legs, args.liedown, args.walker)
+            req.strictness = SwitchController.Request.STRICT
+            with lock:
+                imu_lie.begin_switch(now)
+            switch_cli.call_async(req).add_done_callback(on_lie_switch_done)
+            print(f"[bridge] IMU LIE-DOWN ({imu_lie.reason}, {state['imu'] and state['imu'].get('reasons')}): "
+                  f"STRICT switch {list(req.deactivate_controllers)} -> {args.liedown}, legs off in "
+                  f"{args.liedown_wait:g} s; latched", flush=True)
+        else:
+            why = ("no lie-down controller" if not args.liedown else
+                   f"{args.liedown} is {(states or {}).get(args.liedown, 'not loaded')}" if
+                   (states or {}).get(args.liedown) != "inactive" else "switch service not discovered")
+            print(f"[bridge] IMU LIE-DOWN ({imu_lie.reason}) unavailable ({why}): R3 action now", flush=True)
+            lie_r3(now, why)
 
     def r3_send(now):
         req = SwitchController.Request()
@@ -920,6 +1079,16 @@ def main(argv=None) -> int:
                         mux.check(now, state["since"])
                     state["hold"] = hold_reason()
                     hold = state["hold"]
+                    act = None if imu_lie is None else imu_lie.step(
+                        now, imu, walker_active(ctl["states"], legs, args.liedown or None),
+                        blocked=core.estopped or core.parked)
+                if act == "fire":
+                    lie_start(now)
+                    save_latch()
+                    latch_saved = True
+                elif act == "r3":
+                    print(f"[bridge] IMU lie-down -> R3: {imu_lie.why}", flush=True)
+                    r3_fire(now)
                 if hold != last_hold:
                     print(f"[bridge] hold {last_hold} -> {hold}", flush=True)
                     last_hold = hold

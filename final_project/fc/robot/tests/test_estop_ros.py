@@ -64,10 +64,14 @@ class FakeManager:
         return res
 
     def on_switch(self, req, res):
-        self.switches.append((time.monotonic(), list(req.deactivate_controllers), req.strictness))
+        self.switches.append((time.monotonic(), list(req.deactivate_controllers), req.strictness,
+                              list(req.activate_controllers)))
         for n in req.deactivate_controllers:
             if n in self.states:
                 self.states[n] = "inactive"
+        for n in req.activate_controllers:
+            if n in self.states:
+                self.states[n] = "active"
         res.ok = True
         return res
 
@@ -263,6 +267,84 @@ def test_park_keeps_the_link_estop_armed_during_the_lie_down(mgr, env):
         assert wait(lambda: os.path.exists(env / "estop.json"), 2.0)    # what fcctl's lowering wait polls
         assert json.load(open(env / "estop.json"))["reason"] == "link"
     finally:
+        p.terminate()
+        p.wait(timeout=10)
+        if os.path.exists(env / "estop.json"):
+            os.remove(env / "estop.json")
+
+
+def _frozen_imu(mgr, seconds, hz=250):
+    """Messages keep arriving, values bit-identical (the RCA 2026-11-24 freeze)."""
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        m = Imu()
+        m.orientation.w = 1.0
+        m.linear_acceleration.z = 9.81
+        mgr.imu.publish(m)
+        time.sleep(1.0 / hz)
+
+
+def test_imu_freeze_lies_down_then_legs_off_and_latches(mgr, env):
+    mgr.states.update({"neural_controller_default": "active", "neural_controller_liedown": "inactive"})
+    p = start_bridge(env, 19897, ("--liedown", "neural_controller_liedown", "--liedown-wait", "1.0"))
+    log = env / "bridge-19897.log"
+    pub = None
+    try:
+        snd = Sender(19897)
+        warm(snd, mgr, log)
+        n_sw = len(mgr.switches)
+        t0 = time.monotonic()
+        pub = threading.Thread(target=_frozen_imu, args=(mgr, 3.5), daemon=True)
+        pub.start()
+        assert wait(lambda: len(mgr.switches) > n_sw, 3.0), open(log).read()
+        t_sw, off, strict, on = mgr.switches[n_sw]
+        assert on == ["neural_controller_liedown"] and off == ["neural_controller_default"], mgr.switches[n_sw]
+        assert strict == cm.SwitchController.Request.STRICT
+        assert 1.1 < t_sw - t0 < 1.8, t_sw - t0                 # frozen 0.5 s -> bad, + 0.75 s sustained
+        snd.send(0.3)
+        a = snd.ack()
+        assert a["estopped"] is True and a["imu_lie"]["phase"] in ("switching", "lowering")
+        assert a["bridge"]["estop_reason"] == "imu_frozen"
+        assert json.load(open(env / "estop.json"))["reason"] == "imu_frozen"   # latched at once
+        assert not [t for t in mgr.estops if t > t0]           # no /emergency_stop during the gentle lowering
+        assert wait(lambda: len(mgr.switches) > n_sw + 1, 3.0), open(log).read()
+        t_off, off2, _, on2 = mgr.switches[n_sw + 1]           # then legs off, lie-down included
+        assert "neural_controller_liedown" in off2 and not on2 and 0.9 < t_off - t_sw < 1.6, (t_off - t_sw)
+        assert wait(lambda: mgr.states["neural_controller_liedown"] == "inactive", 1.0)
+        assert wait(lambda: (json.load(open(env / "estop.json")).get("r3") or {}).get("confirmed"), 3.0)
+        all_twists = [x for t, x in mgr.twists if t > t_sw + 0.05]
+        assert all(x == 0.0 for x in all_twists)
+        print("\nIMU LIE: switch %.0f ms after the freeze began; legs off %.0f ms later"
+              % ((t_sw - t0) * 1000, (t_off - t_sw) * 1000))
+    finally:
+        if pub is not None:
+            pub.join(timeout=5)                                 # no IMU traffic into the next test's bridge
+        p.terminate()
+        p.wait(timeout=10)
+        if os.path.exists(env / "estop.json"):
+            os.remove(env / "estop.json")
+
+
+def test_imu_freeze_without_liedown_does_r3_at_once(mgr, env):
+    mgr.states.update({"neural_controller_default": "active", "neural_controller_liedown": "inactive"})
+    p = start_bridge(env, 19898)
+    log = env / "bridge-19898.log"
+    pub = None
+    try:
+        snd = Sender(19898)
+        warm(snd, mgr, log)
+        n_sw = len(mgr.switches)
+        t0 = time.monotonic()
+        pub = threading.Thread(target=_frozen_imu, args=(mgr, 2.5), daemon=True)
+        pub.start()
+        assert wait(lambda: len(mgr.switches) > n_sw, 3.0), open(log).read()
+        _, off, strict, on = mgr.switches[n_sw]
+        assert not on and "neural_controller_default" in off and strict == cm.SwitchController.Request.BEST_EFFORT
+        assert [t for t in mgr.estops if t > t0]               # the R3 action: /emergency_stop too
+        assert json.load(open(env / "estop.json"))["reason"] == "imu_frozen"
+    finally:
+        if pub is not None:
+            pub.join(timeout=5)                                 # no IMU traffic into the next test's bridge
         p.terminate()
         p.wait(timeout=10)
         if os.path.exists(env / "estop.json"):

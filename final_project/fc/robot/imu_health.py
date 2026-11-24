@@ -16,15 +16,16 @@ and reduces them to one level:
 
   bad   tilt > bad_tilt_deg for tilt_hold_s while the command is zero
         (robot told to stand still, IMU says it is leaning: lie down), or the
-        no message arrived for stale_bad_ms, or the values stayed identical for
-        frozen_bad_ms while the robot was commanded to move.
+        no message arrived for stale_bad_ms (bad_cause "stale"), or the values
+        (quaternion, gyro and, when given, accelerometer) stayed bit-identical for
+        frozen_bad_ms while messages kept arriving (bad_cause "frozen").
   warn  pulse_density, |bias_x|, tilt, staleness or frozen values past their warn limits.
 
-Why arrival vs change (2026-11-24, run 20261124T055737Z-push_ball): standing still
-on the stock walker, messages kept arriving at ~250 Hz (summary n +63 in 250 ms)
-while the quantized values stayed identical for > 500 ms; the old "unchanged"
-test called that a stale stream and held the robot. Identical values at zero
-command are normal; while walking they are not.
+Both clocks matter (2026-11-24, fc/notes/rca-20261124-shaking.md): before the blue
+robot seized, messages kept arriving at ~250 Hz while the values froze for ~0.5 s
+three times (every earlier standing run that day stayed <= 33 ms), then a 10.5 deg
+false tilt at zero command followed. A frozen-but-arriving stream is a BNO fault
+signature, not quantization: keep it bad at 500 ms regardless of command.
   ok    otherwise.
 
 Pure stdlib (runs on the Pi's system python3). Thresholds are params; defaults
@@ -54,8 +55,8 @@ DEFAULTS = {
     "tilt_hold_s": 2.0,          # real tilts (kick, pick-up) in kickseen6 lasted <= 1.3 s
     "stale_warn_ms": 200.0,      # no message for this long (normal gap ~4 ms at 250 Hz)
     "stale_bad_ms": 500.0,
-    "frozen_warn_ms": 1000.0,    # values identical this long (any command): warn only
-    "frozen_bad_ms": 2000.0,     # values identical this long while commanded to move: bad
+    "frozen_warn_ms": 200.0,     # values bit-identical this long while arriving (normal <= 33 ms standing)
+    "frozen_bad_ms": 500.0,
     "gap_note_ms": 50.0,         # inter-arrival gaps above this are remembered for gap_max_ms
     "hold_s": 3.0,               # a level persists this long after its condition clears
 }
@@ -103,7 +104,6 @@ class ImuHealth:
         self._last_wall = None
         self._last_sample = None
         self._last_change_t = None
-        self._last_zero_t = None     # last update with a zero command
         self._gaps = deque()         # (t, gap_s) for gaps > gap_note_ms within window_s
         self._tilt = float("nan")
         self._tilt_since = None      # start of the current zero-command over-limit tilt run
@@ -114,16 +114,15 @@ class ImuHealth:
         self.n = 0
 
     # -- input -------------------------------------------------------------
-    def update(self, t: float, quat_xyzw, gyro_xyz, cmd_zero: bool) -> None:
-        """Feed one IMU sample. t in seconds, any monotonic clock (msg stamp is fine)."""
+    def update(self, t: float, quat_xyzw, gyro_xyz, cmd_zero: bool, accel_xyz=None) -> None:
+        """Feed one IMU sample. t in seconds, any monotonic clock (receipt time: staleness is
+        time since the last call). accel_xyz (optional) joins the bit-identical freeze test."""
         p = self.p
         self.n += 1
-        sample = (tuple(quat_xyzw), tuple(gyro_xyz))
+        sample = (tuple(quat_xyzw), tuple(gyro_xyz), None if accel_xyz is None else tuple(accel_xyz))
         if sample != self._last_sample or self._last_change_t is None:
             self._last_change_t = t
             self._last_sample = sample
-        if cmd_zero:
-            self._last_zero_t = t
         if self._last_t is not None and t - self._last_t > p["gap_note_ms"] / 1000.0:
             self._gaps.append((t, t - self._last_t))
         while self._gaps and self._gaps[0][0] < t - p["window_s"]:
@@ -179,9 +178,6 @@ class ImuHealth:
             now = self.now()
         stale_ms = max(0.0, (now - self._last_t) * 1000.0)
         frozen_ms = max(0.0, (now - self._last_change_t) * 1000.0)
-        moving_since = self._last_change_t if self._last_zero_t is None else max(self._last_change_t,
-                                                                                 self._last_zero_t)
-        frozen_moving_ms = max(0.0, (now - moving_since) * 1000.0)
         gap_max_ms = max((g for _, g in self._gaps), default=0.0) * 1000.0
         density = self._pulse_n / len(self._win) if self._win else 0.0
         bias = statistics.median(r[1] for r in self._win) if self._win else 0.0
@@ -190,15 +186,15 @@ class ImuHealth:
         if stale_ms > p["stale_bad_ms"]:
             level, cause = "bad", "stale"
             reasons.append("no IMU message for %.0f ms" % stale_ms)
-        elif frozen_moving_ms > p["frozen_bad_ms"]:
-            level, cause = "bad", "stale"
-            reasons.append("IMU values frozen %.0f ms while commanded" % frozen_moving_ms)
+        elif frozen_ms > p["frozen_bad_ms"]:
+            level, cause = "bad", "frozen"
+            reasons.append("IMU values frozen for %.0f ms (messages arriving)" % frozen_ms)
         elif stale_ms > p["stale_warn_ms"]:
             level = "warn"
             reasons.append("no IMU message for %.0f ms" % stale_ms)
         elif frozen_ms > p["frozen_warn_ms"]:
             level = "warn"
-            reasons.append("IMU values unchanged for %.0f ms" % frozen_ms)
+            reasons.append("IMU values frozen for %.0f ms" % frozen_ms)
         if abs(bias) > p["warn_bias"] and len(self._win) >= 50:
             self._flag("warn", now, "raw-X bias %+.3f rad/s" % bias)
         for lv in ("bad", "warn"):
@@ -216,7 +212,7 @@ class ImuHealth:
             "frozen_ms": round(frozen_ms, 1),
             "gap_max_ms": round(gap_max_ms, 1),
             "level": level,
-            "bad_cause": cause,     # "tilt" (lie down) | "stale" (stop; IMU frozen) | None
+            "bad_cause": cause,     # "tilt" | "stale" (no messages) | "frozen" (identical values) | None
             "reasons": reasons,
             "n": self.n,
         }

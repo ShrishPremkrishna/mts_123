@@ -57,9 +57,16 @@ mux processes alive. Otherwise the start fails with the problem in `starter.log`
 While held, the bridge publishes zero instead of the command (so the mux input stays alive) and acks
 carry `hold` (reason), `imu_hold`, `mux_ok`, and `bridge.mux` (`why`, publisher/subscriber counts).
 
-- **IMU** (`--imu-stop`, default on): ImuHealth `bad` with `bad_cause` `stale` or `tilt` → `hold:
-  "imu_stale"|"imu_tilt"`, `imu_hold: true`, released after 1 s of `ok`/`warn`. Zero velocity does not cure a
-  false tilt: lay the robot down with R3.
+- **IMU** (`--imu-stop`, default on): ImuHealth `bad` with `bad_cause` `stale` (no message 0.5 s), `frozen`
+  (messages arriving, quaternion+gyro+accel bit-identical 0.5 s) or `tilt` → `hold: "imu_<cause>"`,
+  `imu_hold: true`, released after 1 s of `ok`/`warn`.
+- **IMU lie-down** (`--imu-lie`, default on; [RCA](../notes/rca-20261124-shaking.md)): zero velocity does not stop
+  a walker reacting to a corrupted IMU. Bad for 0.75 s with a walker active → latch like an e-stop (reason
+  `imu_<cause>`, `run/estop.json`, re-arm only via `ready --confirm`), one STRICT switch walker → `--liedown`
+  (fcctl passes the run's lie-down controller; its blend is position control and never reads the IMU), legs
+  off after `--liedown-wait` (blend + hold). No lie-down controller, a refused switch or no answer in 1 s →
+  the R3 action at once. Link E-STOP / fallen cutoff during the lowering → R3 at once. Acks: `imu_lie`
+  `{phase, reason, why}`. ROS test: `tests/test_estop_ros.py` (switch ~1.35 s after a freeze starts).
 - **Mux** (`--mux-guard`, default on): `mux_unseen` (not yet discovered), `cmd_vel_publishers=N` (N≠1),
   `mux_not_subscribed`, `no_cmd_vel_publisher`, or `mux_stalled` (bridge publishing ≥0.5 s with no `/cmd_vel`;
   the mux republishes at 20 Hz). The last two mean the mux was lost: a dead mux leaves the walker on its

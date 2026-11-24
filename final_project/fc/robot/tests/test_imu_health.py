@@ -126,36 +126,31 @@ def test_bad_holds_then_clears():
     assert h.summary(now=t)["level"] == "ok"
 
 
-def test_identical_samples_standing_still_are_not_stale():
-    """Run 20261124T055737Z-push_ball: messages kept arriving while the quantized values
-    repeated for > 500 ms at zero command. That is not a stale stream."""
+def test_frozen_but_arriving_stream_is_bad():
+    """RCA 2026-11-24: messages kept arriving while the values froze ~0.5 s, before the robot seized."""
     h = ImuHealth()
     t = feed(h, 0, 2, LEVEL, (0, 0, 0))
-    t = feed(h, t, t + 0.6, quat_roll(1), (0.0, 0, 0), jitter=False)  # identical samples, arriving
+    t = feed(h, t, t + 0.3, quat_roll(1), (0.0, 0, 0), jitter=False)
     s = h.summary(now=t)
-    assert s["stale_ms"] < 10 and s["frozen_ms"] > 500 and s["level"] == "ok"
-    t = feed(h, t, t + 0.6, quat_roll(1), (0.0, 0, 0), jitter=False)
+    assert s["stale_ms"] < 10 and s["level"] == "warn" and "frozen" in s["reasons"][0]
+    t = feed(h, t, t + 0.3, quat_roll(1), (0.0, 0, 0), jitter=False)   # identical, at zero command
     s = h.summary(now=t)
-    assert s["frozen_ms"] > 1000 and s["level"] == "warn" and s["bad_cause"] is None
-    t = feed(h, t, t + 5.0, quat_roll(1), (0.0, 0, 0), jitter=False)   # standing for long: never bad
-    assert h.summary(now=t)["level"] == "warn"
+    assert s["frozen_ms"] > 500 and s["level"] == "bad" and s["bad_cause"] == "frozen"
 
 
-def test_frozen_values_while_commanded_go_bad():
+def test_changing_accel_means_not_frozen():
     h = ImuHealth()
-    t = feed(h, 0, 2, LEVEL, (0, 0, 0))
-    t = feed(h, t, t + 1.5, quat_roll(1), (0.001, 0, 0), cmd_zero=False, jitter=False)
-    assert h.summary(now=t)["level"] == "warn"
-    t = feed(h, t, t + 0.6, quat_roll(1), (0.001, 0, 0), cmd_zero=False, jitter=False)
-    s = h.summary(now=t)
-    assert s["level"] == "bad" and s["bad_cause"] == "stale" and "frozen" in s["reasons"][0]
-
-
-def test_frozen_clock_restarts_when_command_starts():
-    h = ImuHealth()
-    t = feed(h, 0, 3, quat_roll(1), (0.0, 0, 0), jitter=False)            # standing, frozen 3 s
-    t = feed(h, t, t + 1.0, quat_roll(1), (0.0, 0, 0), cmd_zero=False, jitter=False)
-    assert h.summary(now=t)["level"] == "warn"                            # 1 s commanded, not 4 s
+    t, k = 0.0, 0
+    while t < 1.0:                                              # quat+gyro identical, accel noise
+        h.update(t, LEVEL, (0.0, 0.0, 0.0), True, (0.0, 0.0, 9.81 + 1e-3 * (k % 2)))
+        t += 0.004
+        k += 1
+    assert h.summary(now=t)["level"] == "ok"
+    t2 = t
+    while t < t2 + 0.6:                                          # accel freezes too -> bad
+        h.update(t, LEVEL, (0.0, 0.0, 0.0), True, (0.0, 0.0, 9.81))
+        t += 0.004
+    assert h.summary(now=t)["bad_cause"] == "frozen"
 
 
 def test_staleness_is_time_since_arrival():
@@ -165,6 +160,7 @@ def test_staleness_is_time_since_arrival():
     assert h.summary(now=t + 0.3)["level"] == "warn"
     s = h.summary(now=t + 0.6)
     assert s["level"] == "bad" and s["bad_cause"] == "stale" and s["stale_ms"] > 500
+    assert "no IMU message" in s["reasons"][0]
 
 
 def test_arrival_gap_is_reported():

@@ -529,11 +529,19 @@ cmd_bridge() {
       # vx ceiling = the running stack's walker cap (stack.json speed_cap_effective: --speed-cap, else 0.49);
       # a run without stack.json (older start) keeps the historic 0.5
       local maxvx; maxvx=$(_stack_field "$(active_run)/stack.json" speed_cap_effective 2>/dev/null | grep -E '^[0-9.]+$' || echo 0.5)
+      # IMU lie-down (drive_bridge --imu-lie): the run's lie-down controller + blend/hold time, as fc_gentle_down
+      local lie=() ld ld_ctl ld_init; ld=$(_stack_field "$(active_run)/stack.json" liedown 2>/dev/null | python3 -c 'import json,sys
+try: d=json.loads(sys.stdin.read() or "null"); print("%s %s" % (d["controller"], float(d["init_s"])))
+except Exception: print("")')
+      if [ -n "$ld" ] && [ -n "${PROFILE_LIEDOWN:-}" ]; then
+        read -r ld_ctl ld_init <<< "$ld"
+        lie=(--liedown "$ld_ctl" --liedown-wait "$(awk -v a="$ld_init" -v b="${FC_LIEDOWN_HOLD_S:-1.0}" 'BEGIN { print a + b }')")
+      fi
       fc_spawn bridge "$FC_LOGS/bridge.log" python3 -u "$HERE/drive_bridge.py" --profile "$prof" \
         --topic "$PROFILE_CMD_TOPIC" --imu-topic "$PROFILE_IMU_TOPIC" --port "${FC_BRIDGE_PORT:-9870}" \
         --robot-id "$rid" --key-file "$HERE/link.key" --state-file "$FC_RUN/bridge_state.json" \
         --max-vx "$maxvx" --walker "$PROFILE_WALKER" --legs "$PROFILE_LEG_CONTROLLERS" \
-        --latch-file "$FC_RUN/estop.json" ${allow:+--allow-from "$allow"} "${extra[@]}"
+        --latch-file "$FC_RUN/estop.json" ${allow:+--allow-from "$allow"} "${lie[@]}" "${extra[@]}"
       sleep 1.5
       fc_alive bridge || die "bridge exited (missing/loose link.key? bad state file?); see $FC_LOGS/bridge.log"
       [ -f "$FC_RUN/estop.json" ] && fc_log "bridge started LATCHED (run/estop.json): it publishes only zero until 'ready --confirm'"

@@ -437,6 +437,7 @@ def test_stack_options_after_confirm_reach_overlay_status_and_bridge(fc):
     assert st["heading_hold_overlay"]["sha256"].startswith("9f5a3e98") and st["estopped"] is False
     bargv = json.loads((fc.root / "bridge_argv.json").read_text())
     assert bargv[bargv.index("--max-vx") + 1] == "0.8" and bargv[bargv.index("--legs") + 1] == "w"
+    assert "--liedown" not in bargv                                   # no lie-down controller: R3 at once
     assert bargv[bargv.index("--latch-file") + 1] == str(fc.root / "run" / "estop.json")
     # same options again: no re-home; different options: refused (changing them needs a new start)
     rc, out = fc.lines("ready", "fakeopt", "--confirm", "--heading-hold", "off", "--speed-cap", "0.8")
@@ -529,6 +530,8 @@ def test_down_lowers_with_liedown_controller_then_deactivates(fc):
     (fc.robot / "profiles" / "fakelie.sh").write_text(FAKE_LIE_PROFILE)
     assert fc.lines("ready", "fakelie", "--confirm", "--stand-now")[0] == 0
     assert fc("status")["liedown"] is True
+    bargv = json.loads((fc.root / "bridge_argv.json").read_text())     # the bridge's IMU lie-down target
+    assert bargv[bargv.index("--liedown") + 1] == "ld" and float(bargv[bargv.index("--liedown-wait") + 1]) == 1.2
     (fc.root / "fake_rosq.log").write_text("")
     rc, out = fc.lines("down", "--keep-stack", extra_env={"FC_LIEDOWN_HOLD_S": "0"})
     assert rc == 0 and phases(out) == ["begin", "bridge_parked", "lowering", "bridge_stopped", "lying_down", "down"], out
