@@ -1,0 +1,27 @@
+{
+  "_stack": {
+    "speed_cap": 0.8
+  },
+  "_note": "fast-play for the robot: same knobs as fast-play, plus the walker speed cap raised to 0.8 by Ready (--speed-cap 0.80). Cruise 0.75 cmd, ramp to contact_vx 0.4 near the ball, skip the 0.45-0.6 gait-switch band.",
+  "max_vx": 0.75,
+  "max_vy": 0.15,
+  "max_wz": 2.0,
+  "accel_vx": 1.2,
+  "decel_vx": 2.0,
+  "accel_wz": 4.0,
+  "decel_wz": 2.0,
+  "k_turn": 1.0,
+  "push_vx": 0.75,
+  "contact_vx": 0.3,
+  "contact_slow_m": 0.5,
+  "gait_band": 1,
+  "goalie_vmax": 0.45,
+  "k_goalie": 4.0,
+  "return_vx": 0.45,
+  "yaw_learn": 0,
+  "contact_mode": "push",
+  "push_lat_tol": 0.12,
+  "push_turn_scale": 0.5,
+  "push_max_heading_deg": 40,
+  "clear_margin": 0.12
+}
