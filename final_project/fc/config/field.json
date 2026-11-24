@@ -1,8 +1,8 @@
 {
   "length": 2.63,
   "width": 1.93,
-  "goal_width": 0.61,
-  "goal_depth": 0.30,
+  "goal_width": 1.0,
+  "goal_depth": 0.3,
   "ball_radius": 0.09,
   "robot_radius": 0.18
 }
