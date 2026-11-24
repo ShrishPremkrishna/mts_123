@@ -1,0 +1,99 @@
+diff -ruN a/control_board_hardware_interface/include/rt/rt_bno055.h b/control_board_hardware_interface/include/rt/rt_bno055.h
+--- a/control_board_hardware_interface/include/rt/rt_bno055.h	2026-11-23 22:50:02
++++ b/control_board_hardware_interface/include/rt/rt_bno055.h	2026-11-23 22:50:35
+@@ -120,6 +120,11 @@
+   }
+ 
+   void softReset(void);
++  // FC v1: SH-2 ME calibration (command 0x07). RAM only; a reset restores the
++  // chip's boot default. Never touches DCD/flash.
++  void sendCommand(uint8_t command, const uint8_t (&params)[9]);
++  bool queryMeCalibration(uint8_t out[3], int timeout_ms = 300);
++  void applyDynamicCalibrationFromEnv(void);
+   bool receivePacket(void);
+   bool getData(uint16_t bytesRemaining);
+   bool waitForI2C(void);
+diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_board_hardware_interface/src/rt/rt_bno055.cpp
+--- a/control_board_hardware_interface/src/rt/rt_bno055.cpp	2026-11-23 22:50:02
++++ b/control_board_hardware_interface/src/rt/rt_bno055.cpp	2026-11-23 22:50:35
+@@ -1,6 +1,8 @@
+ 
+ #include "rt/rt_bno055.h"
+ 
++#include <cstdio>
++#include <cstdlib>
+ #include <string>
+ // #include <i2c/smbus.h>
+ 
+@@ -45,6 +47,8 @@
+     }
+   }
+ 
++  applyDynamicCalibrationFromEnv();
++
+   std::cout << "Enabling rot vec + gyro. Micros between reports: " << micros_between_reports
+             << std::endl;
+   std::this_thread::sleep_for(std::chrono::milliseconds(2));
+@@ -52,6 +56,62 @@
+   // IMPORTANT: NOT ENABLING ACCELEROMETER
+   enableGyro(micros_between_reports);
+   std::this_thread::sleep_for(std::chrono::milliseconds(2));
++}
++
++void BNO055::sendCommand(uint8_t command, const uint8_t (&params)[9]) {
++  // SH-2 command request: 0xF2, command sequence, command, P0..P8 (12 bytes, channel 2).
++  shtpData[0] = SHTP_REPORT_COMMAND_REQUEST;
++  shtpData[1] = commandSequenceNumber++;
++  shtpData[2] = command;
++  for (int i = 0; i < 9; i++) shtpData[3 + i] = params[i];
++  sendPacket<12>(CHANNEL_CONTROL);
++}
++
++bool BNO055::queryMeCalibration(uint8_t out[3], int timeout_ms) {
++  const uint8_t get[9] = {0, 0, 0, 0x01 /* P3: get ME calibration */, 0, 0, 0, 0, 0};
++  sendCommand(COMMAND_ME_CALIBRATE, get);
++  const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
++  while (std::chrono::steady_clock::now() < deadline) {
++    if (receivePacket() && shtpHeader[2] == CHANNEL_CONTROL &&
++        shtpData[0] == SHTP_REPORT_COMMAND_RESPONSE && shtpData[2] == COMMAND_ME_CALIBRATE) {
++      // Response: 0xF1, seq, command, command seq, response seq, R0 status, R1..R3 accel/gyro/mag.
++      if (shtpData[5] != 0) return false;
++      out[0] = shtpData[6]; out[1] = shtpData[7]; out[2] = shtpData[8];
++      return true;
++    }
++    std::this_thread::sleep_for(std::chrono::milliseconds(2));
++  }
++  return false;
++}
++
++// FC_BNO_DYNCAL="A,G,M" (each 0/1) sets accel/gyro/mag dynamic calibration for
++// this driver session before reports are enabled. Unset: stock behaviour (the
++// chip's boot default), only the current state is read and logged.
++void BNO055::applyDynamicCalibrationFromEnv(void) {
++  uint8_t cal[3] = {0, 0, 0};
++  const bool have = queryMeCalibration(cal);
++  if (have) {
++    printf("FC_BNO_CAL boot accel=%d gyro=%d mag=%d\n", cal[0], cal[1], cal[2]);
++  } else {
++    printf("FC_BNO_CAL boot state unavailable\n");
++  }
++  const char *env = std::getenv("FC_BNO_DYNCAL");
++  if (env == nullptr || *env == '\0') return;
++  int a = -1, g = -1, m = -1;
++  if (std::sscanf(env, "%d,%d,%d", &a, &g, &m) != 3 || a < 0 || a > 1 || g < 0 || g > 1 || m < 0 ||
++      m > 1) {
++    printf("FC_BNO_CAL ignoring malformed FC_BNO_DYNCAL='%s' (want e.g. 1,0,1)\n", env);
++    return;
++  }
++  const uint8_t cfg[9] = {uint8_t(a), uint8_t(g), uint8_t(m), 0x00 /* P3: configure */, 0, 0, 0, 0, 0};
++  sendCommand(COMMAND_ME_CALIBRATE, cfg);
++  std::this_thread::sleep_for(std::chrono::milliseconds(20));
++  uint8_t now[3] = {0, 0, 0};
++  if (queryMeCalibration(now) && now[0] == a && now[1] == g && now[2] == m) {
++    printf("FC_BNO_CAL set accel=%d gyro=%d mag=%d (RAM, confirmed)\n", now[0], now[1], now[2]);
++  } else {
++    printf("FC_BNO_CAL WARNING requested %d,%d,%d not confirmed by the chip\n", a, g, m);
++  }
+ }
+ 
+ BNO055::~BNO055() {

@@ -6,7 +6,8 @@ Prints exactly one JSON summary line on stdout (fcctl `imu-test <s>` relies on
 that); progress goes to stderr; the raw log and summary.json go to --out.
 
 Modes (--mode, default auto):
-  bno    Standalone, read-only BNO085 reader on /dev/i2c-1 (imu/bno_reader.py).
+  bno    Standalone BNO085 reader on /dev/i2c-1 (imu/bno_reader.py), read-only
+         unless --gyro-dyncal (RAM) or --clear-dcd (flash) is given.
          Needs: NO robot stack running (it refuses if ros2_control_node runs,
          if anything holds /dev/i2c-1, or if the driver lock is taken; it holds
          the driver lock while running so no stack can start). Motors are never
@@ -27,6 +28,11 @@ Tomorrow's sequence (see fc/notes/lane-D-gyro.md):
   python3 imu_test.py --mode bno --seconds 600 --condition battery_on_motors_off
   (start the stack, legs homed, standing on the stand)
   python3 imu_test.py --mode ros --seconds 600 --condition holding
+
+Calibration (bno mode; summary.calibration + summary.sent record every byte sent):
+  --report-calib           read the ME calibration enables at start and end (read-only)
+  --gyro-dyncal off|on     RAM-only for this run, then soft reset + re-read to prove it reverted
+  --clear-dcd              FLASH: erase the saved dynamic calibration (explicit only)
 """
 from __future__ import annotations
 
@@ -130,13 +136,57 @@ def quat_drift(ts, qs, head_s=5.0):
     return {"max_deg": round(max(drifts), 2), "end_deg": round(drifts[-1], 2)}
 
 
+GYRO_LSB = 2.0 ** -9  # rad/s per count of the 0x07 report (Q9)
+
+
+def segment_medians(ts, xs, n=6):
+    """Medians of n equal time segments (robust to a few-LSB dither, sees a slow walk)."""
+    if not ts:
+        return [0.0]
+    span = max(ts[-1] - ts[0], 1e-9)
+    buckets = {}
+    for t, x in zip(ts, xs):
+        buckets.setdefault(min(int((t - ts[0]) / span * n), n - 1), []).append(x)
+    return [statistics.median(buckets[k]) for k in sorted(buckets)]
+
+
+def identical_runs(ts, vs):
+    """Longest run of bit-identical consecutive samples (a frozen sensor repeats values)."""
+    best, start = (1, 0.0), 0
+    for i in range(1, len(vs) + 1):
+        if i == len(vs) or vs[i] != vs[start]:
+            n = i - start
+            if n > best[0]:
+                best = (n, ts[i - 1] - ts[start])
+            start = i
+    return {"max_samples": best[0], "max_ms": round(best[1] * 1000, 1)}
+
+
+def rv_vs_accel(acc, rv, window_s=10.0):
+    """Angle between the fused rotation-vector gravity and the measured accelerometer
+    direction (robot still: they agree within ~1 deg; a false fused tilt shows here)."""
+    def mean_dir(ts, vs, f, lo, hi):
+        sel = [f(v) for t, v in zip(ts, vs) if lo <= t < hi]
+        return tuple(statistics.mean(c) for c in zip(*sel)) if sel else None
+    out = {}
+    end = min(acc[0][-1], rv[0][-1])
+    for name, lo, hi in (("first", 0.0, window_s), ("last", end - window_s, end + 1), ("all", 0.0, end + 1)):
+        a = mean_dir(acc[0], acc[1], lambda v: v, lo, hi)
+        g = mean_dir(rv[0], rv[1], gravity_from_quat, lo, hi)
+        out[name] = round(angle_deg(a, g), 2) if a and g else None
+    return out
+
+
 def verdict(ux, others_pulsing, cal_x, bias_x, still):
     """Decide from the uncalibrated (ux) and calibrated (cal_x) raw-X stats."""
     if still is False:
         return "inconclusive_moved", "accelerometer shows the robot moved; repeat on the stand"
     u_puls = ux is not None and ux["neg_per_min"] >= PULSING_EVENTS_PER_MIN
     c_puls = cal_x is not None and cal_x["neg_per_min"] >= PULSING_EVENTS_PER_MIN
-    bias_moving = bias_x is not None and (bias_x["span"] > 0.01 or abs(bias_x["last"]) > 0.02)
+    # The bias estimate dithers by a few LSB (2 mrad/s each) sample to sample even
+    # when healthy, so judge the per-minute median, not the raw min/max span.
+    bias_moving = bias_x is not None and (bias_x.get("drift", bias_x["span"]) > 0.005
+                                          or abs(bias_x.get("median", bias_x["last"])) > 0.02)
     note = " Other axes pulse too: suspect board-level noise or mounting." if others_pulsing else ""
     if u_puls:
         return ("hardware_or_electrical",
@@ -226,11 +276,10 @@ def run_bno(a, out_dir):
         rd.request_product_id()
         time.sleep(0.01)
         rd.drain(0.05)
+        calib = prepare_calibration(a, rd)
         for rid, hz in wanted:
             rd.set_feature(rid, int(1e6 / hz))
             time.sleep(0.005)
-        if a.query_calib:
-            rd.query_me_calibration()
         t_start = time.monotonic()
         rd.t0 = t_start
         t_end = t_start + a.seconds
@@ -255,6 +304,7 @@ def run_bno(a, out_dir):
                 if csv:
                     csv.write("%.4f,%d,%d,%d,%s\n" % (t - t_start, rid, seq, status,
                                                       ",".join("%.6g" % v for v in vals)))
+        finish_calibration(a, rd, calib)
     finally:
         rd.close()
         if csv:
@@ -264,17 +314,76 @@ def run_bno(a, out_dir):
             os.close(lock)
     temps.append((round(a.seconds, 1), pi_temp_c()))
     s = summarize_bno(data, a.seconds)
+    t0 = getattr(rd, "t0", 0.0)
     s.update({"mode": "bno", "condition": a.condition, "pi_temp_c": temps,
               "unknown_reports": unknown, "invalid_reads": rd.invalid_reads,
-              "chip_events": [{"t": round(t - getattr(rd, "t0", 0.0), 2), "kind": k, **d}
-                              for t, k, d in rd.events[:20]]})
+              "gyro_dyncal_requested": a.gyro_dyncal, "clear_dcd": a.clear_dcd,
+              "calibration": calib,
+              "sent": [{"t": round(t - t0, 3), "ch": ch, "hex": h} for t, ch, h in rd.sent],
+              "chip_events": [{"t": round(t - t0, 2), "kind": k, **d}
+                              for t, k, d in rd.events[:40]]})
+    if calib.get("error"):
+        s["ok"] = False
+        s["error"] = calib["error"]
     return s
+
+
+def _query_cal(rd, timeout_s=0.5):
+    t = time.monotonic()
+    rd.query_me_calibration()
+    d = rd.wait_event("me_calibration", timeout_s, after=t)
+    return dict(d) if d else None
+
+
+def prepare_calibration(a, rd):
+    """Optional calibration commands before the reports are enabled. Each step is
+    recorded; rd.sent holds the exact bytes."""
+    calib = {}
+    if a.clear_dcd:
+        log("FLASH: sending SH-2 Clear DCD and Reset (0x0B); the saved dynamic calibration is erased")
+        calib["clear_dcd_sent"] = True
+        rd.clear_dcd_and_reset()
+        rd.request_product_id()
+        time.sleep(0.01)
+        rd.drain(0.05)
+    if a.report_calib or a.gyro_dyncal:
+        calib["at_start"] = _query_cal(rd)
+        log("ME calibration at start: %s" % calib["at_start"])
+    if a.gyro_dyncal:
+        base = calib["at_start"]
+        if not base or base.get("status") != 0:
+            calib["error"] = "no valid ME calibration response; not configuring"
+            return calib
+        want = a.gyro_dyncal == "on"
+        t = time.monotonic()
+        rd.configure_me_calibration(accel=base["accel_dcal"], gyro=want, mag=base["mag_dcal"])
+        calib["configure_response"] = rd.wait_event("me_calibration", 0.5, after=t)
+        calib["after_configure"] = _query_cal(rd)
+        log("RAM: gyro dynamic calibration -> %s; chip now reports %s" % (a.gyro_dyncal, calib["after_configure"]))
+        got = calib["after_configure"]
+        if not got or bool(got.get("gyro_dcal")) != want:
+            calib["error"] = "chip did not confirm gyro dynamic calibration %s" % a.gyro_dyncal
+    return calib
+
+
+def finish_calibration(a, rd, calib):
+    """End-of-run state; after a RAM change, soft reset and re-read to prove the
+    change did not persist (and leave the chip at its boot default)."""
+    if a.report_calib or a.gyro_dyncal:
+        calib["at_end"] = _query_cal(rd)
+    if a.gyro_dyncal:
+        rd.soft_reset()
+        rd.drain(0.05)
+        calib["after_soft_reset"] = _query_cal(rd)
+        log("after soft reset: %s" % calib["after_soft_reset"])
 
 
 def summarize_bno(data, seconds):
     s = {"ok": True, "seconds": seconds, "streams": {}}
-    for rid, (ts, _) in data.items():
+    for rid, (ts, vs) in data.items():
         s["streams"]["0x%02X" % rid] = stream_stats(ts)
+        if vs:
+            s["streams"]["0x%02X" % rid]["identical"] = identical_runs(ts, vs)
     ux = cal_x = bias_x = None
     others = False
     if data.get(0x07) and data[0x07][0]:
@@ -288,6 +397,11 @@ def summarize_bno(data, seconds):
                         "max": round(max(b), 4), "span": round(max(b) - min(b), 4),
                         "changes": sum(1 for p, q in zip(b, b[1:]) if p != q),
                         "per_min": per_minute_median(ts, b)}
+            pm = bias[ax]["per_min"]
+            bias[ax]["median"] = round(statistics.median(b), 4)
+            sm = segment_medians(ts, b)
+            bias[ax]["drift"] = round(max(sm) - min(sm), 4)  # change of the segment medians
+            bias[ax]["span_lsb"] = round(bias[ax]["span"] / GYRO_LSB, 1)
         ux, cal_x, bias_x = raw["x"], cal["x"], bias["x"]
         others = any(raw[ax]["neg_per_min"] + raw[ax]["pos_per_min"] >= PULSING_EVENTS_PER_MIN for ax in "yz")
         s["gyro_uncal_raw"] = raw
@@ -304,6 +418,8 @@ def summarize_bno(data, seconds):
     if data.get(0x05) and data[0x05][0]:
         ts, vs = data[0x05]
         s["rv_gravity_drift"] = quat_drift(ts, vs)
+        if data.get(0x01) and data[0x01][0]:
+            s["rv_vs_accel_deg"] = rv_vs_accel(data[0x01], data[0x05])
     if data.get(0x15) and data[0x15][0]:
         ts, vs = data[0x15]
         temp = [v[3] for v in vs]
@@ -425,8 +541,14 @@ def main(argv=None):
     ap.add_argument("--bus", type=int, default=1)
     ap.add_argument("--reports", default=DEFAULT_REPORTS, help="hexid:Hz list for bno mode")
     ap.add_argument("--no-reset", action="store_true", help="bno: skip the soft reset (keep current chip state)")
-    ap.add_argument("--query-calib", action="store_true",
-                    help="bno: also ask the chip which dynamic calibrations are enabled (SH-2 get ME cal)")
+    ap.add_argument("--report-calib", "--query-calib", dest="report_calib", action="store_true",
+                    help="bno: read which dynamic calibrations are enabled (SH-2 get ME cal; read-only), start and end")
+    ap.add_argument("--gyro-dyncal", choices=("on", "off"),
+                    help="bno: set gyro dynamic calibration for this session (SH-2 configure ME cal, RAM only; "
+                         "accel/mag keep the chip's current setting). The run ends with a soft reset + re-read")
+    ap.add_argument("--clear-dcd", action="store_true",
+                    help="bno: FLASH-AFFECTING. Send SH-2 Clear DCD and Reset (erases the saved dynamic "
+                         "calibration; the chip relearns from defaults). Explicit only; logged in summary.sent")
     ap.add_argument("--topic", default="/imu_sensor_broadcaster/imu")
     ap.add_argument("--npz", help="replay: recording .npz")
     ap.add_argument("--start", type=float, default=0.0, help="replay: start offset, s")

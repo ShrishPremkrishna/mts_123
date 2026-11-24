@@ -68,6 +68,14 @@ This combines hypotheses (b) and (c).
   - A steady −0.03 rad/s median could also be a slow real lean. The camera cannot measure tilt.
   - No IMU values were recorded on the Pi.
 
+- **BNO calibration follow-up (2026-11-24 06:45–06:53 UTC, motors off, no stack, `imu_test.py --mode bno`):**
+  - **Gyro dynamic calibration is OFF at boot** (`--report-calib`: accel 1, gyro 0, mag 1). The stock driver only soft-resets and enables 0x05 + 0x02, so every driver session also runs with gyro dyncal off. The chip therefore cannot learn a wrong gyro bias while walking. **The "wrong learned gyro bias saved to DCD" hypothesis is refuted.** With a constant chip bias, the driver's calibrated gyro is the raw MEMS rate minus about 0.002 rad/s, so the raw-X pulses and the −0.03 rad/s offsets seen through ROS are in the sensor signal itself (electrical, vibration or a real lean), not in calibration.
+  - **Gyro dyncal ON and OFF look the same at standstill** (3 min each). The bias median stays 0.002 rad/s (1 LSB) with no segment drift. In both, the sample-level bias field dithers by ±3 LSB (about 2000 changes in 3 min), so the dither is not caused by dynamic calibration. Setting the gyro to ON was RAM-only: the chip reported gyro 0 again after a soft reset.
+  - **The 06:35 "calibration" verdict was a false positive.** The old rule flagged a raw min/max span above 0.01 rad/s, which a 6-LSB dither trips. Re-analysed with segment medians, that run is clean.
+  - **Rotation vector repeats are normal at rest.** The fused 0x05 quaternion repeated bit-identically for 1.3–2.9 s, motors off. The 0x07 gyro repeated for at most 130 ms. A freeze test on the quaternion alone would fire on a healthy chip. 0.5 s with the gyro also identical is still abnormal.
+  - **Remaining calibration path:** accel and mag dynamic calibration are ON and saved to DCD. Mag affects only heading. Accel could shift the gravity reference, but now the RV agrees with the calibrated accel within 0.02°, and gravity matches the 45° mount. So there is no current evidence of a bad saved calibration. The DCD has not been cleared.
+  - Driver option (not deployed): `fc/robot/imu/stock-bno-dyncal.patch`, see lane-D-gyro.md.
+
 ### 2. Battery sag or brownout. Confidence: low (Pi update)
 **Pi update:**
 - No kernel under-voltage and no battery_monitor warning or shutdown through 05:58:47.

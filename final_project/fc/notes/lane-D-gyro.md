@@ -27,6 +27,30 @@ Run `python3 imu_test.py --mode M --seconds N --condition LABEL`. It prints one 
 
 That run wrote only to the BNO: a soft reset, a product-ID request and set-feature commands. All of that is RAM state, cleared by the driver's own reset at its next start. No tare, calibration, DCD-save or FRS command was sent. Its leftover empty `/tmp/control_board_hardware.lock` is harmless; the reader now removes it.
 
+## BNO calibration state (2026-11-24)
+New `imu_test.py` bno-mode options. `summary.calibration` holds each chip response, and `summary.sent` holds every packet written, in hex.
+- `--report-calib`: read the ME calibration enables at start and end. Read-only.
+- `--gyro-dyncal off|on`: RAM-only for the run. The run ends with a soft reset and a re-read, proving the change reverted.
+- `--clear-dcd`: **flash**. Sends SH-2 Clear DCD and Reset. Explicit only; not run yet.
+
+The reader sends only documented SH-2 commands. Tare, save DCD, DCD auto-save and FRS writes are refused in code (`tests/test_imu_calib.py`).
+
+Runs on mts (`~/fc-v1/imu/runs/20261124T0645*` to `T0649*`, tool copy in `~/fc-v1/imu/tool-calib-20261124/`):
+- **Boot default:** accel 1, gyro 0, mag 1.
+- **Gyro dyncal OFF vs ON, 3 min each at standstill:** identical. Bias median 0.002 rad/s, drift 0, a ±3 LSB dither in both, raw X clean (std 0.0014).
+- **What it means:** see the RCA note. In short, gyro calibration cannot explain the ROS gyro faults.
+- **Verdict rule changed:** "bias moving" now compares the medians of 6 time segments (> 0.005 rad/s) instead of the raw span. The span is still reported. Summaries also add `rv_vs_accel_deg` (fused gravity against measured accel) and `streams.*.identical` (the longest bit-identical run).
+
+**Stock driver** (Pi `~/pupperv3-monorepo` `0e50afb`, installed .so sha `01813d58…`): at start it soft-resets (SH-2 channel 1), requests the product ID, then enables only 0x05 and 0x02 at 10 ms. It sends no calibration, DCD, tare or FRS commands. The chip runs its boot default and reloads its saved DCD on every reset.
+
+**`imu/stock-bno-dyncal.patch`** (built in isolation, not deployed):
+- At start the driver reads and logs `FC_BNO_CAL boot accel= gyro= mag=`.
+- If `FC_BNO_DYNCAL=A,G,M` is set, it configures those enables in RAM before enabling reports. It re-reads them and logs `set … (RAM, confirmed)` or a WARNING.
+- Unset, the behaviour is stock apart from that one query, which adds up to about 0.3 s at start.
+- Build: `~/fc-v1/build/stock-bno-dyncal/`, .so sha `dafee3d7…`. The only warning is a pre-existing one.
+- Bench check: a standalone harness (`harness/`, no ROS, no SPI, holding the driver lock) confirmed boot 1,0,1, set 0,0,1 confirmed, the next start back at 1,0,1, a malformed value ignored, and quaternions flowing in every case.
+- Proposed use: `FC_BNO_DYNCAL=0,0,1` freezes accel calibration so walking cannot teach and save a new one. This is a hedge, not a demonstrated fix.
+
 ## Heading hold off (no rebuild)
 `heading_hold.kp = 0` in the policy JSON disables the hold (`neural_controller.cpp:291-319`, verified); the kp=0 policy has sha `9f5a3e98…`.
 Profiles `stock_hh0` / `tej_u6_hh0` (fc/robot/README.md) build and verify a fresh overlay in `<run>/hh0/` at every start and refuse to start if that fails. `status` reports `heading_hold`.

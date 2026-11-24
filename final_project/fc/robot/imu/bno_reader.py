@@ -5,12 +5,21 @@ control_board_hardware_interface driver uses (imu_manager.hpp
 IMU_I2C_DEVICE_NUMBER=1, rt_bno055.h I2C_ADDR=0x4B). It never opens SPI, so the
 motor board is never addressed: motors stay unpowered/unhomed.
 
-Writes go only to the BNO and only these SH-2 messages:
+Writes go only to the BNO and only these documented SH-2 messages (CEVA SH-2
+reference manual 1000-3625; command ids match ceva-dsp/sh2 sh2.c). Every write
+is appended to BNOReader.sent as (t, channel, hex bytes) so a run logs exactly
+what reached the chip:
   - soft reset (channel 1, value 1)            the driver does this on every start
   - product ID request (0xF9)                  identity, read-only
   - set feature (0xFD) for sensor reports      what the driver does for 0x05/0x02
-  - optional "get ME calibration" (0xF2/0x07)  only with query_calibration=True
-It never sends tare, DCD save/clear, calibration configure, initialize or FRS writes.
+  - get ME calibration (0xF2 cmd 0x07, P3=1)   read-only query
+  - configure ME calibration (0xF2 cmd 0x07, P3=0, P0/P1/P2 = accel/gyro/mag
+    dynamic calibration enable)                RAM state; a reset restores the
+                                               chip's boot default (imu_test checks)
+  - clear DCD and reset (0xF2 cmd 0x0B)        FLASH: erases the saved dynamic
+                                               calibration; only via clear_dcd_and_reset()
+It never sends tare, save DCD (0x06), DCD auto-save config (0x09), initialize,
+FRS writes or anything on SPI.
 
 Packet reads mirror pupper_bno::read_packet in bno_protocol.hpp: a 4-byte
 header read (does not consume the packet) followed by continuation reads of at
@@ -45,6 +54,10 @@ REPORTS = {
 }
 NAME_TO_ID = {v[3]: k for k, v in REPORTS.items()}
 TIMEBASE = {0xFB: 5, 0xFA: 5}
+
+# SH-2 command ids (0xF2 request / 0xF1 response, channel 2)
+CMD_ME_CAL, CMD_CLEAR_DCD_AND_RESET = 0x07, 0x0B
+ME_CAL_CONFIGURE, ME_CAL_GET = 0x00, 0x01
 
 
 def parse_input_batch(payload: bytes):
@@ -85,6 +98,8 @@ class BNOReader:
         self.fd = None
         self.seq = [0] * 6
         self.events = []          # (t, kind, detail) for control-channel responses
+        self.sent = []            # (t, channel, hex) for every packet written to the chip
+        self.cmd_seq = 0
         self.invalid_reads = 0
 
     # -- low level ---------------------------------------------------------
@@ -110,6 +125,7 @@ class BNOReader:
         n = len(data) + 4
         pkt = bytes([n & 0xFF, n >> 8, channel, self.seq[channel] & 0xFF]) + data
         self.seq[channel] = (self.seq[channel] + 1) & 0xFF
+        self.sent.append((time.monotonic(), channel, pkt.hex()))
         os.write(self.fd, pkt)
 
     def read_packet(self, budget_s: float = 0.025):
@@ -180,13 +196,47 @@ class BNOReader:
         struct.pack_into("<I", d, 5, interval_us)
         self._write_packet(CH_CONTROL, bytes(d))
 
+    def send_command(self, command: int, params=()) -> None:
+        """SH-2 command request: 0xF2, command seq, command, P0..P8 (12 bytes)."""
+        if command not in (CMD_ME_CAL, CMD_CLEAR_DCD_AND_RESET):
+            raise ValueError("refusing undocumented/unsupported command 0x%02X" % command)
+        p = list(params) + [0] * (9 - len(params))
+        d = bytes([0xF2, self.cmd_seq & 0xFF, command] + p[:9])
+        self.cmd_seq = (self.cmd_seq + 1) & 0xFF
+        self._write_packet(CH_CONTROL, d)
+
     def query_me_calibration(self) -> None:
-        """SH-2 command 0x07, subcommand 0x01 = get ME calibration config (R1..R3 =
-        accel/gyro/mag dynamic calibration enabled). Opt-in: see module doc."""
-        d = bytearray(12)
-        d[0], d[1], d[2] = 0xF2, 0, 0x07
-        d[3 + 3] = 0x01  # P3 subcommand: get
-        self._write_packet(CH_CONTROL, bytes(d))
+        """Get ME calibration config: response R1..R4 = accel/gyro/mag/planar enabled."""
+        self.send_command(CMD_ME_CAL, [0, 0, 0, ME_CAL_GET])
+
+    def configure_me_calibration(self, accel: bool, gyro: bool, mag: bool) -> None:
+        """Enable/disable the chip's dynamic calibrations (RAM). Planar/on-table stay 0
+        (their default; sh2_setCalConfig leaves them 0 unless asked)."""
+        self.send_command(CMD_ME_CAL, [int(bool(accel)), int(bool(gyro)), int(bool(mag)), ME_CAL_CONFIGURE])
+
+    def clear_dcd_and_reset(self) -> None:
+        """FLASH-AFFECTING: erase the saved dynamic calibration data and reset the
+        chip. There is no command response; the chip reboots (re-enable reports after)."""
+        self.send_command(CMD_CLEAR_DCD_AND_RESET)
+        time.sleep(0.5)
+        self.drain(0.3)
+        time.sleep(0.3)
+        self.drain(0.3)
+
+    def wait_event(self, kind: str, timeout_s: float = 0.5, after: float = 0.0):
+        """Drain until an event of `kind` newer than `after` arrives; return its detail or None."""
+        end = time.monotonic() + timeout_s
+        while True:
+            for t, k, d in reversed(self.events):
+                if k == kind and t > after:
+                    return d
+            if time.monotonic() >= end:
+                return None
+            got = self.read_packet()
+            if got is None:
+                time.sleep(0.002)
+            elif got[0] == CH_CONTROL:
+                self.handle_control(time.monotonic(), got[1])
 
     def handle_control(self, t: float, payload: bytes) -> None:
         if not payload:
@@ -199,10 +249,16 @@ class BNOReader:
                 self.events.append((t, "product_id", {
                     "reset_cause": r[1], "sw": "%d.%d.%d" % (r[2], r[3], struct.unpack_from("<H", r, 12)[0]),
                     "part": part, "build": build}))
-        elif rid == 0xF1 and len(payload) >= 16 and payload[2] == 0x07:
-            r = payload[5:]
-            self.events.append((t, "me_calibration", {
-                "status": r[0], "accel_dcal": r[1], "gyro_dcal": r[2], "mag_dcal": r[3]}))
+        elif rid == 0xF1 and len(payload) >= 16:
+            # Response: 0xF1, seq, command, command seq, response seq, R0..R10.
+            r = payload[5:16]
+            if payload[2] == CMD_ME_CAL:
+                self.events.append((t, "me_calibration", {
+                    "status": r[0], "accel_dcal": r[1], "gyro_dcal": r[2], "mag_dcal": r[3],
+                    "planar_dcal": r[4], "raw": payload[:16].hex()}))
+            else:
+                self.events.append((t, "command_response", {
+                    "command": "0x%02X" % payload[2], "raw": payload[:16].hex()}))
         elif rid == 0xFC and len(payload) >= 17:
             interval = struct.unpack_from("<I", payload, 5)[0]
             self.events.append((t, "feature", {"report": "0x%02X" % payload[1], "interval_us": interval}))
