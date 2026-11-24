@@ -16,6 +16,7 @@ motion; **sim** = our kinematic sim (`fc.sim_eval`) or MuJoCo. Nothing below is 
 | IMU clean for 10 min standing, and for 10 min with motors off | **robot**, same run (`imu-test`) |
 | ROS status probe (`fcctl status` / `ready` verify): the fixed 1.5 s spin missed the mux; now a settling graph probe (`robot/rosq.py`) | **robot** bug, fix **device-free** (12/12 in a loaded repro on mts) |
 | Gentle lie-down on `down`/`stop` (stock): legs lowered to the belly before motors go off. Replaces the drop seen on the robot | **sim** only (MuJoCo, 14/14 cases, 0.0 cm drop after motors off) |
+| Lie-down abortable: the bridge stays up parked during the lowering (link E-STOP / fallen cutoff deactivate the lie-down controller), R3's list includes it via the overlay (Nov 23 pre-flight fix) | **device-free** (fcctl in Docker, bridge park + e-stop with real rclpy in Docker, overlay on the mts config copy) |
 | E-STOP over the link (Esc), latched until Ready; fallen-robot cutoff at 45° | **device-free** (bridge tests; ROS in Docker: e-stop 1.2 ms, controller switch 7.3 ms) |
 | Signed UDP link, bridge 50 Hz, 0.25 s dead-man, mux priority for the gamepad | **device-free** (tests; loopback on mts, LAN RTT 9.7 ms, no motion) |
 | Laptop app: Play screen, `/ops` tests, match flow, run logs, presets with walker options (`_stack`) | **device-free** + **sim** (`pytest fc/tests fc/robot/tests`: 314 pass, 33 skipped on the Mac, Nov 23) |
@@ -44,7 +45,13 @@ Preset **slow**, block A ≤ 10 min powered, then cool down, then block B. Recor
 5. Block B, `fast-play-robot`: RUNBOOK 6 (step 0.4 and 0.75 ×3; add turn ±1.5 and stop distance), RUNBOOK 7 fast
    half, then a contact ladder `contact_vx` 0.4 then 0.6, ×3 each.
 6. Not yet in RUNBOOK: **goalie ×5**, slow hand-rolled shots; read reaction time from the log.
-7. RUNBOOK 8: `down`. First real check of the gentle lie-down; keep a hand near the robot.
+7. RUNBOOK 8: `down`. First real check of the gentle lie-down; hands at its sides; Esc or R3 aborts.
+
+The batch [sessions/S1.batch](sessions/S1.batch) follows the Nov 23 pre-flight review: link E-STOP first tested on
+the stand, `sleep 10` before `check`, gotos at 0.3 / 1.0 in block B, a 0.8 s open-loop 0.75 step before closed-loop
+fast motion, slow push ×2 (25 s timeout), fast push only with the light ball, `k_goalie` set by hand from the
+measured latency, a goalie start pose, and `pi blue` (Pi temperature) before each pause. Not restaged yet: mts was
+offline (run `stage.sh mts` and the SHA check first).
 
 After: copy measured lag, gains and bias into the `sim_*` params and rerun `sim_eval`. Pass/fail per gate: [DEMO.md](DEMO.md#stages-and-gates).
 

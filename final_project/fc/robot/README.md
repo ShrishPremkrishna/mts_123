@@ -124,8 +124,10 @@ JSON object per line on stdout (logs go to stderr), for example (stack already h
 - Exit code 0 only on success. Already-done steps are skipped ("already standing", "bridge already
   running"), so pressing Ready twice is harmless; a second concurrent `ready`/`down` is refused.
 
-`down [--keep-stack] [--force]`: `begin`, `bridge_stopped`, `lowering`, `lying_down`, `down` (`done`;
-`"stack":"kept"` with `--keep-stack`, else the `stop` result in `stop`). `lowering` has `"gentle":true` (lowered
+`down [--keep-stack] [--force]`: `begin`, `bridge_parked`, `lowering`, [`aborted`], `bridge_stopped`,
+`lying_down`, `down` (`done`; `"stack":"kept"` with `--keep-stack`, else the `stop` result in `stop`; `"aborted"`
+when an E-STOP cut the lowering short). No bridge to park (or no confirmation): `bridge_stopped` comes second, as
+before. `lowering` has `"gentle":true` (lowered
 under position control first) or `"gentle":false` with a "WILL DROP" message (no lie-down controller: u6,
 `FC_LIEDOWN=0`, or the STRICT handover refused); it is omitted when no leg controller is active.
 `ready` adds `rearmed` after an e-stop (below) and `homed` carries the running `speed_cap`/`heading_hold`.
@@ -141,8 +143,21 @@ kd = `estop_kd` 0.1) **drops** the robot (seen on mts 2026-11-23). Stock starts 
 + lie-down on in the same controller-manager cycle, or nothing changes); its own init blend (the code path every
 stand-up uses, reversed) moves the joints linearly from the measured pose to the lying pose at
 init_kps/init_kds 7.5/0.25, then holds at the JSON kp/kd 5.0/0.25 (below the walker's 5.5). After 2.5 + 1.0 s
-(`FC_LIEDOWN_HOLD_S`) the usual confirmed deactivation follows; the body already rests on its belly. R3 still
-works during the lowering (the instance subscribes `/emergency_stop` like every neural controller). Not for u6
+(`FC_LIEDOWN_HOLD_S`) the usual confirmed deactivation follows; the body already rests on its belly.
+
+**Aborting the lowering** (2026-11-23, source + tests; not yet seen on hardware). The blend ignores
+`/emergency_stop`: `update()` returns from its init branch before the e-stop check, so only *deactivating*
+the controller stops it (`on_deactivate`: kp 0, kd `estop_kd` = the usual damped drop from wherever it is).
+Three paths do that: (1) the **link E-STOP** (Esc / `fc.ctl estop`) and the fallen cutoff: `down`/`stop` no
+longer stop the bridge first but **park** it (SIGUSR1: zero only, still admitting packets; logged
+`PARKED pid=`), and the bridge's `--legs` include `neural_controller_liedown`; `down` polls the latch every
+0.1 s, reports `aborted`, then confirms and finishes as usual (last line `"aborted":"<reason>"`), and stops the
+bridge after the lowering; (2) **gamepad R3**: the overlay appends `neural_controller_liedown` to the stock
+`estop_controller.controller_names` (a parameter read from the overlay config; appended last, so the X/O/...
+switch buttons keep their controllers; verified at build); (3) `fc_lie_down`'s deactivation list
+(`PROFILE_LEG_CONTROLLERS`). A bridge that does not confirm the park (older release) is stopped as before:
+then only R3 aborts. A `down` that finds the e-stop latch skips the hand-over. `ready` replaces a bridge left
+parked by an interrupted `down`. Not for u6
 (pinned kit, latched Stop gateway): `down` drops as before with the warning. `FC_LIEDOWN=0 fcctl.sh start stock
 --confirm` starts without it (with no other option, the stock launch is then unchanged).
 
@@ -248,7 +263,8 @@ re-arm with Ready).
 
 1. Gentle lie-down on mts: `ready stock --confirm` (new start, loads the lie-down controller; `status.liedown`
    true), stand, `down --keep-stack`, watch: slow lowering to the belly (~2.5 s), no tip, no drop at the end; then
-   `ready --confirm` stands again. Hand under the robot the first time; R3 aborts.
+   `ready --confirm` stands again. Hands at its sides the first time (fingers clear of hips and knees); abort =
+   link E-STOP or R3 (legs off at once: a damped drop from part-way down).
 2. Link e-stop from the UI while walking slowly: legs off within a frame, UI shows estopped, Ready re-arms.
 3. Fallen cutoff: tip the standing robot over by hand (bridge up) -> legs off after ~0.5 s, `status.estop.reason`
    `fallen`.

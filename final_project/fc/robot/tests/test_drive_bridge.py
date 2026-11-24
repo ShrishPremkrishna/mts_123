@@ -524,6 +524,21 @@ def test_estop_latches_publishes_zero_and_acks_estopped_idempotently():
     assert json.loads(core().make_ack(1, "stock", None, {}))["estopped"] is False
 
 
+def test_park_publishes_zero_but_still_admits_the_estop():
+    """fcctl down/stop park the bridge (SIGUSR1) before the gentle lie-down: motion is never published again,
+    but a link E-STOP still trips (R3 action deactivates the lie-down controller mid-blend)."""
+    c = core()
+    assert c.on_packet(pkt(seq=1, vx=0.3), 0.0)[0] and c.tick(0.01) == (0.3, 0.0, 0.0)
+    assert c.park() and not c.park()
+    assert c.tick(0.02) == (0.0, 0.0, 0.0) and c.commanding_zero(0.02)
+    assert c.on_packet(pkt(seq=2, vx=0.4), 0.1)[0] and c.tick(0.11) == (0.0, 0.0, 0.0)
+    ack = json.loads(c.make_ack(2, "stock", None, c.snapshot(0.11)))
+    assert ack["hold"] == "parked" and ack["bridge"]["parked"] is True and ack["estopped"] is False
+    ok, seq, _ = c.on_packet(pkt(seq=3, estop=True), 0.2)
+    assert ok and c.estopped and c.estop_reason == "link"
+    assert json.loads(c.make_ack(seq, "stock", None, {}))["hold"] == "estopped"
+
+
 def test_estop_packet_still_needs_auth_robot_and_freshness():
     c = core()
     assert not c.on_packet(pkt(seq=1, estop=True, key=b"x" * 32), 0.0)[0]

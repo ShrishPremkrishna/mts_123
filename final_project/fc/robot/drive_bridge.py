@@ -34,6 +34,10 @@ Behaviour:
   the stock estop_controller sends on R3, BEST_EFFORT, persistent client). The bridge then LATCHES:
   it publishes only zero, acks carry "estopped": true, and the latch file (--latch-file, 0600)
   survives bridge restarts. Only `fcctl.sh ready ... --confirm` removes it (re-arm).
+- Park (SIGUSR1, sent by `fcctl.sh down`/`stop` before the gentle lie-down): from then on it publishes only
+  zero (ack `hold: "parked"`) but keeps admitting packets, so a link E-STOP and the fallen cutoff still do
+  the R3 action while the robot is lowered (`--legs` includes the lie-down controller). One-way: fcctl stops
+  the bridge after the lowering. Logged as "[bridge] PARKED pid=<pid>" (fcctl waits for that line).
 
 Everything except `main()` is ROS-free so it can be unit tested on the laptop
 (tests/test_drive_bridge.py). fc/link.py imports the signing helpers from here.
@@ -215,6 +219,7 @@ class BridgeCore:
         self.max_vx = max_vx
         self.estopped = False                # latched: only zero is published until a re-arm (restart)
         self.estop_reason: str | None = None
+        self.parked = False                  # SIGUSR1 (fcctl down/stop): zero only, e-stop still admitted
         self.allow_from = frozenset(allow_from) if allow_from else None
         self.replay_window_s = replay_window_s
         self.cmd: Cmd | None = None
@@ -273,6 +278,13 @@ class BridgeCore:
         self.estopped, self.estop_reason = True, reason
         return True
 
+    def park(self) -> bool:
+        """Zero-only from now on (still admits packets, so an e-stop still trips). True the first time."""
+        if self.parked:
+            return False
+        self.parked = True
+        return True
+
     # -- replay state persistence (bridge restart must not reopen old sessions)
     def replay_state(self) -> dict:
         return {"newest_t": self.newest_t if math.isfinite(self.newest_t) else None,
@@ -293,14 +305,15 @@ class BridgeCore:
         """Signed reply for an accepted packet. hold: why commands are being replaced by zero."""
         return sign(self.key, {"v": VERSION, "robot": self.robot_id, "sid": self.sid, "ack": seq, "ok": True,
                                "profile": profile, "imu": imu, "bridge": bridge,
-                               "hold": "estopped" if self.estopped else hold, "imu_hold": imu_hold, "mux_ok": mux_ok,
+                               "hold": "estopped" if self.estopped else "parked" if self.parked else hold,
+                               "imu_hold": imu_hold, "mux_ok": mux_ok,
                                "estopped": self.estopped})
 
     def tick(self, now: float, hold: bool = False) -> tuple[float, float, float] | None:
         """Called at the publish rate. Returns the Twist to publish, or None for silence.
         hold: publish zero instead of the fresh command (keeps the mux input alive, refuses motion).
-        A latched e-stop always holds."""
-        hold = hold or self.estopped
+        A latched e-stop or a park always holds."""
+        hold = hold or self.estopped or self.parked
         if self.cmd is not None and now - self.cmd_time < self.cmd.ttl:
             self.publishing = True
             if hold:
@@ -325,7 +338,7 @@ class BridgeCore:
 
     def commanding_zero(self, now: float, hold: bool = False) -> bool:
         """True when the robot is not being asked to move by this bridge (a hold publishes zero)."""
-        if hold or self.estopped or self.cmd is None or now - self.cmd_time >= self.cmd.ttl:
+        if hold or self.estopped or self.parked or self.cmd is None or now - self.cmd_time >= self.cmd.ttl:
             return True
         return self.cmd.vx == 0.0 and self.cmd.vy == 0.0 and self.cmd.wz == 0.0
 
@@ -333,7 +346,7 @@ class BridgeCore:
         age = None if self.cmd is None else round((now - self.cmd_time) * 1000.0, 1)
         return {**self.stats, "active": self.publishing, "last_seq": None if self.cmd is None else self.cmd.seq,
                 "age_ms": age, "err": self.last_error, "robot_id": self.robot_id, "max_vx": self.max_vx,
-                "estopped": self.estopped, "estop_reason": self.estop_reason}
+                "estopped": self.estopped, "estop_reason": self.estop_reason, "parked": self.parked}
 
 
 def load_replay_state(path: str) -> dict | None:
@@ -681,6 +694,9 @@ def main(argv=None) -> int:
     started = time.monotonic()
     running = threading.Event()
     running.set()
+    park_req = threading.Event()    # set by SIGUSR1 (fcctl down/stop); applied by the main loop
+    import signal
+    signal.signal(signal.SIGUSR1, lambda *_: park_req.set())
 
     health = None
     health_cls = load_imu_health() if args.imu_topic else None
@@ -862,6 +878,12 @@ def main(argv=None) -> int:
         while rclpy.ok():
             rclpy.spin_once(node, timeout_sec=min(0.005, rate.period / 4))
             now = time.monotonic()
+            if park_req.is_set():
+                with lock:
+                    first = core.park()
+                if first:
+                    print(f"[bridge] PARKED pid={os.getpid()}: zero only; link E-STOP and fallen cutoff stay armed",
+                          flush=True)
             if r3.active:
                 if r3.due(now):
                     r3_send(now)

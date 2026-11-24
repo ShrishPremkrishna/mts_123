@@ -11,20 +11,42 @@
 # operator STOP, two lost_tag runs in a row) and prints the --from line to resume after the fix. Space / Esc in the
 # UI and R3 still work at all times. Blue attacks the EAST goal (+x), defends the WEST goal (-x). `pause N msg`:
 # N = seconds --no-pause waits. Walking time is about 12 min in two halves split by the cool-down.
+# An agent running this: give ctl a 10 min tool timeout or run it in the background (a killed ctl sends STOP).
+# After an app restart, re-issue the block's `preset ...` before `--from` (a restart drops it; steps would then be
+# clipped to base max_vx 0.3). `pi blue` = Pi temperature/throttle line (fcctl status, ~3-8 s); it fails at
+# >= 80 C (let it cool, resume) and flags HOT at >= 75 C.
+#
+# Stops: `fc.ctl stop` / space (zero speed); `fc.ctl estop blue` / Esc (legs off, damped drop, latched); R3 on the
+# gamepad (legs off: the same drop; press it straight down, never L1+R1); lift. `goto`, `push_ball` and `goalie`
+# have no edge stop: they end on timeout or tag loss, so watch the edges.
 
 # ---- 0. setup and camera check ------------------------------------------------------------
 pause 5 SETUP: battery charged, gamepad paired, R3 within reach, soft mat ready, corner tags 0-3 down, robot tag fitted, iPhone Center Stage off
 status
+pi blue
 preset slow
 pause 20 Put blue ON THE STAND (legs free). The next Ready HOMES the legs if the stack is off
 ready blue --home
-pause 20 Move blue to the FLOOR at the west end (about x = -0.8), facing EAST. The next Ready stands it up
+
+# ---- 0b. link E-STOP on the stand, before any floor motion (nothing to drop onto, legs free) ------------
+pi blue
+pause 10 E-STOP ON THE STAND: next, Ready stands blue IN THE AIR (bridge up), it trots 1.5 s, then E-STOP. Expect "E-STOP blue: confirmed" and limp legs within 1 s. Not limp: R3
 ready blue
+drive blue 0.1 0 0 1.5
+estop blue
+status
+pi blue
+pause 20 Move blue to the FLOOR at the west end (about x = -0.8), facing EAST. The next Ready re-arms the e-stop and stands it up
+ready blue
+# check right after ready trips the loss gate for ~7 s (packets sent before the bridge was up stay in the window)
+sleep 10
+pi blue
 pause 10 Place the ball on the centre spot. Next: camera/link check (eye >= 15 fps, calib < 1.5 px, auth ok, RTT p95 < 20 ms, loss 0, yaw ~0)
 check blue --ball --yaw 0
 status
 
 # ---- 1. drive pulses at preset slow (max_vx 0.15, max_vy 0.08, max_wz 0.6) ---------------------
+# Sign check: x must rise after the first pulse, y after the third, yaw after the fifth. A wrong sign = mirrored frame: stop.
 pause 5 DRIVE PULSES: blue walks short pulses forward/back/sideways/turning. Keep the area clear
 drive blue 0.1 0 0 1.5
 sleep 1
@@ -63,87 +85,142 @@ test goto x=0.5 y=0.4
 test goto x=-0.5 y=-0.4
 test goto x=0 y=0 yaw=0
 
-# ---- 5. push ball x5 at preset slow ---------------------------------------------------------
+# ---- 5. push ball x2 at preset slow (the heavy ball likely stalls: 25 s timeout, not 45) ---------------
+# Each pause comes before its goto: after a timeout the ball lies on the robot's way back west.
 preset slow
+set test_timeout_s=25
+pi blue
+pause 10 PUSH slow 1/2: place the ball on the centre spot
 test goto x=-0.7 y=0 yaw=0
-pause 10 PUSH slow 1/5: place the ball on the centre spot
 test push_ball
+pi blue
+pause 10 PUSH slow 2/2: fetch the ball (off the way back west), place it on the centre spot
 test goto x=-0.7 y=0 yaw=0
-pause 10 PUSH slow 2/5: fetch the ball, place it on the centre spot
 test push_ball
-test goto x=-0.7 y=0 yaw=0
-pause 10 PUSH slow 3/5: fetch the ball, place it on the centre spot
-test push_ball
-test goto x=-0.7 y=0 yaw=0
-pause 10 PUSH slow 4/5: fetch the ball, place it on the centre spot
-test push_ball
-test goto x=-0.7 y=0 yaw=0
-pause 10 PUSH slow 5/5: fetch the ball, place it on the centre spot
-test push_ball
-last 5
+set test_timeout_s=45
+last 2
 
 # ---- 6. cool-down, then restart the stack with the 0.8 speed cap (fast-play-robot) ---------------
 # A different speed cap needs a new start (= homing on the stand): down stops the stack, which also lets the Pi cool.
-pause 5 Next: DOWN (lies blue down and stops the stack). Hand near the robot the first time
+# First gentle lie-down on hardware. Watch: output `lowering ... "gentle":true`, body sinks level in ~2.5 s, belly
+# down, no drop at the end. Bad: "gentle":false (it drops at once), pitch/roll > 15 deg, a foot sticking.
+# Abort: Esc / `fc.ctl estop blue` or R3 = legs off at once (damped drop from part-way down), or hands.
+pi blue
+pause 5 Next: DOWN (gentle lie-down, then the stack stops). Hands at its SIDES, fingers clear of hips/knees (legs fold in). Abort: Esc or R3
 down blue
-pause 300 COOL-DOWN: let the Pi cool about 5 min (aim < 75 C). Note anything the summaries missed (sounds, stumbles)
+pause 300 COOL-DOWN: let the Pi cool about 5 min (aim < 75 C). Note anything the summaries missed (sounds, stumbles, how it lay down)
+pi blue
 pause 20 Put blue ON THE STAND. The next Ready HOMES the legs with --speed-cap 0.80 (preset fast-play-robot)
 ready blue --home --preset fast-play-robot
 pause 20 Move blue to the FLOOR at the west end, facing EAST. The next Ready stands it up
 ready blue
+sleep 10
 check blue --yaw 0
 status
 
-# ---- 7. fast step set (max_vx 0.75): forward 0.4 and 0.75, east then west -----------------------
+# ---- 7. fast step set (max_vx 0.75): forward 0.4, then 0.75 open loop (0.8 s, then 1.5 s), east then west ----
+# Repositioning gotos run at max_vx 0.3 / max_wz 1.0 (no edge stop in goto); 0.75 / 2.0 only for the steps.
+# The first 0.75 m/s gait is the short open-loop step, before any closed-loop fast motion.
+set max_vx=0.3 max_wz=1.0
 test goto x=-0.9 y=0 yaw=0
+set max_vx=0.75 max_wz=2.0
 test step vx=0.4
+set max_vx=0.3 max_wz=1.0
 test goto x=-0.9 y=0 yaw=0
+set max_vx=0.75 max_wz=2.0
+test step vx=0.75 seconds=0.8
+set max_vx=0.3 max_wz=1.0
+test goto x=-0.9 y=0 yaw=0
+set max_vx=0.75 max_wz=2.0
 test step vx=0.75 seconds=1.5
+set max_vx=0.3 max_wz=1.0
 test goto x=0.9 y=0 yaw=180
+set max_vx=0.75 max_wz=2.0
 test step vx=0.4
+set max_vx=0.3 max_wz=1.0
 test goto x=0.9 y=0 yaw=180
+set max_vx=0.75 max_wz=2.0
 test step vx=0.75 seconds=1.5
+last 6
 
-# ---- 8. push ball x5 at fast-play-robot ------------------------------------------------------
+# ---- 8. push ball x5 at fast-play-robot: LIGHT BALL ONLY (<= 150 g) --------------------------------
+# The 0.43 kg ball stalled, reared and fell 1 in 3 at 0.6 m/s in MuJoCo (notes/fast-gait.md). No light ball:
+# answer q at the first pause, then resume with `--from 183` (block 9). Line numbers shift if you edit above.
+set test_timeout_s=25
+pi blue
+pause 10 PUSH fast 1/5, LIGHT BALL (<= 150 g) ONLY: place it on the centre spot. Only the heavy ball? q, then resume --from 183 (goalie)
+set max_vx=0.3 max_wz=1.0
 test goto x=-0.7 y=0 yaw=0
-pause 10 PUSH fast 1/5: place the ball on the centre spot
+set max_vx=0.75 max_wz=2.0
 test push_ball
+pi blue
+pause 10 PUSH fast 2/5 (light ball): fetch it, place it on the centre spot
+set max_vx=0.3 max_wz=1.0
 test goto x=-0.7 y=0 yaw=0
-pause 10 PUSH fast 2/5: fetch the ball, place it on the centre spot
+set max_vx=0.75 max_wz=2.0
 test push_ball
+pi blue
+pause 10 PUSH fast 3/5 (light ball): fetch it, place it on the centre spot
+set max_vx=0.3 max_wz=1.0
 test goto x=-0.7 y=0 yaw=0
-pause 10 PUSH fast 3/5: fetch the ball, place it on the centre spot
+set max_vx=0.75 max_wz=2.0
 test push_ball
+pi blue
+pause 10 PUSH fast 4/5 (light ball): fetch it, place it on the centre spot
+set max_vx=0.3 max_wz=1.0
 test goto x=-0.7 y=0 yaw=0
-pause 10 PUSH fast 4/5: fetch the ball, place it on the centre spot
+set max_vx=0.75 max_wz=2.0
 test push_ball
+pi blue
+pause 10 PUSH fast 5/5 (light ball): fetch it, place it on the centre spot
+set max_vx=0.3 max_wz=1.0
 test goto x=-0.7 y=0 yaw=0
-pause 10 PUSH fast 5/5: fetch the ball, place it on the centre spot
+set max_vx=0.75 max_wz=2.0
 test push_ball
+set test_timeout_s=45
 last 5
 
 # ---- 9. goalie x5: one 15 s run per shot at the WEST goal ----------------------------------------
+# MANUAL STEP (goalie gain): k_goalie = min(4.0, 1 / latency_s), latency_s = the largest of block 7's steps
+# (`last 6` above prints it). fast-play-robot sets 4.0; a position loop with delay tau oscillates when
+# K * tau > 1.57, i.e. above tau = 0.39 s at K 4. The 2.5 below is safe up to latency 0.4 s (the sim lag is 0.3 s).
+# Different value: q at the pause, edit the `set k_goalie=` line, resume `--from 190`.
+pi blue
+pause 10 GOALIE GAIN: k_goalie = min(4, 1/latency_s) from the block 7 steps. The next line sets 2.5 (ok up to 0.4 s). Different? q, edit line 190, resume --from 190
+set k_goalie=2.5
 set test_timeout_s=15
+# goalie start pose: in front of the WEST goal, sideways (goalie_style sideways), at the slow repositioning limits
+set max_vx=0.3 max_wz=1.0
+test goto x=-1.05 y=0 yaw=90
+set max_vx=0.75 max_wz=2.0
 pause 10 GOALIE 1/5: stand at the centre with the ball. After Enter, roll it at the WEST goal within ~5 s
 test goalie
+pi blue
 pause 10 GOALIE 2/5: fetch the ball to the centre. After Enter, roll it at the WEST goal within ~5 s
 test goalie
+pi blue
 pause 10 GOALIE 3/5: fetch the ball to the centre. After Enter, roll it at the WEST goal within ~5 s
 test goalie
+pi blue
 pause 10 GOALIE 4/5: fetch the ball to the centre. After Enter, roll it at the WEST goal within ~5 s
 test goalie
+pi blue
 pause 10 GOALIE 5/5: fetch the ball to the centre. After Enter, roll it at the WEST goal within ~5 s
 test goalie
 set test_timeout_s=45
 last 5
 
 # ---- 10. gentle lie-down with the stack kept, stand again ------------------------------------
-pause 10 Next: DOWN --keep-stack (gentle lie-down, ~2.5 s to the belly). Hand under blue the first time; R3 aborts
+# The bridge stays up (parked: zero only) while it lowers, so Esc / `estop blue` aborts the lowering (legs off,
+# damped drop from part-way); R3 does too (the overlay adds the lie-down controller to R3's list).
+pi blue
+pause 10 Next: DOWN --keep-stack (gentle lie-down, ~2.5 s to the belly). Hands at its sides, fingers clear of hips/knees. Abort: Esc or R3
 down blue --keep-stack
 pause 10 Note how it lay down (slow? tipped? dropped at the end?). Next: Ready stands blue again (no stand needed)
 ready blue
 
-# ---- 11. link E-STOP: legs off, damped drop, latched -----------------------------------------
+# ---- 11. link E-STOP on the floor: legs off, damped drop, latched -------------------------------
+pi blue
 pause 15 E-STOP TEST: blue standing over the soft mat, everyone clear. It will DROP. R3 if it is not confirmed
 estop blue
 status

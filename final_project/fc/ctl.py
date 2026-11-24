@@ -7,6 +7,8 @@
     ready <robot> [--preset NAME] [--home]  fcctl ready (stands; re-arms an e-stop). --home: allowed to HOME the legs
     down <robot> [--keep-stack]             fcctl down (lie down; --keep-stack keeps it homed)
     estop <robot|all>                       link E-STOP, waits for the robot's confirmation (3.5 s)
+    pi <robot>                              fcctl status in one line: Pi temp/throttle/load, phase, bridge, latch
+                                            (fails at >= 80 C or no answer; warns at >= 75 C)
     preset <name|base>                      load a preset (base = params.json + defaults)
     set key=val ...                         live params
     drive <robot> vx vy wz secs             timed teleop pulse in m/s and rad/s (clipped to max_*), then stop
@@ -319,6 +321,30 @@ def fmt_status(st: dict) -> list[str]:
     return lines
 
 
+PI_WARN_C, PI_STOP_C = 75.0, 80.0    # RUNBOOK aims < 75 C; fcctl boot refuses to home at 80 C
+
+
+def pi_line(rid: str, st: dict) -> tuple[str, str | None]:
+    """fcctl status JSON -> (one line, failure reason or None). Pure."""
+    t = st.get("temp_c")
+    thr = st.get("throttled")
+    flag = " HOT" if isinstance(t, (int, float)) and t >= PI_WARN_C else ""
+    thr_txt = f" throttled {thr}" + (" (!)" if thr not in (None, "0x0") else "") if thr is not None else ""
+    load = st.get("load") or []
+    br = (st.get("bridge") or {}).get("alive")
+    parts = [f"PI {rid}: {num(t, 1)} C{flag}{thr_txt}", f"load {num(load[0], 2) if load else '-'}",
+             f"phase {st.get('phase') or '-'}", f"bridge {'up' if br else 'down' if br is False else '-'}",
+             f"cap {num(st.get('speed_cap'))} liedown {st.get('liedown')}"]
+    if st.get("estopped"):
+        parts.append(f"ESTOPPED({(st.get('estop') or {}).get('reason')})")
+    why = None
+    if not isinstance(t, (int, float)):
+        why = "no temperature in fcctl status"
+    elif t >= PI_STOP_C:
+        why = f"Pi at {t:g} C (>= {PI_STOP_C:g}): let it cool"
+    return " · ".join(parts), why
+
+
 def progress_line(obj: dict) -> str:
     el = obj.get("elapsed")
     el = f"{el:6.1f}s" if isinstance(el, (int, float)) else "      -"
@@ -530,6 +556,25 @@ def cmd_estop(c: Client, a) -> None:
         raise Fail(f"E-STOP not confirmed by {', '.join(bad)}: USE R3")
 
 
+def cmd_pi(c: Client, a) -> None:
+    rid = a.robot
+    mode = robot_ops_mode(c.state())
+    if mode == "sim":
+        say(f"sim: no robot ops (app without --dry-run-ops); pi {rid} skipped")
+        return
+    op = run_op(c, rid, {"op": "status"}, 90)
+    if is_dry(op):
+        say(f"PI {rid} (dry run: nothing ran)")
+        return
+    st = next((o for _, o in reversed(json_lines(op.get("out", ""))) if "phase" in o), None)
+    if op.get("rc") != 0 or st is None:
+        raise Fail(f"pi {rid}: fcctl status failed (rc {op.get('rc')}): {op_error(op)}")
+    line, why = pi_line(rid, st)
+    say(line)
+    if why:
+        raise Fail(f"pi {rid}: {why}")
+
+
 def robot_ops_mode(st: dict) -> str:
     """'real' | 'dry' | 'sim' (sim without --dry-run-ops: ops would ssh the real robot, so ctl skips them)."""
     if st.get("dry_run_ops"):
@@ -633,7 +678,10 @@ def cmd_down(c: Client, a) -> None:
     if op.get("rc") != 0:
         raise Fail(f"DOWN FAILED {rid} (rc {op.get('rc')}): still standing? use R3 or support the robot: {op_error(op)}")
     last = (json_lines(op.get("out", "")) or [("", {})])[-1][1]
-    say(f"DOWN {rid} · stack {last.get('stack') or ('kept' if a.keep_stack else 'stopped')}")
+    say(f"DOWN {rid} · stack {last.get('stack') or ('kept' if a.keep_stack else 'stopped')}"
+        + (f" · lowering ABORTED by E-STOP ({last['aborted']}): legs off, latched" if last.get("aborted") else ""))
+    if last.get("aborted"):   # the operator cut the lie-down short: stop a batch here
+        raise HealthStop(f"down {rid}: lowering aborted by E-STOP ({last['aborted']}); Ready --confirm re-arms")
 
 
 def wait_seen(c: Client, rid: str | None, st: dict | None = None, timeout: float | None = None) -> bool:
@@ -819,6 +867,9 @@ def build_parser() -> Parser:
     p = sub.add_parser("estop")
     p.add_argument("robot", help="robot id or all")
     p.set_defaults(fn=cmd_estop)
+    p = sub.add_parser("pi")
+    p.add_argument("robot")
+    p.set_defaults(fn=cmd_pi)
     p = sub.add_parser("preset")
     p.add_argument("name")
     p.set_defaults(fn=cmd_preset)

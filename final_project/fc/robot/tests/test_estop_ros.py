@@ -232,3 +232,38 @@ def test_fallen_cutoff(mgr, env):
     finally:
         p.terminate()
         p.wait(timeout=10)
+
+
+def test_park_keeps_the_link_estop_armed_during_the_lie_down(mgr, env):
+    """fcctl down parks the bridge (SIGUSR1), hands the legs to the lie-down controller and polls the latch:
+    motion is never published again, and a link E-STOP deactivates the lie-down controller mid-blend."""
+    import signal
+    mgr.states.update({"neural_controller_default": "active", "neural_controller_liedown": "inactive"})
+    p = start_bridge(env, 19895)
+    log = env / "bridge-19895.log"
+    try:
+        snd = Sender(19895)
+        warm(snd, mgr, log)
+        p.send_signal(signal.SIGUSR1)
+        assert wait(lambda: "PARKED pid=%d" % p.pid in open(log).read(), 2.0), open(log).read()
+        snd.send(vx=0.3)
+        a = snd.ack()
+        assert a["hold"] == "parked" and a["bridge"]["parked"] is True
+        t1 = time.monotonic()
+        assert wait(lambda: any(t > t1 for t, _ in mgr.twists), 1.0)
+        assert all(x == 0.0 for t, x in mgr.twists if t > t1)
+        # the STRICT handover fcctl does: walker off, lie-down on (the bridge sees it at its next 2 Hz poll)
+        mgr.states.update({"neural_controller_default": "inactive", "neural_controller_liedown": "active"})
+        time.sleep(1.2)
+        n_sw = len(mgr.switches)
+        snd.send(estop=True)
+        assert wait(lambda: len(mgr.switches) > n_sw, 2.0), open(log).read()
+        assert "neural_controller_liedown" in mgr.switches[n_sw][1]
+        assert wait(lambda: mgr.states["neural_controller_liedown"] == "inactive", 1.0)
+        assert wait(lambda: os.path.exists(env / "estop.json"), 2.0)    # what fcctl's lowering wait polls
+        assert json.load(open(env / "estop.json"))["reason"] == "link"
+    finally:
+        p.terminate()
+        p.wait(timeout=10)
+        if os.path.exists(env / "estop.json"):
+            os.remove(env / "estop.json")

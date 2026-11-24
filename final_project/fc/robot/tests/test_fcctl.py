@@ -58,9 +58,23 @@ profile_stop() { fc_signal_group mux INT 5; fc_signal_group launch INT 5; }
 '''
 
 FAKE_BRIDGE = r'''
-import json, os, sys, time
-open(os.path.join(os.environ["FC_ROOT"], "bridge_argv.json"), "w").write(json.dumps(sys.argv[1:]))
-time.sleep(300)
+import json, os, signal, sys, time
+root = os.environ["FC_ROOT"]
+open(os.path.join(root, "bridge_argv.json"), "w").write(json.dumps(sys.argv[1:]))
+def park(*_):  # like drive_bridge.py; FAKE_PARK=ignore: an older bridge that never confirms
+    if os.environ.get("FAKE_PARK") == "ignore":
+        return
+    print("[bridge] PARKED pid=%d: zero only" % os.getpid(), flush=True)
+    d = os.environ.get("FAKE_ESTOP_AFTER_PARK_S")   # a link E-STOP arrives while the robot is lowered
+    if d:
+        time.sleep(float(d))
+        for c in ("fake_walker", "fake_ld"):        # the R3 action: every listed leg controller off
+            open(os.path.join(root, c), "w").write("inactive\n")
+        latch = sys.argv[sys.argv.index("--latch-file") + 1]
+        open(latch, "w").write(json.dumps({"reason": "link", "legs": sys.argv[sys.argv.index("--legs") + 1]}))
+signal.signal(signal.SIGUSR1, park)
+for _ in range(3000):
+    time.sleep(0.1)
 '''
 
 
@@ -257,8 +271,9 @@ def test_ready_full_path_then_down(fc):
     st = fc("status")
     assert st["phase"] == "ready" and st["light"] == "green" and st["walker_active"] is True, st
     rc, out = fc.lines("down")
-    assert rc == 0 and phases(out) == ["begin", "bridge_stopped", "lowering", "lying_down", "down"], out
+    assert rc == 0 and phases(out) == ["begin", "bridge_parked", "lowering", "bridge_stopped", "lying_down", "down"], out
     assert out[2]["gentle"] is False and "WILL DROP" in out[2]["msg"]          # no lie-down controller here
+    assert "aborted" not in out[-1]
     assert out[-1]["done"] and out[-1]["stop"]["ok"]
     assert (fc.root / "fake_walker").read_text().strip() == "inactive"
     assert fc("status")["phase"] == "off"
@@ -488,8 +503,9 @@ def test_down_lowers_with_liedown_controller_then_deactivates(fc):
     assert fc("status")["liedown"] is True
     (fc.root / "fake_rosq.log").write_text("")
     rc, out = fc.lines("down", "--keep-stack", extra_env={"FC_LIEDOWN_HOLD_S": "0"})
-    assert rc == 0 and phases(out) == ["begin", "bridge_stopped", "lowering", "lying_down", "down"], out
-    assert out[2]["gentle"] is True and out[3]["gentle"] is True and "belly" in out[3]["msg"]
+    assert rc == 0 and phases(out) == ["begin", "bridge_parked", "lowering", "bridge_stopped", "lying_down", "down"], out
+    assert out[2]["gentle"] is True and out[4]["gentle"] is True and "belly" in out[4]["msg"]
+    assert "E-STOP" in out[2]["msg"] and not fc("status")["bridge"]["alive"]
     calls = [l for l in (fc.root / "fake_rosq.log").read_text().splitlines() if l.startswith("switch")]
     assert calls[0] == "switch ld w ld strict" and calls[1].startswith("switch  w ld"), calls   # handover, then off
     assert (fc.root / "fake_walker").read_text().strip() == (fc.root / "fake_ld").read_text().strip() == "inactive"
@@ -502,8 +518,8 @@ def test_down_falls_back_to_drop_with_clear_message(fc):
     (fc.robot / "profiles" / "fakelie.sh").write_text(FAKE_LIE_PROFILE)
     assert fc.lines("ready", "fakelie", "--confirm", "--stand-now")[0] == 0
     rc, out = fc.lines("down", extra_env={"FAKE_STRICT": "refuse"})
-    assert rc == 0 and phases(out) == ["begin", "bridge_stopped", "lowering", "lying_down", "down"], out
-    assert out[2]["gentle"] is False and "WILL DROP" in out[2]["msg"] and out[3]["gentle"] is False
+    assert rc == 0 and phases(out) == ["begin", "bridge_parked", "lowering", "bridge_stopped", "lying_down", "down"], out
+    assert out[2]["gentle"] is False and "WILL DROP" in out[2]["msg"] and out[4]["gentle"] is False
     assert fc("status")["phase"] == "off"
 
 
@@ -514,3 +530,54 @@ def test_stop_uses_gentle_lie_down_too(fc):
     stop = fc("stop", extra_env={"FC_LIEDOWN_HOLD_S": "0"})
     assert stop["ok"], stop
     assert "switch ld w ld strict" in (fc.root / "fake_rosq.log").read_text()
+    assert not fc("status")["bridge"]["alive"]                              # parked for the lowering, then stopped
+
+
+def test_link_estop_during_lowering_aborts_it_then_down_carries_on(fc):
+    """The bridge stays up (parked) while the lie-down controller lowers the robot; a link E-STOP then switches
+    every leg controller off (lie-down included), down notices the latch within 0.1 s, confirms, stops."""
+    (fc.robot / "profiles" / "fakelie.sh").write_text(FAKE_LIE_PROFILE)
+    assert fc.lines("ready", "fakelie", "--confirm", "--stand-now", extra_env={"FAKE_ESTOP_AFTER_PARK_S": "1.5"})[0] == 0
+    (fc.root / "fake_rosq.log").write_text("")
+    rc, out = fc.lines("down", extra_env={"FC_LIEDOWN_HOLD_S": "4"})
+    assert rc == 0, out
+    assert phases(out) == ["begin", "bridge_parked", "lowering", "aborted", "bridge_stopped", "lying_down", "down"], out
+    assert out[2]["gentle"] is True and out[3]["ok"] is False and out[3]["estop"] == "link"
+    assert out[3]["elapsed"] - out[2]["elapsed"] < 2.5                     # not the full 4.2 s blend + hold
+    assert out[5]["gentle"] is False and out[5]["aborted"] == "link" and out[-1]["aborted"] == "link"
+    calls = [l for l in (fc.root / "fake_rosq.log").read_text().splitlines() if l.startswith("switch")]
+    assert calls[0] == "switch ld w ld strict", calls
+    latch = json.loads((fc.root / "run" / "estop.json").read_text())
+    assert latch["reason"] == "link" and "ld" in latch["legs"].split()      # the bridge's --legs list the lie-down
+    st = fc("status")
+    assert st["phase"] == "off" and st["estopped"] is True                  # latched until ready --confirm
+
+
+def test_down_after_an_estop_never_hands_over_to_the_liedown(fc):
+    (fc.robot / "profiles" / "fakelie.sh").write_text(FAKE_LIE_PROFILE)
+    assert fc.lines("ready", "fakelie", "--confirm", "--stand-now")[0] == 0
+    (fc.root / "run" / "estop.json").write_text('{"reason": "link"}')
+    (fc.root / "fake_rosq.log").write_text("")
+    rc, out = fc.lines("down", "--keep-stack")
+    assert rc == 0 and out[phases(out).index("lowering")]["gentle"] is False and "e-stopped (link)" in out[2]["msg"], out
+    assert "switch ld" not in (fc.root / "fake_rosq.log").read_text()
+
+
+def test_down_falls_back_to_bridge_stop_when_park_unconfirmed(fc):
+    (fc.robot / "profiles" / "fakelie.sh").write_text(FAKE_LIE_PROFILE)
+    assert fc.lines("ready", "fakelie", "--confirm", "--stand-now", extra_env={"FAKE_PARK": "ignore"})[0] == 0
+    rc, out = fc.lines("down", "--keep-stack", extra_env={"FC_LIEDOWN_HOLD_S": "0"})
+    assert rc == 0 and phases(out) == ["begin", "bridge_stopped", "lowering", "lying_down", "down"], out
+
+
+def test_ready_replaces_a_bridge_left_parked(fc):
+    import signal
+    assert fc.lines("ready", "fake", "--confirm", "--stand-now")[0] == 0
+    pid = int((fc.root / "run" / "bridge.pid").read_text().split()[0])
+    os.kill(pid, signal.SIGUSR1)                                            # an interrupted down
+    deadline = time.time() + 5
+    while "PARKED pid=%d" % pid not in (fc.root / "logs" / "bridge.log").read_text() and time.time() < deadline:
+        time.sleep(0.05)
+    rc, out = fc.lines("ready")
+    assert rc == 0 and out[phases(out).index("bridge")]["msg"] == "bridge up", out
+    assert int((fc.root / "run" / "bridge.pid").read_text().split()[0]) != pid

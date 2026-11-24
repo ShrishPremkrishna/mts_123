@@ -21,6 +21,11 @@ Options (any combination; each start gets a fresh OUT_DIR = RUN_DIR/overlay):
                        init_kps/init_kds (7.5/0.25, the same as standing up), then holds at the JSON
                        kp/kd (5.0/0.25, below the walker's 5.5). fcctl `down` uses it before deactivating.
                        Verified in MuJoCo: sim/liedown_sim.py. Gains/limits are never widened (checked).
+                       Also appends it to the stock estop_controller's `controller_names` (a parameter read
+                       from this config, joy_utils estop_controller.cpp), so gamepad R3 deactivates it mid-blend
+                       (on_deactivate: kp 0, kd estop_kd = the usual damped drop). The blend itself ignores
+                       /emergency_stop (update() returns from the init branch first), so deactivation is the
+                       only abort. Appended last: switch_button_indices (X/O/...) still map to the same names.
 
 Run on the Pi with system python3 (PyYAML from ROS). Writes only under OUT_DIR, which must lie inside
 --root. Every output is re-read and verified (YAML parsed and compared key by key with the source plus
@@ -56,6 +61,7 @@ LIEDOWN_FADE_S = 100000.0                        # policy output x t/100000: < 1
 LIE_RIGHT = (0.0, 1.6, 0.3)
 LIE_POSE = [*LIE_RIGHT, *(-v for v in LIE_RIGHT)] * 2
 JOINT_NAMES = [f"leg_{leg}_{j}" for leg in ("front_r", "front_l", "back_r", "back_l") for j in (1, 2, 3)]
+ESTOP_NODE = "estop_controller"               # stock joy_utils node: R3 deactivates its controller_names
 LAUNCH_NODES_ANCHOR = "    nodes = [\n"
 LAUNCH_LIST_ANCHOR = "        default_alt_robot_controller_spawner,\n"
 LIEDOWN_SPAWNER = (
@@ -130,6 +136,26 @@ def add_manager_type(text, name):
     if not m:
         raise OverlayError("controller_manager has no ros__parameters")
     block = block[:m.end()] + "    %s:\n      type: %s\n" % (name, NEURAL_TYPE) + block[m.end():]
+    return text[:a] + block + text[b:]
+
+
+_ESTOP_NAMES = re.compile(r"^    controller_names:[ \t]*\n?[ \t]*\[[^\[\]]*\][ \t]*$", re.M)
+
+
+def add_estop_name(text, name):
+    """Append `name` to estop_controller.controller_names (a YAML flow list, one or several lines)."""
+    yaml = _yaml()
+    a, b = _section(text, ESTOP_NODE)
+    block = text[a:b]
+    found = _ESTOP_NAMES.findall(block)
+    if len(found) != 1:
+        raise OverlayError("%s.controller_names: expected one flow list, found %d" % (ESTOP_NODE, len(found)))
+    names = yaml.safe_load(found[0].strip()).get("controller_names")
+    if not (isinstance(names, list) and names and all(isinstance(n, str) for n in names)):
+        raise OverlayError("%s.controller_names is not a list of names" % ESTOP_NODE)
+    if name in names:
+        raise OverlayError("%s.controller_names already lists %s" % (ESTOP_NODE, name))
+    block = _ESTOP_NAMES.sub(lambda m: "    controller_names: " + json.dumps(names + [name]), block)
     return text[:a] + block + text[b:]
 
 
@@ -210,10 +236,11 @@ def build_stock(out_dir, speed_cap=None, heading_hold="on", liedown=False):
     if liedown:
         lp = liedown_policy(os.path.join(hh.STOCK_NC, LIEDOWN_SRC_POLICY), os.path.join(out_dir, "liedown_policy.json"))
         cfg = add_manager_type(cfg, LIEDOWN)
+        cfg = add_estop_name(cfg, LIEDOWN)
         params = liedown_params(src_cfg["neural_controller_default"]["ros__parameters"], lp["policy"])
         cfg = cfg.rstrip("\n") + "\n\n\n# FC v1 gentle lie-down (fc/robot/stack_overlay.py)\n" + \
             yaml.safe_dump({LIEDOWN: {"ros__parameters": params}}, sort_keys=False, default_flow_style=None, width=200)
-        r["liedown"] = {"controller": LIEDOWN, "pose": LIE_POSE, "init_s": LIEDOWN_INIT_S, **lp}
+        r["liedown"] = {"controller": LIEDOWN, "pose": LIE_POSE, "init_s": LIEDOWN_INIT_S, "r3_deactivates": True, **lp}
     cfg_path = os.path.join(out_dir, "config.yaml")
     with open(cfg_path, "w") as f:
         f.write(cfg)
@@ -251,6 +278,7 @@ def expected_stock_config(src, r):
             exp[w]["ros__parameters"].update(max_vx_forward=float(r["speed_cap"]), speed_cap=float(r["speed_cap"]))
     if r["liedown"]:
         exp["controller_manager"]["ros__parameters"][LIEDOWN] = {"type": NEURAL_TYPE}
+        exp[ESTOP_NODE]["ros__parameters"]["controller_names"].append(LIEDOWN)
         exp[LIEDOWN] = {"ros__parameters": liedown_params(src["neural_controller_default"]["ros__parameters"],
                                                           r["liedown"]["policy"])}
     return exp
@@ -273,6 +301,10 @@ def verify_stock(r):
         wp = got["neural_controller_default"]["ros__parameters"]
         if lp["init_kps"] != wp["init_kps"] or lp["init_kds"] != wp["init_kds"]:
             raise OverlayError("lie-down init gains differ from the walker's")
+        ep = got[ESTOP_NODE]["ros__parameters"]
+        names, buttons = ep["controller_names"], ep.get("switch_button_indices") or []
+        if names[-1] != LIEDOWN or names.count(LIEDOWN) != 1 or len(buttons) > len(names) - 1:
+            raise OverlayError("R3 list: %s must be last and no switch button may select it" % LIEDOWN)
     if r["speed_cap"] is not None:
         for w in STOCK_WALKERS:
             p = got[w]["ros__parameters"]

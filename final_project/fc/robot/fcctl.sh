@@ -8,9 +8,10 @@
 #                               E-stopped (run/estop.json): --confirm re-arms (clears the latch, restands).
 #                               Progress as JSON lines on stdout; the last one has "done":true.
 #   down [--keep-stack] [--force]
-#                               bridge stop, lie down (stock: lowered under position control by the
-#                               lie-down controller, then leg controllers off; otherwise a damped drop like
-#                               R3), confirm none active, stop the stack; JSON lines. Not confirmed: abort,
+#                               park the bridge (zero only; link E-STOP still armed), lie down (stock: lowered
+#                               under position control by the lie-down controller, aborted by a link E-STOP /
+#                               fallen cutoff / R3; otherwise a damped drop like R3), bridge stop, confirm no
+#                               leg controller active, stop the stack; JSON lines. Not confirmed: abort,
 #                               stack left running, exit 1 (--force = UNSAFE: stops a possibly standing robot)
 #   boot                        run by fc-boot.service at power-on (boot/README.md); never by hand
 #   start <profile> --confirm [STACK OPTIONS]
@@ -262,6 +263,43 @@ print("ok" if c.get(sys.argv[2]) == "active" and not others else "no")' "$sw" "$
   return 0
 }
 
+# fc_bridge_park : ask the running bridge to PARK (SIGUSR1): from then on it publishes only zero, but it keeps
+# admitting packets, so a link E-STOP (and its fallen cutoff) can still switch the legs off (the bridge's --legs
+# include the lie-down controller) while the robot is lowered. 0 = the bridge confirmed in its log within 1 s;
+# 1 = no bridge or no confirmation (the caller stops it instead, as before: no link E-STOP while lowering).
+fc_bridge_park() {
+  local pid log=$FC_LOGS/bridge.log size i
+  pid=$(fc_pid bridge) || return 1
+  size=$(stat -c %s "$log" 2>/dev/null || echo 0)
+  kill -USR1 "$pid" 2>/dev/null || return 1
+  for i in $(seq 20); do
+    tail -c +$((size + 1)) "$log" 2>/dev/null | grep -q "PARKED pid=$pid" && return 0
+    sleep 0.05
+  done
+  return 1
+}
+
+# fc_bridge_parked : the running bridge was parked (a down/stop that did not finish): ready restarts it.
+fc_bridge_parked() { local pid; pid=$(fc_pid bridge) || return 1; grep -q "PARKED pid=$pid" "$FC_LOGS/bridge.log" 2>/dev/null; }
+
+_estopped() { [ -f "$FC_RUN/estop.json" ]; }
+_estop_why() { local w; w=$(_stack_field "$FC_RUN/estop.json" reason); echo "${w:-unknown}"; }
+
+# fc_lower_wait SECONDS : wait out the lie-down blend + hold, checking every 0.1 s for the bridge's e-stop latch
+# (link E-STOP or fallen cutoff: the bridge has already sent the deactivation, which stops the blend at once).
+# 0 = done; 3 = aborted (LOWER_WHY = latch reason). R3 aborts too (the stock estop_controller lists the
+# lie-down controller via the overlay) but leaves no latch: the following confirmed deactivation covers it.
+fc_lower_wait() {
+  local end
+  LOWER_WHY=""
+  end=$(awk -v a="$(_now)" -v b="$1" 'BEGIN { printf "%.3f", a + b }')
+  while :; do
+    _estopped && { LOWER_WHY=$(_estop_why); return 3; }
+    awk -v a="$(_now)" -v e="$end" 'BEGIN { exit !(a < e) }' || return 0
+    sleep 0.1
+  done
+}
+
 # fc_topology_wait SECONDS : (profile env sourced) wait until rosq reports the velocity topology ok.
 fc_topology_wait() {
   local end=$((SECONDS + $1)) verdict last=""
@@ -494,9 +532,11 @@ cmd_stop() {
   local force=0
   case "${1:-}" in --force) force=1 ;; "") ;; *) die "usage: stop [--force]" ;; esac
   lock
-  local rc=0 prof run deact='null'
-  fc_signal_group bridge INT 5 || rc=1   # bridge publishes one zero Twist on exit
+  local rc=0 prof run deact='null' parked=0
   prof=$(active_profile || true); run=$(active_run || true)
+  # A READY stack with a bridge: park it (zero only, link E-STOP still armed) for the lie-down; else stop it now.
+  if [ -n "$prof" ] && [ -f "$run/READY" ] && fc_bridge_park; then parked=1; fc_log "bridge parked (zero only; link E-STOP armed)"
+  else fc_signal_group bridge INT 5 || rc=1; fi   # bridge publishes one zero Twist on exit
   if [ -z "$prof" ]; then echo "{\"ok\":$([ $rc = 0 ] && echo true || echo false),\"stopped\":null}"; return $rc; fi
   load_profile "$prof"
   fc_signal_group starter TERM 3 || rc=1
@@ -504,13 +544,17 @@ cmd_stop() {
   if profile_alive "$run"; then
     profile_env
     local g=0
-    if [ -f "$run/READY" ]; then fc_gentle_down "$run"; g=$?; else g=1; GENTLE_WHY="stack never reached READY"; fi
+    if _estopped; then g=4; GENTLE_WHY="e-stopped ($(_estop_why))"
+    elif [ -f "$run/READY" ]; then fc_gentle_down "$run"; g=$?; else g=1; GENTLE_WHY="stack never reached READY"; fi
     case $g in
-      0) fc_log "lowering under position control (lie-down controller, ${GENTLE_WAIT} s)"; sleep "$GENTLE_WAIT"
-         fc_log "lowered; deactivating leg controllers (resting on its belly)" ;;
+      0) fc_log "lowering under position control (lie-down controller, ${GENTLE_WAIT} s; link E-STOP / R3 abort)"
+         if fc_lower_wait "$GENTLE_WAIT"; then fc_log "lowered; deactivating leg controllers (resting on its belly)"
+         else fc_log "LOWERING ABORTED by E-STOP ($LOWER_WHY): legs switched off part-way (damped drop); confirming"; fi ;;
       2) fc_log "no leg controller active; confirming before stopping" ;;
+      4) fc_log "$GENTLE_WHY: the bridge already switched the legs off; confirming before stopping" ;;
       *) fc_log "gentle lie-down unavailable ($GENTLE_WHY): deactivating leg controllers, a standing robot WILL DROP (damped, same as R3)" ;;
     esac
+    [ $parked = 0 ] || { fc_signal_group bridge INT 5 || rc=1; parked=0; }
     if fc_lie_down; then
       sleep 1
     elif ! pgrep -f ros2_control_node > /dev/null; then
@@ -528,6 +572,7 @@ cmd_stop() {
     fi
     deact=$(_raw_json "$LIE_JSON")
   fi
+  [ $parked = 0 ] || fc_signal_group bridge INT 5 || rc=1
   profile_stop "$run" || rc=1
   local left=""
   for r in launch teleop mux starter bridge; do fc_alive "$r" && left+="$r "; done
@@ -705,6 +750,9 @@ cmd_ready() {
   if [ "$bridge" = 0 ]; then emit standing true "standing; bridge not started (--no-bridge)" ',"done":true'; exit 0; fi
 
   # 3. bridge
+  if fc_bridge_parked; then   # left parked (zero only) by an interrupted down/stop: replace it
+    bash "$HERE/fcctl.sh" bridge stop > /dev/null 2>> "$FC_LOGS/ready.log" 8>&- || ready_fail bridge "parked bridge did not stop; see ~/fc-v1/logs/bridge.log" 1
+  fi
   if fc_alive bridge; then
     emit bridge true "bridge already running (pid $(fc_pid bridge))"
   else
@@ -726,9 +774,17 @@ except Exception: print("probe failed")') (fcctl.sh status)" 1
   emit ready true "ready to play" ",\"profile\":\"$name\",\"run_dir\":\"$run\",\"done\":true"
 }
 
-# down [--keep-stack] [--force] : bridge zero, lie down (leg controllers off = damped collapse, same as R3),
-# CONFIRM no leg controller is active, then stop the stack. Not confirmed -> abort, stack left running, exit 1
-# (--force stops anyway: UNSAFE, a standing robot drops with the motors off).
+# down [--keep-stack] [--force] : park the bridge (zero only, link E-STOP still armed), lie down (stock: the
+# lie-down controller lowers it, with an e-stop check every 0.1 s; else leg controllers off = damped collapse,
+# same as R3), stop the bridge, CONFIRM no leg controller is active, then stop the stack. Not confirmed ->
+# abort, stack left running, exit 1 (--force stops anyway: UNSAFE, a standing robot drops with the motors off).
+# A link E-STOP / fallen cutoff during the lowering aborts it (the bridge switches the legs off: damped drop from
+# part-way down); down then carries on (confirm, stop) and its last line carries "aborted":"<reason>".
+_down_bridge_stop() {
+  local b; b=$(bash "$HERE/fcctl.sh" bridge stop 2>> "$FC_LOGS/ready.log" 8>&- | grep '^{' | tail -1)
+  if [[ "$b" == *'"ok":true'* ]]; then emit bridge_stopped true "bridge stopped (sent one zero)"
+  else emit bridge_stopped false "bridge stop: $(_json_field "$b" error)"; fi
+}
 cmd_down() {
   local keep=0 force=0 a
   READY_T0=$(_now)
@@ -738,30 +794,42 @@ cmd_down() {
   exec 8> "$FC_RUN/ready.lock"
   flock -n 8 || ready_fail args "another 'ready' or 'down' is running" 1
   emit begin true "down$([ $keep = 1 ] && echo ' --keep-stack')$([ $force = 1 ] && echo ' --force')"
-  local b; b=$(bash "$HERE/fcctl.sh" bridge stop 2>> "$FC_LOGS/ready.log" 8>&- | grep '^{' | tail -1)
-  if [[ "$b" == *'"ok":true'* ]]; then emit bridge_stopped true "bridge stopped (sent one zero)"
-  else emit bridge_stopped false "bridge stop: $(_json_field "$b" error)"; fi
-  local prof run; prof=$(active_profile || true); run=$(active_run || true)
+  local prof run alive=0 parked=0 aborted=""; prof=$(active_profile || true); run=$(active_run || true)
   if [ -z "$prof" ] || active_stale || ! _profile_ok "$prof"; then
+    _down_bridge_stop
     emit down true "no fcctl profile running" ',"done":true'; exit 0
   fi
   load_profile "$prof"
-  if profile_alive "$run"; then
+  profile_alive "$run" && alive=1
+  # keep the bridge up (parked: zero only) while the robot is lowered, so the link E-STOP can still act
+  if [ $alive = 1 ] && [ -f "$run/READY" ] && fc_bridge_park; then
+    parked=1; emit bridge_parked true "bridge parked: publishes only zero; the link E-STOP stays armed while it lies down"
+  else
+    _down_bridge_stop
+  fi
+  if [ $alive = 1 ]; then
     profile_env
     local g=1 gentle=false
-    if [ -f "$run/READY" ]; then fc_gentle_down "$run"; g=$?; else GENTLE_WHY="stack never reached READY"; fi
+    if _estopped; then g=4; GENTLE_WHY="e-stopped ($(_estop_why)): the legs were already switched off"
+    elif [ -f "$run/READY" ]; then fc_gentle_down "$run"; g=$?; else GENTLE_WHY="stack never reached READY"; fi
     case $g in
       0) gentle=true
-         emit lowering true "lowering the body under position control (lie-down controller, ${GENTLE_WAIT} s)" ',"gentle":true'
-         sleep "$GENTLE_WAIT" ;;
+         emit lowering true "lowering the body under position control (lie-down controller, ${GENTLE_WAIT} s). Abort: E-STOP (Esc) or R3 = legs off, damped drop" ',"gentle":true'
+         if ! fc_lower_wait "$GENTLE_WAIT"; then
+           gentle=false aborted=$LOWER_WHY
+           emit aborted false "LOWERING ABORTED by E-STOP ($aborted): the bridge switched the legs off part-way (damped drop); confirming" \
+             ",\"gentle\":false,\"estop\":\"$(jesc "$aborted")\""
+         fi ;;
       2) ;;
+      4) emit lowering true "$GENTLE_WHY; confirming" ',"gentle":false' ;;
       *) emit lowering true "gentle lie-down unavailable ($GENTLE_WHY): switching the legs off, a standing robot WILL DROP (damped, like R3). Support it if needed" ',"gentle":false' ;;
     esac
+    [ $parked = 0 ] || { _down_bridge_stop; parked=0; }
     if fc_lie_down; then
       if [ "$gentle" = true ]; then
         emit lying_down true "lowered, then leg controllers off (confirmed): resting on its belly" ",\"gentle\":true,\"switch\":$(_raw_json "$LIE_JSON")"
       else
-        emit lying_down true "leg controllers off (confirmed): damped collapse, the same as R3" ",\"gentle\":false,\"switch\":$(_raw_json "$LIE_JSON")"
+        emit lying_down true "leg controllers off (confirmed): damped collapse, the same as R3" ",\"gentle\":false,\"switch\":$(_raw_json "$LIE_JSON")${aborted:+,\"aborted\":\"$(jesc "$aborted")\"}"
       fi
       sleep "${FC_DOWN_SETTLE_S:-1.5}"
     elif [ $force = 1 ]; then
@@ -772,11 +840,13 @@ cmd_down() {
       exit 1
     fi
   fi
+  [ $parked = 0 ] || _down_bridge_stop
+  local ab=${aborted:+,\"aborted\":\"$(jesc "$aborted")\"}
   if [ $keep = 1 ]; then
-    emit down true "lying down, stack kept homed: ready stands it again without homing" ',"stack":"kept","done":true'; exit 0
+    emit down true "lying down, stack kept homed: ready stands it again without homing" ",\"stack\":\"kept\"$ab,\"done\":true"; exit 0
   fi
   local s; s=$(bash "$HERE/fcctl.sh" stop $([ $force = 1 ] && echo --force) 2>> "$FC_LOGS/ready.log" 8>&- | grep '^{' | tail -1)
-  if [[ "$s" == *'"ok":true'* ]]; then emit down true "stack stopped" ",\"stop\":$(_raw_json "$s"),\"done\":true"
+  if [[ "$s" == *'"ok":true'* ]]; then emit down true "stack stopped" ",\"stop\":$(_raw_json "$s")$ab,\"done\":true"
   else emit down false "stop incomplete: $(_json_field "$s" error) $(_json_field "$s" left_running) still running (fcctl.sh status)" ",\"stop\":$(_raw_json "$s"),\"exit\":1,\"done\":true"; exit 1; fi
 }
 

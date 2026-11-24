@@ -70,7 +70,12 @@ neural_controller_default_alt:
 
 estop_controller:
   ros__parameters:
-    controller_names: ["neural_controller_default"]
+    switch_button_indices: [0, 1]
+    controller_names:
+      [
+        "neural_controller_default",
+        "neural_controller",
+      ]
 '''
 STOCK_LAUNCH = '''from launch_ros.parameter_descriptions import ParameterFile
 def generate_launch_description():
@@ -136,7 +141,11 @@ def test_stock_all_options(stock):
         p = cfg[w]["ros__parameters"]
         assert p["max_vx_forward"] == 0.8 and p["speed_cap"] == 0.8 and p["model_path"] == r["policy"]
     assert cfg["neural_controller_default"]["ros__parameters"]["max_vx_backward"] == 0.3     # unchanged
-    assert cfg["neural_controller"] == src["neural_controller"] and cfg["estop_controller"] == src["estop_controller"]
+    assert cfg["neural_controller"] == src["neural_controller"]
+    # R3 (stock estop_controller) now also deactivates the lie-down controller; buttons keep their names
+    ep, sp = cfg["estop_controller"]["ros__parameters"], src["estop_controller"]["ros__parameters"]
+    assert ep["controller_names"] == sp["controller_names"] + [so.LIEDOWN] and r["liedown"]["r3_deactivates"]
+    assert ep["switch_button_indices"] == sp["switch_button_indices"]
     # lie-down instance: walker params + pose/policy/timing, never other gains
     assert cfg["controller_manager"]["ros__parameters"][so.LIEDOWN] == {"type": so.NEURAL_TYPE}
     lp = cfg[so.LIEDOWN]["ros__parameters"]
@@ -159,6 +168,24 @@ def test_lie_pose_is_mirrored_and_inside_driver_limits():
         for name, q in zip(so.JOINT_NAMES, so.LIE_POSE):
             lo, hi = lim["joint_limits"][name]
             assert lo < q < hi, (name, q)
+
+
+def test_r3_list_untouched_without_liedown_and_refused_when_odd(stock, tmp_path):
+    r = so.build("stock", out(stock), str(stock), speed_cap=0.6)
+    assert yaml.safe_load(open(r["config"]))["estop_controller"] == yaml.safe_load(STOCK_CONFIG)["estop_controller"]
+    assert so.add_estop_name('estop_controller:\n  ros__parameters:\n    controller_names: ["a"]\n', "b").endswith(
+        'controller_names: ["a", "b"]\n')
+    for bad in ('estop_controller:\n  ros__parameters:\n    controller_names: ["a", "b"]\n',      # already listed
+                'estop_controller:\n  ros__parameters:\n    controller_names:\n      - a\n',         # block list
+                'other:\n  ros__parameters:\n    x: 1\n'):                                        # no section
+        with pytest.raises(so.OverlayError):
+            so.add_estop_name(bad, "b")
+    # a config with more switch buttons than names before ours would let a button select the lie-down: refused
+    for d in ("src", "install"):
+        p = tmp_path / d / "config.yaml"
+        p.write_text(STOCK_CONFIG.replace("switch_button_indices: [0, 1]", "switch_button_indices: [0, 1, 2]"))
+    with pytest.raises(so.OverlayError, match="R3 list"):
+        so.build("stock", out(stock, "r9"), str(stock), liedown=True)
 
 
 def test_stock_speed_cap_only_touches_caps(stock):

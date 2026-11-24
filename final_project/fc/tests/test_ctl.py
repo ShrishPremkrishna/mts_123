@@ -47,16 +47,56 @@ def test_s1_batch_parses():
     ap = ctl.build_parser()
     steps = ctl.parse_batch(path.read_text())
     cmds = [argv[0] for _, argv in steps]
-    for argv in (a for _, a in steps if a[0] != "pause"):
+    for argv in (a for _, a in steps if a[0] not in ("pause", "sleep")):
         sub = ap.parse_args(argv)
         if sub.fn is ctl.cmd_test:
             ctl.test_body(sub.name, ctl.parse_kv(sub.pairs))
-    assert cmds.count("estop") == 1 and cmds[-3:] == ["pause", "down", "status"]
+    assert cmds[-3:] == ["pause", "down", "status"]
     tests = [a[1] for _, a in steps if a[0] == "test"]
-    assert tests.count("push_ball") == 10 and tests.count("goalie") == 5 and tests.count("deadman") == 1
-    # the estop step needs a standing robot with the bridge up: a ready comes after the last down --keep-stack
-    i_estop = cmds.index("estop")
-    assert "ready" in cmds[cmds.index("down", cmds.index("set", len(cmds) - 30)):i_estop]
+    assert tests.count("push_ball") == 7 and tests.count("goalie") == 5 and tests.count("deadman") == 1
+    # pre-flight review: the link E-STOP is first tested ON THE STAND, before any floor motion
+    i_estop, i_floor = cmds.index("estop"), cmds.index("check")
+    first_motion = min(i for i, (_, a) in enumerate(steps) if a[0] == "test")
+    assert cmds.count("estop") == 2 and i_estop < i_floor < first_motion
+    assert cmds[i_estop - 2:i_estop] == ["ready", "drive"] and cmds[i_estop - 3] == "pause"
+    # the estop step at the end needs a standing robot with the bridge up: a ready after the last down --keep-stack
+    last_estop = len(cmds) - 1 - cmds[::-1].index("estop")
+    keep = max(i for i, (_, a) in enumerate(steps) if a[:3] == ["down", "blue", "--keep-stack"])
+    assert "ready" in cmds[keep:last_estop]
+    # check never straight after ready (loss window): a sleep of >= 10 s in between
+    for i, (_, a) in enumerate(steps):
+        if a[0] == "check":
+            j = max(k for k in range(i) if cmds[k] == "ready")
+            assert any(steps[k][1][0] == "sleep" and float(steps[k][1][1]) >= 10 for k in range(j, i)), i
+    # fast block (after the fast-play-robot ready): every goto at 0.3/1.0, every fast step/push/goalie at 0.75/2.0
+    i_fast = next(i for i, (_, a) in enumerate(steps) if "fast-play-robot" in a)
+    lim = None
+    for _, a in steps[i_fast:]:
+        if a[0] == "set" and any(x.startswith("max_vx=") for x in a):
+            lim = a[1:]
+        if a[0] == "test" and a[1] == "goto":
+            assert lim == ["max_vx=0.3", "max_wz=1.0"], a
+        if a[0] == "test" and a[1] in ("step", "push_ball", "goalie"):
+            assert lim == ["max_vx=0.75", "max_wz=2.0"], a
+    fast_steps = [a for _, a in steps[i_fast:] if a[:2] == ["test", "step"]]
+    assert "vx=0.75" in fast_steps[1] and "seconds=0.8" in fast_steps[1]       # short open loop first
+    first_fast_push = next(i for i, (_, a) in enumerate(steps) if i > i_fast and a[:2] == ["test", "push_ball"])
+    assert all(a[1] != "push_ball" for _, a in steps[i_fast:first_fast_push] if a[0] == "test")
+    assert "LIGHT BALL" in " ".join(next(a for _, a in reversed(steps[:first_fast_push]) if a[0] == "pause"))
+    # slow pushes: 25 s timeout; goalie gain and start pose before the first goalie run
+    assert ["set", "test_timeout_s=25"] in [a for _, a in steps[:cmds.index("down")]]
+    i_goalie = next(i for i, (_, a) in enumerate(steps) if a[:2] == ["test", "goalie"])
+    before = [a for _, a in steps[i_fast:i_goalie]]
+    assert any(a[0] == "set" and a[1].startswith("k_goalie=") for a in before)
+    assert ["test", "goto", "x=-1.05", "y=0", "yaw=90"] in before
+    # a Pi temperature line before every pause once the robot is up (from the first ready on)
+    first_ready = cmds.index("ready")
+    pauses_after = [i for i, c in enumerate(cmds) if c == "pause" and i > first_ready]
+    with_pi = [i for i in pauses_after if "pi" in cmds[max(0, i - 2):i]]
+    assert len(with_pi) >= len(pauses_after) - 6, (len(with_pi), len(pauses_after))
+    # the resume hints in the batch name exact lines: keep them true
+    lines = path.read_text().splitlines()
+    assert lines[183 - 1].startswith("# ---- 9.") and lines[190 - 1].startswith("set k_goalie=")
 
 
 # ---- formatting -----------------------------------------------------------------------------------
@@ -169,6 +209,18 @@ def test_check_robot_gates():
     assert not ctl.check_robot(CAMERA_STATE, "red")[0]
     sim = {**CAMERA_STATE, "source": "sim", "eye": None, "link": None}
     assert ctl.check_robot(sim, "blue", yaw=90)[0]       # sim: the yaw gate is about the camera, not checked
+
+
+def test_pi_line():
+    st = {"phase": "ready", "temp_c": 61.2, "throttled": "0x0", "load": [1.5, 1.2, 1.0], "bridge": {"alive": True},
+          "speed_cap": 0.8, "liedown": True, "estopped": False}
+    line, why = ctl.pi_line("blue", st)
+    assert line.startswith("PI blue: 61.2 C throttled 0x0 · load 1.5 · phase ready · bridge up") and why is None
+    line, why = ctl.pi_line("blue", {**st, "temp_c": 77.0, "throttled": "0x80000", "estopped": True,
+                                     "estop": {"reason": "link"}})
+    assert "77 C HOT" in line and "(!)" in line and "ESTOPPED(link)" in line and why is None
+    assert "let it cool" in ctl.pi_line("blue", {**st, "temp_c": 80.5})[1]
+    assert ctl.pi_line("blue", {"phase": "off"})[1] == "no temperature in fcctl status"
 
 
 def test_progress_line():
@@ -298,6 +350,7 @@ def test_live_status_step_and_ops(live, capsys):
     assert "preset capped: 1 keys, stack speed_cap=0.8" in out and "--speed-cap 0.80" in out and "READY blue (dry run" in out
     assert run("down", "blue", "--keep-stack") == 0
     assert "fcctl.sh down --keep-stack" in capsys.readouterr().out
+    assert run("pi", "blue") == 0 and "PI blue (dry run" in capsys.readouterr().out
     assert run("estop", "blue") == 0 and "E-STOP blue: confirmed" in capsys.readouterr().out
     assert run("test", "step", "vx=0.1", "--wait") == 1             # refused while latched
     assert "estopped" in capsys.readouterr().out
@@ -370,6 +423,19 @@ def test_ready_refuses_to_home_without_flag(capsys):
     assert c.posts[-1] == ("/robot", {"robot": "blue", "op": "ready", "confirm": True})
     out = capsys.readouterr().out
     assert "homed [speed_cap 0.49] [heading_hold on]" in out and out.rstrip().endswith("READY blue · cap 0.49 hh on")
+
+
+def test_down_aborted_by_estop_is_a_health_stop(capsys):
+    ap = ctl.build_parser()
+    c = RealOpsClient("ready", [])
+    c.out["down"] = "".join(json.dumps(x) + "\n" for x in [
+        {"phase": "begin", "ok": True, "elapsed": 0.0, "msg": "down"},
+        {"phase": "lowering", "ok": True, "elapsed": 1.0, "msg": "lowering", "gentle": True},
+        {"phase": "aborted", "ok": False, "elapsed": 1.6, "msg": "LOWERING ABORTED by E-STOP (link)", "estop": "link"},
+        {"phase": "down", "ok": True, "elapsed": 4.0, "msg": "stack stopped", "aborted": "link", "done": True}])
+    with pytest.raises(ctl.HealthStop, match="aborted by E-STOP"):
+        ctl.cmd_down(c, ap.parse_args(["down", "blue"]))
+    assert "lowering ABORTED by E-STOP (link)" in capsys.readouterr().out
 
 
 def test_ready_without_status_when_bridge_acks_and_homed_next(capsys):
