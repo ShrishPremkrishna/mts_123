@@ -34,5 +34,6 @@
   "goal_line_margin_m": 0.0,
   "push_turn_scale": 1.0,
   "aim_y_frac": 0.0,
-  "clear_margin": 0.12
+  "clear_margin": 0.06,
+  "k_turn": 1.0
 }
