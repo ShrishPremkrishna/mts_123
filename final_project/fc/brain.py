@@ -29,6 +29,9 @@ Knobs (params.json; DEFAULTS below apply when a key is missing):
   clear_margin  extra clearance (m) beyond ball_radius+robot_radius when orbiting
   push_vx, push_ahead, push_lat_tol  push speed, aim point beyond the ball, |l| latch (m)
   push_turn_scale  heading gain multiplier while pushing (lower = calmer dribble)
+  push_max_heading_deg  0 = off. >0: on the shot line next to the ball but facing more than this
+                off the push direction -> "square" (turn in place toward the shot line, backing off
+                to hold the body clear of the ball) instead of pushing sideways; +15 deg hysteresis
   aim_y_frac    aim at y = frac * ball_y inside the mouth (0 = centre)
   hb_*          headbutt: standoff, align tolerances, charge speed/distance/accel, back-off,
                 hb_square_r = radius around the stage where it squares up holonomically
@@ -95,6 +98,7 @@ DEFAULTS = {
     "k_turn": 1.5, "k_vy": 1.5, "k_curve": 1.2,
     "behind_cone_deg": 120, "clear_margin": 0.06, "orbit_hold_s": 2.0, "orbit_slack": 0.10,
     "push_vx": 0.30, "push_ahead": 0.4, "push_turn_scale": 0.6, "push_lat_tol": 0.09, "aim_y_frac": 0.5,
+    "push_max_heading_deg": 0,
     "hb_standoff": 0.12, "hb_square_r": 0.2, "hb_lat_tol": 0.06, "hb_align_deg": 15, "hb_charge_vx": 0.30,
     "hb_charge_dist": 0.50, "hb_accel": 1.2, "hb_backoff_vx": 0.15, "hb_backoff_s": 0.8,
     "goalie_style": "sideways", "goalie_dist": 0.25, "goalie_margin": 0.05,
@@ -156,7 +160,7 @@ def shape(cmd: Cmd, prev: Cmd, dt: float, params: dict, accel_vx: float | None =
                prev.wz + clamp(wz - prev.wz, -aw, aw), cmd.tag)
 
 
-UNCLEAN_TAGS = ("push", "charge", "backoff", "unstick", "line_up", "ball_lost")  # never yaw_learn from these
+UNCLEAN_TAGS = ("push", "square", "charge", "backoff", "unstick", "line_up", "ball_lost")  # never yaw_learn from these
 
 
 class Brain:
@@ -524,7 +528,20 @@ class Brain:
             return self._goto(pose, tgt, p, p["max_vx"], others, tag="route"), \
                 {"phase": "route", "target": [round(tgt[0], 3), round(tgt[1], 3)], "lat": round(l, 3)}
         tol = p["push_lat_tol"]
-        self.pushing = abs(l) < (2 * tol if self.pushing else tol)
+        on_line = abs(l) < (2 * tol if self.pushing else tol)
+        dB = math.hypot(pose.x - B[0], pose.y - B[1])
+        close = dB < c + 0.15
+        lim = p["push_max_heading_deg"]
+        herr = wrap(math.atan2(u[1], u[0]) - pose.yaw)
+        if lim > 0 and on_line and close and abs(herr) > math.radians(lim + (15 if self.pushing else 0)):
+            # pushes that began 50-130 deg off the shot line knocked the ball sideways: square up first,
+            # stepping back while the body is within clear_margin of the ball so turning can't clip it
+            self.pushing = False
+            bx, _ = to_body(pose, B[0] - pose.x, B[1] - pose.y)
+            vx = -p["unstick_vx"] if dB < clear and bx > 0 else 0.0
+            return Cmd(vx, clamp(-p["k_vy"] * l, -p["max_vy"], p["max_vy"]), p["k_turn"] * herr, "square"), \
+                {"phase": "square", "target": [round(B[0], 3), round(B[1], 3)], "lat": round(l, 3)}
+        self.pushing = on_line
         # unified curved approach: far off the line -> stage behind the ball (k_curve*|l|);
         # on the line -> aim push_ahead beyond the ball and keep walking through it
         w = min(1.0, abs(l) / (2 * tol))
@@ -532,7 +549,6 @@ class Brain:
         tgt = (B[0] - u[0] * back, B[1] - u[1] * back)
         if back > 0:
             tgt = self._clamp_field(tgt, p)
-        close = math.hypot(pose.x - B[0], pose.y - B[1]) < c + 0.15
         phase = "push" if self.pushing and close else "approach"
         cmd = self._goto(pose, tgt, p, p["push_vx"] if self.pushing else p["max_vx"], others,
                          avoid=0.3 if phase == "push" else 1.0, lateral=False, tag=phase)

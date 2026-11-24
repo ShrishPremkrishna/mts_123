@@ -62,6 +62,24 @@ def test_push_from_behind_walks_through_ball_and_never_stops():
     assert dbg["target"][0] > 0.0  # aim point is beyond the ball, toward the east goal
 
 
+def test_push_max_heading_off_by_default_pushes_sideways_as_before():
+    assert DEFAULTS["push_max_heading_deg"] == 0
+    cmd, dbg = run(Brain(BLUE, F), lambda t: world(t, (-0.30, 0.0, math.pi / 2), (0.0, 0.0)), 10)[-1]
+    assert dbg["phase"] == "push"
+
+
+def test_push_max_heading_squares_up_and_backs_off_before_pushing():
+    q = {**P, "push_max_heading_deg": 45}
+    cmd, dbg = run(Brain(BLUE, F), lambda t: world(t, (-0.40, 0.0, math.pi / 2), (0.0, 0.0)), 10, q)[-1]
+    assert dbg["phase"] == "square" and cmd.vx == 0.0 and cmd.wz < -0.3  # turn right toward +x, no walking
+    # body within clearance and the ball ahead of it: step back while turning
+    cmd, dbg = run(Brain(BLUE, F), lambda t: world(t, (-0.26, 0.0, math.radians(60)), (0.0, 0.0)), 10, q)[-1]
+    assert dbg["phase"] == "square" and cmd.vx < 0.0 and cmd.wz < 0.0
+    # within the limit: push as before
+    cmd, dbg = run(Brain(BLUE, F), lambda t: world(t, (-0.30, 0.0, math.radians(30)), (0.0, 0.0)), 10, q)[-1]
+    assert dbg["phase"] == "push"
+
+
 def test_wrong_side_routes_around_with_clearance():
     b = Brain(BLUE, F)
     cmd, dbg = run(b, lambda t: world(t, (0.40, 0.0, math.pi), (0.0, 0.0)), 5)[-1]
