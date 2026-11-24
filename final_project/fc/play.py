@@ -317,12 +317,54 @@ def banners(cfg: dict[str, RobotCfg], playing, moving: bool, cmds: dict, imu_bad
     return out
 
 
+def down_failed(op: dict | None) -> bool:
+    """fcctl down finished without success (e.g. "still standing": lie-down not confirmed)."""
+    return bool(op and op.get("op") == "down" and not op.get("running") and op.get("rc") not in (0, None))
+
+
+DOWN_FAIL_TEXT = "STILL STANDING? down refused: use R3 or support the robot"
+
+
+def estop_view(rid: str, e: dict, now: float, has_link: bool, sim: bool, resend_s: float) -> dict:
+    """E-stop latch -> {level, text, confirmed, by, wall} for the UI. Never clears itself."""
+    n, why = name(rid), e.get("reason") or ""
+    if e.get("by") == "robot":
+        text, lvl = f"{n} E-STOPPED by the robot ({why}): legs off. Re-arm = Ready", "bad"
+    elif e.get("confirmed"):
+        text, lvl = f"{n} E-STOPPED: legs off, latched{' (sim)' if sim else ''}. Re-arm = Ready", "bad"
+    elif not has_link:
+        text, lvl = f"{n} E-STOP: link off, nothing was sent. Use R3", "bad"
+    elif now - e["t"] < resend_s:
+        text, lvl = f"{n} E-STOP sent: waiting for the robot to confirm", "bad"
+    else:
+        text, lvl = f"{n} E-STOP NOT CONFIRMED by the robot: use R3 now", "bad"
+    return {"level": lvl, "text": text, "confirmed": bool(e.get("confirmed")), "by": e.get("by"), "wall": e.get("wall")}
+
+
+def safety_banners(cfg: dict[str, RobotCfg], active, estops: dict, ops: dict, now: float, has_link: bool, sim: bool,
+                   resend_s: float) -> list[dict]:
+    """Banners that outrank play: latched e-stops and a refused down, for every active robot."""
+    out = []
+    for rid in active:
+        if rid in estops:
+            v = estop_view(rid, estops[rid], now, has_link, sim, resend_s)
+            out.append({"robot": rid, "team": cfg[rid].team, "level": "bad", "kind": "estop", "text": v["text"]})
+        if down_failed(ops.get(rid)):
+            out.append({"robot": rid, "team": cfg[rid].team, "level": "bad", "kind": "down",
+                        "text": f"{name(rid)}: {DOWN_FAIL_TEXT}"})
+    return out
+
+
 def health(source: str, active: bool, seen: bool, L: dict | None, has_link: bool, op: dict | None,
-           phase: str | None, imu_bad: bool, mux_lost: bool) -> dict:
+           phase: str | None, imu_bad: bool, mux_lost: bool, estopped: bool = False) -> dict:
     """One traffic light per robot: level ok|warn|bad|off and a short text. Never claims ready
     without evidence: "Ready" needs fcctl phase ready; otherwise the best observed state."""
     if not active:
         return {"level": "off", "text": "not in this session"}
+    if estopped:
+        return {"level": "bad", "text": "E-STOPPED · re-arm = Ready"}
+    if down_failed(op):
+        return {"level": "bad", "text": "still standing? use R3"}
     if imu_bad:
         return {"level": "bad", "text": "IMU bad"}
     if mux_lost:

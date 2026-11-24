@@ -15,6 +15,14 @@
   header .pill.live { background:var(--ok); }
   header .spacer { flex:1; }
   #stop { background:var(--red); color:#fff; border:0; font-weight:700; font-size:16px; padding:10px 26px; border-radius:8px; cursor:pointer; }
+  #estop { background:repeating-linear-gradient(-45deg, #facc15 0 7px, #111 7px 14px); border:0; padding:4px; border-radius:9px; cursor:pointer; }
+  #estop > span { display:block; background:#b91c1c; color:#fff; font-weight:900; font-size:16px; letter-spacing:.1em; padding:7px 18px; border-radius:6px; }
+  #estop.latched > span { background:#7f1d1d; }
+  .btnsub { display:block; font-size:10px; font-weight:600; letter-spacing:0; opacity:.9; }
+  .estopbox { background:#fef2f2; border:2px solid var(--bad); color:#7f1d1d; border-radius:8px; padding:6px 8px; margin:6px 0; font-weight:600; }
+  .estopbox b { font-size:15px; color:var(--bad); }
+  .downfail { background:var(--bad); color:#fff; border-radius:8px; padding:6px 8px; margin:6px 0; font-weight:700; }
+  button.estop1 { background:var(--bad); color:#fff; border-color:var(--bad); font-weight:700; }
   #go { background:var(--ok); color:#fff; border:0; font-weight:600; padding:10px 18px; border-radius:8px; cursor:pointer; }
   main { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr); gap:12px; padding:12px; }
   @media (max-width:900px) { main { grid-template-columns:1fr; } }
@@ -70,7 +78,8 @@
   <span class="spacer"></span>
   <span class="mute" id="loop" style="color:#9ca3af;font-size:12px"></span>
   <button id="go" title="Free play with the current params (role_mode)">Go</button>
-  <button id="stop" title="Space bar">STOP (space)</button>
+  <button id="stop" title="Space: zero speed to every robot; they stand still, legs stay on">STOP<span class="btnsub">space · stand still</span></button>
+  <button id="estop" title="Esc: legs off on every robot (the gamepad R3 action): a damped drop, latched until Ready re-arms it"><span>E-STOP<span class="btnsub">Esc · legs off, robot drops</span></span></button>
 </header>
 <main>
   <section>
@@ -107,6 +116,7 @@
         <button data-step="custom">Run step</button>
         <span class="mute">quick:</span>
         <button data-step="0.1,0,0">fwd 0.1</button><button data-step="0.2,0,0">fwd 0.2</button><button data-step="0.3,0,0">fwd 0.3</button>
+        <button data-step="0.4,0,0" title="top of the trot, below the 0.45-0.6 gait switch">fwd 0.4</button><button data-step="0.75,0,0" title="fast play cruise; needs max_vx 0.75 (fast-play / fast-play-robot) and the robot's speed cap above it">fwd 0.75</button>
         <button data-step="0,0.1,0">left 0.1</button><button data-step="0,0,0.5">turn +0.5</button><button data-step="0,0,-0.5">turn -0.5</button>
       </div>
       <div id="msg"></div>
@@ -154,12 +164,19 @@ async function post(path, body) {
 }
 function say(text, err) { const m = $("msg"); m.textContent = text; m.className = err ? "err" : ""; }
 
-// ---------- stop: always ----------
-function stopAll() { gotoArmed = false; keys.clear(); post("/action", { action: "stop" }); say("STOP sent"); }
+// ---------- stop and e-stop: always ----------
+function stopAll() { gotoArmed = false; keys.clear(); post("/action", { action: "stop" }); say("STOP sent: zero speed"); }
+function estop(rid) {   // no confirmation: an e-stop must be instant
+  gotoArmed = false; keys.clear();
+  post("/action", rid ? { action: "estop", robot: rid } : { action: "estop" });
+  say(`E-STOP sent to ${rid || "all robots"}: legs off, latched until Ready`, true);
+}
 $("stop").onclick = stopAll;
+$("estop").onclick = () => estop();
 $("go").onclick = () => post("/action", { action: "go" });
 document.addEventListener("keydown", (e) => {
   if (e.code === "Space") { e.preventDefault(); stopAll(); return; }
+  if (e.key === "Escape") { e.preventDefault(); estop(); return; }
   const k = e.key.toLowerCase();
   if (S && S.mode === "drive" && "wasdqe".includes(k) && k.length === 1 && !isTyping(e)) { keys.add(k); sendTeleop(true); }
 }, true);
@@ -174,6 +191,8 @@ function sendTeleop(force) {
   if (force || sig !== lastTeleop || keys.size) { lastTeleop = sig; post("/action", cmd); }
 }
 setInterval(() => sendTeleop(false), 100);
+
+const stackTxt = (s) => !s ? "" : [s.speed_cap != null ? `speed cap ${Number(s.speed_cap).toFixed(2)}` : "", s.heading_hold ? `heading hold ${s.heading_hold}` : ""].filter(Boolean).join(" · ");
 
 // ---------- tests ----------
 document.querySelectorAll("[data-test]").forEach((b) => b.onclick = () => {
@@ -291,14 +310,18 @@ function renderRobots() {
       <div class="robot" id="r-${esc(r.id)}">
         <h3><span class="dot" id="dot-${esc(r.id)}"></span><span style="color:${TEAM[r.team] || "#555"}">${esc(r.id)}</span>
             <span class="mute">tag ${esc(r.tag)} · ${esc(r.host || "no host")} · ${esc(r.profile)}</span></h3>
+        <div class="estopbox" id="es-${esc(r.id)}" style="display:none"></div>
+        <div class="downfail" id="df-${esc(r.id)}" style="display:none"></div>
         <div class="kv" id="kv-${esc(r.id)}"></div>
         <div class="warnline" id="warn-${esc(r.id)}"></div>
+        <div class="row"><button data-estop="${esc(r.id)}" class="estop1" title="legs off for this robot only (R3 action): damped drop, latched until Ready">E-STOP ${esc(r.id)}</button>
+          <span class="mute">stop = stand still · down = lie down (drop) + stack off</span></div>
         <div class="row">
           ${["status", "stop", "down", "bridge_start", "bridge_stop", "stage"].map(op =>
             `<button data-op="${op}" data-r="${esc(r.id)}">${op.replace("_", " ")}</button>`).join("")}
         </div>
         <div class="row">
-          <button data-op="ready" data-r="${esc(r.id)}" class="danger" title="fcctl ready: start + stand + bridge (homes the legs)">ready</button>
+          <button data-op="ready" data-r="${esc(r.id)}" class="danger" title="fcctl ready --confirm: stack off -> home on the stand; homed -> stand + bridge; also re-arms after E-STOP">ready</button>
           <button data-op="start" data-r="${esc(r.id)}" class="danger">start</button>
           profile <select id="prof-${esc(r.id)}" data-prof="${esc(r.id)}"></select>
         </div>
@@ -310,11 +333,13 @@ function renderRobots() {
         </div>
         <pre id="op-${esc(r.id)}" style="display:none"></pre>
       </div>`).join("");
+    box.querySelectorAll("[data-estop]").forEach(b => b.onclick = () => estop(b.dataset.estop));
     box.querySelectorAll("[data-op]").forEach(b => b.onclick = () => {
       const body = { robot: b.dataset.r, op: b.dataset.op };
       if (body.op === "start" || body.op === "ready") {
         body.profile = $("prof-" + body.robot).value;
-        if (!confirm(`${body.op} ${body.robot} with profile ${body.profile}? This may HOME THE LEGS. Robot on the stand / clear area?`)) return;
+        const st = stackTxt(S.preset.stack);
+        if (!confirm(`${body.op} ${body.robot} with profile ${body.profile}${st ? " (" + st + ")" : ""}? Stack off: HOMES THE LEGS (robot on the stand). Homed: ready STANDS it up${S.estop[body.robot] ? " and clears the E-STOP" : ""}. Area clear, R3 within reach?`)) return;
         body.confirm = true;
       }
       if (body.op === "imu_test") {
@@ -343,6 +368,7 @@ function renderRobots() {
       ["auth", L ? (L.auth === "missing_key" ? "missing_key (python -m fc.robot.keygen)" : L.auth) : "-"],
       ["ack age / rtt", L ? `${f2(L.ack_age)} s / ${f2(L.rtt_ms, 0)} ms · p95 ${f2(L.rtt_p95_ms, 0)} ms · loss ${L.loss === null ? "-" : f2(L.loss * 100, 1) + "%"}` : "-"],
       ["profile", (running || "-") + (S.preset.profile && running && S.preset.profile !== running ? ` (preset wants ${S.preset.profile}: stop + start)` : "")],
+      ["stack (fcctl status)", (() => { const k = S.stack[r.id]; return !k ? "-" : k.known ? (stackTxt(k) || "speed_cap / heading_hold not reported") : "- (press status)"; })()],
       ["imu", imu ? `${imu.level || "?"} · tilt ${f2(imu.tilt_deg, 1)}° · pulse ${f2(imu.pulse_density)}` + ((imu.reasons || []).length ? " · " + imu.reasons.join(", ") : "") : "-"],
       ["hold / imu_hold / mux_ok", L ? [L.hold || "none", L.imu_hold, L.mux_ok].map(v => v === null || v === undefined ? "-" : String(v)).join(" / ") : "-"],
       ["fcctl status", (() => { const st = S.robot_status[r.id]; return st ? `profile ${st.profile || st.active || "-"} · mux_alive ${st.mux_alive ?? "-"} · mux_ok ${st.mux_ok ?? "-"} · Pi ${st.temp_c ?? "-"} °C` : "- (press status)"; })()],
@@ -357,6 +383,16 @@ function renderRobots() {
     if (S.imu_bad.includes(r.id)) warns.push("IMU BAD: app sends zero; R3 if the robot misbehaves");
     if (S.mux_lost.includes(r.id)) warns.push("MUX LOST: app sends zero; walker may keep its last command - R3 if walking; wait ~20 s before restarting the profile");
     if (L && L.hold) warns.push("bridge holding zero: " + L.hold);
+    for (const w of ((S.stack[r.id] || {}).warn || [])) warns.push(w);
+    const es = S.estop[r.id], esb = $("es-" + r.id);
+    esb.style.display = es ? "block" : "none";
+    if (es) esb.innerHTML = `<b>E-STOPPED</b> ${esc(es.text)} <span class="mute">(${esc(es.wall)})</span>`
+      + (S.source === "sim" ? ` <button data-esclear="${esc(r.id)}">clear (sim)</button>` : "");
+    const clr = esb.querySelector("[data-esclear]"); if (clr) clr.onclick = () => post("/action", { action: "estop_clear", robot: r.id });
+    const op0 = S.ops[r.id], df = $("df-" + r.id);
+    const downFail = op0 && op0.op === "down" && !op0.running && op0.rc !== 0 && op0.rc !== null;
+    df.style.display = downFail ? "block" : "none";
+    if (downFail) df.textContent = "DOWN REFUSED: " + ((op0.progress || {}).error || "rc " + op0.rc) + " (never use --force)";
     $("warn-" + r.id).textContent = warns.join(" · ");
     $("dot-" + r.id).className = "dot " + (L ? (L.connected && !L.hold && L.mux_ok !== false ? levelClass(imu && imu.level) || "ok" : "bad") : (w ? "ok" : ""));
     const op = S.ops[r.id], pre = $("op-" + r.id);
@@ -427,10 +463,13 @@ function render() {
   $("mode").textContent = S.mode + (S.test && S.test.robot ? " · " + S.test.robot : "");
   $("mode").className = "pill" + (S.mode !== "idle" ? " live" : "");
   const pr = S.preset;
-  $("presetPill").textContent = "preset: " + (pr.name ? pr.name + (pr.modified.length ? "*" : "") : "base") + (pr.profile ? " · " + pr.profile : "");
+  $("presetPill").textContent = "preset: " + (pr.name ? pr.name + (pr.modified.length ? "*" : "") : "base") + (pr.profile ? " · " + pr.profile : "")
+    + (stackTxt(pr.stack) ? " · " + stackTxt(pr.stack) : "");
   $("presetInfo").textContent = "active: " + (pr.name || "base") + (pr.profile ? ` · robot profile ${pr.profile}` : "")
+    + (stackTxt(pr.stack) ? ` · Ready passes ${stackTxt(pr.stack)}` : "")
     + (pr.modified.length ? ` · edited: ${pr.modified.join(", ")}` : "") + (pr.note ? ` · ${pr.note}` : "");
-  const halts = S.imu_bad.map(r => "IMU BAD " + r).concat(S.mux_lost.map(r => "MUX LOST " + r));
+  const halts = Object.keys(S.estop).map(r => "E-STOPPED " + r + " (re-arm = ready)").concat(S.imu_bad.map(r => "IMU BAD " + r), S.mux_lost.map(r => "MUX LOST " + r));
+  $("estop").classList.toggle("latched", Object.keys(S.estop).length > 0);
   $("imuPill").style.display = halts.length ? "" : "none";
   $("imuPill").textContent = halts.join(" · ");
   $("sb").textContent = S.score.blue; $("sr").textContent = S.score.red;

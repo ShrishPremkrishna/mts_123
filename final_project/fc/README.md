@@ -20,7 +20,7 @@ Flags: `--port 8800`, `--host <LAN IP>` (UI from another device; default 127.0.0
 `--no-link` (compute commands, send nothing), `--dry-run-ops` (robot buttons print their ssh command),
 `--udp-host blue=192.168.x.y` (control packets to the Pi's LAN address; overrides robots.json `udp_host`).
 
-Floor day: follow [RUNBOOK.md](RUNBOOK.md).
+Floor session: follow [RUNBOOK.md](RUNBOOK.md).
 
 The app imports the real `fc.brain` and `fc.sim`; if either fails to import, the app does not start
 (no fallback controller).
@@ -36,9 +36,21 @@ debounced phase changes); banners say in plain words why a playing robot is stop
 bad, mux lost, bridge hold, no link, ball not seen). Nothing is shown as ready without evidence: the light
 says "ready" only when fcctl reports phase `ready` (else "link ok", "not seen by camera", ...).
 
-Keys: **space stop** (always), K kickoff, P play/pause (or start now), R walk back to kickoff spots,
-T / shift+T referee touch +1/-1, V cycle who plays (both, blue alone, red alone; no restart), 1/2 cycle
-the first/second robot's job, C camera/field view, Esc hide the end card. `/ops` is the test page below.
+Keys: **space stop** (always), **Esc E-STOP** (always), K kickoff, P play/pause (or start now), R walk back to
+kickoff spots, T / shift+T referee touch +1/-1, V cycle who plays (both, blue alone, red alone; no restart), 1/2
+cycle the first/second robot's job, C camera/field view, H hide the end card. `/ops` is the test page below.
+
+**Stop vs E-STOP** (both screens). STOP (space) = zero speed to every robot; it stands still with its legs on.
+E-STOP (Esc, the striped header button = all robots, the card/robot button = that robot) = `Link.estop`: a signed
+burst of 5 `"estop": true` packets 20 ms apart (SPEC v1.1), then one e-stop packet per tick until an ack reports
+`estopped` (at most 3 s). The bridge does the R3 action (legs off, damped drop) and latches. The app latches too
+(`state.estop`): zero commands to that robot, its test ends `estop`/`estopped`, new tests are refused, the light
+and a pitch banner say `E-STOPPED · re-arm = Ready`. Nothing clears it by itself: only a Ready on that robot that
+ends in phase `ready` and started after the e-stop (sim: "clear (sim)" stands in for Ready). An ack with
+`estopped: true` that the operator did not cause (fallen-robot cutoff, another laptop) latches it the same way
+("E-STOPPED by the robot"). No confirming ack within 3 s: "E-STOP NOT CONFIRMED by the robot: use R3".
+A `down` that exits 1 ("still standing", lie-down not confirmed) turns the light and a banner red: "use R3 or
+support the robot". The app never passes `--force`.
 
 Match flow (`play.py`, one `match` run with `flow`): **kickoff** (brain `role_mode=goto` to spots at
 ∓`kickoff_x_frac`·length, facing the other goal; waits for both in position and the ball still at the
@@ -57,7 +69,7 @@ Recording: with the camera source and `record: 1`, every run writes `<run>/overh
 
 ## Ops page (`/ops`)
 
-UI: **space = stop all, always**. Pick a robot, press a test button; each run writes
+UI: **space = stop all, Esc = E-STOP all, always** (per-robot E-STOP on each card). Pick a robot, press a test button; each run writes
 `fc/runs/<UTC>-<test>/{params.json,events.jsonl,summary.json}` and shows in the Runs list.
 
 | Test | What it does | Summary |
@@ -87,15 +99,22 @@ health (`imu`, `hold`, `imu_hold`, `mux_ok`, auth, RTT, loss, bridge stats) and 
 at 2 Hz (`lk`, `eye` records), with the full brain debug dict every tick.
 
 Params: every knob (params.json + brain/sim defaults + `app.PARAM_FALLBACKS`) is editable live; limits are
-enforced (speed ceilings 0.5 / 0.3 / 2.0 also in `link.py`). The `eye_*` mount knobs apply on the next frame
+enforced (speed ceilings vx 0.75 / vy 0.3 / wz 2.0 = `link.CEIL`, the hard cap on every packet; `max_vx`,
+`push_vx`, `contact_vx`, `goalie_vmax` share the vx ceiling). The bridge clamps again with its own `MAX_VX`. The `eye_*` mount knobs apply on the next frame
 (a new `eye_floor_size` recalibrates).
 
 Presets (`config/presets/<name>.json`, committed) hold only the keys they change. **Load** = base params
 (params.json + defaults at app start) + the preset's keys; presets never stack, **Base** returns to base,
 **Save current** writes only keys that differ from base. `_profile` names the robot profile `start` will use;
-`_note` is shown. The header shows the active preset (`*` = edited since), and each run's `params.json`
-records `preset`, `preset_modified`, `preset_profile`, `profile_running` (from the acks) and the link address.
-Shipped: `slow`, `fast`, `learn`, `push`, `headbutt`, `stock-hh-on`, `stock-hh-off`, `u6-hh-on`, `u6-hh-off`.
+`_note` is shown. `_stack` (SPEC v1.1) = walker options Ready/start pass to fcctl, allowlisted: `speed_cap` 0.30–1.00
+(`--speed-cap 0.80`), `heading_hold` on/off (`--heading-hold off`). The header shows the active preset (`*` =
+edited since) and its stack; each robot card shows the running `speed_cap`/`heading_hold` from `fcctl status`
+(refreshed after a successful Ready) and warns when `max_vx` exceeds the robot's speed cap (unknown cap: stock
+0.49) or the running options differ from the preset's. Each run's `params.json` records `preset`,
+`preset_modified`, `preset_profile`, `preset_stack`, `profile_running` (acks), `stack_running`, `estops` and the
+link address. Shipped: `slow`, `fast`, `learn`, `push`, `headbutt`, `fast-play` (sim/brain), `fast-play-robot`
+(fast-play + `_stack.speed_cap` 0.8), `stock-hh-on`, `stock-hh-off`, `u6-hh-on`, `u6-hh-off` (the `*-hh-off`
+presets now use the base profile + `_stack.heading_hold: off`; the `*_hh0` profiles remain aliases).
 
 Network: `link.py` sends to robots.json `udp_host` (or `--udp-host`) when set, else the ssh alias's address.
 `mts` resolves to a Tailscale 100.x address; the UI warns and shows address, RTT, p95 and loss per robot.
@@ -103,9 +122,11 @@ Network: `link.py` sends to robots.json `udp_host` (or `--udp-host`) when set, e
 (the app already tolerates it).
 
 Robot ops run `ssh <host> bash ~/fc-v1/robot/fcctl.sh ...` or `fc/robot/stage.sh <host>` in the
-background; `start` and `ready` ask for confirmation because they home the legs. `ready <profile>` streams
-its JSON progress lines (`phase`, `elapsed`, `ok`, `error`) into the op state and the Play card (timeout
-300 s); `phase` from `ready`/`status` feeds the health light. `stop` and `down` are never refused. The host comes only from
+background; `start` and `ready` ask for confirmation because they home the legs or stand the robot up, and
+the app then passes `--confirm` (`ready <profile> --confirm [stack options]`: stack off → homes and stops;
+homed → stands, starts the bridge and re-arms an e-stop). `ready` and `down` stream their JSON progress lines
+(`phase`, `elapsed`, `ok`, `msg`/`error`) into the op state and the Play card (timeout 300 s / 90 s); `phase`
+from `ready`/`status` feeds the health light. `stop` and `down` are never refused, and never get `--force`. The host comes only from
 `config/robots.json`; profile must be a `robot/profiles/*.sh` name (picked per robot in the UI; a preset's
 `_profile` is the default), `imu_test` seconds an int in 1–900 with optional `mode` (bno|ros|auto) and
 `condition` (a-z0-9_), and each remote argument is shell-quoted. `stop` is never refused by a running op;

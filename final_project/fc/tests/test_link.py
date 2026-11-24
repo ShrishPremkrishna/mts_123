@@ -275,3 +275,41 @@ def test_load_udp_hosts(tmp_path):
     p.write_text(json.dumps([{"id": "blue", "udp_host": "192.168.1.5"}, {"id": "red"}]))
     assert load_udp_hosts(p) == {"blue": "192.168.1.5", "red": ""}
     assert load_udp_hosts(tmp_path / "nope.json") == {}
+
+
+# ---- v1.1: e-stop over the link, fast-play ceiling (2026-11-23) --------------------------
+def test_ceiling_allows_fast_play_but_stays_a_hard_cap():
+    assert CEIL == {"vx": 0.75, "vy": 0.3, "wz": 2.0}
+    assert clamp_cmd(Cmd(0.75, 0, 0), {"max_vx": 0.75})[0] == 0.75
+    assert clamp_cmd(Cmd(5.0, 0, 0), {"max_vx": 3.0})[0] == 0.75
+
+
+def test_estop_packet_is_signed_and_motionless():
+    raw = packet(KEY, "blue", "abc", 9, Cmd(0.5, 0.1, 1.0), {"max_vx": 0.75}, t=3.0, estop=True)
+    msg = json.loads(raw)
+    assert msg["estop"] is True and msg["vx"] == msg["vy"] == msg["wz"] == 0.0
+    assert db.verify(KEY, msg)                                      # the flag is under the MAC
+    assert db.parse_packet(raw, KEY).vx == 0.0                      # an older bridge reads it as a zero command
+    assert "estop" not in json.loads(packet(KEY, "blue", "abc", 10, Cmd(), {}, t=3.1))
+
+
+def test_estop_burst_and_estopped_ack(key_file):
+    echo = FakeBridge(forge=False)
+    link = Link([RobotCfg("blue", "blue", 10, "127.0.0.1", "stock")], {"max_vx": 0.3}, port=echo.port,
+                resolve=lambda h: h, key_file=key_file)
+    try:
+        assert _wait(lambda: link.status()["blue"]["addr"] == "127.0.0.1")
+        t0 = time.monotonic()
+        assert link.estop() == ["blue"]
+        assert time.monotonic() - t0 >= 0.07                        # 5 packets, 20 ms apart
+        assert _wait(lambda: len(echo.got) >= 5)
+        assert all(m.get("estop") is True and m["vx"] == 0 for m in echo.got[:5])
+        assert [m["seq"] for m in echo.got[:5]] == [1, 2, 3, 4, 5]
+        assert link.status()["blue"]["estop_sent"] == 5
+        assert link.status()["blue"]["estopped"] is not False   # True from a v1.1 BridgeCore, None from an older one
+        ack = db.sign(KEY, {"v": 2, "robot": "blue", "sid": link.sid, "ack": 99, "ok": True, "estopped": True})
+        assert link.handle_ack(ack, "127.0.0.1", time.monotonic()) == "blue"
+        assert link.status()["blue"]["estopped"] is True
+    finally:
+        link.close()
+        echo.close()

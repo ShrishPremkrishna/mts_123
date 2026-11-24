@@ -28,9 +28,10 @@ from pathlib import Path
 from .brain import Brain, shape
 from .brain import DEFAULTS as BRAIN_DEFAULTS
 from .core import CONFIG, Cmd, RobotCfg, World, load_field, load_params, wrap
-from .link import Link
+from .link import CEIL, Link
 from .media import CamFeed, Recorder
-from .play import FLOW_DEFAULTS, FLOW_LIMITS, JOBS, RESTART_MODES, MatchFlow, Ticker, action_label, banners, health
+from .play import (FLOW_DEFAULTS, FLOW_LIMITS, JOBS, RESTART_MODES, MatchFlow, Ticker, action_label, banners, down_failed,
+                   estop_view, health, safety_banners)
 from .runlog import RUNS, Metrics, RunLog, list_runs
 from .sim import Sim
 from .sim import SIM_DEFAULTS
@@ -64,9 +65,9 @@ PARAM_FALLBACKS = {
     "record": 1,                # camera source: write each run's overhead video to <run>/overhead.mp4
     "rec_fps": 15.0,
 }
-# Hard limits for live edits. Speed ceilings mirror link.CEIL.
+# Hard limits for live edits. Speed ceilings mirror link.CEIL (the hard cap on every packet).
 LIMITS = {
-    "loop_hz": (5, 60), "max_vx": (0.0, 0.5), "max_vy": (0.0, 0.3), "max_wz": (0.0, 2.0),
+    "loop_hz": (5, 60), "max_vx": (0.0, CEIL["vx"]), "max_vy": (0.0, CEIL["vy"]), "max_wz": (0.0, CEIL["wz"]),
     "accel_vx": (0.05, 5.0), "accel_vy": (0.05, 5.0), "accel_wz": (0.1, 20.0), "ttl_s": (0.05, 0.5),
     "test_timeout_s": (1, 1800), "goalie_shot_s": (1, 30), "match_s": (10, 3600), "goto_tol_m": (0.02, 1.0),
     "stale_stop_s": (0.1, 2.0), "teleop_timeout_s": (0.1, 2.0),
@@ -77,7 +78,9 @@ LIMITS = {
     "k_turn": (0.0, 6.0), "k_vy": (0.0, 5.0), "search_wz": (0.0, 2.0), "predict_self": (0, 1),
     "yaw_learn": (0, 1), "yaw_learn_rate": (0.0, 0.2), "act_lag_s": (0.0, 1.0),
 }
-LIMITS.update({k: (0.0, 0.5) for k in ("push_vx", "hb_charge_vx", "hb_backoff_vx")})
+LIMITS.update({k: (0.0, CEIL["vx"]) for k in ("push_vx", "contact_vx", "goalie_vmax")})
+LIMITS.update({k: (0.0, 0.5) for k in ("hb_charge_vx", "hb_backoff_vx")})
+LIMITS.update(return_vx=(0.0, 2.0), decel_vx=(0.0, 5.0), decel_wz=(0.0, 20.0))   # return_vx > max_vx = no extra cap
 LIMITS.update(FLOW_LIMITS, record=(0, 1), rec_fps=(2, 30))
 CHOICES = {"role_mode": ["auto", "attack", "defend"], "contact_mode": ["push", "headbutt"],
            "ball_lost": ["hold", "search"], "goalie_style": ["sideways", "facing"], "restart_mode": RESTART_MODES}
@@ -99,6 +102,45 @@ CAM_URL_RE = re.compile(r"https?://[A-Za-z0-9_.\-]+(:\d{1,5})?(/[A-Za-z0-9_./\-]
 STEP_PRE_S = 0.7                                   # step: still before the command (start pose)
 DEADMAN_PRE_S = 0.5
 PRESET_NAME_RE = re.compile(r"[A-Za-z0-9_\-]{1,40}")
+# Stack options a preset's "_stack" passes to fcctl ready/start (SPEC v1.1), allowlisted.
+STACK_SPEED_CAP = (0.30, 1.00)
+STACK_HEADING_HOLD = ("on", "off")
+STOCK_SPEED_CAP = 0.49                             # walker cap without --speed-cap
+ESTOP_RESEND_S = 3.0                               # after the burst, resend e-stop each tick until an ack confirms it
+
+
+def validate_stack(raw) -> tuple[dict, list[str]]:
+    """Preset "_stack" -> ({speed_cap: float, heading_hold: on|off} subset, errors)."""
+    if raw is None:
+        return {}, []
+    if not isinstance(raw, dict):
+        return {}, ["_stack must be an object like {\"speed_cap\": 0.8, \"heading_hold\": \"on\"}"]
+    ok, errors = {}, []
+    for k, v in raw.items():
+        if k == "speed_cap":
+            lo, hi = STACK_SPEED_CAP
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or not lo <= v <= hi:
+                errors.append(f"_stack.speed_cap must be a number in [{lo}, {hi}]")
+            else:
+                ok[k] = round(float(v), 2)
+        elif k == "heading_hold":
+            if v not in STACK_HEADING_HOLD:
+                errors.append(f"_stack.heading_hold must be one of {list(STACK_HEADING_HOLD)}")
+            else:
+                ok[k] = v
+        else:
+            errors.append(f"_stack.{k}: unknown (speed_cap, heading_hold)")
+    return ok, errors
+
+
+def stack_args(stack: dict) -> list[str]:
+    """Validated stack dict -> fcctl options."""
+    out = []
+    if "speed_cap" in stack:
+        out += ["--speed-cap", f"{stack['speed_cap']:.2f}"]
+    if "heading_hold" in stack:
+        out += ["--heading-hold", stack["heading_hold"]]
+    return out
 
 
 def load_robot_config(path: Path = CONFIG / "robots.json") -> tuple[list[RobotCfg], dict[str, str]]:
@@ -389,6 +431,7 @@ class App:
         self.preset_vals: dict = {}
         self.preset_profile: str | None = None
         self.preset_note = ""
+        self.preset_stack: dict = {}            # "_stack": speed_cap / heading_hold passed to fcctl ready/start
         self.brains = {r.id: Brain(r, self.field) for r in self.active}
         self.sim = self.eye = self.link = None
         if source == "sim":
@@ -416,6 +459,10 @@ class App:
         self.debug: dict[str, dict] = {}
         self.imu_bad: set[str] = set()      # bridge IMU level bad -> zero + end test (imu_bad)
         self.mux_lost: set[str] = set()     # bridge mux_ok false -> zero + end test (mux_lost)
+        # E-stop latch per robot: {t, wall, by: operator|robot, confirmed, reason}. Cleared only by a
+        # successful Ready on that robot (or estop_clear in sim). Never by time or by acks.
+        self.estops: dict[str, dict] = {}
+        self.estop_cleared: dict[str, float] = {}
         self._lstat: dict[str, dict] = {}
         self._sim_ev_n = 0
         self._goal_cooldown = 0.0
@@ -527,7 +574,9 @@ class App:
                     out[rid] = t.get("last_sent", Cmd()) if held else Cmd.stop("ttl")
                 self.sim.step(out, dt)
             elif self.link:
-                self.link.send({k: v for k, v in cmds.items() if k not in muted})
+                pending = {rid for rid, e in self.estops.items()
+                           if not e["confirmed"] and e["by"] == "operator" and now - e["t"] < ESTOP_RESEND_S}
+                self.link.send({k: v for k, v in cmds.items() if k not in muted}, estop=pending)
             if t and t["name"] in ("step", "deadman") and t["robot"] not in muted:
                 c = cmds[t["robot"]]
                 t["sent"].append((now, c.vx, c.vy, c.wz))
@@ -578,16 +627,48 @@ class App:
         for rid in sorted(self.mux_lost - lost):
             self.say(f"mux on {rid} ok again", robot=rid)
         self.mux_lost = lost
+        now = time.monotonic()
+        for rid, st in lstat.items():   # SPEC v1.1: acks carry "estopped"
+            if (st or {}).get("estopped") is not True or st.get("ack_age") is None:
+                continue
+            ack_t, e = now - st["ack_age"], self.estops.get(rid)
+            if e is not None:
+                if not e["confirmed"] and ack_t >= e["t"]:
+                    e["confirmed"] = True
+                    self.say(f"E-STOP confirmed by {rid}: legs off, latched until Ready", robot=rid)
+            elif ack_t > self.estop_cleared.get(rid, -math.inf) + 0.5:
+                extra = st.get("extra") or {}
+                bridge = st.get("bridge") if isinstance(st.get("bridge"), dict) else {}
+                reason = str(extra.get("estop_reason") or bridge.get("estop_reason") or "robot reports estopped")[:80]
+                self._latch(rid, "robot", confirmed=True, reason=reason)
+
+    def _latch(self, rid: str, by: str, confirmed: bool, reason: str = "", t: float | None = None) -> None:
+        """E-stop latch for one robot. Caller holds the lock (or is the loop)."""
+        if rid in self.estops:
+            return
+        self.estops[rid] = {"t": time.monotonic() if t is None else t, "wall": time.strftime("%H:%M:%S"), "by": by,
+                            "confirmed": confirmed, "reason": reason}
+        self.say(f"E-STOP {rid} ({by}{': ' + reason if reason else ''}): zero commands until Ready re-arms it",
+                 robot=rid, estop=self.estops[rid])
 
     def halted(self, rid: str) -> str | None:
+        if rid in self.estops:
+            return "estopped"
         return "imu_bad" if rid in self.imu_bad else "mux_lost" if rid in self.mux_lost else None
 
     def _health_end_test(self) -> None:
         t = self.test
-        if not t or t["name"] == "sim_eval" or t.get("flow") or not (self.imu_bad or self.mux_lost):
+        if not t or t["name"] == "sim_eval" or t.get("flow") or not (self.imu_bad or self.mux_lost or self.estops):
             return
         involved = {t["robot"]} if t.get("robot") else {r.id for r in self.active}
-        for result, ids, key in (("imu_bad", self.imu_bad, "imu"), ("mux_lost", self.mux_lost, "hold")):
+        for result, ids, key in (("estopped", set(self.estops), "estop"), ("imu_bad", self.imu_bad, "imu"),
+                                 ("mux_lost", self.mux_lost, "hold")):
+            if key == "estop":
+                hit = sorted(involved & ids)
+                if hit:
+                    self._finish(result, estop={rid: self.estops[rid] for rid in hit})
+                    return
+                continue
             hit = sorted(involved & ids)
             if hit:
                 self._finish(result, **{key: {rid: self._lstat.get(rid, {}).get(key) for rid in hit}})
@@ -823,8 +904,11 @@ class App:
         meta = {"test": name, "robot": robot, "source": self.source, "impl": self.impl_note,
                 "active": [r.id for r in self.active], "extra": clean(extra),
                 "preset": self.preset_name, "preset_modified": self.preset_modified(),
-                "preset_profile": self.preset_profile,
+                "preset_profile": self.preset_profile, "preset_stack": self.preset_stack,
                 "profile_running": {rid: st.get("profile") for rid, st in lstat.items()},
+                "stack_running": {rid: {k: (self.robot_status.get(rid) or {}).get(k) for k in ("speed_cap", "heading_hold")}
+                                  for rid in self.robot_status},
+                "estops": clean(self.estops),
                 "link": {rid: {"addr": st.get("addr"), "via": st.get("via"), "rtt_p95_ms": st.get("rtt_p95_ms")}
                          for rid, st in lstat.items()}}
         self.run = RunLog(name, dict(self.params), meta, root=self.runs_root)
@@ -868,7 +952,11 @@ class App:
         a = body.get("action")
         if a == "stop":
             return self.stop()
+        if a == "estop":
+            return self.estop(body.get("robot"))
         with self.lock:
+            if a == "estop_clear":
+                return self._estop_clear_sim(body.get("robot"))
             if a == "go":
                 self._begin("play", None)
                 return {"ok": True}
@@ -989,8 +1077,7 @@ class App:
         try:
             if name == "step":
                 p = self.params
-                asked = [self._num(body, "vx", 0.0, -0.5, 0.5), self._num(body, "vy", 0.0, -0.3, 0.3),
-                         self._num(body, "wz", 0.0, -2.0, 2.0)]
+                asked = [self._num(body, k, 0.0, -CEIL[k], CEIL[k]) for k in ("vx", "vy", "wz")]
                 cmd = [max(-p[k], min(p[k], v)) for v, k in zip(asked, ("max_vx", "max_vy", "max_wz"))]
                 if not any(cmd):
                     return {"ok": False, "error": "step needs a non-zero vx, vy or wz (within max_*)"}
@@ -1057,6 +1144,37 @@ class App:
             self.prev.clear()
         return {"ok": True}
 
+    def estop(self, robot: str | None = None) -> dict:
+        """E-STOP (SPEC v1.1): signed e-stop burst first, then bookkeeping. robot None/"all" = every
+        active robot; an unknown id also e-stops everyone (fail safe). The robot latches with its legs
+        off (damped drop); the app holds zero for it until a successful Ready re-arms it."""
+        active = [r.id for r in self.active]
+        targets = [robot] if robot in active else active
+        t_press = time.monotonic()   # before the burst: acks to its first packets confirm it
+        sent = self.link.estop(targets) if self.link else []
+        with self.lock:
+            whole = len(targets) == len(active)
+            if self.test and (whole or self.test.get("robot") in targets):
+                self._finish("estop", estop=targets)
+            if whole:
+                self.teleop.clear()
+            for rid in targets:
+                self.prev.pop(rid, None)
+                reason = "sim: emulated latch" if self.sim is not None else "" if self.link else "link off: nothing sent"
+                self._latch(rid, "operator", confirmed=self.sim is not None, reason=reason, t=t_press)   # no-op if latched
+        return {"ok": True, "robots": targets, "sent": sent}
+
+    def _estop_clear_sim(self, robot) -> dict:
+        """Sim only: stands in for the Ready that re-arms a real robot. Caller holds the lock."""
+        if self.sim is None:
+            return {"ok": False, "error": "a real robot is re-armed only by Ready (fcctl ready --confirm)"}
+        ids = [robot] if robot in self.estops else list(self.estops) if robot in (None, "", "all") else []
+        for rid in ids:
+            self.estops.pop(rid, None)
+            self.estop_cleared[rid] = time.monotonic()
+        self.say(f"sim: e-stop cleared for {', '.join(ids) or 'nobody'}")
+        return {"ok": True, "cleared": ids}
+
     def _apply_params(self, new: dict) -> None:
         """Replace every value in place: Link and Eye hold this same dict."""
         self.params.clear()
@@ -1081,6 +1199,7 @@ class App:
             with self.lock:
                 self._apply_params(dict(self.base_params))
                 self.preset_name, self.preset_vals, self.preset_profile, self.preset_note = None, {}, None, ""
+                self.preset_stack = {}
                 self.say("params reset to base (params.json + defaults)")
             return {"ok": True}
         name = str(body.get("name", ""))
@@ -1090,6 +1209,8 @@ class App:
         if op == "save":
             with self.lock:
                 diff = {k: v for k, v in sorted(self.params.items()) if self.base_params.get(k) != v}
+                if self.preset_stack:
+                    diff = {"_stack": dict(self.preset_stack), **diff}
                 if self.preset_profile:
                     diff = {"_profile": self.preset_profile, **diff}
                 self.presets_dir.mkdir(parents=True, exist_ok=True)
@@ -1113,15 +1234,21 @@ class App:
                 known = self.profiles()
                 if prof is not None and prof not in known:
                     errors.append(f"_profile {prof!r} is not one of {known} (start will refuse it)")
+                stack, serr = validate_stack(data.get("_stack"))
+                errors += serr
+                if isinstance(prof, str) and prof.endswith("_hh0") and stack.get("heading_hold") == "on":
+                    errors.append(f"_profile {prof} turns heading hold off but _stack says on: use the base profile")
                 self._apply_params({**self.base_params, **ok})
                 self.preset_name, self.preset_vals = name, ok
                 self.preset_profile = prof if isinstance(prof, str) else None
+                self.preset_stack = stack
                 self.preset_note = str(data.get("_note", ""))
                 self.say(f"preset loaded: {name} ({len(ok)} keys"
                          + (f", profile {self.preset_profile}" if self.preset_profile else "")
+                         + (f", stack {' '.join(stack_args(stack))}" if stack else "")
                          + (f"; {len(errors)} rejected: {'; '.join(errors)}" if errors else "") + ")",
                          preset=name, params=ok)
-            return {"ok": True, "applied": len(ok), "errors": errors}
+            return {"ok": True, "applied": len(ok), "errors": errors, "stack": stack}
         return {"ok": False, "error": "op must be save, load or base"}
 
     # ---- robot ops over ssh ----------------------------------------------------------
@@ -1152,7 +1279,12 @@ class App:
             known = self.profiles()
             if profile not in known:
                 return {"ok": False, "error": f"unknown profile {profile!r}; one of {known}"}
-            args = ["start", profile, "--confirm"] if op == "start" else ["ready", profile]
+            stack, serr = validate_stack(self.preset_stack)
+            if serr:
+                return {"ok": False, "error": "; ".join(serr)}
+            # The operator confirmed in the UI: ready homes (stack not running) or stands (homed), and
+            # re-arms a latched e-stop; fcctl needs --confirm for each. Stack options come last.
+            args = [op, profile, "--confirm", *stack_args(stack)]
         elif op == "imu_test":
             secs = body.get("seconds", 5)
             lo, hi = IMU_TEST_S
@@ -1170,6 +1302,7 @@ class App:
                 args += ["--condition", cond]
             timeout = secs + 90
         else:
+            # down/stop never get --force here: a robot not confirmed lying stays up (use R3).
             args = {"status": ["status"], "stop": ["stop"], "down": ["down"],
                     "bridge_start": ["bridge", "start", "--robot-id", rid],
                     "bridge_stop": ["bridge", "stop"], "stage": []}[op]
@@ -1181,10 +1314,10 @@ class App:
         if self.dry_run_ops:
             cmd = ["echo", "DRY-RUN:", *cmd]
         state = {"op": op, "cmd": " ".join(cmd), "running": True, "rc": None, "out": "", "t": time.strftime("%H:%M:%S"),
-                 "timeout_s": timeout}
+                 "timeout_s": timeout, "t0": time.monotonic()}
         self.ops[rid] = state
         self.say(f"robot {rid}: {op}" + (" (dry run)" if self.dry_run_ops else ""), cmd=state["cmd"])
-        target = self._run_stream if op == "ready" else self._run_op
+        target = self._run_stream if op in ("ready", "down") else self._run_op
         threading.Thread(target=target, args=(rid, state, cmd, timeout), daemon=True).start()
         return {"ok": True, "cmd": state["cmd"]}
 
@@ -1210,8 +1343,10 @@ class App:
                 except ValueError:
                     continue
                 if isinstance(obj, dict):
+                    if obj.get("ok") is False and obj.get("msg") and not obj.get("error"):
+                        obj = {**obj, "error": obj["msg"]}   # fcctl puts the reason in msg
                     state["progress"] = obj
-                    if isinstance(obj.get("phase"), str):
+                    if state["op"] == "ready" and isinstance(obj.get("phase"), str):
                         self.robot_phase[rid] = obj["phase"]
             state["rc"] = p.wait()
         finally:
@@ -1222,6 +1357,47 @@ class App:
             state["progress"] = {**state["progress"], "ok": False, "error": f"exit {state['rc']}"}
         state["running"] = False
         self.say(f"robot {rid}: {state['op']} -> rc {state['rc']}", out=state["out"][-1500:])
+        prog = state["progress"]
+        ok = state["rc"] == 0 and not timed_out
+        if state["op"] == "down":
+            if ok:
+                self.robot_phase[rid] = "off"
+            elif down_failed(state):
+                self.say(f"robot {rid}: DOWN REFUSED - still standing? use R3 or support the robot ({prog.get('error')})")
+            return
+        armed = ok and ((prog.get("phase") == "ready" and prog.get("ok") is True) or self.dry_run_ops)
+        if armed:
+            with self.lock:
+                e = self.estops.get(rid)
+                if e is not None and e["t"] < state["t0"]:
+                    self.estops.pop(rid)
+                    self.estop_cleared[rid] = time.monotonic()
+                    self.say(f"E-STOP on {rid} cleared: Ready re-armed it", robot=rid)
+                elif e is not None:
+                    self.say(f"E-STOP on {rid} was pressed during Ready: still latched, press Ready again", robot=rid)
+            if not self.dry_run_ops:
+                self._refresh_status(rid)   # speed_cap / heading_hold of the stack that is now running
+
+    def _refresh_status(self, rid: str) -> None:
+        """fcctl status into robot_status without touching the op shown on the cards."""
+        host = self.cfg[rid].host
+        if not host or not HOST_RE.fullmatch(host) or host.startswith("-"):
+            return
+        cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "--", host, "bash ~/fc-v1/robot/fcctl.sh status"]
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=60, cwd=FINAL_PROJECT)
+        except (subprocess.TimeoutExpired, OSError):
+            return
+        for line in reversed(p.stdout.strip().splitlines()):
+            try:
+                st = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(st, dict):
+                self.robot_status[rid] = st
+                if isinstance(st.get("phase"), str):
+                    self.robot_phase[rid] = st["phase"]
+            break
 
     def _run_op(self, rid: str, state: dict, cmd: list[str], timeout: float) -> None:
         try:
@@ -1265,7 +1441,10 @@ class App:
                 "eye": self.eye.status() if self.eye else None, "params": self.params,
                 "choices": CHOICES, "limits": LIMITS, "tests": TESTS, "presets": self.presets(),
                 "preset": {"name": self.preset_name, "modified": self.preset_modified() if self.preset_name else [],
-                           "profile": self.preset_profile, "note": self.preset_note},
+                           "profile": self.preset_profile, "note": self.preset_note, "stack": self.preset_stack},
+                "estop": {rid: estop_view(rid, e, now, self.link is not None, self.sim is not None, ESTOP_RESEND_S)
+                          for rid, e in self.estops.items()},
+                "stack": {r.id: self.stack_info(r.id) for r in self.active},
                 "profiles": self.profiles(), "udp_hosts": self.udp_hosts,
                 "ops": self.ops, "robot_status": self.robot_status, "dry_run_ops": self.dry_run_ops,
                 "events": list(self.events)[-30:], "score": self.score, "loop": self.loop_stats,
@@ -1274,6 +1453,26 @@ class App:
             # homographies need more than clean()'s 4 decimals (perspective terms are ~1e-4)
             out["play"]["overlay"] = self.eye.overlay() if self.eye else None
             return out
+
+    def stack_info(self, rid: str) -> dict:
+        """The robot's running stack options (from fcctl status) vs the preset, with warnings."""
+        st = self.robot_status.get(rid) or {}
+        cap = st.get("speed_cap")
+        cap = float(cap) if isinstance(cap, (int, float)) and not isinstance(cap, bool) else None
+        hh = st.get("heading_hold") if st.get("heading_hold") in STACK_HEADING_HOLD else None
+        want, warns = self.preset_stack, []
+        if self.link is not None or self.dry_run_ops:   # the sim has no walker cap
+            mx = float(self.params.get("max_vx", 0))
+            if cap is not None and mx > cap + 1e-9:
+                warns.append(f"max_vx {mx:g} > robot speed cap {cap:g}: the walker clips it"
+                             " (preset with a higher _stack speed_cap, then down + Ready)")
+            elif cap is None and mx > STOCK_SPEED_CAP + 1e-9:
+                warns.append(f"max_vx {mx:g} > stock walker cap {STOCK_SPEED_CAP}; robot cap unknown (press status)")
+            if "speed_cap" in want and cap is not None and abs(want["speed_cap"] - cap) > 1e-6:
+                warns.append(f"preset wants speed cap {want['speed_cap']:g}, robot runs {cap:g}: down, then Ready")
+            if "heading_hold" in want and hh is not None and want["heading_hold"] != hh:
+                warns.append(f"preset wants heading hold {want['heading_hold']}, robot runs {hh}: down, then Ready")
+        return {"speed_cap": cap, "heading_hold": hh, "known": bool(st), "want": want, "warn": warns}
 
     def play_state(self, now: float) -> dict:
         """What the Play screen shows beyond the world: flow, labels, ticker, banners, lights.
@@ -1291,15 +1490,19 @@ class App:
                 "role": dbg.get("role"),
                 "health": health(self.source, r.id in active, r.id in seen, (lstat or {}).get(r.id),
                                  self.link is not None, self.ops.get(r.id), self.robot_phase.get(r.id),
-                                 r.id in self.imu_bad, r.id in self.mux_lost),
+                                 r.id in self.imu_bad, r.id in self.mux_lost, estopped=r.id in self.estops),
+                "estop": estop_view(r.id, self.estops[r.id], now, self.link is not None, self.sim is not None,
+                                    ESTOP_RESEND_S) if r.id in self.estops else None,
                 "phase": self.robot_phase.get(r.id), "playing": r.id in self.playing,
                 "cam": self.cams[r.id].status() if r.id in self.cams else None,
             }
         return {"flow": self.flow.json(now, self.params) if self.flow else None, "last_match": self.last_match,
                 "playing": self.playing, "variants": variants([r.id for r in self.active]), "robots": robots,
                 "ticker": list(self.ticker.items)[-12:],
-                "banners": banners(self.cfg, self.playing, moving, self.cmds, self.imu_bad, self.mux_lost, lstat,
-                                   self.link is not None),
+                "banners": safety_banners(self.cfg, [r.id for r in self.active], self.estops, self.ops, now,
+                                          self.link is not None, self.sim is not None, ESTOP_RESEND_S)
+                + banners(self.cfg, [p for p in self.playing if p not in self.estops], moving, self.cmds, self.imu_bad,
+                          self.mux_lost, lstat, self.link is not None),
                 "overlay": None,   # set by state() at full precision
                 "recording": bool(self.recorder)}
 

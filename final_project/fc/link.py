@@ -21,13 +21,14 @@ from .core import CONFIG, Cmd, RobotCfg
 from .robot.drive_bridge import VERSION, KeyFileError, load_key, sign, verify
 
 PORT = 9870
-CEIL = {"vx": 0.5, "vy": 0.3, "wz": 2.0}   # never exceeded, whatever params say
+CEIL = {"vx": 0.75, "vy": 0.3, "wz": 2.0}  # never exceeded, whatever params say (vx 0.75: fast play)
 TTL_RANGE = (0.05, 0.5)   # drive_bridge MAX_TTL is 0.5 s (mux timeout)
 CONNECTED_AGE_S = 1.0                     # ack younger than this counts as connected
 KEY_FILE = CONFIG / "link.key"
 TAILSCALE_NET = ipaddress.ip_network("100.64.0.0/10")   # CGNAT range Tailscale uses
 LOSS_AFTER_S = 0.5                        # a packet not acked this long after sending counts as lost
 ACK_CORE = {"v", "robot", "sid", "ack", "mac", "ok", "imu", "profile", "bridge"}
+ESTOP_BURST = (5, 0.02)                   # SPEC v1.1: e-stop burst of 5 packets, 20 ms apart
 
 
 def is_tailscale(addr: str | None) -> bool:
@@ -73,13 +74,18 @@ def clamp_cmd(cmd: Cmd, params: dict) -> tuple[float, float, float]:
     return out[0], out[1], out[2]
 
 
-def packet(key: bytes, robot: str, sid: str, seq: int, cmd: Cmd, params: dict, t: float | None = None) -> bytes:
+def packet(key: bytes, robot: str, sid: str, seq: int, cmd: Cmd, params: dict, t: float | None = None,
+           estop: bool = False) -> bytes:
     """Signed datagram. `t` is laptop wall-clock time: the Pi only compares it with earlier
-    packets' t (replay window), and wall time keeps increasing across laptop restarts."""
-    vx, vy, wz = clamp_cmd(cmd, params)
+    packets' t (replay window), and wall time keeps increasing across laptop restarts.
+    `estop` (SPEC v1.1): all motion fields zero plus "estop": true; the bridge does the R3
+    action (leg controllers off, damped drop) and latches until `fcctl.sh ready ... --confirm`."""
+    vx, vy, wz = (0.0, 0.0, 0.0) if estop else clamp_cmd(cmd, params)
     ttl = max(TTL_RANGE[0], min(TTL_RANGE[1], _num(params.get("ttl_s", 0.25)) or 0.25))
     msg = {"v": VERSION, "robot": robot, "sid": sid, "seq": seq, "t": round(time.time() if t is None else t, 4),
            "vx": round(vx, 4), "vy": round(vy, 4), "wz": round(wz, 4), "ttl": ttl}
+    if estop:
+        msg["estop"] = True
     return sign(key, msg)
 
 
@@ -105,7 +111,7 @@ class Link:
                            "addr": None, "error": None if (r.host or r.id in self.udp_hosts) else "no host", "extra": {},
                            "rtts": deque(maxlen=200),
                            "seq": 0, "sent": 0, "acks": 0, "last_ack_t": None, "rtt_ms": None, "last_ack_seq": 0,
-                           "bad_acks": 0, "bad_ack_t": None,
+                           "bad_acks": 0, "bad_ack_t": None, "estop_sent": 0, "estopped": None,
                            "imu": None, "profile": None, "bridge_ok": None, "bridge": None, "last_cmd": [0.0, 0.0, 0.0]} for r in robots}
         self._sent_t: dict[str, dict[int, list]] = {r.id: {} for r in robots}   # seq -> [t_sent, acked]
         self._by_addr: dict[str, str] = {}
@@ -130,7 +136,8 @@ class Link:
                     self._by_addr[ip] = rid
 
     # ---- sending -----------------------------------------------------------
-    def send(self, cmds: dict[str, Cmd]) -> None:
+    def send(self, cmds: dict[str, Cmd], estop: set[str] | frozenset = frozenset()) -> None:
+        """One packet per robot in `cmds`; robots in `estop` get an e-stop packet instead."""
         if self.key is None:   # unsigned packets would be dropped by the bridge
             return
         now, wall = time.monotonic(), time.time()
@@ -146,11 +153,14 @@ class Link:
                 if len(sent) > 256:
                     for k in sorted(sent)[:-128]:
                         del sent[k]
-            data = packet(self.key, rid, self.sid, seq, cmd, self.params, wall)
+            stop = rid in estop
+            data = packet(self.key, rid, self.sid, seq, cmd, self.params, wall, estop=stop)
             try:
                 self.sock.sendto(data, (st["addr"], self.port))
                 st["sent"] += 1
-                st["last_cmd"] = list(clamp_cmd(cmd, self.params))
+                st["last_cmd"] = [0.0, 0.0, 0.0] if stop else list(clamp_cmd(cmd, self.params))
+                if stop:
+                    st["estop_sent"] += 1
             except OSError as e:
                 st["error"] = f"send: {e}"
 
@@ -158,6 +168,16 @@ class Link:
         zero = {rid: Cmd.stop() for rid in self.robots}
         for _ in range(burst):
             self.send(zero)
+
+    def estop(self, robots=None, burst: int = ESTOP_BURST[0], gap_s: float = ESTOP_BURST[1]) -> list[str]:
+        """Signed e-stop burst to `robots` (default: all). Blocks for (burst-1)*gap_s. Returns the
+        robots it was addressed to (sending needs the key and a resolved address)."""
+        ids = [r for r in (robots or list(self.robots)) if r in self._st]
+        for i in range(burst):
+            self.send({rid: Cmd.stop("estop") for rid in ids}, estop=set(ids))
+            if i + 1 < burst:
+                time.sleep(gap_s)
+        return ids
 
     # ---- acks --------------------------------------------------------------
     def _listen(self) -> None:
@@ -204,6 +224,8 @@ class Link:
             if msg.get("profile"):
                 st["profile"] = str(msg["profile"])
             st["bridge_ok"] = msg.get("ok")
+            if isinstance(msg.get("estopped"), bool):   # SPEC v1.1; older bridges omit it (None)
+                st["estopped"] = msg["estopped"]
             if isinstance(msg.get("bridge"), dict):
                 st["bridge"] = msg["bridge"]
             # Fields newer bridges add (imu_hold, mux, ...) are kept as-is for the UI and run log.
@@ -241,6 +263,7 @@ class Link:
                             "hold": extra.get("hold", bridge.get("hold")),           # why the bridge sends zero
                             "imu_hold": extra.get("imu_hold", bridge.get("imu_hold")),
                             "mux_ok": extra.get("mux_ok"), "extra": extra,
+                            "estopped": st["estopped"], "estop_sent": st["estop_sent"],
                             "auth": auth, "auth_error": self.key_error, "bad_acks": st["bad_acks"],
                             "connected": age is not None and age < CONNECTED_AGE_S,
                             "ack_age": age, "rtt_ms": st["rtt_ms"], "imu": st["imu"],

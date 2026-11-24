@@ -39,7 +39,20 @@
   .right a { color:var(--dim); font-size:.8em; text-decoration:none; }
   #stop { background:var(--red); border:0; color:#fff; font-weight:800; letter-spacing:.12em; padding:.7em 1.6em;
     border-radius:.6em; font-size:1.05em; box-shadow:0 0 0 3px #ef444433; }
-  #stop:active { transform:scale(.97); }
+  #stop:active, #estop:active { transform:scale(.97); }
+  #stop small, #estop small { display:block; font-size:.6em; font-weight:600; letter-spacing:.04em; opacity:.9; }
+  #estop { background:repeating-linear-gradient(-45deg, #facc15 0 .55em, #111 .55em 1.1em); border:0; padding:.28em; border-radius:.7em; }
+  #estop > span { display:block; background:#b91c1c; color:#fff; font-weight:900; letter-spacing:.14em; padding:.5em 1.4em;
+    border-radius:.5em; font-size:1.15em; }
+  #estop > span, #stop { white-space:nowrap; }
+  #estop.latched > span { background:#7f1d1d; box-shadow:inset 0 0 0 2px #fca5a5; }
+  .estopbox { display:none; background:#450a0a; border:2px solid var(--bad); border-radius:.6em; padding:.55em .7em; color:#fee2e2; }
+  .estopbox b { display:block; font-size:1.15em; letter-spacing:.06em; color:#fff; }
+  .estopbox span { font-size:.8em; }
+  .estopbox button { background:none; border:0; color:#fca5a5; text-decoration:underline; padding:0; font-size:.8em; }
+  .stack { font-size:.72em; color:var(--mute); }
+  .stack .w { color:var(--warn); display:block; }
+  .opline .es { white-space:nowrap; color:#fca5a5; border:1px solid #7f1d1d; border-radius:.35em; padding:.05em .45em; text-decoration:none; font-weight:700; }
 
   /* ---- stage ---- */
   main { display:grid; grid-template-columns:minmax(14em, 1fr) minmax(0, 3.6fr) minmax(14em, 1fr); gap:.9em; min-height:0; }
@@ -90,6 +103,7 @@
   .banner { background:#3a1212ee; border:1px solid var(--bad); color:#fee2e2; padding:.45em 1em; border-radius:.5em; font-weight:600;
     font-size:1.05em; box-shadow:0 .4em 1.4em #0008; }
   .banner.warn { background:#3a2a0aee; border-color:var(--warn); color:#fef3c7; }
+  .banner.big { font-size:1.45em; font-weight:800; border-width:2px; background:#7f1d1df2; }
   .center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
     pointer-events:none; text-align:center; }
   .center .big { font-size:5em; font-weight:900; letter-spacing:.08em; text-shadow:0 .1em .5em #000a; line-height:1; }
@@ -153,7 +167,9 @@
       <div class="team-name" id="nr">RED<i style="background:var(--red)"></i></div>
     </div>
     <div class="right"><span class="chip num" id="touches" title="referee touches (T / shift+T)">touches 0</span>
-      <a href="/ops" title="operator / test page">ops</a><button id="stop" title="space bar">STOP</button></div>
+      <a href="/ops" title="operator / test page">ops</a>
+      <button id="stop" title="Space: every robot gets zero speed and stands still (legs stay on)">STOP<small>space · stand still</small></button>
+      <button id="estop" title="Esc: every robot's legs switch off (the gamepad R3 action). It drops, damped, and stays down until Ready re-arms it"><span>E-STOP<small>Esc · legs off, drops</small></span></button></div>
   </header>
   <main id="stage">
     <aside class="team blue" data-team="blue"></aside>
@@ -204,11 +220,17 @@ const act = (action, extra) => post("/action", { action, ...extra });
 let toastT = 0;
 function toast(text, err) { const t = $("toast"); t.textContent = text; t.className = "show" + (err ? " err" : ""); clearTimeout(toastT); toastT = setTimeout(() => t.className = "", 2600); }
 
-// ---------- keys: space always stops ----------
-function stopAll() { act("stop"); toast("STOP sent"); }
+// ---------- keys: space always stops, Esc always e-stops ----------
+function stopAll() { act("stop"); toast("STOP sent: zero speed"); }
+function estop(rid) {   // no confirmation: an e-stop must be instant
+  if ($("dlg").open) $("dlgNo").click();
+  act("estop", rid ? { robot: rid } : {}); toast(`E-STOP sent to ${rid ? NAME(rid) : "all robots"}: legs off`, true);
+}
 $("stop").onclick = stopAll;
+$("estop").onclick = () => estop();
 document.addEventListener("keydown", (e) => {
   if (e.code === "Space") { e.preventDefault(); stopAll(); return; }
+  if (e.key === "Escape") { e.preventDefault(); estop(); return; }
   if ($("dlg").open || e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
   const k = e.key.toLowerCase();
   const ids = S ? S.active : [];
@@ -219,7 +241,7 @@ document.addEventListener("keydown", (e) => {
   else if (k === "v") act("variant");
   else if (k === "c") { view = view === "camera" ? "field" : "camera"; toast("view: " + view); }
   else if ((k === "1" || k === "2") && ids[+k - 1]) cycleJob(ids[+k - 1]);
-  else if (k === "escape") hideCard = true;
+  else if (k === "h") hideCard = true;
 }, true);
 document.addEventListener("keyup", (e) => { if (e.code === "Space") e.preventDefault(); }, true);
 document.addEventListener("click", (e) => { if (e.target.closest("button")) e.target.closest("button").blur(); });
@@ -252,9 +274,13 @@ function confirmBox(title, text, yes) {
 }
 async function ready(rid) {
   const r = S.robots.find((q) => q.id === rid), prof = (S.preset && S.preset.profile) || r.profile;
-  if (!await confirmBox(`Get ${NAME(rid)} ready?`, `Runs fcctl ready (${prof}) on ${r.host}: this homes the legs, stands the robot up and starts its link. Robot clear and R3 within reach?`, "Yes, get ready")) return;
+  const st = stackTxt(S.preset && S.preset.stack), es = S.estop[rid];
+  if (!await confirmBox(es ? `Re-arm ${NAME(rid)} after E-STOP?` : `Get ${NAME(rid)} ready?`,
+    `Runs fcctl ready ${prof}${st ? " (" + st + ")" : ""} on ${r.host}. If the stack is off it HOMES THE LEGS (robot on the stand) and stops; press Ready again on the floor to STAND it up and start its link${es ? ", which also clears the E-STOP" : ""}. Area clear, R3 within reach?`, es ? "Yes, re-arm" : "Yes, get ready")) return;
   post("/robot", { robot: rid, op: "ready", confirm: true });
 }
+
+const stackTxt = (s) => !s ? "" : [s.speed_cap != null ? `speed cap ${Number(s.speed_cap).toFixed(2)}` : "", s.heading_hold ? `heading hold ${s.heading_hold}` : ""].filter(Boolean).join(" · ");
 
 // ---------- team cards ----------
 function buildCards() {
@@ -272,13 +298,19 @@ function buildCards() {
         `<button data-job="${j}" data-r="${id}">${j === "defend" ? "goalie" : j}</button>`).join("")}</div>
       ${r.cam_url ? `<div class="cam" id="cam-${id}"><img alt=""><div>front camera · not connected</div><span>front camera</span></div>` : ""}
       <div class="spacer"></div>
+      <div class="estopbox" id="es-${id}"><b>E-STOPPED</b><span id="est-${id}"></span>
+        <button data-esclear="${id}" hidden>clear (sim)</button></div>
+      <div class="stack" id="stk-${id}"></div>
       <div class="progress" id="pg-${id}"><b></b></div>
-      <div class="opline"><span id="op-${id}"></span><button data-down="${id}" title="fcctl down">down</button></div>
+      <div class="opline"><span id="op-${id}"></span><button data-down="${id}" title="fcctl down: lie down (a drop, same as R3), then stop the stack">down</button></div>
+      <div class="opline esrow"><span>stop = stand still · E-STOP = legs off</span><button class="es" data-estop="${id}" title="Legs off for this robot only: it drops (damped) and stays down until Ready">E-STOP ${NAME(r.id)}</button></div>
       <button class="ready" id="rd-${id}" data-ready="${id}">Ready</button>`;
   }
   document.querySelectorAll("[data-job]").forEach((b) => b.onclick = () => act("job", { robot: b.dataset.r, job: b.dataset.job }));
   document.querySelectorAll("[data-ready]").forEach((b) => b.onclick = () => ready(b.dataset.ready));
   document.querySelectorAll("[data-down]").forEach((b) => b.onclick = () => post("/robot", { robot: b.dataset.down, op: "down" }));
+  document.querySelectorAll("[data-estop]").forEach((b) => b.onclick = () => estop(b.dataset.estop));
+  document.querySelectorAll("[data-esclear]").forEach((b) => b.onclick = () => act("estop_clear", { robot: b.dataset.esclear }));
 }
 function renderCards() {
   const key = S.robots.map((r) => r.id + r.team + r.cam_url).join();
@@ -303,9 +335,17 @@ function renderCards() {
     const running = op && op.op === "ready" && op.running, prog = (op && op.progress) || {};
     rd.style.display = ops && r.host ? "" : "none";
     el.querySelector(".opline").style.display = ops && r.host ? "" : "none";
-    const isReady = pr.phase === "ready" && h.level === "ok";
+    el.querySelector(".esrow").style.display = S.active.includes(r.id) ? "" : "none";
+    const isReady = pr.phase === "ready" && h.level === "ok", es = S.estop[r.id];
     rd.disabled = !!running || isReady;
-    rd.textContent = running ? "Getting ready…" : isReady ? "Ready ✓" : "Ready";
+    rd.textContent = running ? "Getting ready…" : isReady ? "Ready ✓" : es ? "Re-arm: Ready" : "Ready";
+    $("es-" + r.id).style.display = es ? "block" : "none";
+    if (es) $("est-" + r.id).textContent = es.text.replace(/^.*?E-STOP\S*:?\s*/, "") + ` (${es.wall}) `;
+    el.querySelector("[data-esclear]").hidden = !(es && S.source === "sim");
+    const sk = S.stack[r.id];
+    const run = sk && sk.known ? stackTxt(sk) || "stack options not reported" : "stack: press status on /ops";
+    $("stk-" + r.id).innerHTML = ops && r.host && sk ? `robot: ${esc(run)}${S.preset.name ? " · preset " + esc(S.preset.name) : ""}`
+      + sk.warn.map((w) => `<span class="w">⚠ ${esc(w)}</span>`).join("") : "";
     pg.style.display = running ? "block" : "none";
     if (running) pg.firstElementChild.style.width = Math.min(100, (prog.elapsed || 0) / 1.2) + "%";
     $("op-" + r.id).textContent = op ? `${op.op}: ${op.running ? (prog.phase || "running") : op.rc === 0 ? "done" : "failed (rc " + op.rc + ")"}` : "";
@@ -382,10 +422,11 @@ function renderCenter() {
     html = `<div class="card"><div class="big" style="font-size:2em;letter-spacing:.2em">${t}</div>
       <div class="final num"><span style="color:${SOFT.blue}">${lm.score.blue}</span> – <span style="color:${SOFT.red}">${lm.score.red}</span></div>
       <div style="color:var(--mute)">${fmt(lm.clock)} played · referee touches ${lm.touches}</div></div>`;
-  } else if (S.mode === "idle") html = `<div class="sub" style="margin-top:auto;margin-bottom:1.2em">K kickoff · P play from here · V robots · space stops everything</div>`;
+  } else if (S.mode === "idle") html = `<div class="sub" style="margin-top:auto;margin-bottom:1.2em">K kickoff · P play from here · V robots · space = stop (stand still) · Esc = E-STOP (legs off)</div>`;
   if (c.dataset.h !== html) { c.dataset.h = html; c.innerHTML = html; }
   c.className = cls;
-  const b = P.banners.map((x) => `<div class="banner ${x.level === "warn" ? "warn" : ""}">${esc(x.text)}</div>`);
+  const b = P.banners.map((x) => `<div class="banner ${x.level === "warn" ? "warn" : ""} ${x.kind ? "big" : ""}">${esc(x.text)}</div>`);
+  $("estop").classList.toggle("latched", Object.keys(S.estop).length > 0);
   if (S.source === "camera" && S.eye && !S.eye.calibrated) b.push(`<div class="banner warn">Camera: ${esc(S.eye.message)}</div>`);
   const bh = b.join(""); if ($("banners").dataset.h !== bh) { $("banners").dataset.h = bh; $("banners").innerHTML = bh; }
   $("legend").textContent = camOn() ? "ring = where it thinks it is · × = where it is going" : S.truth ? "solid = robot · dashed ring = what it sees · × = where it is going" : "× = where it is going";

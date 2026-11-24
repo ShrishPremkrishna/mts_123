@@ -1,47 +1,39 @@
-# Floor day runbook (Nov 24, one robot: blue = `mts`)
+# Floor session runbook (fc v1.1, one robot: blue = `mts`)
 
-Every step runs from the UI. Each run saves `fc/runs/<UTC>-<test>/` (summary in the Runs list). Stop at the
+Every step runs from the UI (Play screen `/`, tests `/ops`). Each run saves `fc/runs/<UTC>-<test>/`. Stop at the
 first failed step and fix it. Keep sessions under 10 minutes and let the Pi cool between them.
 
-**Safety.** R3 on the gamepad is the e-stop: it lies the robot down and stays down, and it is the only stop
-if the mux dies. Space = stop all, but only while the UI tab has focus (click the field first). The gamepad
-stick overrides the laptop while held, then the laptop takes over again. Zero speed does not fix a false
-IMU tilt: use R3. `start` homes the legs, so the robot must be on the stand.
+**Three stops, know them before you start.**
+- **STOP (space)**: zero speed to every robot. It stands still, legs stay on. Only while the UI tab has focus.
+- **E-STOP (Esc, or the striped button; per robot on its card)**: signed e-stop burst. The bridge does the R3
+  action: legs off, the robot **drops** (damped), and stays latched until **Ready** re-arms it (the light says
+  `E-STOPPED · re-arm = Ready`; nothing clears it by itself). "NOT CONFIRMED by the robot" = use R3.
+- **R3 on the gamepad**: the same drop, and the only stop if the laptop, link or mux is gone.
 
-## Setup checklist
-- [ ] Stand ready, battery charged, R3 within reach, gamepad paired.
-- [ ] Rigid robot tag fitted. Corner tags 0-3 down. iPhone Center Stage **off**.
-- [ ] Key and code on the Pi: `python -m fc.robot.keygen` once, then **stage** on the robot card.
-- [ ] LAN address: run `ssh mts hostname -I`, then start the app with that address:
-  `.venv-fc/bin/python -m fc.app --source camera --robots blue --udp-host blue=<LAN IP>`
-  (or `fc/run.sh camera --robots blue --udp-host blue=<LAN IP>`). Tests are on `/ops`; `/` is the Play screen.
-  Every run now saves `overhead.mp4` in its run folder (`record: 0` turns it off).
-  With the 100.x address the card warns "Tailscale".
-- [ ] Load preset **slow** (Params, Load preset). The header must show `preset: slow`.
+The bridge also drops a robot that tilts past 45° (fallen cutoff); the card then says "E-STOPPED by the robot".
+`down` lies the robot down (also a drop) and stops the stack. If it reports **STILL STANDING**, use R3 or support
+the robot; never `down --force`.
 
-Faster path, not yet run on the robot (try it once at step 3): after **start** on the stand, put the robot on
-the floor and run `ssh mts bash ~/fc-v1/robot/fcctl.sh ready` (stock: stands in software; tej_u6: asks for
-Options), then `fcctl.sh down` at the end. Interface and evidence: `robot/README.md`.
+## Setup
+- [ ] Battery charged, stand ready, gamepad paired, R3 within reach, soft mat for the e-stop step.
+- [ ] Robot tag fitted, corner tags 0-3 down, iPhone Center Stage off.
+- [ ] Code and key on the Pi: **stage** on the robot card (`python -m fc.robot.keygen` once, if no key).
+- [ ] `ssh mts hostname -I`, then `fc/run.sh camera --robots blue --udp-host blue=<LAN IP>`.
+- [ ] Robot card: auth ok, RTT p95 < 20 ms, loss 0. Field: calib < 1.5 px, eye ≥ 15 fps, yaw ≈ 0° facing east.
 
 ## Steps
-| # | UI action | Watch | Pass | If it fails |
-|---|---|---|---|---|
-| 0 | Motors off. Press **status**. Check the camera frame. Hold the robot at each corner, then facing the east goal | Robot card: auth, RTT p95, loss. Field header: calib err, eye fps | auth ok; p95 < 20 ms; loss 0; calib < 1.5 px; eye ≥ 15 fps; tag seen at all 4 corners; **yaw ≈ 0° facing east** | Yaw near ±180°: set `eye_yaw_offset_deg` to −180 (applies live). RTT high: check `udp_host` |
-| 1 | IMU test: **imu test** with `600`, `bno`, `unpowered`. Then the same with `battery_on` | Op output: `verdict`, `gyro_uncal_raw.x.neg_per_min` | Verdict recorded (healthy pulses: 0-4 per min) | `hardware_or_electrical` with motors unpowered: tell staff, plan to replace the board |
-| 2 | On the stand: **start** (profile `stock`), then **stop**, then **start** again | Op output says READY; fcctl status shows `mux_ok` true | READY in < 100 s; legs go limp < 10 s after stop | Copy the op output. After a mux crash, wait about 20 s before **start** (see below) |
-| 3 | Stand the robot up on the walker with the gamepad (**X**; on `tej_u6` press **Options** first). In the air: **bridge start**, **Drive** (W) at 0.1. Stop it 5 ways: space; Ctrl-C the app; `ssh mts pkill -9 -f drive_bridge`; gamepad stick; R3. Then **Deadman** | Legs | Legs still within 0.3 s (space), 0.5 s (app killed), 0.8 s (bridge killed). Stick wins. R3 stays down. Deadman `stop_time_s` ≤ 0.5 | Any failure: stop the session and record which stop failed |
-| 4 | Floor, preset `slow`: **Drive** for 2 min; kill the app once | Robot card IMU; Pi temperature in **status** | IMU ok, no IMU BAD; Pi < 75 °C; no drift into a turn | IMU BAD: the app already stopped, so R3 and note the time |
-| 5 | **Step** quick buttons: fwd 0.1 / 0.2 / 0.3 facing east, then west; turn ±0.5; left 0.1 (preset `fast`) | Runs list: gain, lag, bias | `latency_s` < 0.35; `gain_lin` repeats within ±10%; `\|heading_bias_deg\|` < 5 | Bias > 5° in both facings: add it to `eye_yaw_offset_deg` or load `learn`. Copy gains/lag into `sim_*` and rerun Sim eval |
-| 6 | **Goto** ×5 (click points, include far corners) | Path on the field | `pos_err_m` < 0.08; ≤ 1 fast reversal; no stale stop (metrics) | Tag lost often: check light and the tag. Overshoot: lower `k_turn` |
-| 7 | **Push ball** ×10 from centre, ×5 near a wall | Spinning next to the ball | ≥ 7/10 goals in ≤ 30 s; no tip | Note the run names that failed |
-| 8 | **Goalie** ×10 hand-rolled shots | Saves | ≥ 6 saves; no tip | — |
-| 9 | A/B, one change at a time: preset `u6-hh-on`, then `stock-hh-off`. **stop** + **start** with the preset's profile, then repeat steps 5 and 7 | Card: profile running vs the preset | Better step numbers decide | A `*-hh-off` profile not staged yet: the load warns and start refuses |
+| # | Action | Pass | If it fails |
+|---|---|---|---|
+| 1 | Preset **slow**. Robot on the stand: **Ready** (homes). Move it to the floor: **Ready** again (stands, bridge up) | Light says `ready`; **status** shows `speed_cap` 0.49 and `heading_hold` on | Copy the op output. Another profile running: **down** first |
+| 2 | `/ops` **Drive** (WASD/QE) slowly for 1 min | Follows keys, no drift, IMU ok, Pi < 75 °C | IMU BAD: the app already zeroed it; R3 |
+| 3 | Every stop, robot low over the mat: space; Ctrl-C the app (restart it); gamepad stick; R3; **E-STOP** (Esc) | Space and app killed: still < 0.5 s. Stick wins. R3 and E-STOP: a damped drop, card `E-STOPPED` (confirmed), Drive refused | Note which stop failed and end the session |
+| 4 | Re-arm with **Ready** (stands it up again). Then **Deadman** | E-STOP clears only after Ready; `stop_time_s` ≤ 0.5 | E-STOP still latched: read the Ready output |
+| 5 | **Step** at Base (**Base** button): fwd 0.1 / 0.2 / 0.3, turn ±0.5, east and west | `latency_s` < 0.35, `gain_lin` within ±10 %, `\|heading_bias_deg\|` < 5 | Copy gains/lag into `sim_*` and rerun Sim eval |
+| 6 | Preset **fast-play-robot**, **down**, **Ready** on the stand, **Ready** on the floor (passes `--speed-cap 0.80`). Step fwd 0.4 and 0.75 | **status** shows `speed_cap` 0.8; no "max_vx > robot speed cap" warning; gain at 0.75 recorded | Warning stays: the stack runs the old cap; down + Ready again |
+| 7 | **Push ball** ×5 with preset **slow**, then ×5 with **fast-play-robot** (the 0.8 cap can stay) | Goals ≤ 30 s, no tip, slows near the ball | Note failing run names |
+| 8 | **down** | Robot lies down, stack stops | STILL STANDING: R3 or support it |
 
-**Record each step:** run folder names, pass/fail, and anything the summary does not show (sounds,
-stumbles, how R3 behaved). Every run's `params.json` already records the preset and the running profile.
+**A/B heading hold:** presets `stock-hh-off` / `u6-hh-off` pass `--heading-hold off`; down + Ready, repeat 5 and 7.
 
-**Automatic stops.** The app sends zero and ends the test when the bridge reports IMU `bad` (result
-`imu_bad`) or `mux_ok: false` (result `mux_lost`). The header turns red. The bridge itself also holds zero
-(card: `hold`). A killed mux stays in ROS for about 20 s, and the bridge holds zero while it sees 2
-publishers. Wait about 20 s before restarting the profile. `lost_tag` or `edge` on a step: move the robot
-back toward the centre and run it again.
+**Record each step:** run folder names, pass/fail, and what the summary misses (sounds, stumbles, how the drop
+looked). Each run's `params.json` records the preset, its `_stack`, the running profile and stack options.

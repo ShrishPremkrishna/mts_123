@@ -386,7 +386,7 @@ def test_presets_load_on_base_and_are_recorded(server, tmp_path):
     assert post(base, "/preset", {"op": "load", "name": "turny"})[0] == 200
     s = state(base)
     assert s["params"]["max_wz"] == 0.5 and s["params"]["max_vx"] == app.base_params["max_vx"]   # no stacking
-    assert s["preset"] == {"name": "turny", "modified": [], "profile": "stock", "note": ""}
+    assert s["preset"] == {"name": "turny", "modified": [], "profile": "stock", "note": "", "stack": {}}
     post(base, "/params", {"max_vy": 0.1})
     assert state(base)["preset"]["modified"] == ["max_vy"]
     code, r = post(base, "/action", {"action": "test", "test": "push_ball", "robot": "blue"})
@@ -600,12 +600,16 @@ def test_ready_streams_progress_and_down_never_refused(live_ops, monkeypatch):
     app, calls = live_ops
     lines = ['{"phase":"starting","elapsed":1.0}\n', "plain log line\n", '{"phase":"homed","elapsed":40.2}\n',
              '{"phase":"ready","elapsed":71.0,"ok":true}\n']
+    down_lines = ['{"phase":"begin","ok":true,"elapsed":0.0,"msg":"down"}\n',
+                  '{"phase":"error","ok":false,"elapsed":2.1,"msg":"still standing? lie-down not confirmed (walker active):'
+                  ' use R3 or support the robot. Stack left running; down --force is unsafe","exit":1,"done":true}\n']
     gate = threading.Event()
 
     class FakeProc:
         def __init__(self, cmd, **kw):
             calls.append(cmd)
-            self.stdout = self._lines()
+            self.down = cmd[-1].endswith("down")
+            self.stdout = iter(down_lines) if self.down else self._lines()
 
         def _lines(self):
             for i, x in enumerate(lines):
@@ -614,7 +618,7 @@ def test_ready_streams_progress_and_down_never_refused(live_ops, monkeypatch):
                 yield x
 
         def wait(self):
-            return 0
+            return 1 if self.down else 0
 
         def kill(self):
             pass
@@ -627,12 +631,21 @@ def test_ready_streams_progress_and_down_never_refused(live_ops, monkeypatch):
     assert app.play_state(time.monotonic())["robots"]["blue"]["health"]["text"].startswith("getting ready")
     assert not app.robot_op({"robot": "blue", "op": "status"})["ok"]           # ready still running
     ready_state = app.ops["blue"]
-    assert app.robot_op({"robot": "blue", "op": "down"})["ok"]                 # down always goes
+    assert app.robot_op({"robot": "blue", "op": "down", "force": True})["ok"]  # down always goes, never --force
+    down_state = app.ops["blue"]
+    assert wait(lambda: not down_state["running"], 2)
     gate.set()
     assert wait(lambda: app.robot_phase.get("blue") == "ready" and not ready_state["running"], 2)
     assert ready_state["rc"] == 0 and ready_state["progress"]["ok"] is True
-    assert calls[0][-3:] == ["--", "mts", "bash ~/fc-v1/robot/fcctl.sh ready stock"]
-    assert wait(lambda: len(calls) > 1, 2) and calls[1][-3:] == ["--", "mts", "bash ~/fc-v1/robot/fcctl.sh down"]
+    assert calls[0][-3:] == ["--", "mts", "bash ~/fc-v1/robot/fcctl.sh ready stock --confirm"]
+    assert calls[1][-3:] == ["--", "mts", "bash ~/fc-v1/robot/fcctl.sh down"]
+    assert not any("--force" in " ".join(map(str, c)) for c in calls)
+    # a refused down (still standing) is loud on the light and the Play screen banners
+    assert down_state["rc"] == 1 and "use R3" in down_state["progress"]["error"]
+    ps = app.play_state(time.monotonic())
+    assert ps["robots"]["blue"]["health"] == {"level": "bad", "text": "still standing? use R3"}
+    assert any(b.get("kind") == "down" and "use R3 or support the robot" in b["text"] for b in ps["banners"])
+    assert wait(lambda: any(c[-1].endswith("fcctl.sh status") for c in calls), 2)   # stack options refreshed after ready
 
 
 def test_cam_url_config_and_feed_endpoint(server, tmp_path):
@@ -677,3 +690,156 @@ def test_cam_url_config_and_feed_endpoint(server, tmp_path):
     dead = CamFeed("http://127.0.0.1:9/none.mjpg", retry_s=0.1)
     assert wait(lambda: dead.error not in (None, "connecting"), 3) and not dead.status()["ok"]
     dead.close()
+
+
+# ---- v1.1: e-stop, fast-play limits, stack options (2026-11-23) -------------------------
+def test_fast_play_limits_follow_link_ceiling():
+    from fc.link import CEIL
+    assert fcapp.LIMITS["max_vx"] == (0.0, CEIL["vx"]) == fcapp.LIMITS["push_vx"] == (0.0, 0.75)
+    assert fcapp.LIMITS["max_wz"] == (0.0, 2.0)
+    ok, err = validate_params({"max_vx": 0.3, "push_vx": 0.3}, {"max_vx": 0.75, "push_vx": 0.8})
+    assert ok == {"max_vx": 0.75} and len(err) == 1
+
+
+def test_estop_latches_holds_zero_and_never_auto_clears(server):
+    app, base = server
+    sent = []
+
+    class FakeLink:   # the sim app has no link; record the burst the way Link.estop would send it
+        def estop(self, ids):
+            sent.append(list(ids))
+            return list(ids)
+
+        def stop_all(self):
+            pass
+
+        def status(self):
+            return {}
+
+        def drain_acks(self):
+            return []
+
+    assert post(base, "/action", {"action": "test", "test": "drive", "robot": "blue"})[0] == 200
+    app.link = FakeLink()
+    try:
+        code, r = post(base, "/action", {"action": "estop", "robot": "blue"})
+    finally:
+        app.link = None
+    assert code == 200 and r["robots"] == ["blue"] and sent == [["blue"]]
+    s = state(base)
+    assert s["mode"] == "idle" and s["last_summary"]["result"] == "estop"           # the drive test ended
+    assert s["estop"]["blue"]["confirmed"] and "Re-arm = Ready" in s["estop"]["blue"]["text"]
+    assert s["play"]["robots"]["blue"]["health"]["text"].startswith("E-STOPPED")
+    assert any(b.get("kind") == "estop" for b in s["play"]["banners"])
+    code, r = post(base, "/action", {"action": "test", "test": "step", "robot": "blue", "vx": 0.1})
+    assert code == 400 and "estopped" in r["error"]                                 # refused while latched
+    assert post(base, "/action", {"action": "go"})[0] == 200
+    assert wait(lambda: (state(base)["last_summary"] or {}).get("result") == "estopped", 1)   # play ends at once
+    time.sleep(0.3)
+    assert "blue" in state(base)["estop"]                                           # still latched
+    post(base, "/action", {"action": "stop"})
+    assert "blue" in state(base)["estop"]                                           # normal stop does not clear
+    assert post(base, "/action", {"action": "estop"})[1]["robots"] == ["blue", "red"]   # no robot = everyone
+    assert post(base, "/action", {"action": "estop", "robot": "nope"})[1]["robots"] == ["blue", "red"]  # fail safe
+    assert post(base, "/action", {"action": "estop_clear", "robot": "blue"})[1]["cleared"] == ["blue"]  # sim re-arm
+    assert set(state(base)["estop"]) == {"red"}
+
+
+def test_estop_from_acks_and_unconfirmed_operator_estop(live_ops):
+    app, calls = live_ops
+    now = time.monotonic()
+    app._health_watch({"blue": {"estopped": True, "ack_age": 0.01, "extra": {"estop_reason": "fallen: tilt 70 deg"}}})
+    assert app.estops["blue"]["by"] == "robot" and app.halted("blue") == "estopped"
+    v = app.state()["estop"]["blue"]
+    assert "by the robot (fallen: tilt 70 deg)" in v["text"]
+    app.estops.clear()
+    app.estop_cleared["blue"] = now
+    app._health_watch({"blue": {"estopped": True, "ack_age": 0.0}})                 # an ack right after Ready: ignored
+    assert "blue" not in app.estops
+    app.sim, sim = None, app.sim                                                    # pretend real robot, link off
+    try:
+        app._latch("red", "operator", confirmed=False)
+        assert "NOT CONFIRMED" in app.state()["estop"]["red"]["text"] or "link off" in app.state()["estop"]["red"]["text"]
+        app.estops["red"]["t"] -= 0.01
+        app._health_watch({"red": {"estopped": True, "ack_age": 0.0}})
+        assert app.estops["red"]["confirmed"]
+    finally:
+        app.sim = sim
+
+
+def test_ready_rearms_estop_only_if_pressed_before(live_ops, monkeypatch):
+    import threading
+    app, calls = live_ops
+    gate = threading.Event()
+
+    class FakeProc:
+        def __init__(self, cmd, **kw):
+            calls.append(cmd)
+            self.stdout = self._lines()
+
+        def _lines(self):
+            gate.wait(2)
+            yield '{"phase":"ready","elapsed":9.0,"ok":true,"done":true}\n'
+
+        def wait(self):
+            return 0
+
+    monkeypatch.setattr(fcapp.subprocess, "Popen", FakeProc)
+    app.estop("blue")
+    assert app.halted("blue") == "estopped"
+    gate.set()
+    assert app.robot_op({"robot": "blue", "op": "ready", "confirm": True})["ok"]
+    assert wait(lambda: "blue" not in app.estops, 2)                                # Ready re-armed it
+    assert wait(lambda: not app.ops["blue"]["running"], 2)
+    gate.clear()
+    assert app.robot_op({"robot": "blue", "op": "ready", "confirm": True})["ok"]
+    time.sleep(0.05)
+    app.estop("blue")                                                               # pressed during a Ready
+    gate.set()
+    assert wait(lambda: not app.ops["blue"]["running"], 2)
+    time.sleep(0.05)
+    assert app.halted("blue") == "estopped"                                         # stays latched
+
+
+def test_preset_stack_passes_allowlisted_options_to_ready(live_ops, monkeypatch, tmp_path):
+    app, calls = live_ops
+    seen = []
+    monkeypatch.setattr(app, "_run_stream", lambda rid, state, cmd, timeout: seen.append(cmd) or state.update(running=False))
+    app.presets_dir.mkdir(parents=True, exist_ok=True)
+    (app.presets_dir / "fastbot.json").write_text(json.dumps({"_stack": {"speed_cap": 0.8, "heading_hold": "off"},
+                                                              "max_vx": 0.75}))
+    r = app.preset({"op": "load", "name": "fastbot"})
+    assert r["ok"] and not r["errors"] and app.preset_stack == {"speed_cap": 0.8, "heading_hold": "off"}
+    assert app.robot_op({"robot": "blue", "op": "ready", "confirm": True})["ok"]
+    assert seen[-1][-1] == "bash ~/fc-v1/robot/fcctl.sh ready stock --confirm --speed-cap 0.80 --heading-hold off"
+    for bad in ({"speed_cap": 2.0}, {"speed_cap": "0.8; reboot"}, {"heading_hold": "maybe"}, {"rm": 1}, "x"):
+        stack, err = fcapp.validate_stack(bad)
+        assert err and stack == {}, bad
+    (app.presets_dir / "badstack.json").write_text(json.dumps({"_stack": {"speed_cap": 9}, "max_vx": 0.2}))
+    r = app.preset({"op": "load", "name": "badstack"})
+    assert r["errors"] and app.preset_stack == {}
+    assert app.robot_op({"robot": "blue", "op": "ready", "confirm": True})["ok"]
+    assert seen[-1][-1] == "bash ~/fc-v1/robot/fcctl.sh ready stock --confirm"     # no options without _stack
+    app.preset({"op": "load", "name": "fastbot"})
+    assert app.preset({"op": "save", "name": "copy"})["ok"]
+    assert json.loads((app.presets_dir / "copy.json").read_text())["_stack"] == {"speed_cap": 0.8, "heading_hold": "off"}
+
+
+def test_stack_info_warns_when_max_vx_exceeds_robot_cap(live_ops):
+    app, calls = live_ops
+    app.dry_run_ops = True
+    app.params["max_vx"] = 0.75
+    assert "unknown" in app.stack_info("blue")["warn"][0]
+    app.robot_status["blue"] = {"speed_cap": 0.49, "heading_hold": "on"}
+    info = app.stack_info("blue")
+    assert info["speed_cap"] == 0.49 and info["heading_hold"] == "on" and "0.75 > robot speed cap 0.49" in info["warn"][0]
+    app.robot_status["blue"] = {"speed_cap": 0.8, "heading_hold": "on"}
+    assert app.stack_info("blue")["warn"] == []
+
+
+def test_shipped_stack_presets():
+    data = {n: json.loads((fcapp.PRESETS / f"{n}.json").read_text()) for n in ("fast-play-robot", "stock-hh-off", "u6-hh-off")}
+    assert data["fast-play-robot"]["_stack"] == {"speed_cap": 0.8} and data["fast-play-robot"]["max_vx"] == 0.75
+    for n in ("stock-hh-off", "u6-hh-off"):
+        stack, err = fcapp.validate_stack(data[n].get("_stack"))
+        assert not err and stack.get("heading_hold") == "off", n
