@@ -8,6 +8,18 @@ Ported from Tej's overhead_kick.py Eye (origin/tej/overhead-kick, 2026-11-20):
   * ball search area widened 0.55 m behind the goal lines,
   * raw per-frame detections (not the pipeline's lagging Kalman output).
 
+Speed (2026-11-24; floor session ran at 10-11 fps with ~1 s stalls once a second):
+the hot thread only looks where things were. Robot tags are found in a small crop around
+their last position (standard detector at 1x, then 2x, then a tuned relaxed detector at 2x);
+the ball in a crop around its last position (a half-resolution whole-field search finds it
+when lost). A background "scan" thread runs the full-frame tag detection ~4x a second for
+the calibration drift check and to (re)find robots, and the slow 2x whole-frame search for a
+robot not seen at all (e.g. a configured robot that is not on the field) only every few
+seconds. The old code ran that 2x search with the relaxed detector on every 10th frame on the
+hot path: ~1 s per call on carpet texture (1000+ candidate quads), which was the periodic stall.
+The annotated /frame.jpg is only drawn while someone is fetching it. Per-stage timings are
+in status()["stage_ms"]; `python -m fc.tools.eye_bench VIDEO` measures them offline.
+
 Sources: a live camera name/index ("phone"), a video file, a folder of images, or
 "synthetic" (fieldcam's renderer with moving robots; truth kept for checking).
 
@@ -15,6 +27,7 @@ Sources: a live camera name/index ("phone"), a video file, a folder of images, o
 """
 from __future__ import annotations
 
+import collections
 import math
 import sys
 import threading
@@ -27,6 +40,16 @@ OP = Path(__file__).resolve().parent.parent / "overhead_perception"
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp"}
 KEEP_ROBOT_S = 1.0   # keep reporting a robot's last raw pose (with its old time) this long
 BALL_VEL_WINDOW_S = 0.3
+# Pixel sizes below are for a 1920 px wide picture and scale with the width.
+ROI_HALF_PX = 110        # robot-tag crop half size around the last sighting
+ROI_GROW_PX_S = 340      # ...grown by this per second since the last sighting (~0.6 m/s)
+ROI_MAX_HALF_PX = 260
+SEED_KEEP_S = 0.5        # look around a robot's last sighting this long; then the scan finds it
+SCAN_PERIOD_S = 0.25     # background full-frame tag scan (floor-tag drift check, lost robots)
+DEEP_AFTER_S = 3.0       # a robot unseen this long gets the slow 2x whole-frame search...
+DEEP_PERIOD_S = 3.0      # ...at most this often (background)
+BALL_GLOBAL_EVERY = 15   # frames between whole-field ball checks while tracking it
+JPEG_WANTED_S = 3.0      # draw /frame.jpg only while it was fetched this recently
 
 
 def _fieldcam():
@@ -127,7 +150,7 @@ class SyntheticSource:
         c["ball"]["sim_bgr"] = (180, 100, 250)  # pink
         c.pop("field_setup", None)
         K, _ = default_intrinsics(width, height, self.HFOV)
-        self.arena = SimArena(c, K, cam_pos=(0.0, -0.25, 3.2), size=(width, height), noise_sigma=2.0)
+        self.arena = SimArena(c, K, cam_pos=(0.0, -0.25, 3.8), size=(width, height), noise_sigma=2.0)
         self.robots, self.width, self.height, self.t0 = robots, width, height, time.monotonic()
         self.truth: dict = {}
         self.next = time.monotonic()
@@ -190,7 +213,21 @@ class Eye:
         self._last: dict[str, RobotObs] = {}
         self._balls: list[tuple[float, float, float]] = []
         self._next_cal = self._next_jpg = 0.0
-        self._zoom_n = 0
+        self._jpeg_wanted = -1e9
+        # tracking state (hot thread) and what the background scan hands over (under _seed_lock)
+        self._seed_lock = threading.Lock()
+        self._seeds: dict[int, tuple[float, float, float]] = {}   # tag id -> (u, v, t_recv seen)
+        self._scan_floor: dict = {}                               # floor tags from the last scan
+        self._scan_cv = threading.Condition()
+        self._scan_slot: tuple | None = None                      # (frame, n, t_recv) newest frame
+        self._in_cal = False
+        self._t_frame = 0.0
+        self._ball_seed: tuple[float, float] | None = None
+        self._ball_n = 0
+        self._tm: dict[str, float] = {}                           # this frame's stage seconds
+        self._seen: dict = {}
+        self.stage_ms: dict[str, float] = {}                      # smoothed per-stage ms
+        self.trace: collections.deque = collections.deque(maxlen=900)  # per-frame timing records
         self.src_size = (width, height)
         self._frame, self._frame_n = None, 0          # latest raw frame (recorder, Play view)
         self._view: tuple | None = None              # (frame_n, width, jpeg) cache for view_jpeg
@@ -231,59 +268,203 @@ class Eye:
         self.src = self._open_source()
         pipeline.CALIBRATION_DRIFT_LIMIT_PX = 8.0 * self.src.width / 896.0
         self.perc = Perception(self.cfg, self.src.width, self.src.height)
-        self._install_robot_zoom([r.tag for r in self.robots])
+        self._install_tracking()
         self.message = f"{self.src.width}x{self.src.height}, calibrating from corner tags 0-3"
 
-    def _install_robot_zoom(self, tag_ids: list[int], half: int = 280) -> None:
-        """Robot tags are small (~26x10 px at the far side). If the standard detector misses one,
-        look again with relaxed settings in an enlarged crop near its last position, and every
-        10th frame in the whole frame at 2x. (Tej's settings, generalised to several robots.)"""
-        cv2, np = self.cv2, self.np
+    # ---- tracking: robot tags and ball looked for near where they were -----------------
+    def _install_tracking(self) -> None:
+        """Wrap the pipeline's tag and ball detectors (the fieldcam code is not edited).
+
+        Robot tags are small (~26x10 px at the far side at 1920 px); Tej's relaxed settings find
+        them where the standard detector misses. The relaxed detector is slow on carpet (1000+
+        candidate quads even in a 240 px crop), so it only runs in a small crop at 2x with fewer
+        threshold passes (5..45 px step 8: same hits on the recorded runs, ~1/2 the cost)."""
+        cv2 = self.cv2
         from fieldcam.detect import TAG_DICT, TagDetector
-        base, want_all = self.perc.tag_det.detect, set(tag_ids)
-        par = cv2.aruco.DetectorParameters()
-        par.adaptiveThreshWinSizeMin, par.adaptiveThreshWinSizeMax, par.adaptiveThreshWinSizeStep = 5, 65, 6
-        par.minMarkerPerimeterRate, par.polygonalApproxAccuracyRate, par.errorCorrectionRate = 0.02, 0.08, 0.9
-        par.perspectiveRemoveIgnoredMarginPerCell, par.perspectiveRemovePixelPerCell = 0.2, 8
-        par.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
-        relaxed, standard = cv2.aruco.ArucoDetector(TAG_DICT, par), TagDetector(())
-        last: dict[int, np.ndarray] = {}
 
-        def zoom(gray, want):
-            tags = {k: v for k, v in standard.detect(gray).items() if k in want}
-            if want - tags.keys():
-                corners, ids, _ = relaxed.detectMarkers(gray)
-                for c, i in zip(corners, [] if ids is None else ids.ravel()):
-                    if int(i) in want and int(i) not in tags:
-                        tags[int(i)] = c.reshape(4, 2)
+        def relaxed(min_perimeter=0.04):
+            par = cv2.aruco.DetectorParameters()
+            par.adaptiveThreshWinSizeMin, par.adaptiveThreshWinSizeMax, par.adaptiveThreshWinSizeStep = 5, 45, 8
+            par.minMarkerPerimeterRate, par.polygonalApproxAccuracyRate, par.errorCorrectionRate = min_perimeter, 0.08, 0.9
+            par.perspectiveRemoveIgnoredMarginPerCell, par.perspectiveRemovePixelPerCell = 0.2, 8
+            par.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+            return cv2.aruco.ArucoDetector(TAG_DICT, par)
+
+        def standard(min_perimeter=0.06):
+            par = cv2.aruco.DetectorParameters()
+            par.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+            par.adaptiveThreshWinSizeMax, par.minMarkerPerimeterRate = 45, min_perimeter
+            return cv2.aruco.ArucoDetector(TAG_DICT, par)
+
+        self._robot_tags = {r.tag for r in self.robots}
+        self._px = self.src.width / 1920.0
+        self._base_detect = self.perc.tag_det.detect          # full frame (+0.7x pass), hot thread only
+        self._roi_det = (standard(), relaxed())               # hot thread only
+        self._scan_det = TagDetector(self.perc.tag_det.expected)   # scan thread only
+        self._deep_det = (standard(0.01), relaxed(0.02))           # scan thread only (Tej's sizes)
+        self.perc.tag_det.detect = self._detect_tags
+        self._ball_full = self.perc.ball_det.detect
+        self.perc.ball_det.detect = self._detect_ball
+
+    def _tracking(self) -> bool:
+        return bool(self.perc is not None and self.perc.calibration_valid and not self._in_cal)
+
+    def _add(self, stage: str, t0: float) -> None:
+        self._tm[stage] = self._tm.get(stage, 0.0) + time.perf_counter() - t0
+
+    @staticmethod
+    def _find(det, img, want: set[int]) -> dict:
+        corners, ids, _ = det.detectMarkers(img)
+        return {} if ids is None else {int(i): c.reshape(4, 2) for c, i in zip(corners, ids.ravel()) if int(i) in want}
+
+    def _look(self, gray, centre, half: float, want: set[int], dets, scales=(1, 2)) -> dict:
+        """Tags in `want` inside a square crop around `centre`, tried at each scale with each
+        detector until all are found. Corners in full-frame pixels."""
+        cv2, np = self.cv2, self.np
+        h, w = gray.shape
+        x0, y0 = max(0, int(centre[0] - half)), max(0, int(centre[1] - half))
+        x1, y1 = min(w, int(centre[0] + half)), min(h, int(centre[1] + half))
+        found: dict = {}
+        if x1 - x0 < 16 or y1 - y0 < 16:
+            return found
+        crop = gray[y0:y1, x0:x1]
+        for s in scales:
+            img = crop if s == 1 else cv2.resize(crop, None, fx=s, fy=s, interpolation=cv2.INTER_CUBIC)
+            for det in (dets[:1] if s == 1 else dets):
+                for tid, c in self._find(det, img, want - found.keys()).items():
+                    found[tid] = ((c + 0.5) / s - 0.5 + [x0, y0]).astype(np.float32)
+                if not want - found.keys():
+                    return found
+        return found
+
+    def _detect_tags(self, gray) -> dict:
+        """perc.tag_det.detect replacement. Calibrating / not calibrated: the full-frame detector
+        (calibration needs every corner tag). Calibrated: robot tags from crops around their last
+        sightings, plus the floor tags from the latest background scan (for the drift check)."""
+        t0 = time.perf_counter()
+        t = self._t_frame
+        try:
+            if not self._tracking():
+                tags = self._base_detect(gray)
+            else:
+                with self._seed_lock:
+                    tags, self._scan_floor = dict(self._scan_floor), {}
+                    seeds = dict(self._seeds)
+                for tid in self._robot_tags:
+                    s = seeds.get(tid)
+                    if s is None or t - s[2] > SEED_KEEP_S:
+                        continue
+                    half = min(ROI_HALF_PX + ROI_GROW_PX_S * max(0.0, t - s[2]), ROI_MAX_HALF_PX) * self._px
+                    tags.update(self._look(gray, s[:2], half, {tid}, self._roi_det))
+            self._note_seeds(tags, t)
             return tags
+        finally:
+            self._add("tags", t0)
 
-        def look(gray, box, scale, want, tags):
-            x0, y0, x1, y1 = box
-            big = cv2.resize(gray[y0:y1, x0:x1], None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
-            for tid, c in zoom(big, want).items():
-                tags[tid] = ((c + 0.5) / scale - 0.5 + [x0, y0]).astype(np.float32)
+    def _note_seeds(self, tags: dict, t: float) -> None:
+        with self._seed_lock:
+            for tid in self._robot_tags & tags.keys():
+                old = self._seeds.get(tid)
+                if old is None or old[2] <= t:
+                    c = tags[tid].mean(axis=0)
+                    self._seeds[tid] = (float(c[0]), float(c[1]), t)
 
-        def detect(gray):
-            tags = base(gray)
-            h, w = gray.shape
-            for tid in want_all - tags.keys():
-                if tid in last:
-                    cx, cy = last[tid]
-                    box = (max(0, int(cx - half)), max(0, int(cy - half)), min(w, int(cx + half)), min(h, int(cy + half)))
-                    for s in (2, 4, 3):
-                        look(gray, box, s, {tid}, tags)
-                        if tid in tags:
-                            break
-            missing = want_all - tags.keys()
-            self._zoom_n += 1
-            if missing and self._zoom_n % 10 == 0:
-                look(gray, (0, 0, w, h), 2, missing, tags)
-            for tid in want_all & tags.keys():
-                last[tid] = tags[tid].mean(axis=0)
-            return tags
+    def _scan_loop(self) -> None:
+        """Background: full-frame tag detection on the newest frame ~4x a second (floor tags for
+        the drift check; robots that the crops lost), and the slow 2x whole-frame search for a
+        robot not seen for a while. OpenCV releases the GIL, so this runs beside the hot thread."""
+        cv2 = self.cv2
+        last_n, next_deep = -1, 0.0
+        while not self._stop:
+            with self._scan_cv:
+                self._scan_cv.wait_for(lambda: self._stop or (self._scan_slot is not None and self._scan_slot[1] != last_n),
+                                       timeout=1.0)
+                slot = self._scan_slot
+            if self._stop or slot is None or slot[1] == last_n:
+                continue
+            frame, last_n, t_recv = slot
+            if not self._tracking():   # the hot thread runs the full detector itself then
+                time.sleep(0.1)
+                continue
+            t0 = time.perf_counter()
+            try:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                tags = self._scan_det.detect(gray)
+                with self._seed_lock:
+                    seen = {tid: s[2] for tid, s in self._seeds.items()}
+                lost = {tid for tid in self._robot_tags - tags.keys() if t_recv - seen.get(tid, -1e9) > DEEP_AFTER_S}
+                now = time.monotonic()
+                if lost and now >= next_deep:
+                    next_deep = now + DEEP_PERIOD_S
+                    t1 = time.perf_counter()
+                    h, w = gray.shape
+                    tags.update(self._look(gray, (w / 2, h / 2), max(w, h), lost, self._deep_det, scales=(2,)))
+                    self._scan_ms("deep", t1)
+                floor = {k: v for k, v in tags.items() if k not in self._robot_tags}
+                with self._seed_lock:
+                    self._scan_floor = floor
+                self._note_seeds(tags, t_recv)
+            except Exception as e:  # noqa: BLE001 - the scan must never stop perception
+                self.message = f"scan error: {type(e).__name__}: {e}"
+            self._scan_ms("scan", t0)
+            time.sleep(max(0.0, SCAN_PERIOD_S - (time.perf_counter() - t0)))
 
-        self.perc.tag_det.detect = detect
+    def _scan_ms(self, stage: str, t0: float) -> None:
+        ms = (time.perf_counter() - t0) * 1000
+        self.stage_ms[stage] = round(ms if stage not in self.stage_ms else 0.8 * self.stage_ms[stage] + 0.2 * ms, 2)
+
+    def _detect_ball(self, bgr, roi_mask=None, expected_radius_px=None, radius_at=None):
+        """perc.ball_det.detect replacement: the full-resolution detector on a crop around the
+        last ball position; a half-resolution whole-field search to (re)find it, and every
+        BALL_GLOBAL_EVERY frames to make sure the crop is not following something else (the
+        whole-field answer wins if it disagrees, as the plain detector's would)."""
+        t0 = time.perf_counter()
+        try:
+            if roi_mask is None or not expected_radius_px or radius_at is None:
+                return self._ball_full(bgr, roi_mask, expected_radius_px, radius_at)
+            r = float(expected_radius_px)
+            self._ball_n += 1
+            seed = self._ball_seed
+            det = self._ball_crop(bgr, roi_mask, r, radius_at, seed) if seed is not None else None
+            if det is None or self._ball_n % BALL_GLOBAL_EVERY == 0:
+                g = self._ball_locate(bgr, roi_mask, r, radius_at)
+                if g is not None and (det is None or math.hypot(g[0] - det[0], g[1] - det[1]) > 2 * r):
+                    det = self._ball_crop(bgr, roi_mask, r, radius_at, g) or g
+            self._ball_seed = None if det is None else (det[0], det[1])
+            return det
+        finally:
+            self._add("ball", t0)
+
+    def _ball_crop(self, bgr, roi_mask, r, radius_at, centre):
+        half = max(4.0 * r, 120.0 * self._px)
+        for _ in range(2):   # re-centre once if the ball sits near the crop edge
+            h, w = bgr.shape[:2]
+            x0, y0 = max(0, int(centre[0] - half)), max(0, int(centre[1] - half))
+            x1, y1 = min(w, int(centre[0] + half)), min(h, int(centre[1] + half))
+            if x1 - x0 < 16 or y1 - y0 < 16:
+                return None
+            det = self._ball_full(bgr[y0:y1, x0:x1], roi_mask[y0:y1, x0:x1], r,
+                                  lambda u, v: radius_at(u + x0, v + y0))
+            if det is None:
+                return None
+            det = (det[0] + x0, det[1] + y0, det[2])
+            if math.hypot(det[0] - centre[0], det[1] - centre[1]) < half - 1.6 * r:
+                return det
+            centre = det
+        return det
+
+    def _ball_locate(self, bgr, roi_mask, r, radius_at):
+        cv2, k = self.cv2, 0.5
+        small = cv2.resize(bgr, None, fx=k, fy=k, interpolation=cv2.INTER_AREA)
+        key = id(roi_mask)
+        if getattr(self, "_roi_small", (None,))[0] != key:
+            self._roi_small = (key, cv2.resize(roi_mask, (small.shape[1], small.shape[0]), interpolation=cv2.INTER_NEAREST))
+
+        def radius_small(u, v):
+            px = radius_at(u / k, v / k)
+            return px * k if px else None
+        det = self._ball_full(small, self._roi_small[1], r * k, radius_small)
+        return None if det is None else tuple(v / k for v in det)
 
     def _calibrate(self, frame) -> bool:
         """Corner-tag calibration; with no intrinsics file, fit the lens angle first (Tej)."""
@@ -345,9 +526,16 @@ class Eye:
         mount = self.mount()
         self._apply_floor_size(mount["floor_size"])
         t_cap = t_recv - (self.params.get("eye_latency_s", 0.12) if self.src.latency else 0.0)
+        self._t_frame = t_recv
         if not perc.calibration_valid and now >= self._next_cal:
             self._next_cal = now + 0.5
-            if self._calibrate(frame):
+            self._in_cal, t0 = True, time.perf_counter()
+            try:
+                calibrated = self._calibrate(frame)
+            finally:
+                self._in_cal = False
+                self._add("calibrate", t0)
+            if calibrated:
                 self._widen_ball_area()
                 f = perc.cfg["field"]
                 self.message = (f"calibrated: field {f['length']:.2f} x {f['width']:.2f} m (config "
@@ -355,6 +543,7 @@ class Eye:
                                 f"err {perc.calib_err_px:.1f} px")
             else:
                 self.message = f"not calibrated: {perc.calib_fail or perc.calibration_reason}"
+        self._seen = {}
         state = perc.process(frame, t_cap, t_cap, match_only=True)
         self._state = state
         if not state.get("calibration_valid"):
@@ -371,6 +560,7 @@ class Eye:
         robots = {k: v for k, v in self._last.items() if t_cap - v.t < KEEP_ROBOT_S}
         ball = None
         px = perc.debug.get("ball_px")
+        self._seen = {"ball": px is not None, **{k: v.t == t_cap for k, v in robots.items()}}
         if px is not None:
             bx, by = (float(v) for v in cam.pixel_to_plane([px[:2]], perc.cfg["ball"]["radius"])[0])
             self._balls.append((t_cap, bx, by))
@@ -411,37 +601,55 @@ class Eye:
         return buf.tobytes() if ok else None
 
     def _run(self) -> None:
+        """Hot thread: newest frame -> World, as fast as frames come. The source keeps only the
+        newest frame (LiveSource's grabber thread), so a slow frame never leaves a backlog."""
         while not self._stop and self.src is None:
             try:
                 self._setup()
             except Exception as e:  # noqa: BLE001 - keep trying; the UI shows why
                 self.message = f"camera not open: {e}"
                 time.sleep(2.0)
+        threading.Thread(target=self._scan_loop, daemon=True, name="fc-eye-scan").start()
         t_prev = time.monotonic()
         while not self._stop:
+            t_wait = time.perf_counter()
             frame, t_recv = self.src.read()
             if frame is None:
                 self.message = "no frame (camera lost?)"
                 with self._lock:
                     self._world = None
                 continue
+            self._tm = {"wait": time.perf_counter() - t_wait}
+            t0 = time.perf_counter()
             try:
                 world = self.process(frame, t_recv)
             except Exception as e:  # noqa: BLE001
                 self.message, world = f"perception error: {type(e).__name__}: {e}", None
+            self._tm["process"] = time.perf_counter() - t0
             now = time.monotonic()
             self.frames += 1
             self.fps = 0.9 * self.fps + 0.1 / max(now - t_prev, 1e-6)
             t_prev = now
-            jpg = None
-            if now >= self._next_jpg:
-                self._next_jpg = now + 0.2
-                jpg = self._annotate(frame, world)
             with self._lock:
                 self._world = world
                 self._frame, self._frame_n = frame, self._frame_n + 1
+            with self._scan_cv:
+                self._scan_slot = (frame, self._frame_n, t_recv)
+                self._scan_cv.notify()
+            self._tm["age"] = now - t_recv   # receipt -> World published (plus eye_latency_s before receipt)
+            if now - self._jpeg_wanted < JPEG_WANTED_S and now >= self._next_jpg:
+                self._next_jpg = now + 0.2
+                t1 = time.perf_counter()
+                jpg = self._annotate(frame, world)
+                self._tm["annotate"] = time.perf_counter() - t1
                 if jpg:
-                    self._jpeg = jpg
+                    with self._lock:
+                        self._jpeg = jpg
+            rec = {k: round(v * 1000, 2) for k, v in self._tm.items()}
+            for k, v in rec.items():
+                self.stage_ms[k] = round(v if k not in self.stage_ms else 0.9 * self.stage_ms[k] + 0.1 * v, 2)
+            rec["t"], rec["seen"] = now, self._seen   # what this frame measured (for eye_bench)
+            self.trace.append(rec)
 
     # ---- public (SPEC) -------------------------------------------------------------------
     def start(self) -> "Eye":
@@ -453,6 +661,9 @@ class Eye:
             return self._world
 
     def jpeg(self) -> bytes | None:
+        """Annotated frame (~5 Hz) for the ops screen. Drawn only while it is being fetched, so
+        the first fetch after a pause may return None (the page retries)."""
+        self._jpeg_wanted = time.monotonic()
         with self._lock:
             return self._jpeg
 
@@ -514,10 +725,13 @@ class Eye:
                 "hfov_deg": self.hfov, "calib_err_px": self.perc.calib_err_px if self.perc else None,
                 "mount": self.mount(),
                 "robots_age": {k: round(now - v.t, 3) for k, v in (w.robots.items() if w else [])},
-                "ball_age": round(now - w.ball.t, 3) if w and w.ball else None}
+                "ball_age": round(now - w.ball.t, 3) if w and w.ball else None,
+                "stage_ms": dict(self.stage_ms)}
 
     def close(self) -> None:
         self._stop = True
+        with self._scan_cv:
+            self._scan_cv.notify_all()
         if self.src:
             self.src.close()
 
@@ -537,6 +751,8 @@ def main(argv=None) -> None:
     t_end, errs = time.monotonic() + a.seconds, []
     while time.monotonic() < t_end:
         time.sleep(0.5)
+        if a.save:
+            eye.jpeg()   # keeps the annotated frame being drawn
         w = eye.latest()
         line = f"[{eye.fps:4.1f} fps] {eye.message}"
         if w:
