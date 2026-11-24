@@ -105,3 +105,17 @@ Each run writes `fc/runs/<UTC timestamp>-<test>/` (gitignored): `params.json`,
   `down [--keep-stack]`, `start <profile> --confirm` (may home the legs),
   `stop`, `bridge start [--robot-id ID]|stop`, `imu-test <seconds>` (format: `robot/README.md`). Staged by
   `fc/robot/stage.sh <host>` (rsync into `~/fc-v1/` only, plus `link.key` and `robot_id`).
+
+## v1.1 additions (Nov 24)
+
+- **E-stop over the link**: a signed packet may carry `"estop": true` (all motion fields zero). The bridge
+  then immediately does the stock R3 action locally (deactivate the leg controllers; legs damp, robot
+  drops) and latches: it ignores motion until `fcctl.sh ready ... --confirm` re-arms. Acks carry
+  `"estopped": bool`. The laptop sends an estop burst (e.g. 5 packets, 20 ms apart).
+- **Fallen-robot cutoff**: the bridge also does the R3 action if ImuHealth reports a sustained tilt beyond
+  `fallen_tilt_deg` (default 45°) — a fallen robot must not keep driving its legs.
+- **Laptop loss**: unchanged — bridge ttl and mux timeout zero the command; the robot stands still.
+- **Stack options** for `fcctl.sh start|ready <profile>`: `--speed-cap <0.30..1.00>` (walker speed caps,
+  default stock 0.49) and `--heading-hold on|off` (default on), applied by one per-start overlay under the
+  run dir. `stock_hh0`/`tej_u6_hh0` stay as aliases. `status` reports `speed_cap` and `heading_hold`.
+- Presets may set `_stack: {"speed_cap": 0.8, "heading_hold": "off"}`; the app passes them to `ready`.

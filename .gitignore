@@ -23,3 +23,4 @@ gemini_pupper/tricks/.backups/
 
 # Desktop lobby dependencies.
 /.venv-fc
+.gstack/
