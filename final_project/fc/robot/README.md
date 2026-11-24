@@ -319,3 +319,11 @@ modes) needs Linux and is skipped on the Mac; run it with (`--init` reaps zombie
 - `pupper-gui` (face screen) disabled; it was a linked unit. Undo:
   `sudo systemctl link /home/pi/pupperv3-monorepo/pupper-rs/pupper-gui.service && sudo systemctl enable --now pupper-gui`.
 - Follow-me / Hailo inference will not work until the config block is removed.
+
+## IMU filter driver on mts (2026-11-24, operator-approved)
+
+`~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so`
+now links to the filtered build `~/fc-v1/build/imu-filter/install/.../libcontrol_board_hardware_interface.so`
+(sha 2486fa0a…). It behaves as stock unless the stack starts with `FC_IMU_FILTER=1` (see fc/notes/imu-filter.md).
+Undo (stack off): `cd ~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib && rm libcontrol_board_hardware_interface.so && mv libcontrol_board_hardware_interface.so.stock-link libcontrol_board_hardware_interface.so`
+(stock sha 01813d58…).
