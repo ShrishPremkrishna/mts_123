@@ -44,7 +44,10 @@ BALL_VEL_WINDOW_S = 0.3
 ROI_HALF_PX = 110        # robot-tag crop half size around the last sighting
 ROI_GROW_PX_S = 340      # ...grown by this per second since the last sighting (~0.6 m/s)
 ROI_MAX_HALF_PX = 260
-SEED_KEEP_S = 0.5        # look around a robot's last sighting this long; then the scan finds it
+SEED_KEEP_S = 1.5        # look around a robot's last sighting this long; then the scan finds it.
+# Was 0.5: the 4 Hz full-frame scan finds the small (~30 px) robot tag in only 18-38% of tries,
+# so any 0.5 s miss became a 1.2-1.5 s gap (= pose_stale_s stop). Replay of the Nov 24 fast runs
+# 074127 / 073726: robot seen 32% -> 56% / 43% -> 63% of frames; hot path +7 ms mean.
 SCAN_PERIOD_S = 0.25     # background full-frame tag scan (floor-tag drift check, lost robots)
 DEEP_AFTER_S = 3.0       # a robot unseen this long gets the slow 2x whole-frame search...
 DEEP_PERIOD_S = 3.0      # ...at most this often (background)

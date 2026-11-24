@@ -23,6 +23,7 @@ motion; **sim** = our kinematic sim (`fc.sim_eval`) or MuJoCo.
 | Goals at slow speed | 3 goals, 26–34 s each; still circling the ball. A/B the square-up switch `push_max_heading_deg` |
 | Gentle lie-down (`down`) | verified twice: smooth, no drop |
 | Overhead eye | 11 → 31 fps live. The stall was the full-frame search for the absent red robot (`59fbd9a`) |
+| Robot tag dropouts (fast runs 0740–0742) | per-frame robot sighting only 32–54 % (far half of the picture 18 %, near 61 %; tag ~30 px at 1920). Cause of the 1.2–1.5 s gaps: crop search gave up after 0.5 s and the 4 Hz full-frame scan finds the tag in 18–38 % of tries. `SEED_KEEP_S` 0.5 → 1.5 s: replay 32 → 56 % / 43 → 63 % (offline, upscaled 1280 video; loads at next app restart). Other losses: 074019 a person on the field 20–27 s; 074158 camera feed froze (Continuity blur, identical frames) at 21.5 s |
 | BNO085 gyro fault | came back at ~75 °C Pi temperature (after ~1 h with the stock stack up; clean at 41–72 °C). Raw-X pulses corrupted orientation, the walker leaned the robot a real 14°; the IMU health hold caught it |
 
 **Pi heat (measured Nov 24, stack off, read-only).** With the stack stopped for 10 min, CPU ~95 % idle and the fan

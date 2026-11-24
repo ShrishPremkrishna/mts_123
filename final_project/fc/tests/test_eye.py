@@ -55,3 +55,25 @@ def test_tracks_robot_and_never_stalls_for_an_absent_one():
     assert max(r["process"] for r in frames) < 150, max(r["process"] for r in frames)
     assert "deep" in eye.stage_ms and "scan" in eye.stage_ms
     assert "stage_ms" in eye.status()
+
+
+def test_crop_search_outlives_a_short_tag_gap():
+    """A robot missed for ~1 s is still looked for around its last sighting (the full-frame scan
+    rarely finds the small robot tag, so dropping the crop after 0.5 s turned short misses into
+    stale-pose stops); a sighting older than SEED_KEEP_S is left to the scan."""
+    import numpy as np
+    from fc import eye as eye_mod
+
+    eye = Eye(load_field(), [BLUE], {}, source="synthetic")
+    eye.perc = type("P", (), {"calibration_valid": True})()
+    eye._robot_tags, eye._px, eye._roi_det = {BLUE.tag}, 1.0, (None, None)
+    looked = []
+    eye._look = lambda gray, centre, half, want, dets, scales=(1, 2): looked.append((centre, half)) or {}
+    gray = np.zeros((1080, 1920), np.uint8)
+    for age, expect in ((1.0, True), (eye_mod.SEED_KEEP_S + 0.1, False)):
+        looked.clear()
+        eye._seeds = {BLUE.tag: (900.0, 500.0, 10.0)}
+        eye._t_frame = 10.0 + age
+        eye._detect_tags(gray)
+        assert bool(looked) == expect, (age, looked)
+    assert eye_mod.SEED_KEEP_S >= 1.0
