@@ -323,7 +323,7 @@ modes) needs Linux and is skipped on the Mac; run it with (`--init` reaps zombie
 ## IMU filter driver on mts (2026-11-24, operator-approved)
 
 `~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so`
-now links to the filtered build `~/fc-v1/build/imu-filter/install/.../libcontrol_board_hardware_interface.so`
-(sha 2486fa0a…). It behaves as stock unless the stack starts with `FC_IMU_FILTER=1` (see fc/notes/imu-filter.md).
+now links to the filtered build v2 `~/fc-v1/build/imu-filter-v2/install/.../libcontrol_board_hardware_interface.so`
+(sha 19d60fad…; v1 2486fa0a… retired). The stock profile sets `FC_IMU_FILTER=1` by default; `FC_IMU_FILTER=0` = stock behaviour (see fc/notes/imu-filter.md).
 Undo (stack off): `cd ~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib && rm libcontrol_board_hardware_interface.so && mv libcontrol_board_hardware_interface.so.stock-link libcontrol_board_hardware_interface.so`
 (stock sha 01813d58…).

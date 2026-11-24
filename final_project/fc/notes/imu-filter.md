@@ -137,3 +137,7 @@ cp $B/stock-01813d58.so $I/libcontrol_board_hardware_interface.so && sha256sum $
 3. Compare pulses per minute and freezes.
 
 With the filter deployed, the timestamps of the `gyro frozen` log lines can also be checked against the 10 s poll phase.
+
+## Deployment status (2026-11-24)
+
+v2 (sha 19d60fad…) is installed on mts via the driver symlink (undo in fc/robot/README.md) and enabled by default in the stock profile. Stand check passed (5 min, tilt 2.0–2.8°); 3 fast floor runs had no IMU incidents.
