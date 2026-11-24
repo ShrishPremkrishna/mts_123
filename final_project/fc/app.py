@@ -766,7 +766,9 @@ class App:
         if b is None or now < self._goal_cooldown:
             return []
         f = self.field
-        if abs(b.x) > f.length / 2 + f.ball_radius and abs(b.y) < f.goal_width / 2:
+        # Goal when the ball centre reaches the goal line (minus an optional margin) inside the mouth.
+        line = f.length / 2 - float(self.params.get("goal_line_margin_m", 0.0))
+        if abs(b.x) >= line and abs(b.y) < f.goal_width / 2:
             self._goal_cooldown = now + 3.0
             return ["blue" if b.x > 0 else "red"]
         return []

@@ -30,5 +30,9 @@
   "eye_tag_height": 0.24,
   "eye_tag_offset_x": 0.065,
   "eye_yaw_offset_deg": 7.0,
-  "eye_latency_s": 0.12
+  "eye_latency_s": 0.12,
+  "goal_line_margin_m": 0.0,
+  "push_turn_scale": 1.0,
+  "aim_y_frac": 0.0,
+  "clear_margin": 0.12
 }
