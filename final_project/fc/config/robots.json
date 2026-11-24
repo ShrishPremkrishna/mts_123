@@ -5,7 +5,7 @@
     "tag": 10,
     "host": "mts",
     "profile": "stock",
-    "udp_host": "10.19.203.20"
+    "udp_host": ""
   },
   {
     "id": "red",
