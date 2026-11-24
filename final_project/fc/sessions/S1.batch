@@ -1,0 +1,152 @@
+# S1: first floor session (fc v1.1, one robot: blue = mts). RUNBOOK.md steps 1-8 as one batch.
+#
+# App first, from Terminal.app (camera access works only there):
+#   fc/run.sh camera --robots blue --udp-host blue=<LAN IP>
+# Then, from final_project/:
+#   python -m fc.ctl batch fc/sessions/S1.batch                  # operator at a terminal: each pause waits for Enter
+#   python -m fc.ctl batch fc/sessions/S1.batch --stop-at-pause  # agent: exits 4 at each pause; resume with --from N
+#   python -m fc.ctl batch fc/sessions/S1.batch --no-pause --max-pause 1   # sim rehearsal (app --source sim)
+#
+# The batch stops at the first failed command (exit 1) or health stop (exit 3: e-stop, IMU bad, mux lost, edge,
+# operator STOP, two lost_tag runs in a row) and prints the --from line to resume after the fix. Space / Esc in the
+# UI and R3 still work at all times. Blue attacks the EAST goal (+x), defends the WEST goal (-x). `pause N msg`:
+# N = seconds --no-pause waits. Walking time is about 12 min in two halves split by the cool-down.
+
+# ---- 0. setup and camera check ------------------------------------------------------------
+pause 5 SETUP: battery charged, gamepad paired, R3 within reach, soft mat ready, corner tags 0-3 down, robot tag fitted, iPhone Center Stage off
+status
+preset slow
+pause 20 Put blue ON THE STAND (legs free). The next Ready HOMES the legs if the stack is off
+ready blue --home
+pause 20 Move blue to the FLOOR at the west end (about x = -0.8), facing EAST. The next Ready stands it up
+ready blue
+pause 10 Place the ball on the centre spot. Next: camera/link check (eye >= 15 fps, calib < 1.5 px, auth ok, RTT p95 < 20 ms, loss 0, yaw ~0)
+check blue --ball --yaw 0
+status
+
+# ---- 1. drive pulses at preset slow (max_vx 0.15, max_vy 0.08, max_wz 0.6) ---------------------
+pause 5 DRIVE PULSES: blue walks short pulses forward/back/sideways/turning. Keep the area clear
+drive blue 0.1 0 0 1.5
+sleep 1
+drive blue -0.1 0 0 1.5
+sleep 1
+drive blue 0 0.06 0 1.5
+sleep 1
+drive blue 0 -0.06 0 1.5
+sleep 1
+drive blue 0 0 0.5 1.5
+sleep 1
+drive blue 0 0 -0.5 1.5
+status
+
+# ---- 2. deadman: walk 0.1 m/s, then the app sends nothing; the bridge ttl must stop it in <= 0.5 s ----
+test goto x=-0.8 y=0 yaw=0
+test deadman
+
+# ---- 3. step set at base (params.json): forward 0.1 / 0.2 / 0.3, turn +-0.5, east then west -----
+preset base
+test goto x=-0.9 y=0 yaw=0
+test step vx=0.1
+test step vx=0.2
+test step vx=0.3
+test step wz=0.5
+test step wz=-0.5
+test goto x=0.9 y=0 yaw=180
+test step vx=0.1
+test step vx=0.2
+test step vx=0.3
+test step wz=0.5
+test step wz=-0.5
+
+# ---- 4. goto x3 (the play controller's own goto) -----------------------------------------------
+test goto x=0.5 y=0.4
+test goto x=-0.5 y=-0.4
+test goto x=0 y=0 yaw=0
+
+# ---- 5. push ball x5 at preset slow ---------------------------------------------------------
+preset slow
+test goto x=-0.7 y=0 yaw=0
+pause 10 PUSH slow 1/5: place the ball on the centre spot
+test push_ball
+test goto x=-0.7 y=0 yaw=0
+pause 10 PUSH slow 2/5: fetch the ball, place it on the centre spot
+test push_ball
+test goto x=-0.7 y=0 yaw=0
+pause 10 PUSH slow 3/5: fetch the ball, place it on the centre spot
+test push_ball
+test goto x=-0.7 y=0 yaw=0
+pause 10 PUSH slow 4/5: fetch the ball, place it on the centre spot
+test push_ball
+test goto x=-0.7 y=0 yaw=0
+pause 10 PUSH slow 5/5: fetch the ball, place it on the centre spot
+test push_ball
+last 5
+
+# ---- 6. cool-down, then restart the stack with the 0.8 speed cap (fast-play-robot) ---------------
+# A different speed cap needs a new start (= homing on the stand): down stops the stack, which also lets the Pi cool.
+pause 5 Next: DOWN (lies blue down and stops the stack). Hand near the robot the first time
+down blue
+pause 300 COOL-DOWN: let the Pi cool about 5 min (aim < 75 C). Note anything the summaries missed (sounds, stumbles)
+pause 20 Put blue ON THE STAND. The next Ready HOMES the legs with --speed-cap 0.80 (preset fast-play-robot)
+ready blue --home --preset fast-play-robot
+pause 20 Move blue to the FLOOR at the west end, facing EAST. The next Ready stands it up
+ready blue
+check blue --yaw 0
+status
+
+# ---- 7. fast step set (max_vx 0.75): forward 0.4 and 0.75, east then west -----------------------
+test goto x=-0.9 y=0 yaw=0
+test step vx=0.4
+test goto x=-0.9 y=0 yaw=0
+test step vx=0.75 seconds=1.5
+test goto x=0.9 y=0 yaw=180
+test step vx=0.4
+test goto x=0.9 y=0 yaw=180
+test step vx=0.75 seconds=1.5
+
+# ---- 8. push ball x5 at fast-play-robot ------------------------------------------------------
+test goto x=-0.7 y=0 yaw=0
+pause 10 PUSH fast 1/5: place the ball on the centre spot
+test push_ball
+test goto x=-0.7 y=0 yaw=0
+pause 10 PUSH fast 2/5: fetch the ball, place it on the centre spot
+test push_ball
+test goto x=-0.7 y=0 yaw=0
+pause 10 PUSH fast 3/5: fetch the ball, place it on the centre spot
+test push_ball
+test goto x=-0.7 y=0 yaw=0
+pause 10 PUSH fast 4/5: fetch the ball, place it on the centre spot
+test push_ball
+test goto x=-0.7 y=0 yaw=0
+pause 10 PUSH fast 5/5: fetch the ball, place it on the centre spot
+test push_ball
+last 5
+
+# ---- 9. goalie x5: one 15 s run per shot at the WEST goal ----------------------------------------
+set test_timeout_s=15
+pause 10 GOALIE 1/5: stand at the centre with the ball. After Enter, roll it at the WEST goal within ~5 s
+test goalie
+pause 10 GOALIE 2/5: fetch the ball to the centre. After Enter, roll it at the WEST goal within ~5 s
+test goalie
+pause 10 GOALIE 3/5: fetch the ball to the centre. After Enter, roll it at the WEST goal within ~5 s
+test goalie
+pause 10 GOALIE 4/5: fetch the ball to the centre. After Enter, roll it at the WEST goal within ~5 s
+test goalie
+pause 10 GOALIE 5/5: fetch the ball to the centre. After Enter, roll it at the WEST goal within ~5 s
+test goalie
+set test_timeout_s=45
+last 5
+
+# ---- 10. gentle lie-down with the stack kept, stand again ------------------------------------
+pause 10 Next: DOWN --keep-stack (gentle lie-down, ~2.5 s to the belly). Hand under blue the first time; R3 aborts
+down blue --keep-stack
+pause 10 Note how it lay down (slow? tipped? dropped at the end?). Next: Ready stands blue again (no stand needed)
+ready blue
+
+# ---- 11. link E-STOP: legs off, damped drop, latched -----------------------------------------
+pause 15 E-STOP TEST: blue standing over the soft mat, everyone clear. It will DROP. R3 if it is not confirmed
+estop blue
+status
+pause 10 Note how the drop looked. Next: DOWN stops the stack (the latch stays until the next Ready)
+down blue
+status

@@ -593,6 +593,10 @@ def test_ready_and_down_ops(server):
     assert wait(lambda: not state(base)["ops"]["blue"]["running"], 3)
     code, r = post(base, "/robot", {"robot": "blue", "op": "down"})
     assert code == 200 and r["cmd"].endswith("fcctl.sh down")
+    code, r = post(base, "/robot", {"robot": "blue", "op": "down", "keep_stack": True})
+    assert code == 200 and r["cmd"].endswith("fcctl.sh down --keep-stack")
+    code, r = post(base, "/robot", {"robot": "blue", "op": "down", "keep_stack": "yes; reboot"})
+    assert code == 200 and r["cmd"].endswith("fcctl.sh down")                 # only a JSON true adds the flag
 
 
 def test_ready_streams_progress_and_down_never_refused(live_ops, monkeypatch):

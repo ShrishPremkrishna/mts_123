@@ -14,6 +14,11 @@ python -m fc.app --source sim                      # http://127.0.0.1:8800/
 python -m fc.app --source camera --robots blue     # live phone camera ("phone")
 python -m fc.app --source camera --video synthetic --no-link --dry-run-ops   # offline rehearsal
 python -m fc.app --source camera --video clip.mov  # or a folder of jpg/png
+
+# drive a running app from a shell or an agent: terse output, exit 0 ok / 1 failed / 3 health stop / 4 paused
+python -m fc.ctl status                            # one line per robot (--url, default http://127.0.0.1:8800)
+python -m fc.ctl test step vx=0.2 --wait           # ready/down/estop/preset/set/drive/stop/test/last/check: --help
+python -m fc.ctl batch fc/sessions/S1.batch        # first floor session (RUNBOOK) as one batch; pauses wait for Enter
 ```
 
 Flags: `--port 8800`, `--host <LAN IP>` (UI from another device; default 127.0.0.1), `--camera NAME|INDEX`,

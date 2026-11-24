@@ -1303,7 +1303,9 @@ class App:
             timeout = secs + 90
         else:
             # down/stop never get --force here: a robot not confirmed lying stays up (use R3).
-            args = {"status": ["status"], "stop": ["stop"], "down": ["down"],
+            # down keep_stack=true: lie down, keep the stack homed (next Ready needs no stand).
+            args = {"status": ["status"], "stop": ["stop"],
+                    "down": ["down", "--keep-stack"] if body.get("keep_stack") is True else ["down"],
                     "bridge_start": ["bridge", "start", "--robot-id", rid],
                     "bridge_stop": ["bridge", "stop"], "stage": []}[op]
         if op == "stage":
