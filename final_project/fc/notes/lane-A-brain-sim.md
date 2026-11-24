@@ -13,7 +13,7 @@
   - `brain.shape(cmd, prev, dt, params, accel_vx=None) -> Cmd`: the one output shaper (clamp, then rate-limit from `prev`). An all-zero command passes through at once.
   - `Brain.sent(cmd)`: tells the brain what was actually sent when the app overrode it (stale stop, teleop), so its ramp and pose prediction restart from there.
 - **`sim.py`:** deterministic 100 Hz kinematics. All measured errors are `sim_*` knobs (`sim_errors: 0` turns them off). Walls bounce except at the goal mouths. Goals pause, then reset to kickoff. A "trapped" referee nudges a wall ball that stays within 10 cm for `sim_trap_s` (was 5 cm, so a ball rattling in a corner deadlocked).
-- **`python -m fc.sim_eval [--off] [--set k=v ...]`** runs in about 15 s. `--set` tries values without editing `params.json`.
+- **`python -m fc.sim_eval [--off] [--preset base NAME ...] [--set k=v ...] [--field k=v ...]`** runs in about 15 s per column. `--preset` prints one column per preset (`base` = params.json); `--set` tries values without editing `params.json`; `--field` tries geometry (e.g. a wider goal).
 
 ## Senior-review fixes (2026-11-23)
 
@@ -42,6 +42,37 @@ Why 1v1 goals and headbutt fell (A/B, 16 matches): the old fast learner was hidi
 - `k_turn` 1.5 costs about 25% of 1v1 goals and most of headbutt's line-ups. With the old gains, the new brain's headbutt gets 36/40 with errors OFF.
 
 Rerun after the floor `step` test gives real numbers for bias and lag.
+
+## Fast play (2026-11-23)
+
+**Sim walker model** (`sim_*`, from `notes/fast-gait.md`): vx gain 0.92 up to cmd 0.3, trot saturating to 0.36 m/s at 0.49, fast gait from cmd 0.5 (0.62 / 0.73 / 0.86 / 1.14 at 0.6 / 0.75 / 1.0 / 1.5), backward capped at 0.3, wz clipped at 2.0. Fast gait adds ±0.5 rad/s yaw wobble; each gait switch adds a short random yaw kick. The existing 0.15 s lag already gives the measured stop (0.10–0.11 m from 0.73 m/s). `sim_speed_curve: 0` restores plain gains. The sim also logs first touches of the ball (`sim.contacts`, robot speed) and robot–robot touches (`sim.bumps`).
+
+**Brain knobs** (defaults leave today's 0.3 m/s play unchanged):
+- `gait_band`, `gait_lo` 0.45, `gait_hi` 0.6, `gait_hold_s`: forward commands never sit in (0.45, 0.6); the output steps across the band.
+- `contact_vx`, `contact_slow_m`: closing speed toward the ball ramps from `max_vx` down to `contact_vx` inside the slow zone.
+- `decel_vx`, `decel_wz`: separate rates toward zero (quick braking; damped turn reversals).
+- `goalie_vmax` (guard), `return_vx` (walk back to goal).
+
+**Preset `config/presets/fast-play.json`** (40 seeds, 16 × 3 min, errors ON):
+
+| | base | fast-play |
+|---|---|---|
+| solo push, median | 100%, 16.8 s | 100%, **11.9 s** |
+| goalie saves (sideways / facing) | 98% / 98% | 100% / 100% |
+| 1v1 goals/3 min, total | 2.4 | 2.3 |
+| deadlocks | 0 | 0 |
+| fast wz reversals/min, side flips/min | 1.0, 2.3 | 1.8, 3.7 |
+| contact speed mean / p90, share > 0.45 | 0.17 / 0.27, 0% | **0.29 / 0.40, 6%** |
+| robot bumps/3 min, closing mean / max | 14, 0.18 / 0.48 | 25, 0.36 / 0.84 |
+| 1v1 mean robot speed | 0.16 | 0.23 |
+| gait switches/min, time in band | 0, 0% | 15, 0% |
+
+Missed targets and why:
+- **Solo ≤ 10 s:** fast-play reaches 11.9 s (9.0 s with errors OFF). Dribbling is capped by contact speed (about 0.32 m/s, continuous contact), and approach time is limited by turning. `accel_wz` 4 without `decel_wz` gives about 10.5 s but about 2.3 fast wz reversals/min, which breaks the jitter limit.
+- **1v1 ≥ 4 goals:** goals do not rise with speed. Faster defenders get back to goal sooner while the dribble stays at contact speed (`max_vx` 0.3 with the other fast knobs scored 3.4). A guard in position leaves 0.125 m on each side of a 0.18 m ball. Weakening the goalie or a wider goal (`--field goal_width=0.8`) are the levers, not brain speed.
+- **Tried with no gain (20–24 matches each):** role hysteresis 0.3–0.7; a symmetric role hand-off (fewer robots attacking at once also meant fewer goals: scrambles create the chances); aiming at the side away from the goalie; slowing near the opponent; changing `k_curve`, `push_ahead`, `clear_depth`, `goalie_dist`.
+
+**Not modelled:** the robot slowing or falling while pushing a heavy ball (the study saw 0.75 → 0.25 m/s and falls of 1/3 at 0.6), and robot–robot impacts at a 0.84 m/s closing speed. Floor-test both before using the preset in a match.
 
 ## Weaknesses
 

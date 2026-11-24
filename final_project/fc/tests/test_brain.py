@@ -233,3 +233,52 @@ def test_yaw_learn_skips_push_and_learns_clean_walk():
     q2 = {**q, "role_mode": "goto", "goto_x": 1.2, "goto_y": 2.2 * math.tan(bias)}  # straight ahead by the tag
     run(c, lambda t: world(t, (-1.0 + 0.25 * t, 0.0, bias), (0.9, 0.8)), 90, q2)
     assert -math.radians(20) <= c._bias_at(bias) < -math.radians(1)
+
+
+FAST = {**P, "max_vx": 0.75, "max_wz": 2.0, "accel_vx": 1.2, "decel_vx": 2.0, "push_vx": 0.75,
+        "contact_vx": 0.4, "contact_slow_m": 0.35}
+
+
+def test_fast_mode_skips_the_gait_band_and_cruises():
+    b = Brain(BLUE, F)
+    q = {**FAST, "role_mode": "goto", "goto_x": 1.1, "goto_y": 0.0}
+    res = run(b, lambda t: world(t, (-1.1, 0.0, 0.0), ball=None), 60, q)
+    vxs = [c.vx for c, _ in res]
+    assert not [v for v in vxs if 0.45 + 1e-9 < v < 0.6 - 1e-9]  # stepped across, never inside
+    assert max(vxs) > 0.74
+    # a want hovering inside the band holds the side it is on
+    c = Brain(BLUE, F)
+    c.fast = False
+    assert c._gait(Cmd(0.55, 0, 0), 0.0, FAST).vx == 0.45
+    c.fast = True
+    assert c._gait(Cmd(0.55, 0, 0), 0.0, FAST).vx == 0.6
+    assert c._gait(Cmd(0.5, 0, 0), 0.0, FAST).vx == 0.45 and not c.fast  # below the middle: down-shift
+    assert c._gait(Cmd(0.7, 0, 0), 0.1, FAST).vx == 0.45  # up-shift waits gait_hold_s
+    assert c._gait(Cmd(0.7, 0, 0), 0.7, FAST).vx == 0.7
+
+
+def test_fast_mode_slows_to_contact_speed_near_the_ball():
+    b = Brain(BLUE, F)
+    c = F.ball_radius + F.robot_radius
+    res = run(b, lambda t: world(t, (-c - 0.02, 0.0, 0.0), (0.0, 0.0)), 60, FAST)
+    cmd, dbg = res[-1]
+    assert dbg["phase"] == "push" and 0.3 < cmd.vx <= FAST["contact_vx"] + 0.02 * 0.35 / 0.35 + 1e-6
+    assert b._pace(Pose(-c - 0.5, 0, 0), (0.0, 0.0), Cmd(0.75, 0, 0), FAST).vx == 0.75  # outside the zone
+    assert b._pace(Pose(-c - 0.1, 0, math.pi), (0.0, 0.0), Cmd(0.75, 0, 0), FAST).vx == 0.75  # ball behind
+
+
+def test_decel_brakes_faster_than_accel():
+    q = {**P, "max_vx": 0.75, "accel_vx": 1.0, "decel_vx": 3.0, "accel_wz": 4.0, "decel_wz": 2.0, "max_wz": 2.0}
+    assert abs(shape(Cmd(0.3, 0, 0), Cmd(0.7, 0, 0), 0.1, q).vx - 0.4) < 1e-9
+    assert abs(shape(Cmd(0.75, 0, 0), Cmd(0.3, 0, 0), 0.1, q).vx - 0.4) < 1e-9
+    assert abs(shape(Cmd(0.1, 0, 2.0), Cmd(0.1, 0, 0.5), 0.1, q).wz - 0.9) < 1e-9  # turning harder: accel_wz
+    assert abs(shape(Cmd(0.1, 0, -2.0), Cmd(0.1, 0, 0.5), 0.1, q).wz - 0.3) < 1e-9  # reversing: decel_wz
+
+
+def test_goalie_speed_cap():
+    b = Brain(BLUE, F)
+    q = {**FAST, "role_mode": "defend", "k_goalie": 6.0, "goalie_vmax": 0.45}
+    gx = -F.length / 2 + q["goalie_dist"]
+    for cmd, d in run(b, lambda t: world(t, (gx, 0.1, math.pi / 2), (0.3, 0.9)), 30, q):
+        assert d["phase"] == "guard" and cmd.vx <= 0.45 + 1e-9
+    assert cmd.vx > 0.44  # k_goalie * 0.255 m wants 1.5 m/s

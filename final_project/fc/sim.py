@@ -6,8 +6,17 @@ stay consistent whatever clock the caller uses.
 
 Error knobs (params.json, `sim_*`; `sim_errors: 0` turns every error off):
   sim_dt                internal step (s)
-  sim_gain_vx/vy/wz     measured travel per commanded (0.92 / 0.70 / 1.08)
-  sim_lag_s             first-order actuation lag
+  sim_gain_vx/vy/wz     measured travel per commanded (0.92 / 0.70 / 1.08); vx gain holds up to
+                        sim_trot_knee, then the speed curve below takes over
+  sim_lag_s             first-order actuation lag (0.15 s also gives the measured stop: 0.11 m from 0.73 m/s)
+Walker speed model (the deployed policy, fc/notes/fast-gait.md; sim_speed_curve: 0 = plain gains):
+  sim_trot_knee, sim_trot_top   trot: gain up to the knee (0.3), then linear to sim_trot_top at cmd 0.49
+  sim_gait_switch       cmd vx at or above this runs the fast gait (policy gallop_speed 0.5)
+  sim_fast_v060/v075/v100/v150  fast-gait speed at cmd 0.60/0.75/1.00/1.50 (piecewise linear)
+  sim_vx_clip, sim_vx_back_max  policy/controller clips on forward and backward cmd vx
+  sim_wz_clip           policy clip on cmd wz (turns track to 2.0 rad/s)
+  sim_fast_wobble, sim_fast_wobble_hz  fast-gait yaw-rate wobble (amplitude rad/s, frequency)
+  sim_gait_kick, sim_gait_kick_s  yaw-rate kick of random sign for this long after each gait switch
   sim_drift_deg_per_m   yaw drift per metre of lateral travel (random sign/scale per episode)
   sim_yaw_walk_deg      yaw random walk while moving (deg/sqrt(s))
   sim_cam_hz, sim_latency_s, sim_pos_noise (m), sim_yaw_noise_deg
@@ -25,6 +34,7 @@ from __future__ import annotations
 
 import math
 import random
+from collections import deque
 
 from .core import Ball, Field, Pose, RobotCfg, RobotObs, World, wrap
 
@@ -38,18 +48,24 @@ SIM_DEFAULTS = {
     "sim_ball_drop": 0.03, "sim_ball_noise": 0.01, "sim_ball_vel_noise": 0.03,
     "sim_ball_decel": 0.45, "sim_ball_e_robot": 0.4, "sim_ball_e_wall": 0.6,
     "sim_goal_pause_s": 1.0, "sim_walls": 1, "sim_trap_s": 6.0,
+    "sim_speed_curve": 1, "sim_trot_knee": 0.30, "sim_trot_top": 0.36, "sim_gait_switch": 0.5,
+    "sim_fast_v060": 0.62, "sim_fast_v075": 0.73, "sim_fast_v100": 0.86, "sim_fast_v150": 1.14,
+    "sim_vx_clip": 1.5, "sim_vx_back_max": 0.3, "sim_wz_clip": 2.0,
+    "sim_fast_wobble": 0.5, "sim_fast_wobble_hz": 2.5, "sim_gait_kick": 0.3, "sim_gait_kick_s": 0.3,
 }
 OFF = {"sim_gain_vx": 1.0, "sim_gain_vy": 1.0, "sim_gain_wz": 1.0, "sim_lag_s": 0.0,
        "sim_drift_deg_per_m": 0.0, "sim_yaw_walk_deg": 0.0, "sim_latency_s": 0.0,
        "sim_pos_noise": 0.0, "sim_yaw_noise_deg": 0.0, "sim_yaw_bias_a_deg": 0.0,
        "sim_yaw_bias_b_deg": 0.0, "sim_yaw_bias_c_deg": 0.0, "sim_drop_near": 0.0,
        "sim_drop_far": 0.0, "sim_burst_per_s": 0.0, "sim_ball_drop": 0.0,
-       "sim_ball_noise": 0.0, "sim_ball_vel_noise": 0.0}
+       "sim_ball_noise": 0.0, "sim_ball_vel_noise": 0.0,
+       "sim_speed_curve": 0, "sim_fast_wobble": 0.0, "sim_gait_kick": 0.0}
 SCENARIOS = ("kickoff", "attack_solo", "shot_on_goal", "random")
 
 
 class _Bot:
-    __slots__ = ("cfg", "x", "y", "yaw", "vx", "vy", "wz", "cmd", "drift", "burst_until")
+    __slots__ = ("cfg", "x", "y", "yaw", "vx", "vy", "wz", "cmd", "drift", "burst_until",
+                 "fast", "switches", "kick", "kick_until", "phase", "touch")
 
     def __init__(self, cfg: RobotCfg):
         self.cfg = cfg
@@ -57,6 +73,29 @@ class _Bot:
         self.cmd = (0.0, 0.0, 0.0)
         self.drift = 0.0
         self.burst_until = -1.0
+        self.fast = False         # running the fast gait (cmd vx >= sim_gait_switch)
+        self.switches = 0         # gait switches this episode
+        self.kick, self.kick_until, self.phase = 0.0, -1.0, 0.0
+        self.touch = set()        # what this robot is touching now: "ball", other robot ids
+
+
+def vx_actual(c: float, p: dict) -> float:
+    """Steady-state forward speed (m/s) the walker reaches for a commanded vx (the measured curve)."""
+    g = p["sim_gain_vx"]
+    if not p["sim_speed_curve"]:
+        return g * c
+    if c < 0:
+        return -g * min(-c, p["sim_vx_back_max"])
+    c = min(c, p["sim_vx_clip"])
+    if c < p["sim_gait_switch"]:  # trot: floor gain to the knee, then it saturates toward the switch
+        k = p["sim_trot_knee"]
+        return g * c if c <= k else g * k + (p["sim_trot_top"] - g * k) * (c - k) / (0.49 - k)
+    pts = ((0.60, p["sim_fast_v060"]), (0.75, p["sim_fast_v075"]), (1.00, p["sim_fast_v100"]),
+           (1.50, p["sim_fast_v150"]))
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+        if c <= x1 or x1 == pts[-1][0]:
+            return y0 + (y1 - y0) * (c - x0) / (x1 - x0)
+    return pts[-1][1]
 
 
 class Sim:
@@ -65,6 +104,9 @@ class Sim:
         self.rng = random.Random(seed)
         self.set_params(params)
         self.events: list[dict] = []
+        # first touches, for contact-speed stats: (t, robot, body speed, closing speed), m/s
+        self.contacts: deque = deque(maxlen=5000)
+        self.bumps: deque = deque(maxlen=5000)  # robot-robot first touches: (t, a, b, closing speed)
         self.score = {"blue": 0, "red": 0}
         self.reset("kickoff")
 
@@ -151,9 +193,19 @@ class Sim:
         walk = math.radians(p["sim_yaw_walk_deg"])
         for b in self.bots.values():
             cvx, cvy, cwz = b.cmd
-            b.vx += (p["sim_gain_vx"] * cvx - b.vx) * alpha
+            fast = cvx >= p["sim_gait_switch"]
+            if fast != b.fast:
+                b.fast, b.switches = fast, b.switches + 1
+                b.kick, b.kick_until = r.choice((-1.0, 1.0)) * p["sim_gait_kick"], self.t + p["sim_gait_kick_s"]
+            wz_t = p["sim_gain_wz"] * max(-p["sim_wz_clip"], min(p["sim_wz_clip"], cwz))
+            if b.fast and p["sim_fast_wobble"]:
+                b.phase += 2 * math.pi * p["sim_fast_wobble_hz"] * h
+                wz_t += p["sim_fast_wobble"] * math.sin(b.phase)
+            if self.t < b.kick_until:
+                wz_t += b.kick
+            b.vx += (vx_actual(cvx, p) - b.vx) * alpha
             b.vy += (p["sim_gain_vy"] * cvy - b.vy) * alpha
-            b.wz += (p["sim_gain_wz"] * cwz - b.wz) * alpha
+            b.wz += (wz_t - b.wz) * alpha
             c, s = math.cos(b.yaw), math.sin(b.yaw)
             b.x += (c * b.vx - s * b.vy) * h
             b.y += (s * b.vx + c * b.vy) * h
@@ -177,6 +229,14 @@ class Sim:
                 a, b = bots[i], bots[j]
                 dx, dy = b.x - a.x, b.y - a.y
                 d = math.hypot(dx, dy)
+                if d < 2 * rr and b.cfg.id not in a.touch and d > 1e-9:
+                    ux, uy = dx / d, dy / d
+                    (avx, avy), (bvx, bvy) = self._vel(a), self._vel(b)
+                    self.bumps.append((round(self.t, 3), a.cfg.id, b.cfg.id,
+                                       round((avx - bvx) * ux + (avy - bvy) * uy, 3)))
+                    a.touch.add(b.cfg.id)
+                elif d > 2 * rr + 0.02:
+                    a.touch.discard(b.cfg.id)
                 if 1e-9 < d < 2 * rr:
                     push = (2 * rr - d) / 2
                     a.x, a.y = a.x - dx / d * push, a.y - dy / d * push
@@ -184,6 +244,11 @@ class Sim:
         lx, ly = f.length / 2 - 0.08, f.width / 2 - 0.08  # body is narrower than its clearance circle
         for b in bots:
             b.x, b.y = max(-lx, min(lx, b.x)), max(-ly, min(ly, b.y))
+
+    @staticmethod
+    def _vel(b: _Bot) -> tuple[float, float]:
+        c, s = math.cos(b.yaw), math.sin(b.yaw)
+        return c * b.vx - s * b.vy, s * b.vx + c * b.vy
 
     def _ball_step(self, h: float) -> None:
         p, f = self.p, self.f
@@ -197,6 +262,8 @@ class Sim:
         for b in self.bots.values():
             dx, dy = bx - b.x, by - b.y
             d = math.hypot(dx, dy)
+            if d > br + rr + 0.02:
+                b.touch.discard("ball")
             if 1e-9 < d < br + rr:
                 nx, ny = dx / d, dy / d
                 bx, by = b.x + nx * (br + rr), b.y + ny * (br + rr)
@@ -204,6 +271,10 @@ class Sim:
                 pvx = c * b.vx - s * b.vy - b.wz * ny * rr  # robot surface velocity at contact
                 pvy = s * b.vx + c * b.vy + b.wz * nx * rr
                 rel = (vx - pvx) * nx + (vy - pvy) * ny
+                if "ball" not in b.touch:
+                    b.touch.add("ball")
+                    self.contacts.append((round(self.t, 3), b.cfg.id, round(math.hypot(b.vx, b.vy), 3),
+                                          round(max(0.0, -rel), 3)))
                 if rel < 0:
                     vx -= (1 + p["sim_ball_e_robot"]) * rel * nx
                     vy -= (1 + p["sim_ball_e_robot"]) * rel * ny

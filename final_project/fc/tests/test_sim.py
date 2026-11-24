@@ -120,3 +120,40 @@ def test_ball_rattling_in_corner_counts_as_trapped():
         if any(e["type"] == "trapped" for e in s.events):
             break
     assert any(e["type"] == "trapped" for e in s.events)
+
+
+def test_speed_curve_matches_the_measured_walker():
+    from fc.sim import vx_actual
+    p = SIM_DEFAULTS
+    assert abs(vx_actual(0.2, p) - 0.92 * 0.2) < 1e-9  # floor gain in the slow trot
+    assert abs(vx_actual(0.49, p) - 0.36) < 1e-6        # trot saturates below the switch
+    assert vx_actual(0.5, p) > 0.5                      # fast gait from 0.5
+    assert abs(vx_actual(0.75, p) - 0.73) < 1e-6 and abs(vx_actual(1.0, p) - 0.86) < 1e-6
+    assert vx_actual(2.0, p) == vx_actual(1.5, p)       # policy clip
+    assert vx_actual(-0.5, p) == -0.92 * 0.3            # backward cap
+    assert vx_actual(0.75, {**p, "sim_speed_curve": 0}) == 0.92 * 0.75
+
+
+def test_fast_run_brakes_in_about_11_cm_and_turns_clip_at_2():
+    s = Sim(F, ROBOTS, {"sim_drift_deg_per_m": 0, "sim_yaw_walk_deg": 0, "sim_fast_wobble": 0, "sim_gait_kick": 0}, 0)
+    s.reset("kickoff", robots=["blue"])
+    b = s.bots["blue"]
+    b.x, b.y, b.yaw = -1.2, 0.0, 0.0
+    s.ball = [1.0, 0.8, 0.0, 0.0]
+    drive(s, {"blue": Cmd(0.75, 0, 0)}, 2.0)
+    assert abs(b.vx - 0.73) < 0.01 and b.switches == 1
+    x0 = b.x
+    drive(s, {"blue": Cmd(0, 0, 0)}, 1.5)
+    assert 0.08 < b.x - x0 < 0.13 and b.switches == 2
+    drive(s, {"blue": Cmd(0, 0, 3.0)}, 1.0)
+    assert abs(b.wz - SIM_DEFAULTS["sim_gain_wz"] * 2.0) < 0.01
+
+
+def test_contacts_record_robot_speed_at_first_touch():
+    s = Sim(F, ROBOTS, OFF, 0)
+    s.reset("kickoff", robots=["blue"])
+    b = s.bots["blue"]
+    b.x, b.y, b.yaw = -0.6, 0.0, 0.0
+    s.ball = [0.0, 0.0, 0.0, 0.0]
+    drive(s, {"blue": Cmd(0.3, 0, 0)}, 3.0)
+    assert s.contacts and s.contacts[0][1] == "blue" and abs(s.contacts[0][2] - 0.3) < 0.01

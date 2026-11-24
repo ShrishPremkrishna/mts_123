@@ -42,7 +42,17 @@ Knobs (params.json; DEFAULTS below apply when a key is missing):
   orbit_hold_s  keep the chosen way round the ball at least this long
   orbit_slack   orbit waypoints up to this far outside the margin are clamped in, not rejected
   field_margin  keep walking targets this far inside the field edges
-  accel_vx/vy/wz  rate limits (see shape())
+  accel_vx/vy/wz  rate limits (see shape())   decel_vx  vx rate limit toward zero (0 = accel_vx)
+  decel_wz      wz rate limit toward zero (0 = accel_wz): below accel_wz, turns start quickly but
+                reversals are damped
+  contact_vx, contact_slow_m  near the ball the closing speed toward it is capped, ramping from
+                max_vx at contact_slow_m (surface gap, m) down to contact_vx at touch
+  gait_band, gait_lo, gait_hi, gait_hold_s  the walker switches gait at vx 0.5: forward commands
+                avoid (gait_lo, gait_hi). Below the band unless the want reaches gait_hi; once
+                fast, stay >= gait_hi while the want is above the band middle. Down-shifts are
+                immediate; an up-shift waits gait_hold_s after the last down-shift
+  goalie_vmax   speed cap while guarding the goal line (keep it in the trot: <= gait_lo)
+  return_vx     speed cap while a defender walks back to its goal (> max_vx = no extra cap)
   role_mode goto: walk to (goto_x, goto_y) and, if goto_yaw is a number, face it. Per-call
                 params, not knobs; done within goto_tol_m and goto_yaw_tol_deg (dbg["done"]).
 """
@@ -71,6 +81,9 @@ DEFAULTS = {
     "stuck_s": 2.5, "stuck_dist": 0.06, "unstick_s": 1.0, "unstick_vx": 0.15,
     "avoid_radius": 0.55, "avoid_gain": 1.0, "field_margin": 0.12,
     "goto_tol_m": 0.08, "goto_yaw_tol_deg": 8,
+    "decel_vx": 0.0, "decel_wz": 0.0, "contact_vx": 0.30, "contact_slow_m": 0.35,
+    "gait_band": 1, "gait_lo": 0.45, "gait_hi": 0.60, "gait_hold_s": 0.5, "goalie_vmax": 0.45,
+    "return_vx": 1.5,
 }
 
 
@@ -98,13 +111,18 @@ def to_body(pose: Pose, wx: float, wy: float) -> tuple[float, float]:
 
 def shape(cmd: Cmd, prev: Cmd, dt: float, params: dict, accel_vx: float | None = None) -> Cmd:
     """The one output shaper: clamp to max_vx/vy/wz, then rate-limit each axis from `prev`
-    (accel_vx/vy/wz per second). An all-zero command is a stop and passes through at once.
+    (accel_vx/vy/wz per second; vx and wz toward zero at decel_vx / decel_wz if set). An
+    all-zero command is a stop and passes through at once.
     The caller keeps the returned Cmd as the next `prev`; missing keys fall back to DEFAULTS."""
     if cmd.vx == 0.0 and cmd.vy == 0.0 and cmd.wz == 0.0:
         return cmd
     q = lambda k: params.get(k, DEFAULTS[k])  # noqa: E731
     dt = clamp(dt, 0.0, 0.25)
     ax, ay, aw = (accel_vx or q("accel_vx")) * dt, q("accel_vy") * dt, q("accel_wz") * dt
+    if q("decel_vx") > 0 and accel_vx is None and prev.vx * (cmd.vx - prev.vx) < 0:
+        ax = q("decel_vx") * dt  # slowing down: the walker stops in ~0.4 s, so braking may be quicker
+    if q("decel_wz") > 0 and prev.wz * (cmd.wz - prev.wz) < 0:
+        aw = q("decel_wz") * dt
     vx = clamp(cmd.vx, -q("max_vx"), q("max_vx"))
     vy = clamp(cmd.vy, -q("max_vy"), q("max_vy"))
     wz = clamp(cmd.wz, -q("max_wz"), q("max_wz"))
@@ -145,6 +163,8 @@ class Brain:
         self.clearing = False
         self.stuck_ref: tuple | None = None  # (t, x, y) where forward progress was last seen
         self.unstick_until = -1.0
+        self.fast = False         # commanding the walker's fast gait (vx >= gait_hi)
+        self.upshift_t = -1e9     # earliest time the next up-shift is allowed
 
     # ------------------------------------------------------------------ entry
     def decide(self, world: World, params: dict) -> tuple[Cmd, dict]:
@@ -186,6 +206,7 @@ class Brain:
         else:
             want, dbg = self._defend(pose, B, (ball.vx, ball.vy), others, p, t)
         want, dbg = self._unstick(pose, want, dbg, t, p)
+        want = self._pace(pose, B, want, p)
         cmd = self._smooth(want, dt, p, t, accel_vx=p["hb_accel"] if dbg["phase"] in ("charge", "backoff") else None)
         dbg.update(role=role, pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)],
                    ball=[round(B[0], 3), round(B[1], 3)], **costs)
@@ -527,13 +548,15 @@ class Brain:
         self.returning = dist > (0.12 if self.returning else p["goalie_reach"])
         tgt = [round(G[0], 3), round(G[1], 3)]
         if self.returning:
-            return self._goto(pose, G, p, p["max_vx"], others, slow_r=0.2, allow_back=True, tag="return"), \
+            return self._goto(pose, G, p, min(p["max_vx"], p["return_vx"]), others, slow_r=0.2, allow_back=True,
+                              tag="return"), \
                 {"phase": "return", "target": tgt}
         if p["goalie_style"] == "facing":
             yaw_des = math.atan2(B[1] - pose.y, B[0] - pose.x)
         else:  # body parallel to the goal line: forward/back walking slides along it
             yaw_des = math.pi / 2 if abs(wrap(pose.yaw - math.pi / 2)) <= math.pi / 2 else -math.pi / 2
         bx, by = to_body(pose, p["k_goalie"] * dx, p["k_goalie"] * dy)
+        bx = clamp(bx, -p["goalie_vmax"], p["goalie_vmax"])
         return Cmd(bx, by, p["k_turn"] * wrap(yaw_des - pose.yaw), "guard"), {"phase": "guard", "target": tgt}
 
     def _unstick(self, pose: Pose, want: Cmd, dbg: dict, t: float, p: dict):
@@ -550,8 +573,44 @@ class Brain:
         return want, dbg
 
     # ------------------------------------------------------------------ output shaping
+    def _pace(self, pose: Pose, B, want: Cmd, p: dict) -> Cmd:
+        """Cap the closing speed toward the ball: max_vx at contact_slow_m surface gap, falling
+        linearly to contact_vx at touch. A pass at a wide angle gets up to twice the cap."""
+        if want.vx <= p["contact_vx"] or p["contact_slow_m"] <= 0:
+            return want
+        f = self.f
+        dx, dy = B[0] - pose.x, B[1] - pose.y
+        gap = math.hypot(dx, dy) - f.ball_radius - f.robot_radius
+        bear = math.cos(wrap(math.atan2(dy, dx) - pose.yaw))
+        if gap >= p["contact_slow_m"] or bear <= 0.0:  # far enough, or the ball is behind us
+            return want
+        cap = p["contact_vx"] + max(0.0, gap) / p["contact_slow_m"] * max(0.0, p["max_vx"] - p["contact_vx"])
+        cap /= max(bear, 0.5)
+        return want if want.vx <= cap else Cmd(cap, want.vy, want.wz, want.tag)
+
+    def _gait(self, want: Cmd, t: float, p: dict) -> Cmd:
+        """Keep the forward target out of (gait_lo, gait_hi) with hysteresis (see DEFAULTS doc)."""
+        lo, hi = p["gait_lo"], p["gait_hi"]
+        if not p["gait_band"] or hi <= lo:
+            return want
+        v = min(want.vx, p["max_vx"])
+        if self.fast and v < 0.5 * (lo + hi):
+            self.fast, self.upshift_t = False, t + p["gait_hold_s"]
+        elif not self.fast and v >= hi and t >= self.upshift_t and p["max_vx"] >= hi:
+            self.fast = True
+        if self.fast:
+            v = max(v, hi)
+        elif v > lo:
+            v = lo
+        return want if v == want.vx else Cmd(v, want.vy, want.wz, want.tag)
+
     def _smooth(self, want: Cmd, dt: float, p: dict, t: float, accel_vx: float | None = None) -> Cmd:
+        want = self._gait(want, t, p)
         self.out = shape(want, self.out, dt, p, accel_vx)
+        lo, hi = p["gait_lo"], p["gait_hi"]
+        if p["gait_band"] and lo < self.out.vx < hi:  # step across the band instead of ramping through it
+            v = hi if want.vx >= hi else lo if want.vx <= lo else self.out.vx
+            self.out = Cmd(v, self.out.vy, self.out.wz, self.out.tag)
         clean = self.clean and not want.tag.startswith(UNCLEAN_TAGS)
         self.hist.append((t, self.out.vx, self.out.vy, self.out.wz, clean))
         return self.out
