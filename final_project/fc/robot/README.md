@@ -303,3 +303,12 @@ lie-down and its fallback, `ready`/`down` incl. a refusing
 gateway and operator timeout, `down`/`stop` refusing to stop a robot not confirmed lying, status phases, boot
 modes) needs Linux and is skipped on the Mac; run it with (`--init` reaps zombies; without it pytest is PID 1 and `stop` waits on dead pids)
 `docker run --rm --init --network none -v "$PWD/fc/robot:/src:ro" ros:jazzy-ros-base bash -c 'cd /src && python3 -m pytest -q -p no:cacheprovider tests/test_fcctl.py'`.
+
+## Pi OS changes on mts (2026-11-24, operator-approved, for heat)
+
+- `/boot/firmware/config.txt`: appended a marked "Pupper FC heat reduction" block — `dtparam=pciex1=off`
+  (Hailo-8 off; fc does not use it) and an earlier fan curve (full speed from 55–60 °C). Backup:
+  `/boot/firmware/config.txt.bak-pre-fc-20261124`. Undo: delete the block, reboot.
+- `pupper-gui` (face screen) disabled; it was a linked unit. Undo:
+  `sudo systemctl link /home/pi/pupperv3-monorepo/pupper-rs/pupper-gui.service && sudo systemctl enable --now pupper-gui`.
+- Follow-me / Hailo inference will not work until the config block is removed.
