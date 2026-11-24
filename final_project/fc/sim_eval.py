@@ -1,12 +1,14 @@
 """Batch validation of brain + sim. Run from final_project/:
     python -m fc.sim_eval [--seeds N] [--matches M] [--quick] [--off] [--preset NAME ...] [--set key=value ...]
-                          [--field key=value ...]
+                          [--field key=value ...] [--scen core human return moving] [--lag 0.3 0.7]
 
 Prints one table per error setting (errors ON = measured model, OFF = ideal), one column per
 preset: `base` is params.json, any other name is params.json + fc/config/presets/NAME.json
 (e.g. `--preset base fast-play` compares them side by side). `--set` overrides on top of every
 column (to try a value before committing it). `--field` overrides field.json geometry the same way
-(e.g. `--field goal_width=0.8` to try a wider marked goal).
+(e.g. `--field goal_width=0.8` to try a wider marked goal). `--lag L ...` repeats every column at
+a total lag L (camera latency L/2 + walker lag L/2; the brain's act_lag_s set to L/2, as if measured).
+`--scen` picks row groups (default all): core (rows below), human, return, moving.
 
 Rows:
 - solo push/headbutt: goals within 40 s from a random start, median time to goal (s).
@@ -19,6 +21,18 @@ Rows:
   touches above 0.45 m/s. bumps = robot-robot first touches (closing speed).
 - pace: mean true robot speed in 1v1; gait switches /robot-min; "in band" = share of ticks with a
   forward command inside (0.45, 0.6), where the walker hovers at its gait switch.
+- human (one robot in auto vs a scripted human, `--matches` x `--minutes`): every 4-9 s the human
+  picks the ball up and either shoots at the robot's goal from its own half (60%) or rolls it to a
+  spot outside the robot's third (40%). Robot goals / conceded per 3 min; saves of shots; role
+  switches per min; reaction = shot -> brain role defend, shot -> true robot velocity toward its goal
+  >= 0.1 m/s (median s, only when not already defending / on the line); right role = defend within
+  1.5 s of a shot / no defend within 2 s of a roll.
+- return: robot upfield, ball resting near it, a human shot at our goal at a random 1-4 s (from the
+  human's spot if the robot is on the ball). auto: saves. forced (attack until the shot, then defend:
+  the return run alone): reached the guard line (+-0.1 m, inside the mouth) within 8 s, median time
+  from the shot, and the ball's median time to our goal line for comparison.
+- moving: ball rolled across the field (0.5-1.1 m/s), robot role attack from its own half: first
+  touch within 6 s, that touch sends the ball toward the attack goal, goal within 15 s (median s).
 """
 from __future__ import annotations
 
@@ -26,6 +40,7 @@ import argparse
 import dataclasses
 import json
 import math
+import random
 import statistics
 import time
 
@@ -146,19 +161,219 @@ def match(field, robots, params, seed, minutes=3.0):
             "band": st["band"] / max(1, st["ticks"])}
 
 
+def _fastwz(c, k, st, t):
+    """Count turn reversals less than 1 s apart (|wz| > 0.25 one way, then the other)."""
+    if c and abs(c.wz) > 0.25:
+        sg = 1 if c.wz > 0 else -1
+        if st.setdefault("wz", {}).get(k, sg) != sg:
+            if t - st.setdefault("lastrev", {}).get(k, -9.0) < 1.0:
+                st["fastwz"] = st.get("fastwz", 0) + 1
+            st["lastrev"][k] = t
+        st["wz"][k] = sg
+
+
+def _guard_line(field, team, params):
+    s = -1.0 if team == "blue" else 1.0  # own goal side
+    return s, s * (field.length / 2 - params.get("goalie_dist", 0.25))
+
+
+def human_solo(field, robots, params, seed, minutes=3.0):
+    """One robot (auto unless params say otherwise, e.g. role_mode=defend for a pure keeper) vs a
+    scripted human who shoots at its goal or rolls the ball around."""
+    p = {"role_mode": "auto", **params}
+    me = robots[0]
+    sim = Sim(field, robots, p, seed)
+    sim.reset("kickoff", robots=[me.id])
+    brain = Brain(me, field)
+    r = random.Random(seed + 7)  # the human's own dice: brain changes do not reshuffle the script
+    s, xl = _guard_line(field, me.team, p)
+    hl, hw, gw = field.length / 2, field.width / 2, field.goal_width / 2
+    third = params.get("solo_third", 0.333) * field.length
+    st = {"next": 3.0, "ev": [], "flips": 0, "role": None}
+
+    def close(e, t):
+        e["end"] = t
+
+    def tick(cmds, dbgs):
+        t, bot = sim.t, sim.bots[me.id]
+        role = brain.role
+        if st["role"] not in (None, role):
+            st["flips"] += 1
+        st["role"] = role
+        _fastwz(cmds.get(me.id), me.id, st, t)
+        e = st["ev"][-1] if st["ev"] else None
+        if e and "end" not in e:
+            el = t - e["t"]
+            if role == "defend" and e["defend"] is None:
+                e["defend"] = el
+            c, sn = math.cos(bot.yaw), math.sin(bot.yaw)
+            vx_w = c * bot.vx - sn * bot.vy
+            if e["move"] is None and (s * vx_w >= 0.1 or abs(bot.x - xl) < 0.15):
+                e["move"] = el
+            goals = [g for g in sim.events[e["n"]:] if g["type"] == "goal"]
+            if goals:
+                e["conceded"] = goals[0]["team"] != me.team
+                close(e, t)
+        if t >= st["next"] and sim.pause_until < 0:
+            if e and "end" not in e:
+                close(e, t)
+            shot = r.random() < 0.6
+            x, y = -s * r.uniform(0.2, 1.0), r.uniform(-0.7, 0.7)
+            if shot:
+                ty = r.uniform(-(gw - field.ball_radius), gw - field.ball_radius)
+                sim.shoot(s * (hl + field.ball_radius + 0.03), ty, r.uniform(0.1, 0.5), x, y)
+            else:  # roll to a spot outside the robot's third
+                tx = s * (hl - third - r.uniform(0.2, 1.0))
+                tx = max(-hl + 0.2, min(hl - 0.2, tx))
+                sim.shoot(tx, r.uniform(-hw + 0.2, hw - 0.2), 0.05, x, y)
+            st["ev"].append({"t": t, "n": len(sim.events), "shot": shot, "role0": role,
+                             "online0": abs(bot.x - xl) < 0.15, "defend": None if role != "defend" else 0.0,
+                             "move": None, "conceded": False})
+            st["next"] = t + r.uniform(4.0, 9.0)
+        return False
+
+    _loop(sim, {me.id: brain}, p, minutes * 60, tick)
+    goals = [g for g in sim.events if g["type"] == "goal"]
+    return {"scored": sum(g["team"] == me.team for g in goals), "conceded": sum(g["team"] != me.team for g in goals),
+            "ev": st["ev"], "flips_pm": st["flips"] / minutes, "fastwz_pm": st.get("fastwz", 0) / minutes}
+
+
+def return_test(field, robots, params, seed, window=8.0, forced=False):
+    """Robot upfield in auto; a human shot at its goal comes at a random 1-4 s. forced: attack until
+    the shot, defend from the shot on (the return itself, without the role rule)."""
+    p = {**params, "role_mode": "attack" if forced else "auto"}
+    me = robots[0]
+    sim = Sim(field, robots, p, seed)
+    sim.reset("return")
+    brain = Brain(me, field)
+    s, xl = _guard_line(field, me.team, p)
+    lim = field.goal_width / 2 + 0.1
+    st = {"shot": None, "line": None, "arrive": None}
+
+    def tick(cmds, dbgs):
+        t, bot = sim.t, sim.bots[me.id]
+        if st["shot"] is None:
+            k = [e for e in sim.events if e["type"] == "kick"]
+            if k:
+                st["shot"] = k[0]["t"]
+                if forced:
+                    p["role_mode"] = "defend"
+                bv = (k[0]["vx"], k[0]["vy"])
+                st["arrive"] = brain._arrival((k[0]["x"], k[0]["y"]), bv, brain.own_x, {"ball_decel": sim.p["sim_ball_decel"]})[0]
+            elif _goals(sim) or not sim.scheduled:
+                return True
+            return False
+        el = t - st["shot"]
+        if st["line"] is None and abs(bot.x - xl) < 0.1 and abs(bot.y) < lim:
+            st["line"] = el
+        return bool(_goals(sim)) and not forced or el > window or (forced and st["line"] is not None)
+    _loop(sim, {me.id: brain}, p, 4.5 + window, tick)
+    g = [e for e in _goals(sim) if st["shot"] is not None and e["t"] >= st["shot"]]
+    if st["shot"] is None:
+        return None  # the robot scored before the human shot
+    return {"line": st["line"], "save": not (g and g[0]["team"] != me.team), "arrive": st["arrive"]}
+
+
+def moving_attack(field, robots, params, seed):
+    """Ball rolled across the field; the robot (role attack) must reach it and hit it toward goal."""
+    p = {**params, "role_mode": "attack"}
+    me = robots[0]
+    sim = Sim(field, robots, p, seed)
+    sim.reset("rolling_ball")
+    brain = Brain(me, field)
+    att = 1.0 if me.team == "blue" else -1.0
+    st = {"touch": None, "dir": None, "goal": None}
+
+    def tick(cmds, dbgs):
+        if st["touch"] is None and sim.contacts:
+            st["touch"] = sim.contacts[0][0]
+        if st["touch"] is not None and st["dir"] is None and sim.t - st["touch"] >= 0.2:
+            st["dir"] = att * sim.ball[2] > 0.05
+        g = _goals(sim)
+        if g:
+            st["goal"] = g[0]["t"] if g[0]["team"] == me.team else None
+            return True
+        return False
+    _loop(sim, {me.id: brain}, p, 15.0, tick)
+    return {"hit": st["touch"] is not None and st["touch"] <= 6.0, "toward": bool(st["dir"]), "goal": st["goal"]}
+
+
+def lag_over(total: float) -> dict:
+    """Total loop lag split evenly between camera latency and walker lag; the brain told the walker part."""
+    return {"sim_latency_s": total / 2, "sim_lag_s": total / 2, "act_lag_s": total / 2}
+
+
+def _med(xs):
+    return statistics.median(xs) if xs else float("nan")
+
+
 def _pct(xs, q):
     xs = sorted(xs)
     return xs[min(len(xs) - 1, int(q * len(xs)))] if xs else 0.0
 
 
 def evaluate(seeds: int, errors: bool, minutes: float, matches: int, overrides: dict | None = None,
-             headbutt: bool = True, field_over: dict | None = None) -> dict:
+             headbutt: bool = True, field_over: dict | None = None, scen=("core",)) -> dict:
     """Metrics for one parameter set: {row label: formatted value} plus raw numbers under '_raw'."""
     field, robots, params = load_field(), load_robots(), load_params()
     if field_over:
         field = dataclasses.replace(field, **field_over)
     params = {**params, **(overrides or {}), "sim_errors": int(errors)}
-    out, raw, contacts = {}, {}, []
+    out, raw = {}, {}
+    if "core" in scen:
+        _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt)
+    if "human" in scen:
+        _human(out, raw, field, robots, params, matches, minutes)
+    if "return" in scen:
+        res = [x for x in (return_test(field, robots, params, 3000 + s) for s in range(seeds)) if x]
+        n = max(1, len(res))
+        raw["ret_save"] = sum(x["save"] for x in res) / n
+        out["return (auto): saves"] = f"{sum(x['save'] for x in res)}/{len(res)} ({100 * raw['ret_save']:.0f}%)"
+        fr = [x for x in (return_test(field, robots, params, 3000 + s, forced=True) for s in range(seeds)) if x]
+        line = [x["line"] for x in fr if x["line"] is not None]
+        raw.update(ret_line=len(line) / max(1, len(fr)), ret_med=_med(line),
+                   ret_ball=_med([x["arrive"] for x in fr if x["arrive"] < math.inf]))
+        out["return (forced): on line / median s, ball s"] = (f"{len(line)}/{len(fr)}, {raw['ret_med']:.1f}, "
+                                                              f"{raw['ret_ball']:.1f}")
+    if "moving" in scen:
+        res = [moving_attack(field, robots, params, 4000 + s) for s in range(seeds)]
+        g = [x["goal"] for x in res if x["goal"] is not None]
+        raw.update(mov_hit=sum(x["hit"] for x in res) / seeds, mov_toward=sum(x["toward"] for x in res) / seeds,
+                   mov_goal=len(g) / seeds, mov_med=_med(g))
+        out["moving: hit <=6 s / toward goal / goal <=15 s"] = (f"{sum(x['hit'] for x in res)}/"
+                                                             f"{sum(x['toward'] for x in res)}/{len(g)} of {seeds}")
+        out["moving: median s to goal"] = f"{raw['mov_med']:.1f}"
+    out["_raw"] = raw
+    return out
+
+
+def _human(out, raw, field, robots, params, matches, minutes):
+    ms = [human_solo(field, robots, params, 5000 + s, minutes) for s in range(matches)]
+    k = 3 / minutes / matches
+    ev = [e for m in ms for e in m["ev"]]
+    shots = [e for e in ev if e["shot"]]
+    rolls = [e for e in ev if not e["shot"]]
+    saves = sum(not e["conceded"] for e in shots)
+    rd = [e["defend"] for e in shots if e["role0"] != "defend" and e["defend"] is not None]
+    rm = [e["move"] for e in shots if not e["online0"] and e["move"] is not None]
+    right_s = sum(e["defend"] is not None and e["defend"] <= 1.5 for e in shots)
+    right_r = sum(e["defend"] is None or e["defend"] > 2.0 for e in rolls)
+    raw.update(h_scored=sum(m["scored"] for m in ms) * k, h_conceded=sum(m["conceded"] for m in ms) * k,
+               h_saves=saves / max(1, len(shots)), h_flips=statistics.mean(m["flips_pm"] for m in ms),
+               h_react_def=_med(rd), h_react_move=_med(rm), h_right_shot=right_s / max(1, len(shots)),
+               h_right_roll=right_r / max(1, len(rolls)), h_fastwz=statistics.mean(m["fastwz_pm"] for m in ms))
+    out[f"human ({matches}x{minutes:g} min): robot goals / conceded /3min"] = (f"{raw['h_scored']:.1f} / "
+                                                                         f"{raw['h_conceded']:.1f}")
+    out["human: saves of shots"] = f"{saves}/{len(shots)} ({100 * raw['h_saves']:.0f}%)"
+    out["human: role switches /min"] = f"{raw['h_flips']:.1f}"
+    out["human: react s, ->defend / ->moving back"] = f"{raw['h_react_def']:.2f} / {raw['h_react_move']:.2f}"
+    out["human: right role, shots / rolls"] = (f"{100 * raw['h_right_shot']:.0f}% / "
+                                               f"{100 * raw['h_right_roll']:.0f}%")
+    out["human: fast wz rev /min"] = f"{raw['h_fastwz']:.1f}"
+
+
+def _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt):
+    contacts = []
     for mode in ("push", "headbutt") if headbutt else ("push",):
         res = [solo(field, robots, params, s, mode, contacts=contacts if mode == "push" else None)
                for s in range(seeds)]
@@ -194,8 +409,6 @@ def evaluate(seeds: int, errors: bool, minutes: float, matches: int, overrides: 
     out["pace: 1v1 mean speed m/s"] = f"{statistics.mean(m['speed'] for m in ms):.2f}"
     out["pace: gait switches /min, in band"] = (f"{statistics.mean(m['switch_pm'] for m in ms):.1f}, "
                                                 f"{100 * statistics.mean(m['band'] for m in ms):.1f}%")
-    out["_raw"] = raw
-    return out
 
 
 def run(seeds: int, errors: bool, minutes: float, matches: int, overrides: dict | None = None) -> list[str]:
@@ -225,6 +438,10 @@ def main() -> None:
                     help="columns: 'base' (params.json) or fc/config/presets/NAME.json on top of it")
     ap.add_argument("--set", nargs="*", default=[], metavar="KEY=VALUE", help="override params.json (JSON values)")
     ap.add_argument("--field", nargs="*", default=[], metavar="KEY=VALUE", help="override field.json (numbers)")
+    ap.add_argument("--scen", nargs="*", default=["core", "human", "return", "moving"],
+                    help="row groups: core human return moving")
+    ap.add_argument("--lag", nargs="*", type=float, default=[], metavar="S",
+                    help="total lag(s) in s; one column per preset and lag")
     a = ap.parse_args()
     over = {}
     for kv in a.set:
@@ -243,10 +460,12 @@ def main() -> None:
     t0 = time.time()
     names = a.preset or ["base"]
     presets = {n: load_preset(n) for n in names}
+    if a.lag:
+        presets = {f"{n}@{L:g}": {**pv, **lag_over(L)} for n, pv in presets.items() for L in a.lag}
     for errors in ((True, False) if a.off else (True,)):
         print(f"== errors {'ON ' if errors else 'OFF'} ==")
-        cols = {n: evaluate(a.seeds, errors, a.minutes, a.matches, {**pv, **over}, field_over=fover)
-                for n, pv in presets.items()}
+        cols = {n: evaluate(a.seeds, errors, a.minutes, a.matches, {**pv, **over}, field_over=fover,
+                            scen=tuple(a.scen)) for n, pv in presets.items()}
         for line in table(cols):
             print(line)
     print(f"({time.time() - t0:.0f}s)")

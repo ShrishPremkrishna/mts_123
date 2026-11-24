@@ -282,3 +282,84 @@ def test_goalie_speed_cap():
     for cmd, d in run(b, lambda t: world(t, (gx, 0.1, math.pi / 2), (0.3, 0.9)), 30, q):
         assert d["phase"] == "guard" and cmd.vx <= 0.45 + 1e-9
     assert cmd.vx > 0.44  # k_goalie * 0.255 m wants 1.5 m/s
+
+
+def mworld(t, me, ball, bv=(0.0, 0.0)):
+    """One robot (blue) and a ball with a velocity."""
+    return World(t, Ball(ball[0], ball[1], bv[0], bv[1], t), {"blue": RobotObs("blue", Pose(*me), t)})
+
+
+def test_solo_defends_a_ball_rolling_at_goal_and_attacks_otherwise():
+    q = {**P, "solo_hold_s": 1.0}
+    b = Brain(BLUE, F)
+    me = (0.6, 0.0, 0.0)  # upfield, facing the attack goal
+    _, d = b.decide(mworld(0.0, me, (0.3, 0.0)), q)
+    assert d["role"] == "attack"  # resting ball in midfield
+    _, d = b.decide(mworld(1.1, me, (0.3, 0.0), (-1.5, 0.05)), q)
+    assert d["role"] == "defend"  # reaches our goal line well inside the horizon
+    _, d = b.decide(mworld(1.5, me, (-0.2, 0.0)), q)
+    assert d["role"] == "defend"  # ball stopped, but the hold has not passed
+    _, d = b.decide(mworld(2.2, me, (-0.2, 0.0)), q)
+    assert d["role"] == "attack"
+    for bv in ((0.8, 0.0), (-0.6, 0.9)):  # rolling away; rolling toward our end but well wide of the mouth
+        b = Brain(BLUE, F)
+        _, d = b.decide(mworld(0.0, me, (0.3, 0.0), bv), q)
+        assert d["role"] == "attack", bv
+    b = Brain(BLUE, F)  # slow but moving inside our third: defend
+    _, d = b.decide(mworld(0.0, me, (-0.9, 0.3), (-0.2, 0.0)), q)
+    assert d["role"] == "defend"
+
+
+def test_solo_roles_off_always_attacks():
+    b = Brain(BLUE, F)
+    _, d = b.decide(mworld(0.0, (0.6, 0.0, 0.0), (0.3, 0.0), (-1.5, 0.0)), {**P, "solo_roles": 0})
+    assert d["role"] == "attack"
+
+
+def test_ball_prediction_decelerates_and_stops():
+    b = Brain(BLUE, F)
+    q = {**P, "ball_decel": 0.5}
+    assert b._ball_at((0.0, 0.0), (1.0, 0.0), 1.0, q)[0] == 0.75
+    assert b._ball_at((0.0, 0.0), (1.0, 0.0), 9.0, q)[0] == 1.0  # stopped after 2 s, 1 m
+    T, y = b._arrival((0.0, 0.0), (-1.0, 0.0), -0.75, q)
+    assert abs(T - 1.0) < 1e-9 and y == 0.0
+    assert b._arrival((0.0, 0.0), (-1.0, 0.0), -1.2, q)[0] == math.inf  # stops 1 m out
+
+
+def test_attacker_aims_where_a_moving_ball_will_be():
+    q = {**P, "intercept_max_s": 2.0}
+    b = Brain(BLUE, F)
+    _, d = b.decide(mworld(0.0, (-0.8, -0.3, 0.0), (0.0, -0.6), (0.0, 0.7)), q)
+    assert d["role"] == "attack" and d["intercept"][1] > -0.6 + 0.3  # well ahead of the ball, capped by its stop
+    assert d["intercept"][1] <= -0.6 + 0.7 ** 2 / (2 * q["ball_decel"]) + 1e-6
+    b = Brain(BLUE, F)
+    _, d = b.decide(mworld(0.0, (-0.8, -0.3, 0.0), (0.0, -0.6), (0.0, 0.05)), q)
+    assert "intercept" not in d  # slow ball: aim at the ball
+    b = Brain(BLUE, F)
+    _, d = b.decide(mworld(0.0, (-0.35, 0.0, 0.0), (0.0, 0.0), (0.5, 0.0)), q)
+    assert "intercept" not in d  # at the ball (dribbling): play the ball itself
+    b = Brain(BLUE, F)
+    _, d = b.decide(mworld(0.0, (-0.8, -0.3, 0.0), (0.0, -0.6), (0.0, 0.7)), {**q, "intercept_max_s": 0})
+    assert "intercept" not in d
+
+
+def test_return_goes_round_a_slow_ball_and_backs_while_turning():
+    q = {**P, "role_mode": "defend", "return_back_vx": 0.25}
+    b = Brain(BLUE, F)
+    res = run(b, lambda t: mworld(t, (0.2, 0.0, 0.0), (-0.3, 0.02)), 10, q)
+    cmd, d = res[-1]
+    assert d["phase"] == "return" and "via" in d
+    clear = F.ball_radius + F.robot_radius + q["clear_margin"]
+    assert math.hypot(d["via"][0] + 0.3, d["via"][1] - 0.02) >= clear
+    assert cmd.vx < 0  # goal is behind: backing toward it while turning round
+    b = Brain(BLUE, F)  # a ball coming at goal is worth touching: no detour
+    _, d = b.decide(mworld(0.0, (0.2, 0.0, 0.0), (-0.3, 0.02), (-0.8, 0.0)), q)
+    assert d["phase"] in ("return", "block") and "via" not in d
+
+
+def test_block_steps_into_the_ball_path_when_the_line_is_too_far():
+    q = {**P, "max_vx": 0.75, "return_vx": 1.5, "max_wz": 1.0}
+    b = Brain(BLUE, F)
+    K = b._block(Pose(-0.5, 0.2, -math.pi / 2), (0.8, 0.0), (-1.6, 0.0), q)
+    assert K is not None and abs(K[1]) < 0.02 and -1.065 < K[0] < 0.8
+    assert b._block(Pose(-1.0, 0.0, math.pi / 2), (0.8, 0.0), (-1.6, 0.0), q) is None  # line is reachable

@@ -29,6 +29,14 @@ Physics knobs (always on): sim_ball_decel (m/s^2), sim_ball_e_robot, sim_ball_e_
   0 = ball leaving the field is an "out" event and a kickoff reset), sim_trap_s (a ball
   near a wall that stays within 10 cm for this long is a "trapped" event: the referee nudges it
   0.35 m inward, like the accepted manual ball replacement).
+
+Scripted human (for one-robot play): `kick(x, y, vx, vy)` places the ball and rolls it now;
+`shoot(tx, ty, v_end, x=None, y=None)` rolls it from (x, y) (default: where it is) so it reaches
+(tx, ty) still moving at v_end; `schedule(t, **shoot_kwargs)` does that at sim time t (with
+`spot=(x, y)`: from the ball if no robot is within 0.45 m of it, else from the spot). Each logs a
+"kick" event. Scenarios "return" (first robot upfield, ball at rest in its attack half, a shot at our
+goal at a random 1-4 s) and "rolling_ball" (first robot in its own half, ball rolled across the field
+from a sideline) use them.
 """
 from __future__ import annotations
 
@@ -60,7 +68,7 @@ OFF = {"sim_gain_vx": 1.0, "sim_gain_vy": 1.0, "sim_gain_wz": 1.0, "sim_lag_s": 
        "sim_drop_far": 0.0, "sim_burst_per_s": 0.0, "sim_ball_drop": 0.0,
        "sim_ball_noise": 0.0, "sim_ball_vel_noise": 0.0,
        "sim_speed_curve": 0, "sim_fast_wobble": 0.0, "sim_gait_kick": 0.0}
-SCENARIOS = ("kickoff", "attack_solo", "shot_on_goal", "random")
+SCENARIOS = ("kickoff", "attack_solo", "shot_on_goal", "random", "return", "rolling_ball")
 
 
 class _Bot:
@@ -126,11 +134,35 @@ class Sim:
         self.t = getattr(self, "t", 0.0)
         ids = opts.get("robots")
         cfgs = [c for c in self.cfgs if ids is None or c.id in ids]
-        if ids is None and scenario in ("attack_solo", "shot_on_goal"):
+        if ids is None and scenario in ("attack_solo", "shot_on_goal", "return", "rolling_ball"):
             cfgs = cfgs[:1]
         self.bots = {c.id: _Bot(c) for c in cfgs}
         bx = by = bvx = bvy = 0.0
-        if scenario == "kickoff":
+        self.scheduled: list[tuple[float, dict]] = []
+        if scenario in ("return", "rolling_ball"):
+            g = next(iter(self.bots.values()), None)
+            s = -1.0 if (opts.get("team") or (g.cfg.team if g else "blue")) == "blue" else 1.0  # own goal side
+            if scenario == "return":  # upfield in the attack half, ball resting near it, a shot comes later
+                if g:
+                    g.x, g.y = -s * r.uniform(0.2, 0.9), r.uniform(-0.6, 0.6)
+                    g.yaw = wrap((0.0 if s < 0 else math.pi) + r.uniform(-0.8, 0.8))
+                while True:
+                    bx, by = -s * r.uniform(0.3, 1.0), r.uniform(-0.6, 0.6)
+                    if not g or math.hypot(bx - g.x, by - g.y) > 0.5:
+                        break
+                ty = r.uniform(-(f.goal_width / 2 - f.ball_radius), f.goal_width / 2 - f.ball_radius)
+                self.scheduled.append((self.t + r.uniform(1.0, 4.0),
+                                       {"tx": s * (hl + f.ball_radius + 0.03), "ty": ty, "v_end": r.uniform(0.1, 0.5),
+                                        "spot": (bx, by)}))
+            else:  # rolling_ball: robot in its own half, ball rolled across from a sideline
+                if g:
+                    g.x, g.y = s * r.uniform(0.3, 1.0), r.uniform(-0.6, 0.6)
+                    g.yaw = r.uniform(-math.pi, math.pi)
+                side = r.choice((-1.0, 1.0))
+                bx, by = -s * r.uniform(-0.3, 0.7), side * (hw - 0.15)
+                sp, ang = r.uniform(0.5, 1.1), r.uniform(-0.5, 0.5)
+                bvx, bvy = sp * math.sin(ang), -side * sp * math.cos(ang)
+        elif scenario == "kickoff":
             for b in self.bots.values():
                 west = b.cfg.team == "blue"
                 b.x = (-0.7 if west else 0.7) + r.uniform(-0.05, 0.05)
@@ -152,10 +184,8 @@ class Sim:
             gx = s * hl
             bx, by = gx - s * r.uniform(0.9, 1.4), r.uniform(-0.6, 0.6)
             ty = r.uniform(-(f.goal_width / 2 - f.ball_radius), f.goal_width / 2 - f.ball_radius)
-            dx, dy = gx + s * (f.ball_radius + 0.03) - bx, ty - by  # residual speed counted fully past the line
-            d = math.hypot(dx, dy)
-            v0 = math.sqrt(r.uniform(0.2, 0.6) ** 2 + 2 * self.p["sim_ball_decel"] * d)
-            bvx, bvy = v0 * dx / d, v0 * dy / d
+            # residual speed counted fully past the line
+            bvx, bvy = self.aim(bx, by, gx + s * (f.ball_radius + 0.03), ty, r.uniform(0.2, 0.6))
             if g:
                 g.x, g.y = gx - s * (0.25 + r.uniform(-0.05, 0.05)), r.uniform(-0.25, 0.25)
                 g.yaw = wrap(math.copysign(math.pi / 2, r.random() - 0.5) + r.uniform(-0.4, 0.4))
@@ -171,6 +201,33 @@ class Sim:
         self.seen: dict[str, RobotObs] = {}
         self._capture()
         self._deliver()
+
+    # ------------------------------------------------------------------ scripted human
+    def aim(self, bx: float, by: float, tx: float, ty: float, v_end: float) -> tuple[float, float]:
+        """Ball velocity at (bx, by) that reaches (tx, ty) still rolling at v_end (rolling decel)."""
+        dx, dy = tx - bx, ty - by
+        d = max(1e-6, math.hypot(dx, dy))
+        v0 = math.sqrt(v_end ** 2 + 2 * self.p["sim_ball_decel"] * d)
+        return v0 * dx / d, v0 * dy / d
+
+    def kick(self, x: float, y: float, vx: float, vy: float) -> bool:
+        """Place the ball at (x, y) rolling at (vx, vy), like a human rolling it. No-op after a goal."""
+        if self.pause_until > 0:
+            return False
+        self.ball = [x, y, vx, vy]
+        self.trap_ref = (self.t, x, y)
+        self.events.append({"t": round(self.t, 3), "type": "kick", "x": round(x, 3), "y": round(y, 3),
+                            "vx": round(vx, 3), "vy": round(vy, 3)})
+        return True
+
+    def shoot(self, tx: float, ty: float, v_end: float, x: float | None = None, y: float | None = None) -> bool:
+        x = self.ball[0] if x is None else x
+        y = self.ball[1] if y is None else y
+        return self.kick(x, y, *self.aim(x, y, tx, ty, v_end))
+
+    def schedule(self, t: float, **shot) -> None:
+        self.scheduled.append((t, shot))
+        self.scheduled.sort(key=lambda e: e[0])
 
     # ------------------------------------------------------------------ stepping
     def step(self, cmds: dict, dt: float) -> None:
@@ -189,6 +246,13 @@ class Sim:
         if self.pause_until > 0 and self.t >= self.pause_until:
             self.reset("kickoff", robots=list(self.bots))
             return
+        while self.scheduled and self.t >= self.scheduled[0][0]:
+            shot = dict(self.scheduled.pop(0)[1])
+            spot = shot.pop("spot", None)
+            near = any(math.hypot(self.ball[0] - b.x, self.ball[1] - b.y) < 0.45 for b in self.bots.values())
+            if spot and near:  # a robot is on the ball: the human picks it up and shoots from the spot
+                shot["x"], shot["y"] = spot
+            self.shoot(**shot)
         alpha = 1.0 if p["sim_lag_s"] <= 0 else min(1.0, h / p["sim_lag_s"])
         walk = math.radians(p["sim_yaw_walk_deg"])
         for b in self.bots.values():

@@ -53,6 +53,28 @@ Knobs (params.json; DEFAULTS below apply when a key is missing):
                 immediate; an up-shift waits gait_hold_s after the last down-shift
   goalie_vmax   speed cap while guarding the goal line (keep it in the trot: <= gait_lo)
   return_vx     speed cap while a defender walks back to its goal (> max_vx = no extra cap)
+  solo_roles    1 = with no opponent robot seen (one robot vs a human), auto mode defends while the
+                ball threatens our goal and attacks otherwise (0 = always attack, the v1 rule)
+  solo_hold_s   min seconds between solo role flips (role_hold_s is for 1v1)
+  solo_def_vmin ball speed toward our goal (m/s) that counts as moving in (halved to stay defending)
+  solo_def_horizon_s  defend if the ball reaches our goal line within this many seconds
+  solo_def_margin  ...and crosses it within this far outside the mouth (m)
+  solo_third    our defensive zone as a fraction of the field length: a ball moving in here (not
+                resting, not moving away) is defended even beyond the horizon
+  solo_zone     0 = off; else a solo defender goes back to attack only for a ball within this fraction
+                of the field length from our goal line (keeper first, forays into the home zone)
+  ball_decel    rolling deceleration (m/s^2) for ball prediction (sim_ball_decel matches it)
+  intercept_max_s  attacker aims at the ball's predicted position at its estimated arrival time,
+                capped at this horizon (0 = off: aim at the ball now)
+  intercept_vmin   below this ball speed (m/s) the attacker aims at the ball now
+  intercept_near_m ...and also while pushing or within this surface gap (m) of the ball (a dribbled
+                ball rolls ahead; chasing its prediction broke the push)
+  return_detour 1 = a defender walking back to goal is not slowed to contact speed, and passes a ball
+                that is not coming at the goal at clearance instead of walking into it
+  return_back_vx  a returning defender facing away from its target backs toward it at up to this
+                speed while it turns round (0 = turn in place first)
+  return_block  1 = a returning defender that cannot reach its guard line before the ball steps into
+                the ball's path at the first point it can reach in time (straight-line ball model)
   role_mode goto: walk to (goto_x, goto_y) and, if goto_yaw is a number, face it. Per-call
                 params, not knobs; done within goto_tol_m and goto_yaw_tol_deg (dbg["done"]).
 """
@@ -84,6 +106,10 @@ DEFAULTS = {
     "decel_vx": 0.0, "decel_wz": 0.0, "contact_vx": 0.30, "contact_slow_m": 0.35,
     "gait_band": 1, "gait_lo": 0.45, "gait_hi": 0.60, "gait_hold_s": 0.5, "goalie_vmax": 0.45,
     "return_vx": 1.5,
+    "solo_roles": 1, "solo_hold_s": 1.0, "solo_def_vmin": 0.15, "solo_def_horizon_s": 3.0,
+    "solo_def_margin": 0.3, "solo_third": 0.333, "ball_decel": 0.45,
+    "intercept_max_s": 2.0, "intercept_vmin": 0.15, "intercept_near_m": 0.4, "return_detour": 1, "return_block": 1,
+    "solo_zone": 0.0, "return_back_vx": 0.25,
 }
 
 
@@ -199,14 +225,19 @@ class Brain:
         B = (clamp(ball.x + ball.vx * h, -f.length / 2, f.length / 2),
              clamp(ball.y + ball.vy * h, -f.width / 2, f.width / 2))
         self.clean = self.clean and math.hypot(pose.x - B[0], pose.y - B[1]) > near_r
-        role, costs = self._role(pose, B, others, t, p)
+        bv = (ball.vx, ball.vy)
+        role, costs = self._role(pose, B, others, t, p, bv)
         if role == "attack":
             self.returning = self.clearing = False
-            want, dbg = self._attack(pose, B, others, p, t)
+            Bi = self._intercept(pose, B, bv, p)
+            want, dbg = self._attack(pose, Bi, others, p, t)
+            if Bi is not B:
+                dbg["intercept"] = [round(Bi[0], 3), round(Bi[1], 3)]
         else:
-            want, dbg = self._defend(pose, B, (ball.vx, ball.vy), others, p, t)
+            want, dbg = self._defend(pose, B, bv, others, p, t)
         want, dbg = self._unstick(pose, want, dbg, t, p)
-        want = self._pace(pose, B, want, p)
+        if not (p["return_detour"] and dbg["phase"] == "return"):
+            want = self._pace(pose, B, want, p)
         cmd = self._smooth(want, dt, p, t, accel_vx=p["hb_accel"] if dbg["phase"] in ("charge", "backoff") else None)
         dbg.update(role=role, pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)],
                    ball=[round(B[0], 3), round(B[1], 3)], **costs)
@@ -316,13 +347,71 @@ class Brain:
             d += 1.5 * max(0.0, a + 0.5 * c)  # must walk around the ball
         return d / p["max_vx"] + abs(wrap(head - pose.yaw)) / p["max_wz"]
 
-    def _role(self, pose: Pose, B, others, t: float, p: dict):
+    # ------------------------------------------------------------------ ball prediction
+    def _ball_at(self, B, bv, h: float, p: dict):
+        """Ball position after h seconds: straight line, constant rolling deceleration, kept on the field."""
+        sp = math.hypot(bv[0], bv[1])
+        if sp < 1e-6 or h <= 0:
+            return B
+        a = max(1e-6, p["ball_decel"])
+        h = min(h, sp / a)
+        s = (sp * h - 0.5 * a * h * h) / sp
+        f, r = self.f, self.f.ball_radius
+        return (clamp(B[0] + bv[0] * s, -f.length / 2 + r, f.length / 2 - r),
+                clamp(B[1] + bv[1] * s, -f.width / 2 + r, f.width / 2 - r))
+
+    def _arrival(self, B, bv, x_line: float, p: dict):
+        """(seconds, y) when the decelerating ball crosses x = x_line, or (inf, None) if it stops first."""
+        if abs(bv[0]) < 1e-6 or (x_line - B[0]) * bv[0] <= 0:
+            return math.inf, None
+        sp = math.hypot(bv[0], bv[1])
+        L = (x_line - B[0]) / bv[0] * sp  # path length to the line
+        a = max(1e-6, p["ball_decel"])
+        disc = sp * sp - 2 * a * L
+        if disc < 0:
+            return math.inf, None
+        return (sp - math.sqrt(disc)) / a, B[1] + bv[1] * (x_line - B[0]) / bv[0]
+
+    def _intercept(self, pose: Pose, B, bv, p: dict):
+        """Aim point for the attacker: where a moving ball will be when we get there (fixed point of
+        our travel time, capped at intercept_max_s). Slow balls: the ball itself."""
+        f = self.f
+        gap = math.hypot(pose.x - B[0], pose.y - B[1]) - f.ball_radius - f.robot_radius
+        if (p["intercept_max_s"] <= 0 or math.hypot(bv[0], bv[1]) < p["intercept_vmin"]
+                or self.pushing or gap < p["intercept_near_m"]):  # dribbling / at the ball: play the ball itself
+            return B
+        P = B
+        for _ in range(3):
+            P = self._ball_at(B, bv, min(p["intercept_max_s"], self._cost(pose, P, self.att_x, p)), p)
+        return P
+
+    def _solo_role(self, B, bv, p: dict) -> str:
+        """One robot vs a human: defend while the ball threatens our goal, attack otherwise."""
+        s = 1.0 if self.own_x > 0 else -1.0
+        depth = abs(self.own_x) - s * B[0]
+        approach = s * bv[0]
+        vmin = p["solo_def_vmin"] * (0.5 if self.role == "defend" else 1.0)
+        in_third = depth < p["solo_third"] * self.f.length
+        if approach > vmin:
+            T, y = self._arrival(B, bv, self.own_x, p)
+            on_target = y is not None and abs(y) < self.f.goal_width / 2 + p["solo_def_margin"]
+            if on_target and (T <= p["solo_def_horizon_s"] or in_third):
+                return "defend"
+        if in_third and approach > -vmin and math.hypot(bv[0], bv[1]) > vmin:
+            return "defend"  # moving (not away) inside our third
+        if self.role == "defend" and p["solo_zone"] > 0 and depth > p["solo_zone"] * self.f.length:
+            return "defend"  # keeper first: leave the goal only for a ball inside the home zone
+        return "attack"
+
+    def _role(self, pose: Pose, B, others, t: float, p: dict, bv=(0.0, 0.0)):
         mode = p["role_mode"]
         if mode in ("attack", "defend"):
             self.role = mode
             return mode, {}
+        hold = p["role_hold_s"]
         if not others:
-            want, costs = "attack", {}
+            want, costs = (self._solo_role(B, bv, p), {"solo": 1}) if p["solo_roles"] else ("attack", {})
+            hold = p["solo_hold_s"] if p["solo_roles"] else 0.0
         else:
             my = self._cost(pose, B, self.att_x, p)
             opp = min(self._cost(o, B, self.own_x, p) for o in others)
@@ -341,7 +430,7 @@ class Brain:
             else:
                 want = "attack" if my <= opp else "defend"
             costs = {"my_cost": round(my, 2), "opp_cost": round(opp, 2)}
-        if want != self.role and (self.role is None or not others or t - self.role_t >= p["role_hold_s"]):
+        if want != self.role and (self.role is None or t - self.role_t >= hold):
             self.role, self.role_t = want, t
         return self.role, costs
 
@@ -367,7 +456,8 @@ class Brain:
         return rx, ry
 
     def _goto(self, pose: Pose, tgt, p: dict, vmax: float, others=(), avoid: float = 1.0,
-              slow_r: float = 0.0, allow_back: bool = False, lateral: bool = True, tag: str = "") -> Cmd:
+              slow_r: float = 0.0, allow_back: bool = False, lateral: bool = True, tag: str = "",
+              back_blend: float = 0.0) -> Cmd:
         dx, dy = tgt[0] - pose.x, tgt[1] - pose.y
         d = math.hypot(dx, dy)
         ux, uy = (dx / d, dy / d) if d > 1e-6 else (math.cos(pose.yaw), math.sin(pose.yaw))
@@ -380,6 +470,8 @@ class Brain:
             err, sign = wrap(err + math.pi), -1.0
         c = max(0.0, math.cos(err))
         vx = sign * speed * c * c
+        if back_blend > 0 and sign > 0 and c == 0.0:  # target behind: back toward it while turning round
+            vx = -min(speed, back_blend) * math.cos(err) ** 2
         vy = 0.0
         if lateral and d < 0.25:
             vy = p["k_vy"] * to_body(pose, dx, dy)[1]
@@ -548,9 +640,19 @@ class Brain:
         self.returning = dist > (0.12 if self.returning else p["goalie_reach"])
         tgt = [round(G[0], 3), round(G[1], 3)]
         if self.returning:
-            return self._goto(pose, G, p, min(p["max_vx"], p["return_vx"]), others, slow_r=0.2, allow_back=True,
-                              tag="return"), \
-                {"phase": "return", "target": tgt}
+            dbg = {"phase": "return", "target": tgt}
+            K = self._block(pose, B, bv, p) if p["return_block"] and approach > p["solo_def_vmin"] else None
+            if K is not None:  # cannot reach the line in time: step into the ball's path where we can
+                dbg.update(phase="block", target=[round(K[0], 3), round(K[1], 3)])
+                return self._goto(pose, K, p, min(p["max_vx"], p["return_vx"]), others, slow_r=0.2,
+                                  allow_back=True, tag="block", back_blend=p["return_back_vx"]), dbg
+            # a ball coming at goal is worth touching (a block); a slow one we might knock in: go round it
+            W = self._detour(pose, G, B, p) if p["return_detour"] and approach < p["solo_def_vmin"] else G
+            if W is not G:
+                dbg["via"] = [round(W[0], 3), round(W[1], 3)]
+            return self._goto(pose, W, p, min(p["max_vx"], p["return_vx"]), others,
+                              slow_r=0.2 if W is G else 0.0, allow_back=True, tag="return",
+                              back_blend=p["return_back_vx"]), dbg
         if p["goalie_style"] == "facing":
             yaw_des = math.atan2(B[1] - pose.y, B[0] - pose.x)
         else:  # body parallel to the goal line: forward/back walking slides along it
@@ -558,6 +660,49 @@ class Brain:
         bx, by = to_body(pose, p["k_goalie"] * dx, p["k_goalie"] * dy)
         bx = clamp(bx, -p["goalie_vmax"], p["goalie_vmax"])
         return Cmd(bx, by, p["k_turn"] * wrap(yaw_des - pose.yaw), "guard"), {"phase": "guard", "target": tgt}
+
+    def _block(self, pose: Pose, B, bv, p: dict):
+        """Earliest point on the ball's path to our goal that we reach before the ball, if the guard line
+        is not reachable in time; None when the line is (or nothing is) reachable."""
+        T, _y = self._arrival(B, bv, self.own_x, p)
+        if T == math.inf:
+            return None
+        v = 0.9 * min(p["max_vx"], p["return_vx"])
+
+        def eta(Q):
+            d = math.hypot(Q[0] - pose.x, Q[1] - pose.y)
+            turn = abs(wrap(math.atan2(Q[1] - pose.y, Q[0] - pose.x) - pose.yaw)) if d > 0.15 else 0.0
+            return p["act_lag_s"] + d / v + turn / p["max_wz"]
+
+        s = 1.0 if self.own_x > 0 else -1.0
+        line = self._ball_at(B, bv, self._arrival(B, bv, self.own_x - s * p["goalie_dist"], p)[0], p)
+        if eta(line) <= T:
+            return None
+        tau = 0.2
+        while tau < T:
+            Q = self._ball_at(B, bv, tau, p)
+            if eta(Q) <= tau:
+                return self._clamp_field(Q, p)
+            tau += 0.1
+        return None
+
+    def _detour(self, pose: Pose, G, B, p: dict):
+        """Walking back to G with the ball in the way: pass it at clearance on our side of the path."""
+        f = self.f
+        clear = f.ball_radius + f.robot_radius + p["clear_margin"]
+        R = (pose.x, pose.y)
+        ux, uy = unit(G[0] - R[0], G[1] - R[1])
+        along = (B[0] - R[0]) * ux + (B[1] - R[1]) * uy
+        if seg_dist(R, G, B) >= clear or along <= 0:
+            return G
+        lat = -(B[0] - R[0]) * uy + (B[1] - R[1]) * ux  # ball left (+) or right of the path
+        side = -1.0 if lat > 0 else 1.0
+        for sd in (side, -side):
+            W = (B[0] - uy * sd * 1.3 * clear, B[1] + ux * sd * 1.3 * clear)
+            m = p["field_margin"]
+            if abs(W[0]) <= f.length / 2 - m and abs(W[1]) <= f.width / 2 - m:
+                return W
+        return self._clamp_field(W, p)
 
     def _unstick(self, pose: Pose, want: Cmd, dbg: dict, t: float, p: dict):
         """Walking forward but not moving for stuck_s (pinned ball, wall, opponent) -> back off briefly."""

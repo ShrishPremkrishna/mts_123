@@ -157,3 +157,42 @@ def test_contacts_record_robot_speed_at_first_touch():
     s.ball = [0.0, 0.0, 0.0, 0.0]
     drive(s, {"blue": Cmd(0.3, 0, 0)}, 3.0)
     assert s.contacts and s.contacts[0][1] == "blue" and abs(s.contacts[0][2] - 0.3) < 0.01
+
+
+def test_shoot_reaches_target_at_end_speed():
+    s = Sim(F, ROBOTS, OFF, 0)
+    s.reset("kickoff", robots=[])
+    assert s.shoot(-0.8, 0.3, 0.2, x=0.4, y=-0.1)
+    assert s.events[-1]["type"] == "kick"
+    best = (9.0, 0.0)
+    for _ in range(400):
+        s.step({}, 0.01)
+        d = math.hypot(s.ball[0] + 0.8, s.ball[1] - 0.3)
+        if d < best[0]:
+            best = (d, math.hypot(s.ball[2], s.ball[3]))
+    assert best[0] < 0.01 and abs(best[1] - 0.2) < 0.02
+
+
+def test_return_and_rolling_ball_scenarios():
+    s = Sim(F, ROBOTS, OFF, 3)
+    s.reset("return")
+    t = s.truth()
+    assert list(t["robots"]) == ["blue"] and t["robots"]["blue"]["x"] > 0  # upfield in blue's attack half
+    assert t["ball"]["vx"] == 0 and s.scheduled
+    drive(s, {}, 4.5)
+    k = [e for e in s.events if e["type"] == "kick"]
+    assert len(k) == 1 and k[0]["vx"] < 0  # the human shot at blue's (west) goal
+    s.reset("rolling_ball")
+    t = s.truth()
+    assert t["robots"]["blue"]["x"] < 0 and abs(t["ball"]["vy"]) > abs(t["ball"]["vx"])
+
+
+def test_sim_eval_new_scenarios_smoke():
+    from fc import sim_eval as se
+    p = {**OFF, "max_vx": 0.75, "push_vx": 0.75, "contact_vx": 0.4}
+    h = se.human_solo(F, ROBOTS, p, 1, minutes=0.25)
+    assert h["ev"] and {"scored", "conceded", "flips_pm"} <= set(h)
+    r = se.return_test(F, ROBOTS, p, 3, forced=True)
+    assert r is None or r["arrive"] > 0
+    m = se.moving_attack(F, ROBOTS, p, 4)
+    assert set(m) == {"hit", "toward", "goal"}

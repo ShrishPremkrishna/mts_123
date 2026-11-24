@@ -74,6 +74,52 @@ Missed targets and why:
 
 **Not modelled:** the robot slowing or falling while pushing a heavy ball (the study saw 0.75 → 0.25 m/s and falls of 1/3 at 0.6), and robot–robot impacts at a 0.84 m/s closing speed. Floor-test both before using the preset in a match.
 
+## Solo roles, interception, return to goal (2026-11-23)
+
+For the "Switch" stage: one robot against a human. All knobs are in `brain.DEFAULTS`; `params.json` is unchanged. Turning `solo_roles`, `intercept_max_s`, `return_detour`, `return_block` and `return_back_vx` all to 0 reproduces the previous brain exactly (core sim_eval rows checked against HEAD).
+
+- **Solo roles** (`solo_roles` 1, `solo_hold_s` 1.0): in auto mode with no opponent seen, the robot defends while the ball threatens its goal. A threat is either:
+  - moving toward goal faster than `solo_def_vmin` (0.15 m/s), reaching the goal line within `solo_def_horizon_s` (3 s) and crossing within `solo_def_margin` (0.3 m) of the mouth; or
+  - moving (not away from goal) inside our `solo_third`.
+
+  Otherwise it attacks. To stay defending, a slower ball (half of `solo_def_vmin`) is enough. `solo_zone` (off) makes a defender leave its goal only for a ball in its home zone.
+- **Ball model** `ball_decel` (0.45 m/s², same as the sim): straight line with constant deceleration. `_arrival` gives the time and y where the ball crosses a line; `_ball_at` gives its position at a time. Measure the real ball's value on the floor.
+- **Interception** (`intercept_max_s` 2, `intercept_vmin` 0.15, `intercept_near_m` 0.4): for a moving ball, the attacker aims where the ball will be when it arrives (fixed point of `_cost`). It is skipped while pushing or within 0.4 m of the ball: chasing a dribbled ball's predicted position broke the push (moving-ball goals at 0.7 s lag went 29 → 15 of 40 before this gate).
+- **Return to goal:**
+  - Not slowed to contact speed.
+  - `return_detour` steps around a ball that is not coming at goal. It is skipped for incoming balls because touching those is a save; with the detour applied to them, goalie saves fell 88 → 82%.
+  - `return_back_vx` 0.25: while turning round, the robot backs toward its goal. Time until it moves toward goal: 1.57 → 0.90 s.
+  - `return_block`: if the guard line cannot be reached before the ball, step into the ball's path. It rarely fires (about 1.5 s per 12 min), because human shots pass the robot within about 0.5 s.
+- **Sim:** `kick`, `shoot`, `aim`, `schedule` (scripted human) and scenarios `return` and `rolling_ball` (also usable from the UI scenario box).
+- **sim_eval:**
+  - new row groups `human`, `return`, `moving`;
+  - `--scen` picks row groups;
+  - `--lag L ...` adds a column per total lag (camera L/2 + walker L/2, `act_lag_s` L/2);
+  - `human_solo` honours `role_mode` (defend = keeper reference).
+
+Results, fast-play, errors ON. Columns: before / after at 0.3 s total lag, then before / after at 0.7 s. Runs: 60 seeds; human = 10 × 3 min.
+
+| | 0.3 before | 0.3 after | 0.7 before | 0.7 after |
+|---|---|---|---|---|
+| human: robot goals / conceded per 3 min | 1.5 / 11.9 | 1.9 / 10.9 | 0.9 / 10.9 | 0.8 / 10.6 |
+| human: saves of shots | 28% | 34% | 34% | 36% |
+| human: right role, shots / rolls | 0 / 100% | 98 / 98% | 0 / 100% | 96 / 98% |
+| human: shot → defend / → moving back (s) | – / 1.57 | 0.23 / 0.90 | – / 1.90 | 0.43 / 1.40 |
+| human: role switches /min, fast wz rev /min | 0, 1.3 | 11.8, 2.2 | 0, 1.6 | 11.2, 2.3 |
+| return: on line (s after shot), ball's flight (s) | 5.8, 2.2 | 5.4, 2.2 | 5.7, 2.2 | 5.5, 2.2 |
+| return (auto): saves | 66% | 66% | 57% | 57% |
+| moving: hit / toward goal / goal (of 60) | 60/58/59 | 60/59/58 | 58/56/40 | 59/53/46 |
+| goalie saves; 1v1 fast wz rev /min | 87%; 1.9 | 87%; 1.7 | 72%; 2.6 | 72%; 2.1 |
+
+**What this means for the Switch stage:**
+- The rule picks the right role and reacts in time.
+- It saves only about 35% of human shots. A pure keeper (`role_mode` defend) saves 77% and concedes 3.9 against 10.9 goals per 3 min.
+- The reason: from upfield, getting back takes 5.4 s, but a shot reaches goal in 2.2 s. No speed knob fixes that. `return_vx` 0.75 reaches the line in 4.4 s but adds no saves (28–35%), so keep the preset's 0.45.
+- Also tried: `solo_hold_s` 1.5 / 2.5 give 34 / 35% saves, 10.9 / 10.7 switches per min, and at 0.7 s lag robot goals of 0.9 → 0.3. Keep 1.0: the human's actions drive the switches, not the hold.
+- `solo_zone` 0.6: 37% saves, 1.2 robot goals.
+
+The scripted human is harsh (an action every 4–9 s from 1.5–2.3 m out). Interception is neutral in 1v1: 3.4 vs 3.7 goals per 3 min over 24 matches, within noise, with gait switches 12.6 → 14.9 per min.
+
 ## Weaknesses
 
 - **Corner balls** can't be extracted by the brain (both robots push into the corner); the sim's referee nudges them.
