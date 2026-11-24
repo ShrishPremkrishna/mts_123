@@ -221,6 +221,18 @@ def test_pi_line():
     assert "77 C HOT" in line and "(!)" in line and "ESTOPPED(link)" in line and why is None
     assert "let it cool" in ctl.pi_line("blue", {**st, "temp_c": 80.5})[1]
     assert ctl.pi_line("blue", {"phase": "off"})[1] == "no temperature in fcctl status"
+    assert "lean on camera off" in ctl.pi_line("blue", {**st, "lean": "on", "camera": False})[0]
+    assert "lean" not in ctl.pi_line("blue", st)[0]
+
+
+def test_pi_heat_line():
+    assert ctl.pi_heat_line({"heat": None}) is None and ctl.pi_heat_line({}) is None
+    st = {"heat": {"cpu": {"governor": "ondemand", "cur_mhz": 2400, "max_mhz": 2400},
+                   "fan": {"state": 4, "max_state": 4, "rpm": 9765},
+                   "top": [{"pid": 1, "pct": 38.0, "cmd": "camera_node"}, {"pid": 2, "pct": 4.2, "cmd": "pupper-rs"}]}}
+    line = ctl.pi_heat_line(st)
+    assert "cpu ondemand 2400/2400 MHz" in line and "fan 4/4 9765 rpm" in line
+    assert "top camera_node 38%, pupper-rs 4.2%" in line
 
 
 def test_progress_line():

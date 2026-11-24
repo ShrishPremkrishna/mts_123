@@ -240,6 +240,34 @@ def test_status_reports_heading_hold_off(fc):
     assert fc("stop")["ok"]
 
 
+def test_lean_option_recorded_and_refused_without_profile_support(fc):
+    # a profile without PROFILE_LEAN (like tej_u6) refuses --lean/--camera before anything starts
+    r = fc("start", "fake", "--confirm", "--lean", "on")
+    assert r["ok"] is False and "no --lean/--camera option" in r["error"], r
+    assert fc("start", "fake", "--confirm", "--lean", "maybe")["error"].startswith("--lean needs on|off")
+    # a stock-like profile: lean on by default -> overlay args carry --lean on --camera off; status reports it
+    (fc.robot / "profiles" / "fakelean.sh").write_text(FAKE_OPT_PROFILE + "\nPROFILE_LEAN=on\nPROFILE_CAMERA=off\n")
+    (fc.robot / "stack_overlay.py").write_text(FAKE_HH_TOOL.replace(
+        '"liedown": None,', '"liedown": None, "lean": a[a.index("--lean") + 1], "camera": a[a.index("--camera") + 1] == "on",'))
+    start = fc("start", "fakelean", "--confirm", "--camera", "on")
+    assert start["ok"] and start["lean"] == "on" and start["camera"] is True, start
+    run_dir = sorted((fc.root / "runs").iterdir())[-1]
+    argv = json.loads((run_dir / "overlay_argv.json").read_text())
+    assert argv[argv.index("--lean") + 1] == "on" and argv[argv.index("--camera") + 1] == "on"
+    st = fc("status")
+    assert st["lean"] == "on" and st["camera"] is True
+    assert isinstance(st["heat"], dict) and isinstance(st["heat"]["top"], list) and "governor" in st["heat"]["cpu"]
+    # ready may not silently change it: a mismatch refuses (changing it means a new start)
+    rc, out = fc.lines("ready", "--lean", "off")
+    assert rc == 1 and "lean on" in out[-1]["msg"], out
+    assert fc("stop")["ok"]
+    # --lean off with no other option: no overlay, record says the stock list (camera launched)
+    start = fc("start", "fakelean", "--confirm", "--lean", "off")
+    assert start["ok"] and start["lean"] == "off" and start["camera"] is True, start
+    assert fc("stop")["ok"]
+    assert lock_holders(fc.root) == []
+
+
 # ---------------------------------------------------------------- ready / down / status phase / boot
 def phases(lines):
     return [l["phase"] for l in lines]

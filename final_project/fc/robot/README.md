@@ -217,7 +217,7 @@ Power-on autostart and the homing-posture finding: [boot/README.md](boot/README.
 
 ## Stack options (SPEC v1.1)
 
-`fcctl.sh start <profile> --confirm [--speed-cap X] [--heading-hold on|off]` and the same options on `ready`
+`fcctl.sh start <profile> --confirm [--speed-cap X] [--heading-hold on|off] [--lean on|off] [--camera on|off]` and the same options on `ready`
 (any order, also after `--confirm`). Values outside 0.30..1.00 / on|off are refused before anything starts.
 `stack_overlay.py` builds one verified overlay in `<run>/overlay/`; `<run>/stack.json` records the options either
 way (no overlay = stock defaults: cap 0.49, hold on).
@@ -234,6 +234,15 @@ way (no overlay = stock defaults: cap 0.49, hold on).
   without `stack.json`), so a 0.75 command reaches the walker only when the stack was started with
   `--speed-cap ≥ 0.75`. vy 0.3 and wz 2.0 ceilings unchanged.
 - **Heading hold off**: the kp=0 policy copy (lane D), walkers pointed at it.
+- **Lean** (stock only; `--lean on|off`, default on; `--camera on|off`, default off): the overlay launch comments
+  out `foxglove_bridge` and `camera_node` (camera_ros 1400x1050 RGB888) in the stock node list; `--camera on`
+  keeps the camera. Config, controllers, spawners, `robot_state_publisher` (it publishes `/robot_description` for
+  `ros2_control_node`), joy and estop_controller are unchanged; the verifier refuses if any of them left the
+  list. Inactive policy slots stay (not updated, so no CPU; R3 and fcctl name them). The installed launch.py has
+  no argument for either node (`sim:=True` also swaps the URDF), hence the overlay. `--lean off` with no other
+  option = the stock launch. Refused for tej_u6. Status: `lean`, `not_launched`, `camera`.
+- **Heat** (`status` field `heat`, `heat.py`): CPU governor and MHz, fan state/rpm, top 5 processes by CPU over
+  0.5 s (pct per core). `python -m fc.ctl pi <robot>` prints it as a second line.
 - `ready` on a running stack with different options fails at `profile` ("down first": a new start re-homes).
 - stock: src and installed launch/config/policies must be identical (the overlay is built from `src/`).
 

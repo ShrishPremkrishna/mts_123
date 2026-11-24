@@ -90,6 +90,10 @@ def generate_launch_description():
         control_node,
         default_alt_robot_controller_spawner,
         joint_state_broadcaster_spawner,
+        foxglove_bridge,
+        joy_util_node,
+        joy_node,
+        camera_node,
     ]
     return LaunchDescription(nodes)
 '''
@@ -158,6 +162,57 @@ def test_stock_all_options(stock):
     assert so.LIEDOWN in launch and "        fc_liedown_spawner,\n" in launch and json.dumps(r["config"]) in launch
     assert "FindPackageShare(\"neural_controller\"), \"launch\", \"config.yaml\"" not in launch
     compile(launch, "launch", "exec")
+
+
+def test_stock_lean_drops_viewer_and_camera_only(stock):
+    r = so.build("stock", out(stock), str(stock), liedown=True, lean="on")
+    assert r["lean"] == "on" and r["not_launched"] == ["foxglove_bridge", "camera_node"] and r["camera"] is False
+    launch = open(r["launch"]).read()
+    listed = so._node_list(launch)
+    assert {"foxglove_bridge", "camera_node"}.isdisjoint(listed)
+    assert {"control_node", "joint_state_broadcaster_spawner", "joy_node", "joy_util_node",
+            "default_alt_robot_controller_spawner", "fc_liedown_spawner"} <= listed
+    # only the two list lines differ from the liedown-only overlay
+    base = so.build("stock", out(stock, "r2"), str(stock), liedown=True)
+    a, b = open(base["launch"]).read().splitlines(), launch.splitlines()
+    diff = [(x, y) for x, y in zip(a, b) if x.replace(base["config"], r["config"]) != y]
+    assert len(a) == len(b) and [y.split("#")[1].split(",")[0].strip() for _, y in diff] == ["foxglove_bridge", "camera_node"]
+    assert base["lean"] == "off" and base["not_launched"] == [] and base["camera"] is True
+    # the config is untouched by lean
+    od = lambda rec: os.path.dirname(rec["config"])
+    assert open(r["config"]).read().replace(od(r), "D") == open(base["config"]).read().replace(od(base), "D")
+
+
+def test_stock_lean_camera_on_keeps_camera(stock):
+    r = so.build("stock", out(stock), str(stock), lean="on", camera="on")
+    assert r["not_launched"] == ["foxglove_bridge"] and r["camera"] is True
+    listed = so._node_list(open(r["launch"]).read())
+    assert "camera_node" in listed and "foxglove_bridge" not in listed
+
+
+def test_lean_refused_on_changed_layout(stock, tmp_path):
+    for d in ("src", "install"):
+        p = tmp_path / d / "launch.py"
+        p.write_text(STOCK_LAUNCH.replace("        camera_node,\n", ""))
+    with pytest.raises(so.OverlayError, match="camera_node"):
+        so.build("stock", out(stock), str(stock), lean="on")
+    so.build("stock", out(stock, "r2"), str(stock), lean="on", camera="on")     # camera kept: no edit needed
+
+
+def test_lean_refused_on_u6(u6):
+    for kw in ({"lean": "on"}, {"camera": "on"}):
+        with pytest.raises(so.OverlayError, match="lean"):
+            so.build("u6", out(u6), str(u6), **kw)
+
+
+def test_lean_verify_catches_relisted_node(stock):
+    r = so.build("stock", out(stock), str(stock), lean="on")
+    rec = so.build_stock(out(stock, "r3"), removed=["foxglove_bridge", "camera_node"])
+    text = open(rec["launch"]).read()
+    open(rec["launch"], "w").write(text.replace("        # camera_node," + so.LEAN_MARK, "        camera_node,"))
+    with pytest.raises(so.OverlayError):
+        so.verify_stock(rec)
+    assert so.verify_stock({**rec, "launch": r["launch"], "config": r["config"]})
 
 
 def test_lie_pose_is_mirrored_and_inside_driver_limits():

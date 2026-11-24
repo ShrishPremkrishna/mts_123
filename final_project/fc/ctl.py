@@ -7,7 +7,8 @@
     ready <robot> [--preset NAME] [--home]  fcctl ready (stands; re-arms an e-stop). --home: allowed to HOME the legs
     down <robot> [--keep-stack]             fcctl down (lie down; --keep-stack keeps it homed)
     estop <robot|all>                       link E-STOP, waits for the robot's confirmation (3.5 s)
-    pi <robot>                              fcctl status in one line: Pi temp/throttle/load, phase, bridge, latch
+    pi <robot>                              fcctl status: Pi temp/throttle/load, phase, bridge, latch, lean;
+                                            2nd line: CPU governor/MHz, fan, top 5 processes by CPU
                                             (fails at >= 80 C or no answer; warns at >= 75 C)
     preset <name|base>                      load a preset (base = params.json + defaults)
     set key=val ...                         live params
@@ -335,6 +336,8 @@ def pi_line(rid: str, st: dict) -> tuple[str, str | None]:
     parts = [f"PI {rid}: {num(t, 1)} C{flag}{thr_txt}", f"load {num(load[0], 2) if load else '-'}",
              f"phase {st.get('phase') or '-'}", f"bridge {'up' if br else 'down' if br is False else '-'}",
              f"cap {num(st.get('speed_cap'))} liedown {st.get('liedown')}"]
+    if st.get("lean") is not None:
+        parts.append(f"lean {st.get('lean')} camera {'on' if st.get('camera') else 'off'}")
     if st.get("estopped"):
         parts.append(f"ESTOPPED({(st.get('estop') or {}).get('reason')})")
     why = None
@@ -343,6 +346,20 @@ def pi_line(rid: str, st: dict) -> tuple[str, str | None]:
     elif t >= PI_STOP_C:
         why = f"Pi at {t:g} C (>= {PI_STOP_C:g}): let it cool"
     return " · ".join(parts), why
+
+
+def pi_heat_line(st: dict) -> str | None:
+    """fcctl status "heat" (robot/heat.py) -> one line: governor/MHz, fan, top processes. Pure."""
+    h = st.get("heat")
+    if not isinstance(h, dict):
+        return None
+    cpu, fan = h.get("cpu") or {}, h.get("fan") or {}
+    parts = [f"cpu {cpu.get('governor') or '-'} {num(cpu.get('cur_mhz'))}/{num(cpu.get('max_mhz'))} MHz"]
+    if fan:
+        parts.append(f"fan {num(fan.get('state'))}/{num(fan.get('max_state'))} {num(fan.get('rpm'))} rpm")
+    top = ", ".join(f"{p.get('cmd')} {num(p.get('pct'), 1)}%" for p in (h.get("top") or [])[:5])
+    parts.append(f"top {top or '-'}")
+    return "  " + " · ".join(parts)
 
 
 def progress_line(obj: dict) -> str:
@@ -571,6 +588,9 @@ def cmd_pi(c: Client, a) -> None:
         raise Fail(f"pi {rid}: fcctl status failed (rc {op.get('rc')}): {op_error(op)}")
     line, why = pi_line(rid, st)
     say(line)
+    heat = pi_heat_line(st)
+    if heat:
+        say(heat)
     if why:
         raise Fail(f"pi {rid}: {why}")
 

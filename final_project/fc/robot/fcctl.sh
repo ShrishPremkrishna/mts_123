@@ -19,6 +19,9 @@
 #   STACK OPTIONS (SPEC v1.1)   --speed-cap <0.30..1.00> (walker max_vx_forward/speed_cap; default 0.49)
 #                               --heading-hold on|off (default on). Built into one verified per-start
 #                               overlay (stack_overlay.py) under the run dir; *_hh0 profiles = --heading-hold off.
+#                               --lean on|off (stock; default on: foxglove_bridge and the onboard camera node
+#                               are not launched, less Pi heat) --camera on|off (with lean: keep the camera
+#                               node; default off). The walking path (controllers, joy, estop) is unchanged.
 #   stop [--force]              stop what fcctl started (bridge, walker, stack) and only that; refuses
 #                               (stack left running) if a leg controller cannot be confirmed inactive
 #   bridge start [--profile P] [--robot-id ID] [--allow-from IP[,IP]] [--reset-replay]
@@ -111,7 +114,7 @@ load_profile() {
   [[ "$name" =~ ^[a-z0-9_]+$ ]] && [ -f "$HERE/profiles/$name.sh" ] || die "unknown profile '$name' (have: $(cd "$HERE/profiles" && ls *.sh | sed 's/\.sh$//' | tr '\n' ' '))"
   PROFILE=$name
   # The profile file decides the default heading hold (an alias sets FC_HEADING_HOLD=0 and sources its base).
-  unset FC_HEADING_HOLD PROFILE_HEADING_HOLD PROFILE_LIEDOWN
+  unset FC_HEADING_HOLD PROFILE_HEADING_HOLD PROFILE_LIEDOWN PROFILE_LEAN PROFILE_CAMERA
   # shellcheck disable=SC1090
   source "$HERE/profiles/$name.sh"
   case "${PROFILE_HEADING_HOLD:-}" in on|off|"") ;; *) die "profile '$name': bad heading hold '$PROFILE_HEADING_HOLD' (FC_HEADING_HOLD must be 0 or 1)" ;; esac
@@ -123,6 +126,8 @@ load_profile() {
 # --heading-hold; the detached starter receives them as FC_STACK_SPEED_CAP / FC_STACK_HEADING_HOLD.
 STACK_SPEED_CAP=${FC_STACK_SPEED_CAP:-}
 STACK_HH=${FC_STACK_HEADING_HOLD:-}
+STACK_LEAN=${FC_STACK_LEAN:-}       # "" = profile default (stock: on); --lean
+STACK_CAMERA=${FC_STACK_CAMERA:-}   # "" = profile default (stock: off); --camera
 STACK_ERR=""
 # stack_opt OPTION VALUE : 0 = consumed (sets STACK_*), 1 = invalid (STACK_ERR says why)
 stack_opt() {
@@ -134,6 +139,12 @@ stack_opt() {
     --heading-hold)
       [[ "${2:-}" =~ ^(on|off)$ ]] || { STACK_ERR="--heading-hold needs on|off (got '${2:-}')"; return 1; }
       STACK_HH=$2 ;;
+    --lean)
+      [[ "${2:-}" =~ ^(on|off)$ ]] || { STACK_ERR="--lean needs on|off (got '${2:-}')"; return 1; }
+      STACK_LEAN=$2 ;;
+    --camera)
+      [[ "${2:-}" =~ ^(on|off)$ ]] || { STACK_ERR="--camera needs on|off (got '${2:-}')"; return 1; }
+      STACK_CAMERA=$2 ;;
     *) STACK_ERR="unknown stack option '$1'"; return 1 ;;
   esac
 }
@@ -146,9 +157,17 @@ apply_stack_opts() {
     fi
     PROFILE_HEADING_HOLD=$STACK_HH
   fi
+  if [ -n "$STACK_LEAN$STACK_CAMERA" ] && [ -z "${PROFILE_LEAN:-}" ]; then
+    STACK_ERR="profile '$PROFILE' has no --lean/--camera option (stock only)"
+    return 1
+  fi
+  [ -z "$STACK_LEAN" ] || PROFILE_LEAN=$STACK_LEAN
+  [ -z "$STACK_CAMERA" ] || PROFILE_CAMERA=$STACK_CAMERA
   return 0
 }
-fc_stack_options_set() { [ -n "$STACK_SPEED_CAP" ] || [ "${PROFILE_HEADING_HOLD:-on}" = off ]; }
+fc_stack_options_set() { [ -n "$STACK_SPEED_CAP" ] || [ "${PROFILE_HEADING_HOLD:-on}" = off ] || [ "${PROFILE_LEAN:-off}" = on ]; }
+# _cam_effective : the onboard camera node is launched (lean off = stock list, or lean on + --camera on)
+_cam_effective() { [ "${PROFILE_LEAN:-off}" = off ] || [ "${PROFILE_CAMERA:-off}" = on ]; }
 
 # fc_stack_overlay KIND RUN [on|off liedown] : build + verify a fresh overlay (stack_overlay.py) in RUN/overlay
 # with the start's options, record its JSON in RUN/stack.json, set OVERLAY_LAUNCH / OVERLAY_HW. Writes only
@@ -158,6 +177,7 @@ fc_stack_overlay() {
   [ ! -e "$run/overlay" ] || { fc_log "stack overlay: $run/overlay already exists; refusing"; return 1; }
   [ -z "$STACK_SPEED_CAP" ] || args+=(--speed-cap "$STACK_SPEED_CAP")
   args+=(--heading-hold "${PROFILE_HEADING_HOLD:-on}" --liedown "$liedown")
+  [ -z "${PROFILE_LEAN:-}" ] || args+=(--lean "$PROFILE_LEAN" --camera "${PROFILE_CAMERA:-off}")
   res=$(python3 "$HERE/stack_overlay.py" "$kind" "$run/overlay" --root "$FC_ROOT" "${args[@]}") && [ -n "$res" ] ||
     { fc_log "STACK OVERLAY ($kind ${args[*]}) COULD NOT BE BUILT/VERIFIED: refusing to start (see above)"; return 1; }
   printf '%s\n' "$res" > "$run/stack.json"
@@ -167,8 +187,10 @@ fc_stack_overlay() {
 }
 # fc_stack_record RUN : the start's options when no overlay is built (stock defaults, nothing changed).
 fc_stack_record() {
-  printf '{"kind":null,"verified":null,"overlay":false,"speed_cap":null,"speed_cap_effective":0.49,"heading_hold":"%s","liedown":null}\n' \
-    "${PROFILE_HEADING_HOLD:-on}" > "$1/stack.json"
+  local lean=null cam=null   # profiles without the option (tej_u6): unknown; stock without overlay = stock list
+  if [ -n "${PROFILE_LEAN:-}" ]; then lean="\"$PROFILE_LEAN\""; if _cam_effective; then cam=true; else cam=false; fi; fi
+  printf '{"kind":null,"verified":null,"overlay":false,"speed_cap":null,"speed_cap_effective":0.49,"heading_hold":"%s","liedown":null,"lean":%s,"not_launched":[],"camera":%s}\n' \
+    "${PROFILE_HEADING_HOLD:-on}" "$lean" "$cam" > "$1/stack.json"
 }
 _stack_field() { python3 -c 'import json,sys
 try: v=json.load(open(sys.argv[1])).get(sys.argv[2])
@@ -337,7 +359,8 @@ cmd_status() {
     [ -n "$batt" ] || batt='null'
   fi
   local stale=false; active_stale && stale=true
-  python3 - "$prof" "$run" "$alive" "$stack" "$foreign" "$bpid" "${temp:-}" "${thr:-}" "$q" "$batt" \
+  local heat; heat=$(timeout 5 python3 "$HERE/heat.py" 2>/dev/null | tail -1); [[ "$heat" == \{*\} ]] || heat='null'
+  FC_HEAT=$heat python3 - "$prof" "$run" "$alive" "$stack" "$foreign" "$bpid" "${temp:-}" "${thr:-}" "$q" "$batt" \
     "$(cat /proc/loadavg)" "$(fc_pid starter || true)" "${PROFILE_HEADING_HOLD:-}" \
     "${PROFILE_WALKER:-}" "${PROFILE_LEG_CONTROLLERS:-}" "$stale" "$HERE" "$FC_RUN/boot.json" "$FC_RUN/estop.json" <<'PY'
 import json, os, sys, time
@@ -394,6 +417,10 @@ print(json.dumps({
     "speed_cap": ((st_rec or {}).get("speed_cap_effective") or 0.49) if prof else None,
     "speed_cap_source": ("overlay" if (st_rec or {}).get("speed_cap") is not None else "default") if prof else None,
     "liedown": bool((st_rec or {}).get("liedown")) if prof else None,   # gentle lie-down controller loaded
+    # --lean: launch nodes not started (foxglove_bridge, camera_node); camera = onboard camera node launched
+    "lean": (st_rec or {}).get("lean") if prof else None,
+    "not_launched": (st_rec or {}).get("not_launched") if prof else None,
+    "camera": (st_rec or {}).get("camera") if prof else None,
     "stack": st_rec,
     "ros2_control_node": stack == "true", "foreign_stack": foreign == "true",
     "mux_alive": mux.get("alive"), "mux_ok": mux.get("ok"),   # null = not probed (no live profile)
@@ -403,6 +430,8 @@ print(json.dumps({
     "temp_c": float(temp) if temp else None, "throttled": thr or None,
     "battery": json.loads(batt) if batt != "null" else None,
     "load": [float(x) for x in load.split()[:3]],
+    # heat.py: CPU governor/MHz, fan state/rpm, top processes by CPU over 0.5 s (pct per core)
+    "heat": json.loads(os.environ.get("FC_HEAT") or "null"),
 }, separators=(",", ":")))
 PY
 }
@@ -412,8 +441,8 @@ cmd_start() {
   while [ $# -gt 0 ]; do
     case "$1" in
       --confirm) confirm=$1; shift ;;
-      --speed-cap|--heading-hold) stack_opt "$1" "${2:-}" || die "$STACK_ERR"; shift 2 ;;
-      -*) die "unknown start option '$1' (start <profile> --confirm [--speed-cap X] [--heading-hold on|off])" ;;
+      --speed-cap|--heading-hold|--lean|--camera) stack_opt "$1" "${2:-}" || die "$STACK_ERR"; shift 2 ;;
+      -*) die "unknown start option '$1' (start <profile> --confirm [--speed-cap X] [--heading-hold on|off] [--lean on|off] [--camera on|off])" ;;
       *) [ -z "$name" ] || die "one profile only"; name=$1; shift ;;
     esac
   done
@@ -436,7 +465,7 @@ cmd_start() {
   printf '%s\n%s\n%s\n' "$name" "$run" "$(boot_id)" > "$FC_RUN/active"
   fc_log "!!! HOMING: starting '$name' moves the legs. Robot ON THE STAND, R3 in reach."
   fc_log "temp $(vcgencmd measure_temp 2>/dev/null) $(vcgencmd get_throttled 2>/dev/null) run $run"
-  FC_STACK_SPEED_CAP=$STACK_SPEED_CAP FC_STACK_HEADING_HOLD=$STACK_HH \
+  FC_STACK_SPEED_CAP=$STACK_SPEED_CAP FC_STACK_HEADING_HOLD=$STACK_HH FC_STACK_LEAN=$STACK_LEAN FC_STACK_CAMERA=$STACK_CAMERA \
     fc_spawn starter "$run/starter.log" bash "$HERE/fcctl.sh" _starter "$name" "$run" || die "could not spawn starter"
   unlock   # the starter now owns the start; 'stop' must work during homing
   local end=$((SECONDS + 160)) shown=0
@@ -451,10 +480,12 @@ cmd_start() {
   done
   if [ -f "$run/READY" ]; then
     fc_log "ready. Next: on the floor 'fcctl.sh ready' (stands + bridge), or press X (tej_u6: Options) and 'fcctl.sh bridge start'."
-    printf '{"ok":true,"profile":"%s","run_dir":"%s","walker":"%s","cmd_topic":"%s","heading_hold":"%s","speed_cap":%s,"liedown":%s}\n' \
+    printf '{"ok":true,"profile":"%s","run_dir":"%s","walker":"%s","cmd_topic":"%s","heading_hold":"%s","speed_cap":%s,"liedown":%s,"lean":%s,"camera":%s}\n' \
       "$name" "$run" "$PROFILE_WALKER" "$PROFILE_CMD_TOPIC" "${PROFILE_HEADING_HOLD:-}" \
       "$(_stack_field "$run/stack.json" speed_cap_effective | grep -E '^[0-9.]+$' || echo null)" \
-      "$([ -n "$(_stack_field "$run/stack.json" liedown)" ] && echo true || echo false)"
+      "$([ -n "$(_stack_field "$run/stack.json" liedown)" ] && echo true || echo false)" \
+      "$(_stack_field "$run/stack.json" lean | sed -nE 's/^(on|off)$/"\1"/p' | grep . || echo null)" \
+      "$(_stack_field "$run/stack.json" camera | sed -nE 's/^True$/true/p; s/^False$/false/p' | grep . || echo null)"
   else
     fc_log "start failed or timed out; logs in $run. Run 'fcctl.sh stop' to clean up what was started."
     printf '{"ok":false,"profile":"%s","run_dir":"%s","error":"start failed"}\n' "$name" "$run"
@@ -623,8 +654,8 @@ cmd_ready() {
       --confirm) confirm=1 ;;
       --stand-now) stand_now=1 ;;
       --no-bridge) bridge=0 ;;
-      --speed-cap|--heading-hold) stack_opt "$a" "${1:-}" || ready_fail args "$STACK_ERR" 2; shift ;;
-      -*) ready_fail args "unknown option '$a' (ready [profile] [--confirm [--stand-now]] [--no-bridge] [--speed-cap X] [--heading-hold on|off])" 2 ;;
+      --speed-cap|--heading-hold|--lean|--camera) stack_opt "$a" "${1:-}" || ready_fail args "$STACK_ERR" 2; shift ;;
+      -*) ready_fail args "unknown option '$a' (ready [profile] [--confirm [--stand-now]] [--no-bridge] [--speed-cap X] [--heading-hold on|off] [--lean on|off] [--camera on|off])" 2 ;;
       *) [ -z "$name" ] || ready_fail args "one profile only" 2; name=$a ;;
     esac
   done
@@ -677,6 +708,13 @@ cmd_ready() {
        { [ -n "$STACK_HH" ] && [ "$STACK_HH" != "$have_hh" ]; }; then
       ready_fail profile "running stack has speed cap $have_cap / heading hold $have_hh, requested ${STACK_SPEED_CAP:-$have_cap} / ${STACK_HH:-$have_hh}: fcctl.sh down first (the next start homes the legs)" 1
     fi
+    local have_lean have_cam
+    have_lean=$(_stack_field "$run/stack.json" lean); have_cam=$(_stack_field "$run/stack.json" camera)
+    if { [ -n "$STACK_LEAN" ] && [ "$STACK_LEAN" != "$have_lean" ]; } ||
+       { [ "$STACK_CAMERA" = on ] && [ "$have_cam" != True ]; } ||
+       { [ "$STACK_CAMERA" = off ] && [ "$have_cam" = True ] && [ "$have_lean" = on ]; }; then
+      ready_fail profile "running stack has lean ${have_lean:-?} / camera ${have_cam:-?}, requested --lean ${STACK_LEAN:-same} --camera ${STACK_CAMERA:-same}: fcctl.sh down first (the next start homes the legs)" 1
+    fi
     emit homed true "homed (already running)" ",\"run_dir\":\"$run\",\"speed_cap\":$have_cap,\"heading_hold\":\"$have_hh\""
   else
     if [ -z "$confirm" ]; then
@@ -689,6 +727,8 @@ cmd_ready() {
     local sopts=()
     [ -z "$STACK_SPEED_CAP" ] || sopts+=(--speed-cap "$STACK_SPEED_CAP")
     [ -z "$STACK_HH" ] || sopts+=(--heading-hold "$STACK_HH")
+    [ -z "$STACK_LEAN" ] || sopts+=(--lean "$STACK_LEAN")
+    [ -z "$STACK_CAMERA" ] || sopts+=(--camera "$STACK_CAMERA")
     bash "$HERE/fcctl.sh" start "$name" --confirm "${sopts[@]}" > "$out" 2>> "$FC_LOGS/ready.log" 8>&- &
     spid=$!
     while kill -0 "$spid" 2> /dev/null; do

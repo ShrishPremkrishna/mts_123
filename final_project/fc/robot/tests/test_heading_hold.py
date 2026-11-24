@@ -192,7 +192,7 @@ fc_alive() { return 1; }
 fc_spawn() { echo "SPAWN $*"; }
 fc_topology_wait() { return 0; }
 STACK_SPEED_CAP=${STACK_SPEED_CAP:-}
-fc_stack_options_set() { [ -n "$STACK_SPEED_CAP" ] || [ "${PROFILE_HEADING_HOLD:-on}" = off ]; }
+fc_stack_options_set() { [ -n "$STACK_SPEED_CAP" ] || [ "${PROFILE_HEADING_HOLD:-on}" = off ] || [ "${PROFILE_LEAN:-off}" = on ]; }
 '''
 
 
@@ -306,7 +306,7 @@ mkdir run; profile_start "$PWD/run"''', tmp_path)
 def test_stock_unchanged_launch(tmp_path):
     out = sh(f'''
 source "{PROFILES}/stock.sh"
-FC_LIEDOWN=0
+FC_LIEDOWN=0; PROFILE_LEAN=off
 STOCK_CONFIG=$PWD/teleop.yaml; touch "$STOCK_CONFIG"
 profile_env() {{ :; }}
 fc_stack_overlay() {{ echo "OVERLAY"; }}
@@ -314,6 +314,20 @@ mkdir run; profile_start "$PWD/run"''', tmp_path)
     spawns = [l for l in out.stdout.splitlines() if l.startswith("SPAWN")]
     assert "OVERLAY" not in out.stdout
     assert spawns[0] == f"SPAWN launch {tmp_path}/run/robot.log ros2 launch neural_controller launch.py teleop:=False"
+
+
+def test_stock_lean_is_default_and_builds_overlay_without_liedown(tmp_path):
+    out = sh(f'''
+source "{PROFILES}/stock.sh"
+echo "lean=$PROFILE_LEAN camera=$PROFILE_CAMERA"
+FC_LIEDOWN=0
+STOCK_CONFIG=$PWD/teleop.yaml; touch "$STOCK_CONFIG"
+profile_env() {{ :; }}
+fc_stack_overlay() {{ echo "OVERLAY $1 $3"; OVERLAY_LAUNCH=$2/overlay/launch_fc.py; }}
+mkdir run; profile_start "$PWD/run"''', tmp_path)
+    assert "lean=on camera=off" in out.stdout and "OVERLAY stock off" in out.stdout, out
+    spawns = [l for l in out.stdout.splitlines() if l.startswith("SPAWN")]
+    assert spawns[0] == f"SPAWN launch {tmp_path}/run/robot.log ros2 launch {tmp_path}/run/overlay/launch_fc.py teleop:=False"
 
 
 def test_tej_u6_hh0_prepares_with_overlay(tmp_path):

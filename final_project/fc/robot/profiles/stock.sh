@@ -21,11 +21,16 @@ PROFILE_LEG_CONTROLLERS="neural_controller neural_controller_default neural_cont
 # pose before the legs are switched off (stack_overlay.py --liedown, sim/liedown_sim.py). Loaded by default;
 # FC_LIEDOWN=0 starts without it (then down drops like R3, and with no other option the launch is unchanged).
 PROFILE_LIEDOWN=neural_controller_liedown
+# Lean launch (fcctl --lean on|off, --camera on|off): by default the overlay launch does not start foxglove_bridge
+# or camera_ros (1400x1050 RGB888): FC v1 uses neither, and the Pi runs hot (BNO085 gyro fault at ~75 C on
+# 2026-11-24). --camera on keeps the onboard camera; --lean off = the stock node list.
+PROFILE_LEAN=on
+PROFILE_CAMERA=off
 MONO=/home/pi/pupperv3-monorepo
 STOCK_CONFIG=$MONO/ros2_ws/install/neural_controller/share/neural_controller/launch/config.yaml
 # Heading hold (the walker's yaw hold, see imu/heading_hold.py): on, unless an alias (stock_hh0.sh) set
 # FC_HEADING_HOLD=0 before sourcing this file, or fcctl got --heading-hold off. Stack options (heading hold
-# off, --speed-cap, the lie-down controller) = profile_start first builds and verifies a fresh overlay in
+# off, --speed-cap, the lie-down controller, lean) = profile_start first builds and verifies a fresh overlay in
 # RUN_DIR/overlay (fcctl.sh fc_stack_overlay -> stack_overlay.py) and refuses to start if it cannot.
 case "${FC_HEADING_HOLD:-1}" in
   1) PROFILE_HEADING_HOLD=on ;;

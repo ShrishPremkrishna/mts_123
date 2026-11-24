@@ -118,4 +118,6 @@ Each run writes `fc/runs/<UTC timestamp>-<test>/` (gitignored): `params.json`,
 - **Stack options** for `fcctl.sh start|ready <profile>`: `--speed-cap <0.30..1.00>` (walker speed caps,
   default stock 0.49) and `--heading-hold on|off` (default on), applied by one per-start overlay under the
   run dir. `stock_hh0`/`tej_u6_hh0` stay as aliases. `status` reports `speed_cap` and `heading_hold`.
+  stock also takes `--lean on|off` (default on: no foxglove_bridge, no onboard camera node) and `--camera on|off`
+  (default off); `status` adds `lean`, `camera`, `not_launched` and `heat` (governor, MHz, fan, top 5 processes).
 - Presets may set `_stack: {"speed_cap": 0.8, "heading_hold": "off"}`; the app passes them to `ready`.

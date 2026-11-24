@@ -26,6 +26,16 @@ Options (any combination; each start gets a fresh OUT_DIR = RUN_DIR/overlay):
                        (on_deactivate: kp 0, kd estop_kd = the usual damped drop). The blend itself ignores
                        /emergency_stop (update() returns from the init branch first), so deactivation is the
                        only abort. Appended last: switch_button_indices (X/O/...) still map to the same names.
+  --lean on            stock only: drop nodes FC v1 does not use from the launch's node list (heat, CPU,
+                       DDS traffic): foxglove_bridge (websocket viewer) and camera_node (camera_ros
+                       1400x1050 RGB888; FC v1 sees the field from the laptop's overhead camera). Their Node
+                       definitions stay, only the list entries are commented out. Nothing on the walking path
+                       changes: robot_state_publisher (publishes /robot_description, which ros2_control_node
+                       reads), ros2_control_node, every spawner, joy_node and estop_controller stay. The
+                       inactive policy slots stay too: inactive controllers are not updated (no CPU) and
+                       estop_controller/fcctl name them. fcctl's stock default is on.
+  --camera on          with --lean on: keep camera_node (the onboard camera, for later use). No effect
+                       with --lean off (the stock list already has it).
 
 Run on the Pi with system python3 (PyYAML from ROS). Writes only under OUT_DIR, which must lie inside
 --root. Every output is re-read and verified (YAML parsed and compared key by key with the source plus
@@ -72,6 +82,10 @@ LIEDOWN_SPAWNER = (
     "        arguments=[\"%s\", \"--controller-manager\", \"/controller_manager\",\n"
     "                   \"--controller-manager-timeout\", \"30\", \"--service-call-timeout\", \"120\", \"--inactive\"],\n"
     "    )\n\n" % LIEDOWN)
+# --lean: launch.py node-list entries commented out (exactly one each, 8-space list indent).
+LEAN_NODES = ("foxglove_bridge", "camera_node")
+CAMERA_NODE = "camera_node"
+LEAN_MARK = "  # FC v1 lean overlay: not launched"
 
 
 OverlayError = hh.OverlayError   # one refusal type (exit status 1 with the message) for both modules
@@ -211,7 +225,14 @@ def liedown_params(walker_params, policy_path):
 
 
 # ---------------------------------------------------------------- stock
-def build_stock(out_dir, speed_cap=None, heading_hold="on", liedown=False):
+def lean_removed(lean, camera):
+    """Launch node-list entries the overlay comments out."""
+    if lean != "on":
+        return []
+    return [n for n in LEAN_NODES if not (n == CAMERA_NODE and camera == "on")]
+
+
+def build_stock(out_dir, speed_cap=None, heading_hold="on", liedown=False, removed=()):
     yaml = _yaml()
     out_dir = os.path.abspath(out_dir)
     os.makedirs(out_dir, exist_ok=True)
@@ -219,7 +240,8 @@ def build_stock(out_dir, speed_cap=None, heading_hold="on", liedown=False):
     for name in files:
         if hh.sha256(os.path.join(hh.STOCK_NC, name)) != hh.sha256(os.path.join(hh.STOCK_INSTALLED, name)):
             raise OverlayError("stock %s: src and installed copies differ; refusing" % name)
-    r = {"speed_cap": speed_cap, "heading_hold": heading_hold, "liedown": None, "hh_policy": None}
+    r = {"speed_cap": speed_cap, "heading_hold": heading_hold, "liedown": None, "hh_policy": None,
+         "removed": list(removed)}
     cfg = open(os.path.join(hh.STOCK_NC, "config.yaml")).read()
     src_cfg = yaml.safe_load(cfg)
     if heading_hold == "off":
@@ -244,7 +266,7 @@ def build_stock(out_dir, speed_cap=None, heading_hold="on", liedown=False):
     cfg_path = os.path.join(out_dir, "config.yaml")
     with open(cfg_path, "w") as f:
         f.write(cfg)
-    launch = hh.STOCK_LAUNCH_PAT.sub(json.dumps(cfg_path), _stock_launch_src(liedown))
+    launch = hh.STOCK_LAUNCH_PAT.sub(json.dumps(cfg_path), _stock_launch_src(liedown, removed))
     launch_path = os.path.join(out_dir, "launch_fc.py")
     with open(launch_path, "w") as f:
         f.write(launch)
@@ -252,10 +274,15 @@ def build_stock(out_dir, speed_cap=None, heading_hold="on", liedown=False):
     return r
 
 
-def _stock_launch_src(liedown):
+def _stock_launch_src(liedown, removed=()):
     launch = open(os.path.join(hh.STOCK_NC, "launch.py")).read()
     if len(hh.STOCK_LAUNCH_PAT.findall(launch)) != 1:
         raise OverlayError("stock launch.py layout changed; refusing to patch")
+    for name in removed:
+        entry = "        %s,\n" % name
+        if launch.count(entry) != 1:
+            raise OverlayError("stock launch.py node list has no single %s entry; cannot apply --lean" % name)
+        launch = launch.replace(entry, "        # %s,%s\n" % (name, LEAN_MARK))
     if liedown:
         if launch.count(LAUNCH_NODES_ANCHOR) != 1 or launch.count(LAUNCH_LIST_ANCHOR) != 1:
             raise OverlayError("stock launch.py node list changed; cannot add the lie-down spawner")
@@ -310,10 +337,29 @@ def verify_stock(r):
             p = got[w]["ros__parameters"]
             if not (p["max_vx_forward"] == p["speed_cap"] == r["speed_cap"]):
                 raise OverlayError("speed cap not applied to %s" % w)
-    hh._same(r["launch"], hh.STOCK_LAUNCH_PAT.sub(json.dumps(r["config"]), _stock_launch_src(bool(r["liedown"]))),
+    hh._same(r["launch"], hh.STOCK_LAUNCH_PAT.sub(json.dumps(r["config"]),
+                                                   _stock_launch_src(bool(r["liedown"]), r.get("removed", []))),
              "stock overlay launch")
-    compile(open(r["launch"]).read(), r["launch"], "exec")
+    text = open(r["launch"]).read()
+    compile(text, r["launch"], "exec")
+    listed = _node_list(text)
+    for name in r.get("removed", []):
+        if name in listed:
+            raise OverlayError("lean overlay still launches %s" % name)
+    for name in ("robot_state_publisher", "control_node", "joy_node", "joy_util_node",
+                 "joint_state_broadcaster_spawner", "imu_sensor_broadcaster_spawner"):
+        if name in text and name not in listed:
+            raise OverlayError("overlay dropped %s from the node list" % name)
     return True
+
+
+def _node_list(text):
+    """Names in the launch's `nodes = [...]` list, comments stripped."""
+    m = re.search(r"^    nodes = \[\n(.*?)^    \]", text, re.M | re.S)
+    if not m:
+        raise OverlayError("launch has no nodes = [...] list")
+    body = "\n".join(line.split("#", 1)[0] for line in m.group(1).splitlines())
+    return set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", body))
 
 
 # ---------------------------------------------------------------- u6
@@ -373,21 +419,25 @@ def verify_u6(r):
     return True
 
 
-def build(kind, out_dir, root, speed_cap=None, heading_hold="on", liedown=False):
+def build(kind, out_dir, root, speed_cap=None, heading_hold="on", liedown=False, lean="off", camera="off"):
     """Build + verify one overlay inside root. Returns the JSON-able record."""
     if heading_hold not in ("on", "off"):
         raise OverlayError("heading hold must be on|off")
+    if lean not in ("on", "off") or camera not in ("on", "off"):
+        raise OverlayError("lean and camera must be on|off")
     if speed_cap is not None:
         speed_cap = speed_cap_value(speed_cap)
     out_dir = hh.check_out_dir(out_dir, root)
     if os.path.exists(out_dir):
         raise OverlayError("%s already exists; refusing" % out_dir)
     if kind == "stock":
-        r = build_stock(out_dir, speed_cap, heading_hold, liedown)
+        r = build_stock(out_dir, speed_cap, heading_hold, liedown, lean_removed(lean, camera))
         verify_stock(r)
     elif kind == "u6":
         if liedown:
             raise OverlayError("u6: no lie-down controller (pinned kit, latched Stop gateway); refusing")
+        if lean == "on" or camera == "on":
+            raise OverlayError("u6: no lean/camera option (Tej's pinned launch); refusing")
         r = build_u6(out_dir, speed_cap, heading_hold)
         verify_u6(r)
     else:
@@ -396,6 +446,9 @@ def build(kind, out_dir, root, speed_cap=None, heading_hold="on", liedown=False)
     return {"kind": kind, "verified": True, "speed_cap": r["speed_cap"],
             "speed_cap_effective": r["speed_cap"] if r["speed_cap"] is not None else DEFAULT_SPEED_CAP,
             "heading_hold": heading_hold, "liedown": r["liedown"], "launch": r["launch"], "config": r["config"],
+            # --lean: launch node-list entries not started; camera = the onboard camera node is launched
+            **({"lean": lean, "not_launched": r["removed"], "camera": CAMERA_NODE not in r["removed"]}
+               if kind == "stock" else {"lean": None, "not_launched": [], "camera": None}),
             **({"urdf": r["urdf"]} if "urdf" in r else {}),
             # heading-hold policy (status: heading_hold_overlay); null when the hold is on
             "policy": hp.get("policy"), "sha256": hp.get("sha256"), "hh_policy": hp.get("heading_hold")}
@@ -408,10 +461,12 @@ def main(argv=None):
     ap.add_argument("--speed-cap", default=None)
     ap.add_argument("--heading-hold", default="on", choices=("on", "off"))
     ap.add_argument("--liedown", default="off", choices=("on", "off"))
+    ap.add_argument("--lean", default="off", choices=("on", "off"))
+    ap.add_argument("--camera", default="off", choices=("on", "off"))
     ap.add_argument("--root", default=os.environ.get("FC_ROOT") or hh.HOME + "/fc-v1")
     a = ap.parse_args(argv)
     try:
-        r = build(a.kind, a.out_dir, a.root, a.speed_cap, a.heading_hold, a.liedown == "on")
+        r = build(a.kind, a.out_dir, a.root, a.speed_cap, a.heading_hold, a.liedown == "on", a.lean, a.camera)
     except OverlayError as e:
         print("stack_overlay: " + str(e.code), file=sys.stderr)
         return 1
