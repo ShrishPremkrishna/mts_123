@@ -51,6 +51,8 @@ Runs on mts (`~/fc-v1/imu/runs/20261124T0645*` to `T0649*`, tool copy in `~/fc-v
 - Bench check: a standalone harness (`harness/`, no ROS, no SPI, holding the driver lock) confirmed boot 1,0,1, set 0,0,1 confirmed, the next start back at 1,0,1, a malformed value ignored, and quaternions flowing in every case.
 - Proposed use: `FC_BNO_DYNCAL=0,0,1` freezes accel calibration so walking cannot teach and save a new one. This is a hedge, not a demonstrated fix.
 
+**`imu/stock-imu-filter.patch`** (2026-11-24, not deployed): `FC_IMU_FILTER=1` publishes our own accel-corrected orientation and a de-spiked gyro X. See [imu-filter.md](imu-filter.md).
+
 ## Heading hold off (no rebuild)
 `heading_hold.kp = 0` in the policy JSON disables the hold (`neural_controller.cpp:291-319`, verified); the kp=0 policy has sha `9f5a3e98…`.
 Profiles `stock_hh0` / `tej_u6_hh0` (fc/robot/README.md) build and verify a fresh overlay in `<run>/hh0/` at every start and refuse to start if that fails. `status` reports `heading_hold`.

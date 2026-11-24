@@ -1,0 +1,808 @@
+diff -ruN a/control_board_hardware_interface/CMakeLists.txt b/control_board_hardware_interface/CMakeLists.txt
+--- a/control_board_hardware_interface/CMakeLists.txt	2026-11-23 23:13:18
++++ b/control_board_hardware_interface/CMakeLists.txt	2026-11-23 23:21:58
+@@ -62,6 +62,11 @@
+   # a copyright and license is added to all source files
+   set(ament_cmake_cpplint_FOUND TRUE)
+   ament_lint_auto_find_test_dependencies()
++
++  # FC v1: IMU crutch filter (header-only, no ROS deps)
++  add_executable(test_fc_imu_filter test/test_fc_imu_filter.cpp)
++  target_include_directories(test_fc_imu_filter PRIVATE include)
++  add_test(NAME test_fc_imu_filter COMMAND test_fc_imu_filter)
+ endif()
+ 
+ ## EXPORTS
+diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp b/control_board_hardware_interface/include/rt/fc_imu_filter.hpp
+--- a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp	1969-12-31 16:00:00
++++ b/control_board_hardware_interface/include/rt/fc_imu_filter.hpp	2026-11-23 23:33:19
+@@ -0,0 +1,289 @@
++// FC v1 IMU crutch: our own roll/pitch estimate for a BNO085 whose gyro X axis
++// emits one-sided negative pulses, drifts in bias and sometimes freezes.
++//
++// Mahony complementary filter in the SENSOR frame:
++//   q (sensor -> world, world z up, same convention as the BNO rotation vector)
++//   is integrated from the sanitized gyro and pulled toward the measured gravity
++//   direction with gain kp (tilt time constant 1/kp seconds). A slow integral term
++//   learns the residual gyro bias. Yaw is gyro-only (not observable from gravity).
++//
++// Gyro X sanitizer (sensor frame; the fault is on X only):
++//   * "quiet": bias-corrected Y and Z both below quiet_rate, i.e. the body is not
++//     rotating. Then X should read its clean baseline b0. Samples more than
++//     spike_thresh below b0 are pulses and are replaced by b0.
++//   * b0 tracks a high quantile of X in quiet samples (pulses are one-sided negative,
++//     so the clean level sits at the top of the distribution).
++//   * m is the mean pulse contribution (EMA of X - b0 in quiet samples). While the
++//     body moves, pulses cannot be told from motion sample by sample, so X - b0 - m
++//     is used: the pulses' average effect is removed and the accel corrects the rest.
++// Freeze: gyro bit-identical for freeze_s -> rate treated as unknown (0), the filter
++//   runs on accel only. Accel bit-identical for accel_freeze_n samples -> no accel
++//   correction (orientation held). While the gyro is frozen the PUBLISHED quaternion
++//   and rate are held bit-identical (the internal estimate keeps tracking accel), so
++//   the bridge's existing frozen-output guard still sees a freeze and stops the walker:
++//   in sim, walking through 0.3-1.5 s gyro freezes without angular rate fell 4/6.
++//
++// No ROS/Eigen dependency so the identical code is used by the driver, the unit
++// test and the offline replay/sim harnesses (via a C shim).
++#pragma once
++
++#include <cmath>
++#include <cstdint>
++
++namespace fc_imu {
++
++struct FilterParams {
++  double kp = 2.0;               // 1/s, accel correction gain
++  double ki = 0.3;               // 1/s^2, integral (gyro bias) gain
++  double kp_frozen = 2.0;        // 1/s, accel gain while the gyro is frozen (8 leaked gait accel in sim)
++  double kp_min_frac = 0.5;      // fraction of kp kept when |a| is far from 1 g
++  double accel_band = 0.3;       // | |a|/g - 1 | at which the weight reaches its floor
++  double accel_reject = 1.0;     // | |a|/g - 1 | above which accel is ignored entirely
++  double ki_band = 0.3;          // integral runs only within this band of 1 g
++  double bias_limit = 0.2;       // rad/s clamp on the integral bias
++  double quiet_rate = 0.03;      // rad/s, Y/Z below this = not rotating
++  double spike_thresh = 0.015;   // rad/s below b0 = pulse (quiet samples)
++  double baseline_step = 2e-4;   // rad/s per quiet sample, quantile tracker step
++  double baseline_quantile = 0.9;
++  double baseline_limit = 0.05;  // rad/s clamp on b0
++  double pulse_mean_tau = 5.0;   // s
++  double pulse_mean_limit = 0.15;
++  double freeze_s = 0.04;        // gyro bit-identical this long = frozen
++  int accel_freeze_n = 4;        // accel bit-identical this many repeats = frozen
++  double accel_max_age = 0.1;    // s without a new accel sample = no correction
++  double accel_lp_tau = 0.1;     // s, low-pass on the accel VECTOR before use (mean, not mean direction)
++  double max_dt = 0.05;          // s, clamp per step (report gaps)
++  double g = 9.80665;
++};
++
++struct FilterStats {
++  uint64_t samples = 0;
++  uint64_t despiked = 0;          // quiet X samples replaced
++  uint64_t frozen_samples = 0;    // gyro steps run as frozen
++  uint64_t accel_frozen_samples = 0;
++  uint64_t accel_skipped = 0;     // steps without accel correction (frozen/old/out of band)
++  double longest_freeze_s = 0.0;
++};
++
++class AttitudeFilter {
++ public:
++  explicit AttitudeFilter(const FilterParams &p = FilterParams()) : p_(p) {}
++
++  const FilterParams &params() const { return p_; }
++  const FilterStats &stats() const { return st_; }
++  bool initialized() const { return init_; }
++
++  // Latest accelerometer sample, sensor frame, m/s^2 specific force (+g up at rest).
++  void set_accel(const double a[3]) {
++    if (have_acc_ && a[0] == acc_[0] && a[1] == acc_[1] && a[2] == acc_[2]) {
++      acc_same_n_++;
++    } else {
++      acc_same_n_ = 0;
++    }
++    for (int i = 0; i < 3; i++) acc_[i] = a[i];
++    have_acc_ = true;
++    acc_age_ = 0.0;
++    if (!init_) init_from_accel();
++  }
++
++  // One gyro sample (sensor frame, rad/s) and the time since the previous one.
++  void update_gyro(const double g[3], double dt) {
++    if (!(dt > 0.0)) dt = 0.0;
++    if (dt > p_.max_dt) dt = p_.max_dt;
++    st_.samples++;
++    acc_age_ += dt;
++
++    // Freeze detector (bit-identical gyro).
++    if (have_gyro_ && g[0] == gprev_[0] && g[1] == gprev_[1] && g[2] == gprev_[2]) {
++      same_s_ += dt;
++    } else {
++      same_s_ = 0.0;
++    }
++    for (int i = 0; i < 3; i++) gprev_[i] = g[i];
++    have_gyro_ = true;
++    frozen_ = same_s_ >= p_.freeze_s;
++    if (same_s_ > st_.longest_freeze_s) st_.longest_freeze_s = same_s_;
++
++    // Sanitize.
++    double w[3];
++    despiked_ = false;
++    if (frozen_) {
++      st_.frozen_samples++;
++      w[0] = w[1] = w[2] = 0.0;
++    } else {
++      const double yc = g[1] + ifb_[1], zc = g[2] + ifb_[2];
++      quiet_ = std::fabs(yc) < p_.quiet_rate && std::fabs(zc) < p_.quiet_rate;
++      const double dx = g[0] - b0_;
++      if (quiet_) {
++        // quantile tracker for the clean X level
++        b0_ += (dx < 0.0) ? -p_.baseline_step * (1.0 - p_.baseline_quantile)
++                          : p_.baseline_step * p_.baseline_quantile;
++        b0_ = clamp(b0_, -p_.baseline_limit, p_.baseline_limit);
++        const double a = (dt > 0.0) ? dt / (p_.pulse_mean_tau + dt) : 0.0;
++        m_ = clamp(m_ + a * (dx - m_), -p_.pulse_mean_limit, 0.02);
++        if (dx < -p_.spike_thresh) {
++          w[0] = 0.0;
++          despiked_ = true;
++          st_.despiked++;
++        } else {
++          w[0] = dx;
++        }
++      } else {
++        w[0] = dx - m_;
++      }
++      w[1] = g[1];
++      w[2] = g[2];
++    }
++    // Published rate: X sanitized, Y/Z exactly as measured (clean axes; the integral
++    // bias stays internal so accel leakage can never bias the policy's rate input).
++    for (int i = 0; i < 3; i++) rate_[i] = w[i];
++    if (!frozen_) {
++      for (int i = 0; i < 3; i++) w[i] += ifb_[i];
++    }
++    if (!init_) return;
++
++    // Accel correction.
++    double wc[3] = {w[0], w[1], w[2]};
++    const bool acc_frozen = acc_same_n_ >= p_.accel_freeze_n;
++    if (acc_frozen) st_.accel_frozen_samples++;
++    bool corrected = false;
++    if (have_acc_ && !acc_frozen && acc_age_ <= p_.accel_max_age) {
++      // Low-pass the vector: the time-mean of specific force is gravity even while
++      // trotting; the mean of its normalised direction is not (bias seen in sim).
++      const double al = (dt > 0.0) ? dt / (p_.accel_lp_tau + dt) : 0.0;
++      for (int i = 0; i < 3; i++) acc_lp_[i] += al * (acc_[i] - acc_lp_[i]);
++      const double n = std::sqrt(acc_lp_[0] * acc_lp_[0] + acc_lp_[1] * acc_lp_[1] + acc_lp_[2] * acc_lp_[2]);
++      const double dev = std::fabs(n / p_.g - 1.0);
++      if (n > 1e-6 && dev < p_.accel_reject) {
++        const double ax = acc_lp_[0] / n, ay = acc_lp_[1] / n, az = acc_lp_[2] / n;
++        double v[3];
++        up_in_sensor(v);
++        const double e[3] = {ay * v[2] - az * v[1], az * v[0] - ax * v[2], ax * v[1] - ay * v[0]};
++        const double frac = dev / p_.accel_band;
++        const double wgt = 1.0 - (1.0 - p_.kp_min_frac) * (frac < 1.0 ? frac : 1.0);
++        const double kp = frozen_ ? p_.kp_frozen : p_.kp;
++        for (int i = 0; i < 3; i++) wc[i] += kp * wgt * e[i];
++        if (!frozen_ && dev < p_.ki_band) {
++          for (int i = 0; i < 3; i++) {
++            ifb_[i] = clamp(ifb_[i] + p_.ki * e[i] * dt, -p_.bias_limit, p_.bias_limit);
++          }
++        }
++        corrected = true;
++      }
++    }
++    if (!corrected) st_.accel_skipped++;
++    if (!(frozen_ && !corrected)) integrate(wc, dt);  // both frozen: nothing known, hold
++    if (!frozen_) {
++      for (int i = 0; i < 4; i++) qpub_[i] = q_[i];
++    }
++  }
++
++  // Published orientation sensor -> world, Eigen/ROS order (held while the gyro is frozen).
++  void quat_xyzw(double out[4]) const {
++    out[0] = qpub_[1];
++    out[1] = qpub_[2];
++    out[2] = qpub_[3];
++    out[3] = qpub_[0];
++  }
++  // Internal estimate (keeps tracking accel through a gyro freeze).
++  void quat_internal_xyzw(double out[4]) const {
++    out[0] = q_[1];
++    out[1] = q_[2];
++    out[2] = q_[3];
++    out[3] = q_[0];
++  }
++  // Published angular velocity, sensor frame: X de-spiked/de-biased, Y/Z raw, 0 when frozen.
++  void rate(double out[3]) const {
++    for (int i = 0; i < 3; i++) out[i] = rate_[i];
++  }
++  // Angle between the filter's gravity and the gravity of another quaternion (xyzw), deg.
++  double tilt_diff_deg(const double other_xyzw[4]) const {
++    double v[3];
++    up_in_sensor(v);
++    const double x = other_xyzw[0], y = other_xyzw[1], z = other_xyzw[2], w = other_xyzw[3];
++    const double o[3] = {2 * (x * z - w * y), 2 * (y * z + w * x), w * w - x * x - y * y + z * z};
++    const double on = std::sqrt(o[0] * o[0] + o[1] * o[1] + o[2] * o[2]);
++    if (on < 1e-9) return NAN;
++    double c = (v[0] * o[0] + v[1] * o[1] + v[2] * o[2]) / on;
++    c = clamp(c, -1.0, 1.0);
++    return std::acos(c) * 180.0 / M_PI;
++  }
++  // Seconds of gyro steps since the last accel sample (large = accel stream missing).
++  double accel_age() const { return acc_age_; }
++  bool frozen() const { return frozen_; }
++  bool despiked() const { return despiked_; }
++  bool quiet() const { return quiet_; }
++  double x_baseline() const { return b0_; }
++  double pulse_mean() const { return m_; }
++  void bias(double out[3]) const {
++    for (int i = 0; i < 3; i++) out[i] = -ifb_[i];
++  }
++
++ private:
++  static double clamp(double v, double lo, double hi) { return v < lo ? lo : (v > hi ? hi : v); }
++
++  // World up expressed in the sensor frame (third row of R(q)).
++  void up_in_sensor(double v[3]) const {
++    const double w = q_[0], x = q_[1], y = q_[2], z = q_[3];
++    v[0] = 2 * (x * z - w * y);
++    v[1] = 2 * (y * z + w * x);
++    v[2] = w * w - x * x - y * y + z * z;
++  }
++
++  void init_from_accel() {
++    const double n = std::sqrt(acc_[0] * acc_[0] + acc_[1] * acc_[1] + acc_[2] * acc_[2]);
++    if (n < 0.5 * p_.g || n > 1.5 * p_.g) return;
++    for (int i = 0; i < 3; i++) acc_lp_[i] = acc_[i];
++    const double a[3] = {acc_[0] / n, acc_[1] / n, acc_[2] / n};
++    // rotation taking a (sensor) onto world up: axis a x z, angle acos(a.z)
++    double ax = a[1], ay = -a[0];
++    const double c = a[2];
++    const double s = std::sqrt(ax * ax + ay * ay);
++    if (s < 1e-9) {
++      if (c > 0) {
++        q_[0] = 1; q_[1] = q_[2] = q_[3] = 0;
++      } else {
++        q_[0] = 0; q_[1] = 1; q_[2] = q_[3] = 0;
++      }
++    } else {
++      const double ang = std::atan2(s, c);
++      ax /= s;
++      ay /= s;
++      q_[0] = std::cos(ang / 2);
++      q_[1] = std::sin(ang / 2) * ax;
++      q_[2] = std::sin(ang / 2) * ay;
++      q_[3] = 0;
++    }
++    for (int i = 0; i < 4; i++) qpub_[i] = q_[i];
++    init_ = true;
++  }
++
++  void integrate(const double w[3], double dt) {
++    const double th = std::sqrt(w[0] * w[0] + w[1] * w[1] + w[2] * w[2]) * dt;
++    if (th < 1e-12) return;
++    const double s = std::sin(th / 2) / (th / dt), c = std::cos(th / 2);
++    const double d[4] = {c, w[0] * s, w[1] * s, w[2] * s};
++    const double a = q_[0], b = q_[1], cc = q_[2], e = q_[3];
++    double r[4] = {a * d[0] - b * d[1] - cc * d[2] - e * d[3], a * d[1] + b * d[0] + cc * d[3] - e * d[2],
++                   a * d[2] - b * d[3] + cc * d[0] + e * d[1], a * d[3] + b * d[2] - cc * d[1] + e * d[0]};
++    const double n = std::sqrt(r[0] * r[0] + r[1] * r[1] + r[2] * r[2] + r[3] * r[3]);
++    for (int i = 0; i < 4; i++) q_[i] = r[i] / n;
++  }
++
++  FilterParams p_;
++  FilterStats st_;
++  double q_[4] = {1, 0, 0, 0};  // w x y z
++  double qpub_[4] = {1, 0, 0, 0};
++  double ifb_[3] = {0, 0, 0};   // integral feedback (= -bias)
++  double acc_[3] = {0, 0, 0};
++  double acc_lp_[3] = {0, 0, 0};
++  double gprev_[3] = {0, 0, 0};
++  double rate_[3] = {0, 0, 0};
++  double b0_ = 0.0, m_ = 0.0;
++  double same_s_ = 0.0, acc_age_ = 1e9;
++  int acc_same_n_ = 0;
++  bool init_ = false, have_acc_ = false, have_gyro_ = false;
++  bool frozen_ = false, despiked_ = false, quiet_ = false;
++};
++
++}  // namespace fc_imu
+diff -ruN a/control_board_hardware_interface/include/rt/rt_bno055.h b/control_board_hardware_interface/include/rt/rt_bno055.h
+--- a/control_board_hardware_interface/include/rt/rt_bno055.h	2026-11-23 23:13:18
++++ b/control_board_hardware_interface/include/rt/rt_bno055.h	2026-11-23 23:18:21
+@@ -9,7 +9,10 @@
+ 
+ #include <chrono>
+ #include <eigen3/Eigen/Dense>
++#include <memory>
+ 
++#include "rt/fc_imu_filter.hpp"
++
+ // Packets can be up to 32k but we don't have that much RAM.
+ #define MAX_PACKET_SIZE 128
+ 
+@@ -120,6 +123,12 @@
+   }
+ 
+   void softReset(void);
++  // FC v1 IMU crutch (FC_IMU_FILTER=1): parse every report in a packet, feed the
++  // accelerometer (0x01) and gyro (0x02) into fc_imu::AttitudeFilter.
++  void fcParseAllReports(void);
++  void fcOnGyro(uint8_t seq);
++  void fcOnAccel(void);
++  void fcMaybeLog(void);
+   bool receivePacket(void);
+   bool getData(uint16_t bytesRemaining);
+   bool waitForI2C(void);
+@@ -148,6 +157,16 @@
+   float qToFloat(int16_t fixedPointValue, uint8_t qPoint);
+   void parseInputReport(void);
+   void parseCommandReport(void);
++
++  bool fc_filter_on_ = false;
++  std::unique_ptr<fc_imu::AttitudeFilter> fc_filter_;
++  double fc_period_s_ = 0.01;
++  bool fc_have_seq_ = false;
++  uint8_t fc_gyro_seq_ = 0;
++  uint64_t fc_gyro_reports_ = 0, fc_accel_reports_ = 0;
++  double fc_freeze_run_s_ = 0.0;
++  bool fc_warned_no_accel_ = false;
++  std::chrono::steady_clock::time_point fc_last_log_;
+ 
+   int m_fd = 0;
+   bool m_okay = false;
+diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_board_hardware_interface/src/rt/rt_bno055.cpp
+--- a/control_board_hardware_interface/src/rt/rt_bno055.cpp	2026-11-23 23:13:18
++++ b/control_board_hardware_interface/src/rt/rt_bno055.cpp	2026-11-23 23:18:21
+@@ -1,6 +1,9 @@
+ 
+ #include "rt/rt_bno055.h"
+ 
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
+ #include <string>
+ // #include <i2c/smbus.h>
+ 
+@@ -45,13 +48,41 @@
+     }
+   }
+ 
++  // FC v1: FC_IMU_FILTER=1 replaces the published orientation/rate with our own
++  // accel-corrected filter (rt/fc_imu_filter.hpp). Unset or anything else: stock.
++  const char *fc_env = std::getenv("FC_IMU_FILTER");
++  fc_filter_on_ = fc_env != nullptr && std::strcmp(fc_env, "1") == 0;
++  if (fc_filter_on_) {
++    fc_imu::FilterParams p;
++    const char *kp = std::getenv("FC_IMU_FILTER_KP");
++    if (kp != nullptr) {
++      const double v = std::strtod(kp, nullptr);
++      if (v > 0.0 && v <= 20.0) p.kp = v;
++    }
++    const char *ki = std::getenv("FC_IMU_FILTER_KI");
++    if (ki != nullptr) {
++      const double v = std::strtod(ki, nullptr);
++      if (v >= 0.0 && v <= 5.0) p.ki = v;
++    }
++    fc_filter_ = std::make_unique<fc_imu::AttitudeFilter>(p);
++    fc_period_s_ = micros_between_reports * 1e-6;
++    fc_last_log_ = std::chrono::steady_clock::now();
++    printf("FC_IMU_FILTER on: kp=%.3f ki=%.3f period=%.4fs; enabling accelerometer 0x01\n", p.kp,
++           p.ki, fc_period_s_);
++    fflush(stdout);
++  }
++
+   std::cout << "Enabling rot vec + gyro. Micros between reports: " << micros_between_reports
+             << std::endl;
+   std::this_thread::sleep_for(std::chrono::milliseconds(2));
+   enableRotationVector(micros_between_reports);
+-  // IMPORTANT: NOT ENABLING ACCELEROMETER
++  // IMPORTANT: NOT ENABLING ACCELEROMETER (stock). FC_IMU_FILTER=1 enables it below.
+   enableGyro(micros_between_reports);
+   std::this_thread::sleep_for(std::chrono::milliseconds(2));
++  if (fc_filter_on_) {
++    enableAccelerometer(micros_between_reports);
++    std::this_thread::sleep_for(std::chrono::milliseconds(2));
++  }
+ }
+ 
+ BNO055::~BNO055() {
+@@ -213,8 +244,12 @@
+       //   printf("got channel report. shtpData[0]=%d\n", static_cast<int>(shtpData[0]));
+       if (shtpData[0] == SHTP_REPORT_BASE_TIMESTAMP) {
+         // printf("got base timestamp\n");
+-        parseInputReport();  // This will update the rawAccelX, etc variables depending on which
+-                             // feature report is found
++        if (fc_filter_on_) {
++          fcParseAllReports();
++        } else {
++          parseInputReport();  // This will update the rawAccelX, etc variables depending on which
++                               // feature report is found
++        }
+         return (true);
+       }
+     } else if (shtpHeader[2] == CHANNEL_CONTROL) {
+@@ -460,6 +495,30 @@
+   result.quat.z() = getQuatK();
+   result.quat.w() = getQuatReal();
+ 
++  if (fc_filter_on_) {
++    result.acc(0) = getAccelX();
++    result.acc(1) = getAccelY();
++    result.acc(2) = getAccelZ();
++    // Our orientation once the filter has an accel fix and the accel stream is live;
++    // otherwise the chip's rotation vector (stock) so a missing 0x01 cannot leave us
++    // integrating the faulty gyro alone.
++    if (fc_filter_->initialized() && fc_filter_->accel_age() <= 0.25) {
++      double q[4], w[3];
++      fc_filter_->quat_xyzw(q);
++      fc_filter_->rate(w);
++      result.quat = Eigen::Quaternionf(q[3], q[0], q[1], q[2]);
++      result.gyro = Eigen::Vector3f(w[0], w[1], w[2]);
++    } else {
++      result.gyro(0) = getGyroX();
++      result.gyro(1) = getGyroY();
++      result.gyro(2) = getGyroZ();
++    }
++    result.packet_timestamp = latest_packet_timestamp;
++    result.measurement_timestamp = latest_packet_timestamp - std::chrono::microseconds(timeStamp);
++    fcMaybeLog();
++    return result;
++  }
++
+   // Accelerometer currently not enabled
+   //   result.acc(0) = getAccelX();
+   //   result.acc(1) = getAccelY();
+@@ -474,4 +533,124 @@
+   result.measurement_timestamp = latest_packet_timestamp - std::chrono::microseconds(timeStamp);
+ 
+   return result;
++}
++
++// ---------------------------------------------------------------------------------
++// FC v1 IMU crutch (only reached with FC_IMU_FILTER=1)
++
++// Walk every report in one SHTP input packet: 0xFB base timestamp, then reports.
++// Report lengths from the SH-2 reference manual (6.5). Unknown IDs end the walk.
++void BNO055::fcParseAllReports(void) {
++  int dataLength = ((uint16_t)shtpHeader[1] << 8 | shtpHeader[0]) & 0x7FFF;
++  dataLength -= 4;
++  if (dataLength > MAX_PACKET_SIZE) dataLength = MAX_PACKET_SIZE;
++  if (dataLength < 5) return;
++  timeStamp = ((uint32_t)shtpData[4] << (8 * 3)) | (shtpData[3] << (8 * 2)) |
++              (shtpData[2] << (8 * 1)) | (shtpData[1] << (8 * 0));
++  int i = 5;
++  while (i < dataLength) {
++    const uint8_t id = shtpData[i];
++    int len = 0;
++    switch (id) {
++      case SENSOR_REPORTID_ACCELEROMETER:
++      case SENSOR_REPORTID_GYROSCOPE:
++      case SENSOR_REPORTID_MAGNETIC_FIELD:
++      case SENSOR_REPORTID_LINEAR_ACCELERATION:
++      case SENSOR_REPORTID_GRAVITY:
++        len = 10;
++        break;
++      case SENSOR_REPORTID_ROTATION_VECTOR:
++        len = 14;
++        break;
++      case SENSOR_REPORTID_GAME_ROTATION_VECTOR:
++        len = 12;
++        break;
++      case 0x07:  // uncalibrated gyro
++        len = 16;
++        break;
++      case 0xFA:  // timestamp rebase
++        len = 5;
++        break;
++      default:
++        return;
++    }
++    if (i + len > dataLength) return;
++    const uint8_t *r = &shtpData[i];
++    const uint16_t d1 = (uint16_t)r[5] << 8 | r[4];
++    const uint16_t d2 = (uint16_t)r[7] << 8 | r[6];
++    const uint16_t d3 = (uint16_t)r[9] << 8 | r[8];
++    if (id == SENSOR_REPORTID_ACCELEROMETER) {
++      accelAccuracy = r[2] & 0x03;
++      rawAccelX = d1;
++      rawAccelY = d2;
++      rawAccelZ = d3;
++      fcOnAccel();
++    } else if (id == SENSOR_REPORTID_GYROSCOPE) {
++      gyroAccuracy = r[2] & 0x03;
++      rawGyroX = d1;
++      rawGyroY = d2;
++      rawGyroZ = d3;
++      fcOnGyro(r[1]);
++    } else if (id == SENSOR_REPORTID_ROTATION_VECTOR) {
++      quatAccuracy = r[2] & 0x03;
++      rawQuatI = d1;
++      rawQuatJ = d2;
++      rawQuatK = d3;
++      rawQuatReal = (uint16_t)r[11] << 8 | r[10];
++      rawQuatRadianAccuracy = (uint16_t)r[13] << 8 | r[12];
++    }
++    i += len;
++  }
++}
++
++void BNO055::fcOnAccel(void) {
++  const double a[3] = {getAccelX(), getAccelY(), getAccelZ()};
++  fc_filter_->set_accel(a);
++  fc_accel_reports_++;
++}
++
++// dt from the report sequence number (one step per report period): jitter-free and
++// counts dropped reports. The filter clamps a step to 50 ms.
++void BNO055::fcOnGyro(uint8_t seq) {
++  double dt = fc_period_s_;
++  if (fc_have_seq_) {
++    const uint8_t n = static_cast<uint8_t>(seq - fc_gyro_seq_);
++    dt = n * fc_period_s_;
++  }
++  fc_have_seq_ = true;
++  fc_gyro_seq_ = seq;
++  const double g[3] = {getGyroX(), getGyroY(), getGyroZ()};
++  fc_filter_->update_gyro(g, dt);
++  fc_gyro_reports_++;
++  if (fc_filter_->frozen()) {
++    fc_freeze_run_s_ += dt;
++  } else {
++    if (fc_freeze_run_s_ >= 0.2) {
++      printf("FC_IMU_FILTER gyro frozen %.2f s (rate held at 0, tilt from accel)\n", fc_freeze_run_s_);
++      fflush(stdout);
++    }
++    fc_freeze_run_s_ = 0.0;
++  }
++}
++
++void BNO055::fcMaybeLog(void) {
++  const auto now = std::chrono::steady_clock::now();
++  if (now - fc_last_log_ < std::chrono::seconds(10)) return;
++  fc_last_log_ = now;
++  if (fc_accel_reports_ == 0 && fc_gyro_reports_ > 0 && !fc_warned_no_accel_) {
++    printf("FC_IMU_FILTER WARNING: no accelerometer reports; publishing the stock rotation vector\n");
++    fc_warned_no_accel_ = true;
++  }
++  const fc_imu::FilterStats &s = fc_filter_->stats();
++  double b[3];
++  fc_filter_->bias(b);
++  const double rv[4] = {getQuatI(), getQuatJ(), getQuatK(), getQuatReal()};
++  printf(
++      "FC_IMU_FILTER gyro=%llu accel=%llu despiked=%llu frozen=%llu accel_skipped=%llu "
++      "longest_freeze=%.2fs xbase=%.4f pulse_mean=%.4f bias=(%.4f,%.4f,%.4f) rv_tilt_diff=%.1fdeg\n",
++      (unsigned long long)fc_gyro_reports_, (unsigned long long)fc_accel_reports_,
++      (unsigned long long)s.despiked, (unsigned long long)s.frozen_samples,
++      (unsigned long long)s.accel_skipped, s.longest_freeze_s, fc_filter_->x_baseline(),
++      fc_filter_->pulse_mean(), b[0], b[1], b[2], fc_filter_->tilt_diff_deg(rv));
++  fflush(stdout);
+ }
+diff -ruN a/control_board_hardware_interface/test/test_fc_imu_filter.cpp b/control_board_hardware_interface/test/test_fc_imu_filter.cpp
+--- a/control_board_hardware_interface/test/test_fc_imu_filter.cpp	1969-12-31 16:00:00
++++ b/control_board_hardware_interface/test/test_fc_imu_filter.cpp	2026-11-23 23:33:19
+@@ -0,0 +1,225 @@
++// Unit test for rt/fc_imu_filter.hpp (FC v1 IMU crutch). Plain C++, no ROS/gtest.
++// Simulates the Pupper IMU (sensor pitched -135 deg about body y) with the observed
++// BNO085 faults: one-sided negative gyro-X pulses, X bias drift and output freezes.
++#include <algorithm>
++#include <cmath>
++#include <cstdio>
++#include <random>
++#include <vector>
++
++#include "rt/fc_imu_filter.hpp"
++
++namespace {
++int failures = 0;
++void check(bool ok, const char *what, double val, double lim) {
++  printf("%s %-58s %.4f (limit %.4f)\n", ok ? "PASS" : "FAIL", what, val, lim);
++  if (!ok) failures++;
++}
++
++struct Q {
++  double w, x, y, z;
++};
++Q mul(const Q &a, const Q &b) {
++  return {a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z, a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
++          a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x, a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w};
++}
++Q expq(const double w[3], double dt) {
++  const double th = std::sqrt(w[0] * w[0] + w[1] * w[1] + w[2] * w[2]) * dt;
++  if (th < 1e-15) return {1, 0, 0, 0};
++  const double s = std::sin(th / 2) / th * dt;
++  return {std::cos(th / 2), w[0] * s, w[1] * s, w[2] * s};
++}
++void up_in(const Q &q, double v[3]) {  // world up in the rotated frame
++  v[0] = 2 * (q.x * q.z - q.w * q.y);
++  v[1] = 2 * (q.y * q.z + q.w * q.x);
++  v[2] = q.w * q.w - q.x * q.x - q.y * q.y + q.z * q.z;
++}
++// error of the internal estimate (the published one is deliberately held during a freeze)
++double tilt_err_deg(const fc_imu::AttitudeFilter &f, const Q &truth) {
++  const double xyzw[4] = {truth.x, truth.y, truth.z, truth.w};
++  return f.tilt_diff_deg(xyzw);
++}
++
++struct Scenario {
++  const char *name;
++  double seconds = 60;
++  double motion_amp = 0;      // rad, body roll/pitch oscillation amplitude
++  double pulse_per_s = 0;     // X pulses per second
++  double bias_x = 0;          // rad/s constant X offset
++  double accel_osc = 0;       // m/s^2 gait-like linear accel amplitude
++  double freeze_every = 0;    // s, 0 = no freezes
++  double freeze_len = 0;      // s
++  bool freeze_accel = false;  // whole-chip freeze
++};
++
++struct Result {
++  double max_err_after_2s = 0, p99_err = 0, quiet_x_std = 0, max_rate_during_freeze = 0;
++  bool held_exactly = true;
++  bool pub_held_on_gyro_freeze = true;
++};
++
++Result run(const Scenario &sc, unsigned seed = 1) {
++  const double dt = 0.01, g = 9.80665, k = std::sqrt(0.5);
++  std::mt19937 rng(seed);
++  std::normal_distribution<double> n_gyro(0, 0.002), n_acc(0, 0.03);
++  std::uniform_real_distribution<double> u(0, 1);
++  // mount: sensor = body * Ry(-135 deg)
++  const Q mount = {std::cos(-135.0 * M_PI / 360), 0, std::sin(-135.0 * M_PI / 360), 0};
++  Q body = {1, 0, 0, 0};
++  fc_imu::AttitudeFilter f;
++  double pulse_amp = 0, pulse_tau = 0.01, pulse_left = 0;
++  double next_freeze = sc.freeze_every, freeze_left = 0;
++  double gfrozen[3] = {0, 0, 0}, afrozen[3] = {0, 0, 0};
++  std::vector<double> errs;
++  double sx = 0, sxx = 0;
++  int nq = 0;
++  Result r;
++  double q_hold[4] = {0, 0, 0, 0};
++  bool hold_valid = false;
++  double qpub[4] = {0, 0, 0, 0};
++  bool pub_valid = false;
++  for (int i = 0; i * dt < sc.seconds; i++) {
++    const double t = i * dt;
++    // body rates (body frame): roll/pitch oscillation + slow yaw
++    double wb[3] = {sc.motion_amp * 2 * M_PI * 1.0 * std::cos(2 * M_PI * 1.0 * t),
++                    sc.motion_amp * 2 * M_PI * 0.7 * std::cos(2 * M_PI * 0.7 * t + 1), 0.2 * sc.motion_amp};
++    // sensor-frame true rate: R_mount^T wb (rotation about y by -135 deg)
++    const double c = -k, s = -k;  // cos/sin(-135)
++    double ws[3] = {c * wb[0] - s * wb[2], wb[1], s * wb[0] + c * wb[2]};
++    body = mul(body, expq(wb, dt));
++    const Q sensor = mul(body, mount);
++    double up[3];
++    up_in(sensor, up);
++    // specific force: g*up + linear accel (body x/z gait oscillation, in sensor frame)
++    const double ax_b = sc.accel_osc * std::sin(2 * M_PI * 2.5 * t), az_b = sc.accel_osc * std::sin(2 * M_PI * 2.5 * t + 1);
++    double acc[3] = {g * up[0] + c * ax_b - s * az_b + n_acc(rng), g * up[1] + n_acc(rng),
++                     g * up[2] + s * ax_b + c * az_b + n_acc(rng)};
++    double gy[3] = {ws[0] + n_gyro(rng) + sc.bias_x, ws[1] + n_gyro(rng), ws[2] + n_gyro(rng)};
++    // one-sided negative step-and-decay pulses, 0.03-0.3 rad/s, 15-40 ms
++    if (pulse_left <= 0 && u(rng) < sc.pulse_per_s * dt) {
++      pulse_amp = 0.03 + 0.27 * u(rng);
++      pulse_left = 0.015 + 0.025 * u(rng);
++      pulse_tau = pulse_left / 2;
++    }
++    if (pulse_left > 0) {
++      gy[0] -= pulse_amp;
++      pulse_amp *= std::exp(-dt / pulse_tau);
++      pulse_left -= dt;
++    }
++    // freezes: outputs bit-identical while reports keep arriving
++    bool freezing = false;
++    if (sc.freeze_every > 0 && t >= next_freeze && freeze_left <= 0) {
++      freeze_left = sc.freeze_len;
++      next_freeze = t + sc.freeze_every;
++      for (int j = 0; j < 3; j++) {
++        gfrozen[j] = gy[j] - 0.25;  // frozen at a pulse value: worst case for integration
++        afrozen[j] = acc[j];
++      }
++    }
++    if (freeze_left > 0) {
++      freezing = true;
++      freeze_left -= dt;
++      for (int j = 0; j < 3; j++) {
++        gy[j] = gfrozen[j];
++        if (sc.freeze_accel) acc[j] = afrozen[j];
++      }
++    }
++    f.set_accel(acc);
++    f.update_gyro(gy, dt);
++    double rate[3];
++    f.rate(rate);
++    if (freezing && f.frozen()) {
++      for (double v : rate) r.max_rate_during_freeze = std::fmax(r.max_rate_during_freeze, std::fabs(v));
++      double qp[4];
++      f.quat_xyzw(qp);
++      if (pub_valid && (qp[0] != qpub[0] || qp[1] != qpub[1] || qp[2] != qpub[2] || qp[3] != qpub[3]))
++        r.pub_held_on_gyro_freeze = false;
++      for (int j = 0; j < 4; j++) qpub[j] = qp[j];
++      pub_valid = true;
++      if (sc.freeze_accel) {
++        double q[4];
++        f.quat_xyzw(q);
++        if (hold_valid && (q[0] != q_hold[0] || q[1] != q_hold[1] || q[2] != q_hold[2] || q[3] != q_hold[3]))
++          r.held_exactly = false;
++        // accel freeze needs accel_freeze_n repeats before the hold starts
++        if (f.stats().accel_frozen_samples > 0) {
++          for (int j = 0; j < 4; j++) q_hold[j] = q[j];
++          hold_valid = true;
++        }
++      }
++    } else {
++      hold_valid = false;
++      pub_valid = false;
++    }
++    if (f.quiet() && !f.frozen()) {
++      sx += rate[0];
++      sxx += rate[0] * rate[0];
++      nq++;
++    }
++    if (t >= 2.0) {
++      const double e = tilt_err_deg(f, sensor);
++      errs.push_back(e);
++      r.max_err_after_2s = std::fmax(r.max_err_after_2s, e);
++    }
++  }
++  std::sort(errs.begin(), errs.end());
++  r.p99_err = errs.empty() ? 0 : errs[static_cast<size_t>(0.99 * (errs.size() - 1))];
++  r.quiet_x_std = nq > 1 ? std::sqrt(std::fmax(0.0, sxx / nq - (sx / nq) * (sx / nq))) : 0;
++  return r;
++}
++}  // namespace
++
++int main() {
++  {
++    Scenario s{"clean, still"};
++    Result r = run(s);
++    check(r.max_err_after_2s < 0.3, "clean still: max tilt error (deg)", r.max_err_after_2s, 0.3);
++  }
++  {
++    Scenario s{"rest, bias -0.115 + 33 pulses/s (2000/min)"};
++    s.seconds = 120;
++    s.bias_x = -0.115;
++    s.pulse_per_s = 33;
++    Result r = run(s);
++    check(r.max_err_after_2s < 2.0, "still, X bias -0.115 + 2000 pulses/min: max err (deg)", r.max_err_after_2s, 2.0);
++    check(r.quiet_x_std < 0.01, "still, despiked published X std (rad/s)", r.quiet_x_std, 0.01);
++  }
++  {
++    Scenario s{"walking-like motion + faults"};
++    s.seconds = 120;
++    s.motion_amp = 0.1;
++    s.bias_x = -0.1;
++    s.pulse_per_s = 20;
++    s.accel_osc = 2.0;
++    Result r = run(s);
++    check(r.p99_err < 3.0, "moving +-6 deg, gait accel 2 m/s^2, X faults: p99 err (deg)", r.p99_err, 3.0);
++    check(r.max_err_after_2s < 4.0, "moving +-6 deg, gait accel 2 m/s^2, X faults: max err", r.max_err_after_2s, 4.0);
++  }
++  {
++    Scenario s{"gyro freezes, accel live"};
++    s.seconds = 60;
++    s.motion_amp = 0.05;
++    s.freeze_every = 5;
++    s.freeze_len = 1.5;
++    s.pulse_per_s = 10;
++    s.bias_x = -0.05;
++    Result r = run(s);
++    // accel-only lag while the gyro is frozen: ~2x the motion amplitude (+-3 deg at 1 Hz here)
++    check(r.max_err_after_2s < 6.0, "1.5 s gyro freezes while moving +-3 deg: max err (deg)", r.max_err_after_2s, 6.0);
++    check(r.max_rate_during_freeze == 0.0, "published rate during a detected freeze", r.max_rate_during_freeze, 0.0);
++    check(r.pub_held_on_gyro_freeze, "gyro frozen: published quaternion held (bridge guard sees it)",
++          r.pub_held_on_gyro_freeze ? 1 : 0, 1);
++  }
++  {
++    Scenario s{"whole-chip freezes"};
++    s.seconds = 30;
++    s.freeze_every = 5;
++    s.freeze_len = 1.0;
++    s.freeze_accel = true;
++    Result r = run(s);
++    check(r.held_exactly, "gyro+accel frozen: quaternion held bit-exactly", r.held_exactly ? 1 : 0, 1);
++    check(r.max_err_after_2s < 1.0, "gyro+accel frozen (robot still): max err (deg)", r.max_err_after_2s, 1.0);
++  }
++  printf("%s (%d failure%s)\n", failures ? "FAILED" : "ALL PASSED", failures, failures == 1 ? "" : "s");
++  return failures ? 1 : 0;
++}

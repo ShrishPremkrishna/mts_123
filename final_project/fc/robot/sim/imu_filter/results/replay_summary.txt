@@ -1,0 +1,4 @@
+ks4 native settled(87%): BNO max 30.9 filt max 1.01 p99 0.35 | still: BNO max 35.8 filt p99 1.77 | moving: BNO max 37.9 filt p99 12.83 | quiet X std 0.0611->0.0051 | frozen 522
+ks4 100.0 settled(87%): BNO max 30.9 filt max 1.03 p99 0.39 | still: BNO max 35.8 filt p99 1.77 | moving: BNO max 37.9 filt p99 13.36 | quiet X std 0.0615->0.0052 | frozen 201
+ks6 native settled(80%): BNO max 2.7 filt max 1.45 p99 0.2 | still: BNO max 19.0 filt p99 1.27 | moving: BNO max 19.3 filt p99 10.65 | quiet X std 0.0139->0.0052 | frozen 1886
+ks6 100.0 settled(80%): BNO max 2.7 filt max 1.49 p99 0.22 | still: BNO max 19.0 filt p99 1.38 | moving: BNO max 19.2 filt p99 10.73 | quiet X std 0.014->0.0054 | frozen 750

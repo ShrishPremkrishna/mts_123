@@ -1,0 +1,8 @@
+bad_nofreeze_stock_vx0.75    falls 3/3 imuErr p95 19.5 max 21.4 tilt 54.9 xy 0.382
+bad_nofreeze_stock_seq       falls 3/3 imuErr p95 17.7 max 18.6 tilt 58.3 xy 0.535
+bad_nofreeze_filter_vx0.75   falls 0/3 imuErr p95 3.1 max 5.7 tilt 15.9 xy 0.12
+bad_nofreeze_filter_seq      falls 0/3 imuErr p95 3.6 max 7.2 tilt 16.0 xy 0.104
+freeze_only_stock_vx0.75     falls 3/3 imuErr p95 37.2 max 53.6 tilt 59.0 xy 0.638
+freeze_only_stock_seq        falls 3/3 imuErr p95 29.5 max 63.9 tilt 54.9 xy 0.277
+freeze_only_filter_vx0.75    falls 2/3 imuErr p95 7.3 max 57.0 tilt 55.2 xy 0.134
+freeze_only_filter_seq       falls 2/3 imuErr p95 13.5 max 26.4 tilt 55.5 xy 0.108

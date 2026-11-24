@@ -1,0 +1,4 @@
+final_none_filter_vx0.75         falls 0/3 imuErr p95 1.9 max 5.6 tilt 17.0 xy 0.112
+final_none_filter_seq            falls 0/3 imuErr p95 3.0 max 6.8 tilt 10.1 xy 0.092
+final_badnofreeze_filter_vx0.75  falls 0/3 imuErr p95 3.1 max 5.7 tilt 15.9 xy 0.12
+final_badnofreeze_filter_seq     falls 0/3 imuErr p95 3.6 max 7.2 tilt 16.0 xy 0.104
