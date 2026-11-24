@@ -15,8 +15,8 @@ diff -ruN a/control_board_hardware_interface/CMakeLists.txt b/control_board_hard
  ## EXPORTS
 diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp b/control_board_hardware_interface/include/rt/fc_imu_filter.hpp
 --- a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp	1969-12-31 16:00:00
-+++ b/control_board_hardware_interface/include/rt/fc_imu_filter.hpp	2026-11-23 23:33:19
-@@ -0,0 +1,289 @@
++++ b/control_board_hardware_interface/include/rt/fc_imu_filter.hpp	2026-11-23 23:47:10
+@@ -0,0 +1,300 @@
 +// FC v1 IMU crutch: our own roll/pitch estimate for a BNO085 whose gyro X axis
 +// emits one-sided negative pulses, drifts in bias and sometimes freezes.
 +//
@@ -35,7 +35,8 @@ diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp b/cont
 +//   * m is the mean pulse contribution (EMA of X - b0 in quiet samples). While the
 +//     body moves, pulses cannot be told from motion sample by sample, so X - b0 - m
 +//     is used: the pulses' average effect is removed and the accel corrects the rest.
-+// Freeze: gyro bit-identical for freeze_s -> rate treated as unknown (0), the filter
++// Freeze: gyro bit-identical for freeze_s while its value is not ~0 or the accel shows
++//   motion (a still chip repeats ~0 for seconds) -> rate treated as unknown (0), the filter
 +//   runs on accel only. Accel bit-identical for accel_freeze_n samples -> no accel
 +//   correction (orientation held). While the gyro is frozen the PUBLISHED quaternion
 +//   and rate are held bit-identical (the internal estimate keeps tracking accel), so
@@ -67,7 +68,10 @@ diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp b/cont
 +  double baseline_limit = 0.05;  // rad/s clamp on b0
 +  double pulse_mean_tau = 5.0;   // s
 +  double pulse_mean_limit = 0.15;
-+  double freeze_s = 0.04;        // gyro bit-identical this long = frozen
++  double freeze_s = 0.04;        // gyro bit-identical this long = frozen ...
++  double freeze_rate_min = 0.02; // ... only if the held value is not ~0 (rad/s) ...
++  double freeze_accel_act = 0.3; // ... or the accel shows motion (m/s^2, mean |a - lowpass|).
++                                 // A still BNO legitimately repeats ~0 for many seconds (mts 2026-11-24).
 +  int accel_freeze_n = 4;        // accel bit-identical this many repeats = frozen
 +  double accel_max_age = 0.1;    // s without a new accel sample = no correction
 +  double accel_lp_tau = 0.1;     // s, low-pass on the accel VECTOR before use (mean, not mean direction)
@@ -120,7 +124,13 @@ diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp b/cont
 +    }
 +    for (int i = 0; i < 3; i++) gprev_[i] = g[i];
 +    have_gyro_ = true;
-+    frozen_ = same_s_ >= p_.freeze_s;
++    if (have_acc_) {
++      const double d0 = acc_[0] - acc_lp_[0], d1 = acc_[1] - acc_lp_[1], d2 = acc_[2] - acc_lp_[2];
++      act_ += 0.1 * (std::sqrt(d0 * d0 + d1 * d1 + d2 * d2) - act_);
++    }
++    const bool nonzero = std::fabs(g[0] - b0_) > p_.freeze_rate_min || std::fabs(g[1]) > p_.freeze_rate_min ||
++                         std::fabs(g[2]) > p_.freeze_rate_min;
++    frozen_ = same_s_ >= p_.freeze_s && (nonzero || act_ > p_.freeze_accel_act);
 +    if (same_s_ > st_.longest_freeze_s) st_.longest_freeze_s = same_s_;
 +
 +    // Sanitize.
@@ -299,6 +309,7 @@ diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp b/cont
 +  double gprev_[3] = {0, 0, 0};
 +  double rate_[3] = {0, 0, 0};
 +  double b0_ = 0.0, m_ = 0.0;
++  double act_ = 0.0;  // accel activity (EMA of |a - lowpass|)
 +  double same_s_ = 0.0, acc_age_ = 1e9;
 +  int acc_same_n_ = 0;
 +  bool init_ = false, have_acc_ = false, have_gyro_ = false;
@@ -579,8 +590,8 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
  }
 diff -ruN a/control_board_hardware_interface/test/test_fc_imu_filter.cpp b/control_board_hardware_interface/test/test_fc_imu_filter.cpp
 --- a/control_board_hardware_interface/test/test_fc_imu_filter.cpp	1969-12-31 16:00:00
-+++ b/control_board_hardware_interface/test/test_fc_imu_filter.cpp	2026-11-23 23:33:19
-@@ -0,0 +1,225 @@
++++ b/control_board_hardware_interface/test/test_fc_imu_filter.cpp	2026-11-23 23:48:10
+@@ -0,0 +1,255 @@
 +// Unit test for rt/fc_imu_filter.hpp (FC v1 IMU crutch). Plain C++, no ROS/gtest.
 +// Simulates the Pupper IMU (sensor pitched -135 deg about body y) with the observed
 +// BNO085 faults: one-sided negative gyro-X pulses, X bias drift and output freezes.
@@ -802,6 +813,36 @@ diff -ruN a/control_board_hardware_interface/test/test_fc_imu_filter.cpp b/contr
 +    Result r = run(s);
 +    check(r.held_exactly, "gyro+accel frozen: quaternion held bit-exactly", r.held_exactly ? 1 : 0, 1);
 +    check(r.max_err_after_2s < 1.0, "gyro+accel frozen (robot still): max err (deg)", r.max_err_after_2s, 1.0);
++  }
++  {
++    // Still robot, chip repeating a quantized ~0 rate for 30 s (seen on mts): not a freeze,
++    // orientation keeps following accel (a slow 3 deg lean must reach the published tilt).
++    fc_imu::AttitudeFilter f;
++    const double g = 9.80665;
++    const double gy[3] = {0.00195, 0.0, -0.00195};
++    std::mt19937 rng(3);
++    std::normal_distribution<double> na(0, 0.03);  // real accel noise (never 4 identical samples)
++    double maxerr = 0;
++    bool any_frozen = false;
++    for (int i = 0; i < 3000; i++) {
++      const double lean = (i > 1000) ? std::fmin(3.0, (i - 1000) * 0.003) * M_PI / 180 : 0.0;
++      // body pitched by `lean`; sensor = body * Ry(-135): sensor up = Ry(135+lean)^T z
++      const double th = -135.0 * M_PI / 180 - lean;
++      const double a[3] = {-std::sin(th) * g + na(rng), na(rng), std::cos(th) * g + na(rng)};
++      f.set_accel(a);
++      f.update_gyro(gy, 0.01);
++      any_frozen = any_frozen || f.frozen();
++      if (i > 2500) {
++        double q[4];
++        f.quat_xyzw(q);
++        const double up[3] = {2 * (q[0] * q[2] - q[3] * q[1]), 2 * (q[1] * q[2] + q[3] * q[0]),
++                              q[3] * q[3] - q[0] * q[0] - q[1] * q[1] + q[2] * q[2]};
++        const double c = (up[0] * a[0] + up[1] * a[1] + up[2] * a[2]) / std::sqrt(a[0] * a[0] + a[1] * a[1] + a[2] * a[2]);
++        maxerr = std::fmax(maxerr, std::acos(std::fmin(1.0, c)) * 180 / M_PI);
++      }
++    }
++    check(!any_frozen, "still chip repeating ~0 rate 30 s: not flagged frozen", any_frozen ? 1 : 0, 0);
++    check(maxerr < 1.0, "still chip repeating ~0: published tilt follows a 3 deg lean", maxerr, 1.0);  // vs noisy accel
 +  }
 +  printf("%s (%d failure%s)\n", failures ? "FAILED" : "ALL PASSED", failures, failures == 1 ? "" : "s");
 +  return failures ? 1 : 0;

@@ -2,11 +2,19 @@
 
 **Status:** built and tested offline and in sim. **Not deployed.** Default is off: without `FC_IMU_FILTER=1` the new driver behaves like stock.
 
-**Patch:** `fc/robot/imu/stock-imu-filter.patch`, sha `ce78bfcd…`.
+**Patch:** `fc/robot/imu/stock-imu-filter.patch`, sha `983a6e49…` (v2).
 - Applies to the Pi stock driver (`~/pupperv3-monorepo` `0e50afb`, `control_board_hardware_interface` at `e333272`).
 - It edits the same files as `stock-bno-dyncal.patch`, so apply one or the other, not both.
 
-**Built .so:** mts `~/fc-v1/build/imu-filter/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so`, sha256 `2486fa0a…14e5`.
+**Built .so:** v2 at mts `~/fc-v1/build/imu-filter-v2/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so`, sha256 `19d60fad…a3a2`.
+- v1 (`~/fc-v1/build/imu-filter`, `2486fa0a…`) is what the stack was running on 2026-11-24 ~07:45 UTC, through the installed symlink. v2 went to a new directory so the live file was not overwritten.
+- **v1 live finding (homed on the stand):** gyro reports arrived at about 100/s and accel at about 127/s. Yet v1 counted the gyro as "frozen" for 20–27 s at a time, and so held the published tilt.
+- **This is the chip, not the parser:**
+  - Every gyro report is decoded (the count rises 100/s), at the stock byte offsets.
+  - The values do change occasionally (0.2 s episodes, bias updates).
+  - The independent direct-I2C reader saw the same thing with motors off: the calibrated gyro repeated for 6.5 s.
+  - A still BNO repeats ~0. v1 treated that as a freeze.
+- **v2 change:** a freeze now also needs the held value to be off zero (more than 0.02 rad/s) or the accel to show motion (more than 0.3 m/s²). The motors-off recording now shows 0 frozen samples, and a new unit test covers it.
 - Built RelWithDebInfo, the same build type as the installed stock .so (`01813d58…`).
 - The only compiler warning is the stock `unused sequence_number`.
 - `colcon test -R test_fc_imu_filter`: 1 test, 0 failures. The output is in `test_output.txt` next to the build.
@@ -31,7 +39,7 @@ The filter lives in `include/rt/fc_imu_filter.hpp`: header-only, no ROS or Eigen
    - **Body still** (Y and Z both under 0.03 rad/s): samples more than 0.015 below the clean X level are replaced by that level. The clean level is tracked as the 90th percentile, because the pulses only go negative.
    - **Body moving:** X minus that level minus the average pulse size learned while still.
    - **Published rate:** X cleaned as above; Y and Z exactly as measured.
-4. **Freeze** (gyro bit-identical for 40 ms or more):
+4. **Freeze** (gyro bit-identical for 40 ms or more, **and** the held value is off zero or the accel shows motion):
    - the published rate is 0, and the published quaternion is **held bit-identical**;
    - inside the filter, the estimate keeps following the accel.
    - Why: in sim, walking through 0.3–1.5 s freezes still fell 4 times in 6 even with a good tilt estimate, because the policy has no body rate. Holding the output keeps the bridge's existing "frozen" stop working.
@@ -83,12 +91,12 @@ The filter lives in `include/rt/fc_imu_filter.hpp`: header-only, no ROS or Eigen
 Do this only with the session owner's approval, and only with the stack stopped.
 ```
 I=~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib
-B=~/fc-v1/build/imu-filter
+B=~/fc-v1/build/imu-filter-v2
 ~/fc-v1/robot/fcctl.sh stop
 sha256sum $I/libcontrol_board_hardware_interface.so      # expect 01813d58...c7ced5a1 (stock)
 cp -p $I/libcontrol_board_hardware_interface.so $B/stock-01813d58.so
 cp $B/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so $I/
-sha256sum $I/libcontrol_board_hardware_interface.so      # expect 2486fa0a...14e5
+sha256sum $I/libcontrol_board_hardware_interface.so      # expect 19d60fad...a3a2 (v2)
 FC_IMU_FILTER=1 ~/fc-v1/robot/fcctl.sh start stock_hh0 --confirm   # homes the legs
 grep FC_IMU_FILTER ~/fc-v1/runs/<new run>/robot.log    # "on: kp=2.000", then 10 s stats, accel=... > 0
 ```
