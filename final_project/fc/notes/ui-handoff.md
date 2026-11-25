@@ -2,6 +2,25 @@
 
 For the next chat continuing the Pupper FC screens. Usage and keys also live in [../README.md](../README.md) (Play screen section).
 
+## Principles (read first)
+- **North star:** a 2-minute live demo (Dec 3) of two Puppers playing soccer, switching offense/defense, moving fast and
+  deliberately. The UI serves that demo and the operator; everything else is secondary. Plan: [../DEMO.md](../DEMO.md);
+  status: [../STATUS.md](../STATUS.md).
+- **Iterate, don't one-shot.** Small, working, visible increments; check each one in sim (`fc/run.sh sim`) and in the
+  browser before the next. Keep the current screen working while you improve it.
+- **The UI is a client of backend operations, never the place where logic lives.** Every action (Ready = home/stand/bridge,
+  down, E-STOP, tests like push_ball/goalie/step, ballcal, rollcal, presets) is ONE backend operation exposed by
+  `fc/app.py` and usable identically by the UI, by `python -m fc.ctl`, and by agents. Example: "Ready" is a single
+  `fcctl ready` that homes, stands and starts the bridge — nobody (human or agent) should need to chain several commands.
+  When the UI needs something new, add (or extend) a backend operation and its `ctl` command first, then a button.
+- **Don't break the robot path.** The control loop, link, brain and robot side are owned by the main FC session;
+  the UI chat owns `fc/ui/*` (and this note). If a backend change is needed, keep it small, add a test, and say so in
+  the commit. Never block the 30 Hz loop from the UI (no heavy work in request handlers; feeds/recording stay off the hot path).
+- **Honest state.** Never show a robot as ready/healthy/standing unless `/state` says so; missing feeds show "not connected".
+- **Safety keys are sacred:** space = STOP and Esc = E-STOP must work everywhere, always.
+- **Before pushing:** `/Users/shrish/workspace/cs123/.venv-fc/bin/python -m pytest -q fc/tests` (from `final_project/`),
+  check both screens in sim, commit only your files, push `fc-v1` (main is fast-forwarded from it).
+
 ## How it is served
 - `fc/app.py` (stdlib HTTP, one process): `/` and `/play` → `ui/play.html` (projector), `/ops` → `ui/index.html`
   (tests, params, teleop), `GET /state` (JSON, the UI polls it every 100 ms), `/view.jpg` (clean overhead frame, the
