@@ -80,6 +80,56 @@ def test_push_max_heading_squares_up_and_backs_off_before_pushing():
     assert dbg["phase"] == "push"
 
 
+def test_push_side_off_by_default_is_centre_line():
+    assert DEFAULTS["push_side_m"] == 0
+    b = Brain(BLUE, F)
+    cmd, dbg = run(b, lambda t: world(t, (-0.30, 0.05, 0.0), (0.0, 0.0)), 10)[-1]
+    assert "side" not in dbg and b.push_side == 0.0 and abs(dbg["lat"] - 0.05) < 1e-6
+
+
+def test_push_side_auto_picks_current_side_offsets_target_and_latches():
+    q = {**P, "push_side_m": 0.06, "push_side": "auto"}
+    b = Brain(BLUE, F)  # attacks +x: n = +y, robot at y=+0.03 is left of the shot line (ball on its right)
+    cmd, dbg = run(b, lambda t: world(t, (-0.30, 0.03, 0.0), (0.0, 0.0)), 10, q)[-1]
+    assert b.push_side == 1.0 and dbg["side"] == 0.06
+    assert abs(dbg["lat"] - (0.03 - 0.06)) < 1e-6  # lateral error measured from the offset line
+    assert abs(dbg["target"][1] - 0.06) < 1e-6 and dbg["phase"] == "push"
+    # sitting exactly on the offset line: no lateral slide, keeps pushing
+    cmd, dbg = run(b, lambda t: world(t, (-0.25, 0.06, 0.0), (0.0, 0.0)), 5, q)[-1]
+    assert dbg["phase"] == "push" and abs(dbg["lat"]) < 1e-6 and abs(cmd.vy) < 1e-6
+    # hysteresis: drifting across the centre line mid-push (still within 2*tol of the offset line) keeps the side
+    cmd, dbg = run(b, lambda t: world(t, (-0.25, -0.05, 0.0), (0.0, 0.0)), 5, q)[-1]
+    assert b.push_side == 1.0 and dbg["phase"] == "push"
+    # ball lost resets; the next approach from the other side picks the other side
+    b.decide(world(10.0, (-0.3, -0.05, 0.0), None), q)
+    assert b.push_side == 0.0
+    cmd, dbg = run(b, lambda t: world(20 + t, (-0.30, -0.03, 0.0), (0.0, 0.0)), 5, q)[-1]
+    assert b.push_side == -1.0 and abs(dbg["target"][1] + 0.06) < 1e-6
+
+
+def test_push_side_auto_on_line_uses_heading_and_fixed_sides():
+    q = {**P, "push_side_m": 0.06}
+    b = Brain(BLUE, F)
+    b.decide(world(0.0, (-0.30, 0.0, 0.2), (0.0, 0.0)), q)  # facing left of +x: drifts to +y
+    assert b.push_side == 1.0
+    b = Brain(BLUE, F)
+    b.decide(world(0.0, (-0.30, 0.0, -0.2), (0.0, 0.0)), q)
+    assert b.push_side == -1.0
+    for side, want in (("left", -1.0), ("right", 1.0)):
+        b = Brain(BLUE, F)
+        b.decide(world(0.0, (-0.30, 0.04, 0.0), (0.0, 0.0)), {**q, "push_side": side})
+        assert b.push_side == want
+
+
+def test_push_side_route_phase_unlatches():
+    q = {**P, "push_side_m": 0.06}
+    b = Brain(BLUE, F)
+    b.decide(world(0.0, (-0.30, 0.03, 0.0), (0.0, 0.0)), q)
+    assert b.push_side == 1.0
+    cmd, dbg = run(b, lambda t: world(1 + t, (0.4, 0.0, math.pi), (0.0, 0.0)), 3, q)[-1]
+    assert dbg["phase"] == "route" and b.push_side == 0.0
+
+
 def test_wrong_side_routes_around_with_clearance():
     b = Brain(BLUE, F)
     cmd, dbg = run(b, lambda t: world(t, (0.40, 0.0, math.pi), (0.0, 0.0)), 5)[-1]

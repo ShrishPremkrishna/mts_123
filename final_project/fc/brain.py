@@ -29,6 +29,13 @@ Knobs (params.json; DEFAULTS below apply when a key is missing):
   clear_margin  extra clearance (m) beyond ball_radius+robot_radius when orbiting
   push_vx, push_ahead, push_lat_tol  push speed, aim point beyond the ball, |l| latch (m)
   push_turn_scale  heading gain multiplier while pushing (lower = calmer dribble)
+  push_side_m   0 = off (push dead-centre). >0 (m): approach and push along a line parallel to the shot line,
+                shifted sideways so the ball sits push_side_m off the robot's centre line (a front leg/shoulder
+                carries it; Nov 25 floor: off-centre hits scored, tight head-on alignment did not). push_lat_tol
+                is then measured from that offset line. Push mode only, not plan mode.
+  push_side     auto|left|right: which side of the robot the ball sits on. auto = the side the robot is
+                already on (by heading when within 2 cm of the line). Latched once behind the ball; kept until
+                the push ends, the robot loses the behind cone, the role changes or the ball is lost
   push_max_heading_deg  0 = off. >0: on the shot line next to the ball but facing more than this
                 off the push direction -> "square" (turn in place toward the shot line, backing off
                 to hold the body clear of the ball) instead of pushing sideways; +15 deg hysteresis
@@ -123,6 +130,7 @@ DEFAULTS = {
     "behind_cone_deg": 120, "clear_margin": 0.06, "orbit_hold_s": 2.0, "orbit_slack": 0.10,
     "push_vx": 0.30, "push_ahead": 0.4, "push_turn_scale": 0.6, "push_lat_tol": 0.09, "aim_y_frac": 0.5,
     "push_max_heading_deg": 0,
+    "push_side_m": 0.0, "push_side": "auto",
     "hb_standoff": 0.12, "hb_square_r": 0.2, "hb_lat_tol": 0.06, "hb_align_deg": 15, "hb_charge_vx": 0.30,
     "hb_charge_dist": 0.50, "hb_accel": 1.2, "hb_backoff_vx": 0.15, "hb_backoff_s": 0.8,
     "goalie_style": "sideways", "goalie_dist": 0.25, "goalie_margin": 0.05,
@@ -285,6 +293,7 @@ class Brain:
         self.side_until = -1e9
         self.goto_done = False
         self.pushing = False
+        self.push_side = 0.0      # latched push offset side: +1 robot left of the shot line (ball on its right)
         self.hb: dict | None = None
         self.returning = False
         self.clearing = False
@@ -306,7 +315,7 @@ class Brain:
         self.last_t = t
         me = world.robots.get(self.cfg.id)
         if me is None or t - me.t > p["pose_stale_s"]:
-            self.out, self.hb, self.pushing = Cmd.stop("pose_stale"), None, False
+            self.out, self.hb, self.pushing, self.push_side = Cmd.stop("pose_stale"), None, False, 0.0
             self.hist.clear()
             return self.out, {"role": "idle", "phase": "pose_stale", "target": None}
         if 0 < p["coast_s"] < t - me.t and p["role_mode"] != "goto" and (self.out.vx or self.out.vy or self.out.wz):
@@ -330,7 +339,7 @@ class Brain:
             dbg.update(role="goto", pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)])
             return cmd, dbg
         if ball is None or t - ball.t > p["ball_stale_s"]:
-            self.hb, self.pushing = None, False
+            self.hb, self.pushing, self.push_side = None, False, 0.0
             want = Cmd(0.0, 0.0, p["search_wz"] if p["ball_lost"] == "search" else 0.0, "ball_lost")
             cmd = self._smooth(want, dt, p, t)
             return cmd, {"role": self.role or "idle", "phase": "ball_lost_" + p["ball_lost"], "target": None}
@@ -342,6 +351,8 @@ class Brain:
         role, costs = self._role(pose, B, others, t, p, bv)
         if role != "attack":
             self.plan = None
+            if not self.clearing:
+                self.push_side = 0.0
         if role == "attack" and p["plan"] and p["contact_mode"] == "push" and t - self.plan_fail_t >= p["plan_min_s"]:
             self.returning = self.clearing = False
             want, dbg = self._attack_plan(pose, B, bv, others, p, t)
@@ -645,30 +656,37 @@ class Brain:
             return self._headbutt(pose, B, u, n, a, l, phi, clear, others, p, t)
         self.hb = None
         if not self.behind:
-            self.pushing = False
+            self.pushing, self.push_side = False, 0.0
             tgt = self._route(pose, B, u, n, phi, clear, p, t)
             return self._goto(pose, tgt, p, p["max_vx"], others, tag="route"), \
                 {"phase": "route", "target": [round(tgt[0], 3), round(tgt[1], 3)], "lat": round(l, 3)}
+        herr = wrap(math.atan2(u[1], u[0]) - pose.yaw)
+        d_side = self._side(l, herr, p)
+        l0, l = l, l - d_side  # lateral error from the (offset) push line
         tol = p["push_lat_tol"]
         on_line = abs(l) < (2 * tol if self.pushing else tol)
         dB = math.hypot(pose.x - B[0], pose.y - B[1])
         close = dB < c + 0.15
         lim = p["push_max_heading_deg"]
-        herr = wrap(math.atan2(u[1], u[0]) - pose.yaw)
         if lim > 0 and on_line and close and abs(herr) > math.radians(lim + (15 if self.pushing else 0)):
             # pushes that began 50-130 deg off the shot line knocked the ball sideways: square up first,
             # stepping back while the body is within clear_margin of the ball so turning can't clip it
-            self.pushing = False
+            self.pushing = False  # (the side stays latched: squaring is part of the same push)
             bx, _ = to_body(pose, B[0] - pose.x, B[1] - pose.y)
             vx = -p["unstick_vx"] if dB < clear and bx > 0 else 0.0
             return Cmd(vx, clamp(-p["k_vy"] * l, -p["max_vy"], p["max_vy"]), p["k_turn"] * herr, "square"), \
                 {"phase": "square", "target": [round(B[0], 3), round(B[1], 3)], "lat": round(l, 3)}
+        if self.pushing and not on_line and p["push_side_m"] > 0:  # push ended: choose the side afresh
+            self.push_side = 0.0
+            d_side = self._side(l0, herr, p)
+            l = l0 - d_side
+            on_line = abs(l) < tol
         self.pushing = on_line
         # unified curved approach: far off the line -> stage behind the ball (k_curve*|l|);
         # on the line -> aim push_ahead beyond the ball and keep walking through it
         w = min(1.0, abs(l) / (2 * tol))
         back = p["k_curve"] * abs(l) * w - p["push_ahead"] * (1.0 - w)
-        tgt = (B[0] - u[0] * back, B[1] - u[1] * back)
+        tgt = (B[0] - u[0] * back + n[0] * d_side, B[1] - u[1] * back + n[1] * d_side)
         if back > 0:
             tgt = self._clamp_field(tgt, p)
         phase = "push" if self.pushing and close else "approach"
@@ -677,7 +695,29 @@ class Brain:
         if self.pushing:  # slide onto the shot line with the weak lateral axis
             cmd = Cmd(cmd.vx, clamp(-p["k_vy"] * l, -p["max_vy"], p["max_vy"]) * (1 - w),
                       cmd.wz * p["push_turn_scale"], phase)
-        return cmd, {"phase": phase, "target": [round(tgt[0], 3), round(tgt[1], 3)], "lat": round(l, 3)}
+        dbg = {"phase": phase, "target": [round(tgt[0], 3), round(tgt[1], 3)], "lat": round(l, 3)}
+        if d_side:
+            dbg["side"] = round(d_side, 3)
+        return cmd, dbg
+
+    def _side(self, l: float, herr: float, p: dict) -> float:
+        """Signed lateral offset (m, along n) of the push line; 0 when push_side_m is off. The side is latched
+        in self.push_side (+1 = robot left of the shot line, ball on its right) until reset."""
+        d = p["push_side_m"]
+        if d <= 0:
+            self.push_side = 0.0
+            return 0.0
+        if not self.push_side:
+            mode = p["push_side"]
+            if mode == "left":     # ball on the robot's left -> robot right of the line
+                self.push_side = -1.0
+            elif mode == "right":
+                self.push_side = 1.0
+            elif abs(l) > 0.02:    # auto: the side we are already on
+                self.push_side = 1.0 if l > 0 else -1.0
+            else:                  # on the line: the side the heading already drifts to (yaw left of u -> +n)
+                self.push_side = 1.0 if herr <= 0 else -1.0
+        return self.push_side * d
 
     # ------------------------------------------------------------------ planned attack (plan mode)
     def _plan_goal(self, pose: Pose, B, bv, p: dict, eta: float | None = None):
