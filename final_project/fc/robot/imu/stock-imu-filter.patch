@@ -1,7 +1,7 @@
 diff -ruN a/control_board_hardware_interface/CMakeLists.txt b/control_board_hardware_interface/CMakeLists.txt
---- a/control_board_hardware_interface/CMakeLists.txt	2026-11-23 23:13:18
-+++ b/control_board_hardware_interface/CMakeLists.txt	2026-11-23 23:21:58
-@@ -62,6 +62,11 @@
+--- a/control_board_hardware_interface/CMakeLists.txt	2026-11-24 23:29:14.730353645 -0800
++++ b/control_board_hardware_interface/control_board_hardware_interface/CMakeLists.txt	2026-11-24 23:29:14.742353782 -0800
+@@ -62,6 +62,15 @@
    # a copyright and license is added to all source files
    set(ament_cmake_cpplint_FOUND TRUE)
    ament_lint_auto_find_test_dependencies()
@@ -10,12 +10,42 @@ diff -ruN a/control_board_hardware_interface/CMakeLists.txt b/control_board_hard
 +  add_executable(test_fc_imu_filter test/test_fc_imu_filter.cpp)
 +  target_include_directories(test_fc_imu_filter PRIVATE include)
 +  add_test(NAME test_fc_imu_filter COMMAND test_fc_imu_filter)
++  # FC v3: BNO stall guard (header-only, no ROS deps)
++  add_executable(test_fc_imu_stall test/test_fc_imu_stall.cpp)
++  target_include_directories(test_fc_imu_stall PRIVATE include)
++  add_test(NAME test_fc_imu_stall COMMAND test_fc_imu_stall)
  endif()
  
  ## EXPORTS
+diff -ruN a/control_board_hardware_interface/include/control_board_hardware_interface/imu_manager.hpp b/control_board_hardware_interface/include/control_board_hardware_interface/imu_manager.hpp
+--- a/control_board_hardware_interface/include/control_board_hardware_interface/imu_manager.hpp	2026-11-24 23:29:14.734353691 -0800
++++ b/control_board_hardware_interface/control_board_hardware_interface/include/control_board_hardware_interface/imu_manager.hpp	2026-11-24 23:29:14.742353782 -0800
+@@ -14,6 +14,7 @@
+ #include <thread>
+ #include <utility>
+ 
++#include "rt/fc_imu_stall.hpp"
+ #include "rt/rt_bno055.h"
+ 
+ #define IMU_I2C_DEVICE_NUMBER 1
+@@ -51,6 +52,14 @@
+ 
+   void poll_imu();
+ 
++  // FC v3 stall guard (FC_IMU_STALL=0 disables it): see rt/fc_imu_stall.hpp.
++  bool stall_guard_on_ = true;
++  std::unique_ptr<fc_imu::StallMonitor> stall_;
++  bool have_good_ = false;
++  BNO055::Output last_good_;
++  std::chrono::steady_clock::time_point t_origin_;
++  double now_s() const;
++
+ 
+   void imu_read_thread_fn();
+ 
 diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp b/control_board_hardware_interface/include/rt/fc_imu_filter.hpp
---- a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp	1969-12-31 16:00:00
-+++ b/control_board_hardware_interface/include/rt/fc_imu_filter.hpp	2026-11-23 23:47:10
+--- a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp	1969-12-31 16:00:00.000000000 -0800
++++ b/control_board_hardware_interface/control_board_hardware_interface/include/rt/fc_imu_filter.hpp	2026-11-24 23:29:14.742353782 -0800
 @@ -0,0 +1,300 @@
 +// FC v1 IMU crutch: our own roll/pitch estimate for a BNO085 whose gyro X axis
 +// emits one-sided negative pulses, drifts in bias and sometimes freezes.
@@ -317,24 +347,208 @@ diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp b/cont
 +};
 +
 +}  // namespace fc_imu
+diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_stall.hpp b/control_board_hardware_interface/include/rt/fc_imu_stall.hpp
+--- a/control_board_hardware_interface/include/rt/fc_imu_stall.hpp	1969-12-31 16:00:00.000000000 -0800
++++ b/control_board_hardware_interface/control_board_hardware_interface/include/rt/fc_imu_stall.hpp	2026-11-24 23:29:14.742353782 -0800
+@@ -0,0 +1,138 @@
++// FC v1 (v3): BNO085 stall guard. Header-only, no ROS; the IMU manager thread drives it.
++//
++// A "stall" is no new SHTP input report for stall_s. Seen on mts 2026-11-25: the I2C bus hung
++// (kernel "SDA stuck at low", then every transfer timed out) and the stock driver kept publishing
++// the last values for minutes. While stalled the manager publishes a marker (linear_acceleration
++// exactly 0, angular_velocity 0, orientation held; see imu_manager.cpp) and asks for re-inits of
++// the chip (soft reset + feature enables) with exponential backoff: max_fast re-inits spaced
++// backoff0_s, 2x, 4x ... up to backoff_max_s, then one every slow_period_s for as long as it lasts.
++// The stall clears only after fresh_reports new reports AND the caller says the output is
++// valid again (filter re-seeded from the accelerometer).
++#pragma once
++
++#include <algorithm>
++#include <cmath>
++#include <cstdint>
++#include <cstdio>
++#include <string>
++
++namespace fc_imu {
++
++struct StallParams {
++  double stall_s = 0.2;          // no input report this long -> stalled
++  double reinit_after_s = 0.5;   // first re-init this long after the last report (lets a hiccup pass)
++  double backoff0_s = 0.5;       // spacing after the first re-init, doubled each time
++  double backoff_max_s = 5.0;
++  int max_fast = 10;             // then one re-init every slow_period_s
++  double slow_period_s = 30.0;
++  int fresh_reports = 10;        // new reports needed (plus valid output) to clear a stall
++  double startup_grace_s = 3.0;  // no report at all this long after start -> stalled
++};
++
++class StallMonitor {
++ public:
++  enum class Action { kNone, kReinit };
++
++  explicit StallMonitor(const StallParams &p = StallParams()) : p_(p) {}
++
++  const StallParams &params() const { return p_; }
++  bool stalled() const { return stalled_; }
++  int reinits() const { return reinits_; }          // in the current stall
++  uint64_t stalls() const { return stalls_; }       // since start
++  double stall_started() const { return t0_; }      // time of the last report before the stall
++
++  // After every poll. reports: count of input reports parsed so far (monotonic).
++  // ready: the driver's output is valid (filter seeded, accel live; always true for stock).
++  Action update(double now, uint64_t reports, bool ready) {
++    if (!started_) {
++      started_ = true;
++      t_start_ = now;
++      last_reports_ = reports;
++      last_change_ = now;
++    }
++    const bool changed = reports != last_reports_;
++    if (changed) {
++      if (!seen_) seen_ = true;
++      if (stalled_ && !counting_) {
++        counting_ = true;
++        fresh_base_ = last_reports_;
++      }
++      last_reports_ = reports;
++      last_change_ = now;
++    }
++    if (!stalled_) {
++      const bool gap = seen_ ? (now - last_change_ > p_.stall_s)
++                             : (now - t_start_ > p_.startup_grace_s);
++      if (gap) {
++        stalled_ = true;
++        stalls_++;
++        reinits_ = 0;
++        counting_ = false;
++        t0_ = seen_ ? last_change_ : t_start_;
++        next_reinit_ = seen_ ? t0_ + p_.reinit_after_s : now;
++        gave_up_logged_ = false;
++        log("FC_IMU_STALL stall #%llu: no input report for %.0f ms%s; publishing the stall marker "
++            "(accel=0, rate=0, orientation held)",
++            (unsigned long long)stalls_, (now - t0_) * 1e3, seen_ ? "" : " since start");
++      }
++      return Action::kNone;
++    }
++    // Stalled.
++    if (counting_ && now - last_change_ > p_.stall_s) counting_ = false;  // reports stopped again
++    if (counting_ && ready && reports - fresh_base_ >= (uint64_t)p_.fresh_reports) {
++      stalled_ = false;
++      counting_ = false;
++      log("FC_IMU_STALL recovered: stall #%llu lasted %.3f s, %d re-init%s",
++          (unsigned long long)stalls_, now - t0_, reinits_, reinits_ == 1 ? "" : "s");
++      return Action::kNone;
++    }
++    if (!counting_ && now >= next_reinit_) return Action::kReinit;
++    return Action::kNone;
++  }
++
++  // The caller ran the re-init (blocking, in the IMU thread). now = time after it returned.
++  void reinit_done(double now, bool io_ok, double took_s) {
++    reinits_++;
++    double wait;
++    if (reinits_ < p_.max_fast) {
++      wait = std::min(p_.backoff0_s * std::pow(2.0, reinits_ - 1), p_.backoff_max_s);
++    } else {
++      wait = p_.slow_period_s;
++      if (!gave_up_logged_) {
++        gave_up_logged_ = true;
++        log("FC_IMU_STALL %d re-inits did not bring reports back; retrying every %.0f s "
++            "(a hung I2C bus needs fcctl.sh i2c-recover or a power cycle)",
++            reinits_, p_.slow_period_s);
++      }
++    }
++    next_reinit_ = now + wait;
++    log("FC_IMU_STALL re-init #%d %s in %.0f ms (stalled %.2f s); next in %.1f s unless reports return",
++        reinits_, io_ok ? "sent" : "FAILED (I2C errors)", took_s * 1e3, now - t0_, wait);
++  }
++
++  // Pending log line ("" if none); the caller prints it.
++  std::string take_log() {
++    std::string s;
++    s.swap(log_);
++    return s;
++  }
++
++ private:
++  template <typename... A>
++  void log(const char *fmt, A... a) {
++    char buf[320];
++    std::snprintf(buf, sizeof(buf), fmt, a...);
++    if (!log_.empty()) log_ += "\n";
++    log_ += buf;
++  }
++
++  StallParams p_;
++  bool started_ = false, seen_ = false, stalled_ = false, counting_ = false;
++  bool gave_up_logged_ = false;
++  double t_start_ = 0, last_change_ = 0, t0_ = 0, next_reinit_ = 0;
++  uint64_t last_reports_ = 0, fresh_base_ = 0, stalls_ = 0;
++  int reinits_ = 0;
++  std::string log_;
++};
++
++}  // namespace fc_imu
 diff -ruN a/control_board_hardware_interface/include/rt/rt_bno055.h b/control_board_hardware_interface/include/rt/rt_bno055.h
---- a/control_board_hardware_interface/include/rt/rt_bno055.h	2026-11-23 23:13:18
-+++ b/control_board_hardware_interface/include/rt/rt_bno055.h	2026-11-23 23:18:21
-@@ -9,7 +9,10 @@
+--- a/control_board_hardware_interface/include/rt/rt_bno055.h	2026-11-24 23:29:14.734353691 -0800
++++ b/control_board_hardware_interface/control_board_hardware_interface/include/rt/rt_bno055.h	2026-11-24 23:29:14.742353782 -0800
+@@ -9,6 +9,9 @@
  
  #include <chrono>
  #include <eigen3/Eigen/Dense>
 +#include <memory>
- 
-+#include "rt/fc_imu_filter.hpp"
 +
++#include "rt/fc_imu_filter.hpp"
+ 
  // Packets can be up to 32k but we don't have that much RAM.
  #define MAX_PACKET_SIZE 128
+@@ -79,8 +82,9 @@
  
-@@ -120,6 +123,12 @@
+   struct Output {
+     Eigen::Quaternionf quat;
+-    Eigen::Vector3f acc;
+-    Eigen::Vector3f gyro;
++    // FC v3: zero-initialised (stock left them uninitialised; stock never filled acc).
++    Eigen::Vector3f acc = Eigen::Vector3f::Zero();
++    Eigen::Vector3f gyro = Eigen::Vector3f::Zero();
+ 
+     // Timestamp of when the data was sent from the sensor to the Raspberry Pi
+     std::chrono::high_resolution_clock::time_point packet_timestamp;
+@@ -92,6 +96,16 @@
+   Output sample();
+   void read_vector(int addr, float scale, int num_elt, float *out);
+ 
++  // FC v3 stall guard (driven by IMUManager's thread, see rt/fc_imu_stall.hpp).
++  // Input reports parsed since start (one per SHTP input packet with a base timestamp).
++  uint64_t inputReports() const { return input_reports_; }
++  // Published output is valid: stock, or the filter has a fresh accel fix since the last re-init.
++  bool outputReady() const;
++  // Soft reset + product ID + the same feature enables as at start; resets the filter state so it
++  // re-seeds its tilt from the next accelerometer sample. Blocks ~0.5 s. Returns false on I2C errors.
++  bool reinit();
++  uint64_t ioErrors() const { return io_errors_; }
++
+  private:
+   void enter_mode(int mode);
+   void write_byte(int addr, int value);
+@@ -112,7 +126,7 @@
+       buffer[i + 4] = shtpData[i];
+     }
+     if (write(m_fd, buffer.data(), packetLength) != packetLength) {
+-      printf("[BNO055] failed to write for sendPacket: %s\n", strerror(errno));
++      logIoError("write for sendPacket");
+       return false;
+     }
+ 
+@@ -120,6 +134,17 @@
    }
  
    void softReset(void);
++  // FC v3: the start-up sequence after open (soft reset, product ID, feature enables).
++  void initDevice(void);
++  // FC v3: I2C errors are counted and printed at most once per second (a hung bus otherwise
++  // writes ~50 lines/s to robot.log).
++  void logIoError(const char *what);
 +  // FC v1 IMU crutch (FC_IMU_FILTER=1): parse every report in a packet, feed the
 +  // accelerometer (0x01) and gyro (0x02) into fc_imu::AttitudeFilter.
 +  void fcParseAllReports(void);
@@ -344,11 +558,10 @@ diff -ruN a/control_board_hardware_interface/include/rt/rt_bno055.h b/control_bo
    bool receivePacket(void);
    bool getData(uint16_t bytesRemaining);
    bool waitForI2C(void);
-@@ -148,6 +157,16 @@
-   float qToFloat(int16_t fixedPointValue, uint8_t qPoint);
+@@ -149,6 +174,22 @@
    void parseInputReport(void);
    void parseCommandReport(void);
-+
+ 
 +  bool fc_filter_on_ = false;
 +  std::unique_ptr<fc_imu::AttitudeFilter> fc_filter_;
 +  double fc_period_s_ = 0.01;
@@ -358,12 +571,128 @@ diff -ruN a/control_board_hardware_interface/include/rt/rt_bno055.h b/control_bo
 +  double fc_freeze_run_s_ = 0.0;
 +  bool fc_warned_no_accel_ = false;
 +  std::chrono::steady_clock::time_point fc_last_log_;
- 
++  fc_imu::FilterParams fc_params_;
++  bool fc_accel_since_init_ = false;
++  uint32_t micros_between_reports_ = 10000;
++  uint64_t input_reports_ = 0;
++  uint64_t io_errors_ = 0, io_errors_printed_ = 0;
++  std::chrono::steady_clock::time_point io_last_print_{};
++
    int m_fd = 0;
    bool m_okay = false;
+ 
+diff -ruN a/control_board_hardware_interface/src/imu_manager.cpp b/control_board_hardware_interface/src/imu_manager.cpp
+--- a/control_board_hardware_interface/src/imu_manager.cpp	2026-11-24 23:29:14.734353691 -0800
++++ b/control_board_hardware_interface/control_board_hardware_interface/src/imu_manager.cpp	2026-11-24 23:29:14.742353782 -0800
+@@ -1,5 +1,9 @@
+ #include "control_board_hardware_interface/imu_manager.hpp"
+ 
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++
+ // set rotation matrix based on roll, pitch, yaw
+ void IMUManager::set_imu_offset(double roll, double pitch, double yaw) {
+   offset_quaternion.setRPY(roll, pitch, yaw);
+@@ -38,14 +42,57 @@
+   return std::nullopt;
+ }
+ 
++double IMUManager::now_s() const {
++  return std::chrono::duration<double>(std::chrono::steady_clock::now() - t_origin_).count();
++}
++
++// FC v3: everything below runs in the IMU read thread. The I2C traffic, including a blocking
++// re-init (~0.5 s), happens outside imu_mutex_, so the real-time read() (get_imu_data) never waits
++// on the bus: it keeps copying the last published Output.
+ void IMUManager::poll_imu() {
+   auto maybe_output = sample_imu_multiple_attempts(/*max_samples=*/5, /*delay_ms=*/1);
+-  if (maybe_output) {
+-    // lock and copy imu data
+-    std::lock_guard<std::mutex> lock(imu_mutex_);
+-    imu_data = maybe_output->first;
+-    imu_sampling_time_us = maybe_output->second;
++  if (!stall_) {
++    if (maybe_output) {
++      // lock and copy imu data
++      std::lock_guard<std::mutex> lock(imu_mutex_);
++      imu_data = maybe_output->first;
++      imu_sampling_time_us = maybe_output->second;
++    }
++    return;
++  }
++
++  auto act = stall_->update(now_s(), imu_->inputReports(), imu_->outputReady());
++  if (act == fc_imu::StallMonitor::Action::kReinit) {
++    const double t0 = now_s();
++    const bool ok = imu_->reinit();
++    stall_->reinit_done(now_s(), ok, now_s() - t0);
++  }
++  const std::string msg = stall_->take_log();
++  if (!msg.empty()) {
++    printf("%s (I2C errors so far: %llu)\n", msg.c_str(), (unsigned long long)imu_->ioErrors());
++    fflush(stdout);
+   }
++
++  if (!stall_->stalled()) {
++    if (maybe_output) {
++      last_good_ = maybe_output->first;
++      have_good_ = true;
++      std::lock_guard<std::mutex> lock(imu_mutex_);
++      imu_data = maybe_output->first;
++      imu_sampling_time_us = maybe_output->second;
++    }
++    return;
++  }
++  // Stalled: the stall marker. Orientation and timestamps held from the last valid output (so
++  // time_since_measurement_seconds keeps growing), body rate 0, linear_acceleration exactly 0.
++  // The walker reads only orientation + rate; a live accelerometer is never exactly (0,0,0), so the
++  // bridge (ImuHealth) can tell "driver says stalled" from a frozen stream. No NaN: the hardware
++  // interface deactivates the motors on a NaN state.
++  BNO055::Output marker = have_good_ ? last_good_ : (maybe_output ? maybe_output->first : imu_data);
++  marker.acc.setZero();
++  marker.gyro.setZero();
++  std::lock_guard<std::mutex> lock(imu_mutex_);
++  imu_data = marker;
+ }
+ 
+ BNO055::Output IMUManager::get_imu_data() {
+@@ -63,6 +110,32 @@
+ void IMUManager::begin(uint32_t micros_between_reports) {
+   imu_ = std::make_unique<BNO055>(IMU_I2C_DEVICE_NUMBER, micros_between_reports);
+ 
++  t_origin_ = std::chrono::steady_clock::now();
++  const char *on = std::getenv("FC_IMU_STALL");
++  stall_guard_on_ = !(on != nullptr && std::strcmp(on, "0") == 0);
++  if (stall_guard_on_) {
++    fc_imu::StallParams p;
++    const char *ms = std::getenv("FC_IMU_STALL_MS");
++    if (ms != nullptr) {
++      const double v = std::strtod(ms, nullptr);
++      if (v >= 50.0 && v <= 2000.0) p.stall_s = v / 1000.0;
++    }
++    const char *rms = std::getenv("FC_IMU_REINIT_MS");
++    if (rms != nullptr) {
++      const double v = std::strtod(rms, nullptr);
++      if (v >= 100.0 && v <= 10000.0) p.reinit_after_s = v / 1000.0;
++    }
++    if (p.reinit_after_s < p.stall_s) p.reinit_after_s = p.stall_s;
++    stall_ = std::make_unique<fc_imu::StallMonitor>(p);
++    printf("FC_IMU_STALL on: stall after %.0f ms without input reports, first re-init at %.0f ms, "
++           "backoff %.1f..%.1f s x%d then every %.0f s\n",
++           p.stall_s * 1e3, p.reinit_after_s * 1e3, p.backoff0_s, p.backoff_max_s, p.max_fast,
++           p.slow_period_s);
++  } else {
++    printf("FC_IMU_STALL off (FC_IMU_STALL=0): stock behaviour on a stalled BNO\n");
++  }
++  fflush(stdout);
++
+   stop_imu_read_thread_ = false;
+   imu_read_thread_ = std::make_unique<std::thread>(&IMUManager::imu_read_thread_fn, this);
+ }
 diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_board_hardware_interface/src/rt/rt_bno055.cpp
---- a/control_board_hardware_interface/src/rt/rt_bno055.cpp	2026-11-23 23:13:18
-+++ b/control_board_hardware_interface/src/rt/rt_bno055.cpp	2026-11-23 23:18:21
+--- a/control_board_hardware_interface/src/rt/rt_bno055.cpp	2026-11-24 23:29:14.738353737 -0800
++++ b/control_board_hardware_interface/control_board_hardware_interface/src/rt/rt_bno055.cpp	2026-11-24 23:29:14.742353782 -0800
 @@ -1,6 +1,9 @@
  
  #include "rt/rt_bno055.h"
@@ -374,10 +703,12 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
  #include <string>
  // #include <i2c/smbus.h>
  
-@@ -45,13 +48,41 @@
+@@ -29,6 +32,37 @@
      }
    }
- 
+   printf("Connected\r\n");
++  micros_between_reports_ = micros_between_reports;
++
 +  // FC v1: FC_IMU_FILTER=1 replaces the published orientation/rate with our own
 +  // accel-corrected filter (rt/fc_imu_filter.hpp). Unset or anything else: stock.
 +  const char *fc_env = std::getenv("FC_IMU_FILTER");
@@ -394,6 +725,7 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
 +      const double v = std::strtod(ki, nullptr);
 +      if (v >= 0.0 && v <= 5.0) p.ki = v;
 +    }
++    fc_params_ = p;
 +    fc_filter_ = std::make_unique<fc_imu::AttitudeFilter>(p);
 +    fc_period_s_ = micros_between_reports * 1e-6;
 +    fc_last_log_ = std::chrono::steady_clock::now();
@@ -401,28 +733,102 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
 +           p.ki, fc_period_s_);
 +    fflush(stdout);
 +  }
++  initDevice();
++}
 +
-   std::cout << "Enabling rot vec + gyro. Micros between reports: " << micros_between_reports
++// Stock start-up sequence (unchanged order), shared with reinit().
++void BNO055::initDevice(void) {
+   softReset();
+   printf("Reset\r\n");
+   shtpData[0] = SHTP_REPORT_PRODUCT_ID_REQUEST;  // Request the product ID and reset info
+@@ -45,13 +79,49 @@
+     }
+   }
+ 
+-  std::cout << "Enabling rot vec + gyro. Micros between reports: " << micros_between_reports
++  std::cout << "Enabling rot vec + gyro. Micros between reports: " << micros_between_reports_
              << std::endl;
    std::this_thread::sleep_for(std::chrono::milliseconds(2));
-   enableRotationVector(micros_between_reports);
+-  enableRotationVector(micros_between_reports);
 -  // IMPORTANT: NOT ENABLING ACCELEROMETER
+-  enableGyro(micros_between_reports);
++  enableRotationVector(micros_between_reports_);
 +  // IMPORTANT: NOT ENABLING ACCELEROMETER (stock). FC_IMU_FILTER=1 enables it below.
-   enableGyro(micros_between_reports);
++  enableGyro(micros_between_reports_);
    std::this_thread::sleep_for(std::chrono::milliseconds(2));
 +  if (fc_filter_on_) {
-+    enableAccelerometer(micros_between_reports);
++    enableAccelerometer(micros_between_reports_);
 +    std::this_thread::sleep_for(std::chrono::milliseconds(2));
 +  }
++  fflush(stdout);
++}
++
++bool BNO055::reinit(void) {
++  const uint64_t errors_before = io_errors_;
++  if (fc_filter_on_) {
++    // Fresh filter: re-seeds tilt from the next accel sample; the chip restarts its sequence numbers.
++    fc_filter_ = std::make_unique<fc_imu::AttitudeFilter>(fc_params_);
++    fc_have_seq_ = false;
++    fc_freeze_run_s_ = 0.0;
++    fc_accel_since_init_ = false;
++  }
++  initDevice();
++  return io_errors_ == errors_before;
++}
++
++bool BNO055::outputReady(void) const {
++  if (!fc_filter_on_) return true;
++  return fc_accel_since_init_ && fc_filter_->initialized() && fc_filter_->accel_age() <= 0.25;
++}
++
++void BNO055::logIoError(const char *what) {
++  const int err = errno;
++  io_errors_++;
++  const auto now = std::chrono::steady_clock::now();
++  if (io_errors_printed_ != 0 && now - io_last_print_ < std::chrono::seconds(1)) return;
++  printf("[BNO055] failed to %s: %s (I2C errors: %llu total, %llu since the last line)\n", what,
++         strerror(err), (unsigned long long)io_errors_,
++         (unsigned long long)(io_errors_ - io_errors_printed_));
++  fflush(stdout);
++  io_errors_printed_ = io_errors_;
++  io_last_print_ = now;
  }
  
  BNO055::~BNO055() {
-@@ -213,8 +244,12 @@
+@@ -86,7 +156,7 @@
+   int response = read(m_fd, &packetHeader, headerLength);
+   // printf("%i\r\n",response);
+   if (response != headerLength) {
+-    printf("[BNO055] failed to read header for receivePacket: %s\n", strerror(errno));
++    logIoError("read header for receivePacket");
+     return false;
+   }
+ 
+@@ -129,7 +199,7 @@
+     // }
+     int response = read(m_fd, readBuffer.data(), numberOfBytesToRead + 4);
+     if (response != numberOfBytesToRead + 4) {
+-      printf("[BNO055] failed to read bytes for getData: %s\n", strerror(errno));
++      logIoError("read bytes for getData");
+       return false;
+     }
+ 
+@@ -154,7 +224,7 @@
+   while (timeoutCounter > 0) {
+     int bytesRead = read(m_fd, &buffer, 1);
+     if (bytesRead == -1) {
+-      printf("[BNO055] failed to read for waitForI2C: %s\n", strerror(errno));
++      logIoError("read for waitForI2C");
+       return false;
+     } else if (bytesRead == 1) {
+       return true;
+@@ -213,8 +283,13 @@
        //   printf("got channel report. shtpData[0]=%d\n", static_cast<int>(shtpData[0]));
        if (shtpData[0] == SHTP_REPORT_BASE_TIMESTAMP) {
          // printf("got base timestamp\n");
 -        parseInputReport();  // This will update the rawAccelX, etc variables depending on which
 -                             // feature report is found
++        input_reports_++;  // FC v3 stall guard
 +        if (fc_filter_on_) {
 +          fcParseAllReports();
 +        } else {
@@ -432,7 +838,7 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
          return (true);
        }
      } else if (shtpHeader[2] == CHANNEL_CONTROL) {
-@@ -460,6 +495,30 @@
+@@ -460,6 +535,30 @@
    result.quat.z() = getQuatK();
    result.quat.w() = getQuatReal();
  
@@ -463,11 +869,10 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
    // Accelerometer currently not enabled
    //   result.acc(0) = getAccelX();
    //   result.acc(1) = getAccelY();
-@@ -474,4 +533,124 @@
-   result.measurement_timestamp = latest_packet_timestamp - std::chrono::microseconds(timeStamp);
+@@ -475,3 +574,124 @@
  
    return result;
-+}
+ }
 +
 +// ---------------------------------------------------------------------------------
 +// FC v1 IMU crutch (only reached with FC_IMU_FILTER=1)
@@ -541,6 +946,7 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
 +  const double a[3] = {getAccelX(), getAccelY(), getAccelZ()};
 +  fc_filter_->set_accel(a);
 +  fc_accel_reports_++;
++  fc_accel_since_init_ = true;
 +}
 +
 +// dt from the report sequence number (one step per report period): jitter-free and
@@ -587,10 +993,10 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
 +      (unsigned long long)s.accel_skipped, s.longest_freeze_s, fc_filter_->x_baseline(),
 +      fc_filter_->pulse_mean(), b[0], b[1], b[2], fc_filter_->tilt_diff_deg(rv));
 +  fflush(stdout);
- }
++}
 diff -ruN a/control_board_hardware_interface/test/test_fc_imu_filter.cpp b/control_board_hardware_interface/test/test_fc_imu_filter.cpp
---- a/control_board_hardware_interface/test/test_fc_imu_filter.cpp	1969-12-31 16:00:00
-+++ b/control_board_hardware_interface/test/test_fc_imu_filter.cpp	2026-11-23 23:48:10
+--- a/control_board_hardware_interface/test/test_fc_imu_filter.cpp	1969-12-31 16:00:00.000000000 -0800
++++ b/control_board_hardware_interface/control_board_hardware_interface/test/test_fc_imu_filter.cpp	2026-11-24 23:29:14.742353782 -0800
 @@ -0,0 +1,255 @@
 +// Unit test for rt/fc_imu_filter.hpp (FC v1 IMU crutch). Plain C++, no ROS/gtest.
 +// Simulates the Pupper IMU (sensor pitched -135 deg about body y) with the observed
@@ -843,6 +1249,151 @@ diff -ruN a/control_board_hardware_interface/test/test_fc_imu_filter.cpp b/contr
 +    }
 +    check(!any_frozen, "still chip repeating ~0 rate 30 s: not flagged frozen", any_frozen ? 1 : 0, 0);
 +    check(maxerr < 1.0, "still chip repeating ~0: published tilt follows a 3 deg lean", maxerr, 1.0);  // vs noisy accel
++  }
++  printf("%s (%d failure%s)\n", failures ? "FAILED" : "ALL PASSED", failures, failures == 1 ? "" : "s");
++  return failures ? 1 : 0;
++}
+diff -ruN a/control_board_hardware_interface/test/test_fc_imu_stall.cpp b/control_board_hardware_interface/test/test_fc_imu_stall.cpp
+--- a/control_board_hardware_interface/test/test_fc_imu_stall.cpp	1969-12-31 16:00:00.000000000 -0800
++++ b/control_board_hardware_interface/control_board_hardware_interface/test/test_fc_imu_stall.cpp	2026-11-24 23:29:14.742353782 -0800
+@@ -0,0 +1,141 @@
++// Unit test for rt/fc_imu_stall.hpp (FC v3 BNO stall guard). Plain C++, no ROS/gtest.
++// Simulates the IMU thread: a poll every 1 ms, input reports at 200/s when the chip is alive,
++// a re-init that blocks for 0.5 s (soft reset sleeps 2 x 200 ms) and may or may not revive it.
++#include <cmath>
++#include <cstdio>
++#include <functional>
++#include <vector>
++
++#include "rt/fc_imu_stall.hpp"
++
++namespace {
++int failures = 0;
++void check(bool ok, const char *what, double val, double lim) {
++  printf("%s %-62s %.3f (limit %.3f)\n", ok ? "PASS" : "FAIL", what, val, lim);
++  if (!ok) failures++;
++}
++
++struct Sim {
++  fc_imu::StallMonitor m;
++  double t = 0;
++  uint64_t reports = 0;
++  double next_report = 0;
++  int reinits = 0;
++  std::vector<double> reinit_times;
++  double first_stall = -1, recovered_at = -1;
++  bool was_stalled = false;
++  int stall_entries = 0;
++  // alive(t, reinits) -> chip produces reports; ready(t) -> driver output valid
++  std::function<bool(double, int)> alive;
++  std::function<bool(double)> ready = [](double) { return true; };
++
++  explicit Sim(const fc_imu::StallParams &p = fc_imu::StallParams()) : m(p) {}
++
++  void run(double until) {
++    while (t < until) {
++      if (alive(t, reinits) && t >= next_report) {
++        reports++;
++        next_report = t + 0.005;
++      }
++      auto a = m.update(t, reports, ready(t));
++      if (m.stalled() && !was_stalled) {
++        stall_entries++;
++        if (first_stall < 0) first_stall = t;
++      }
++      if (!m.stalled() && was_stalled) recovered_at = t;
++      was_stalled = m.stalled();
++      if (a == fc_imu::StallMonitor::Action::kReinit) {
++        reinit_times.push_back(t);
++        reinits++;
++        t += 0.5;  // blocking re-init
++        m.reinit_done(t, alive(t, reinits), 0.5);
++      }
++      m.take_log();
++      t += 0.001;
++    }
++  }
++};
++}  // namespace
++
++int main() {
++  {
++    Sim s;
++    s.alive = [](double, int) { return true; };
++    s.run(30);
++    check(s.stall_entries == 0, "healthy 200 Hz for 30 s: no stall", s.stall_entries, 0);
++  }
++  {
++    Sim s;  // 150 ms hiccup at t=5
++    s.alive = [](double t, int) { return t < 5.0 || t > 5.15; };
++    s.run(10);
++    check(s.stall_entries == 0, "150 ms report gap: no stall", s.stall_entries, 0);
++  }
++  {
++    Sim s;  // 350 ms gap at t=5: stalls at ~0.2 s, recovers by itself before the first re-init
++    s.alive = [](double t, int) { return t < 5.0 || t > 5.35; };
++    s.run(10);
++    check(s.stall_entries == 1, "350 ms gap: one stall", s.stall_entries, 1);
++    check(std::fabs(s.first_stall - 5.2) < 0.01, "350 ms gap: stall flagged 200 ms after the last report",
++          s.first_stall, 5.2);
++    check(s.reinits == 0, "350 ms gap: no re-init (first one is due at 500 ms)", s.reinits, 0);
++    check(s.recovered_at > 5.35 && s.recovered_at < 5.42, "350 ms gap: cleared after 10 fresh reports",
++          s.recovered_at, 5.42);
++  }
++  {
++    Sim s;  // chip dead from t=5 until the 3rd re-init
++    s.alive = [](double t, int n) { return t < 5.0 || n >= 3; };
++    s.run(20);
++    check(s.reinits == 3, "dead until re-init #3: exactly 3 re-inits", s.reinits, 3);
++    check(std::fabs(s.reinit_times[0] - 5.5) < 0.01, "first re-init 500 ms after the last report",
++          s.reinit_times[0], 5.5);
++    check(!s.m.stalled() && s.recovered_at > 0, "dead until re-init #3: recovered", s.recovered_at, 0);
++    check(s.m.stalls() == 1, "dead until re-init #3: one stall episode", s.m.stalls(), 1);
++  }
++  {
++    Sim s;  // hung forever (the 2026-11-25 I2C bus hang)
++    s.alive = [](double t, int) { return t < 5.0; };
++    s.run(5 + 120);
++    // re-inits at 5.5, then spacing 0.5,1,2,4,5,5,5,5,5 (+0.5 s each re-init) for 10 fast, then every 30 s
++    double gap_max_fast = 0;
++    for (int i = 1; i < 10 && i < (int)s.reinit_times.size(); i++)
++      gap_max_fast = std::fmax(gap_max_fast, s.reinit_times[i] - s.reinit_times[i - 1]);
++    check(gap_max_fast <= 5.5 + 0.01, "hung bus: fast re-inits spaced <= 5 s (+0.5 s blocking)", gap_max_fast,
++          5.51);
++    check(s.reinit_times.size() >= 11 && s.reinit_times[10] - s.reinit_times[9] > 29.9,
++          "hung bus: after 10 fast re-inits, one every 30 s",
++          s.reinit_times.size() >= 11 ? s.reinit_times[10] - s.reinit_times[9] : 0, 30);
++    check(s.reinits <= 14, "hung bus: re-inits bounded in 120 s", s.reinits, 14);
++    check(s.m.stalled(), "hung bus: still flagged stalled", s.m.stalled(), 1);
++  }
++  {
++    Sim s;  // reports back after re-init #1 but the filter needs 0.3 s to re-seed
++    double back = -1;
++    s.alive = [](double t, int n) { return t < 5.0 || n >= 1; };
++    s.ready = [&](double t) {
++      if (s.reinits >= 1 && back < 0) back = t;
++      return s.reinits == 0 || (back >= 0 && t - back > 0.3);
++    };
++    s.run(10);
++    check(s.recovered_at > back + 0.3 - 1e-6, "reports back but output not valid: stays stalled until valid",
++          s.recovered_at - back, 0.3);
++    check(s.reinits == 1, "re-seed wait does not trigger more re-inits", s.reinits, 1);
++  }
++  {
++    Sim s;  // no report ever since start (bus already hung at start-up)
++    s.alive = [](double, int) { return false; };
++    s.run(5);
++    check(std::fabs(s.first_stall - 3.0) < 0.01, "no report since start: stalled after the 3 s grace",
++          s.first_stall, 3.0);
++    check(!s.reinit_times.empty() && std::fabs(s.reinit_times[0] - 3.0) < 0.01,
++          "no report since start: re-init right away", s.reinit_times.empty() ? -1 : s.reinit_times[0], 3.0);
++  }
++  {
++    Sim s;  // second, independent stall after recovery: counters restart
++    s.alive = [](double t, int) { return t < 5.0 || (t > 5.3 && t < 8.0) || t > 8.3; };
++    s.run(12);
++    check(s.m.stalls() == 2 && s.stall_entries == 2, "two separate gaps: two stall episodes", s.m.stalls(), 2);
++    check(!s.m.stalled(), "two separate gaps: clear at the end", s.m.stalled(), 0);
 +  }
 +  printf("%s (%d failure%s)\n", failures ? "FAILED" : "ALL PASSED", failures, failures == 1 ? "" : "s");
 +  return failures ? 1 : 0;

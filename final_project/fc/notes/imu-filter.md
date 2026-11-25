@@ -1,8 +1,8 @@
 # IMU crutch: our own tilt filter in the stock driver (2026-11-24)
 
-**Status (Nov 24):** v2 installed on mts and on by default in the stock profile (`FC_IMU_FILTER=0` = stock behaviour); see [Deployment status](#deployment-status-2026-11-24).
+**Status (Nov 25):** v3 (stall guard) built, not installed: [v3](#v3-bno-stall-guard-2026-11-25-built-not-installed). **Nov 24:** v2 installed on mts and on by default in the stock profile (`FC_IMU_FILTER=0` = stock behaviour); see [Deployment status](#deployment-status-2026-11-24).
 
-**Patch:** `fc/robot/imu/stock-imu-filter.patch`, sha `983a6e49…` (v2).
+**Patch:** `fc/robot/imu/stock-imu-filter.patch`, sha `b0d57361…` (v3 = v2 + stall guard; v2 was `983a6e49…`, in git history).
 - Applies to the Pi stock driver (`~/pupperv3-monorepo` `0e50afb`, `control_board_hardware_interface` at `e333272`).
 - It edits the same files as `stock-bno-dyncal.patch`, so apply one or the other, not both.
 
@@ -141,3 +141,83 @@ With the filter deployed, the timestamps of the `gyro frozen` log lines can also
 ## Deployment status (2026-11-24)
 
 v2 (sha 19d60fad…) is installed on mts via the driver symlink (undo in fc/robot/README.md) and enabled by default in the stock profile. Stand check passed (5 min, tilt 2.0–2.8°); 3 fast floor runs had no IMU incidents.
+
+## v3: BNO stall guard (2026-11-25, built, NOT installed)
+
+**What happened (mts, run `20261125T070424Z-stock`):** while walking, the I2C bus hung. The kernel logged `i2c_designware 1f00074000.i2c: i2c_dw_handle_tx_abort: SDA stuck at low` (uptime 917.6 s). After that, every transfer failed with `timeout waiting for bus ready`, about 20 ms each.
+- The driver's last good line was `getData: Remote I/O error`. After it, every read and write returned `ETIMEDOUT`.
+- `pinctrl get 2,3` read SDA1 and SCL1 **both low** for minutes.
+- The v2 driver went on publishing the last values. The bridge saw them as `frozen` → lie-down + latch.
+- **A stack restart did not recover.** The new run's soft-reset writes also timed out, the report counts stayed at 0, and the orientation was garbage, so the fallen cutoff fired.
+- Only a power cycle freed the bus.
+- The GT911 touch driver (`waveshare-4dpic` overlays) was bound on the same bus. Those overlays are now disabled (overseer, `#fc-off(2026-11-25 i2c touch)`).
+- Conclusion: **re-initialising the chip in place cannot free a hung bus.** v3 makes the stall visible and safe, and recovers whenever the chip, not the bus, is the problem. A hung bus needs `fcctl.sh i2c-recover` (below) or a power cycle.
+
+**Driver v3** (`stock-imu-filter.patch` now contains v1+v2+v3; new header `include/rt/fc_imu_stall.hpp`, test `test/test_fc_imu_stall.cpp`):
+- **Stall detection:** a stall is no SHTP input report for `FC_IMU_STALL_MS` (default 200, range 50–2000). With no report at all after start, it is declared after 3 s.
+- **Where it runs:** detection runs in the IMU manager's read thread. The I2C traffic and re-inits happen outside `imu_mutex_`, so the real-time `read()` never waits on the bus; it keeps copying the last published output.
+- **Re-init:** the start-up sequence again (soft reset, product ID, rotation vector + gyro + accel enables), plus a fresh filter that re-seeds its tilt from the next accel sample.
+  - The first re-init comes at `FC_IMU_REINIT_MS` (default 500) after the last report, so a hiccup passes without one.
+  - Then backoff 0.5, 1, 2, 4, 5 s… for 10 re-inits, then one every 30 s.
+  - Each re-init blocks the IMU thread for about 0.5 s.
+- **Clearing:** a stall clears only after 10 fresh reports **and** a seeded filter with live accel.
+- **Stall marker** (published while stalled): orientation held from the last valid output, rate 0, **linear_acceleration exactly (0,0,0)**, and timestamps held, so `time_since_measurement_seconds` keeps growing.
+  - The walker reads only orientation + rate (source: `neural_controller.cpp`), so it simply stands on the held attitude.
+- **Why not the alternatives:**
+  - "Stop publishing" is impossible: `imu_sensor_broadcaster` publishes the state interfaces every cycle.
+  - `orientation_covariance[0] = -1` is impossible: the covariance comes from static broadcaster params, not from the hardware interface.
+  - NaN is dangerous: `read()` deactivates the motors on any NaN state.
+  - A live accelerometer is never bit-exact (0,0,0), so the marker is unambiguous once accel has been seen.
+- **Logs:**
+  - `FC_IMU_STALL on: …` at start;
+  - `FC_IMU_STALL stall #N: no input report for X ms`;
+  - `re-init #k sent|FAILED (I2C errors) in X ms (stalled S s); next in W s`;
+  - `recovered: stall #N lasted S s, k re-inits`.
+  - I2C errors are now rate-limited to 1 line per second, with counts. The hang wrote about 50 lines/s.
+- **Other changes:** `Output.acc` and `Output.gyro` are now zero-initialised (they were uninitialised in stock).
+- `FC_IMU_STALL=0` turns the guard off. `FC_IMU_FILTER=0` still means the stock filter path. Stock never fills the accel, so the bridge cannot see the marker there, and a stall still reads as `frozen`.
+- **Build:** mts `~/fc-v1/build/imu-filter-v3/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so`, **sha256 `a64606d880a90cc7fb4056fbcbf51478527f4fcac171c3c7d738da1db1fd1c22`**.
+  - RelWithDebInfo; the only warning is the stock one.
+  - `colcon test`: 2 tests, 0 failures (`test_fc_imu_filter`, `test_fc_imu_stall`). Output in `test_output.txt` next to the build.
+- **Not yet exercised on the chip:** the stall path itself. The happy path is the v2 code plus a report counter.
+
+**Bridge** (`imu_health.py`, `drive_bridge.py`; device-free tests):
+- **Arming:** once a live accel has been seen (|a| > 1 m/s²), an exact-zero accel sample counts as the marker → summary `stall_ms`.
+- **Short stall (≤ `stall_long_ms`, 1000 ms):** level `warn` (the laptop does not end the run) and bridge hold `imu_stall` (zero command). No lie-down; the walker keeps standing. The hold releases 1 s after valid data returns.
+- **Long stall:** `bad`, `bad_cause: "stall_long"` → the existing lie-down + latch.
+  - Timing: a hang lies down about 0.2 s (driver) + 1.0 s + 0.75 s (`IMU_LIE_SUSTAIN_S`) ≈ 2 s after the last report.
+- **Unchanged:** an unmarked freeze, stale and tilt still lie down as before.
+- **Laptop:** `play.py` has words for `imu_stall` / `imu_stall_long`.
+
+**Hung-bus recovery without a power cycle:** `fcctl.sh i2c-recover [--check] [--force]` (`robot/imu/i2c_recover.sh`). It refuses while a stack runs unless `--force`, and `--check` is read-only. Steps:
+1. unbind the RP1 DesignWare controller (sudo);
+2. if SCL stays low as an input, a device holds the clock and only a power cycle helps (reported);
+3. otherwise, up to 16 SCL pulses via `pinctrl` until SDA is released, then a STOP;
+4. pins back to `a3 pu`, rebind the controller, probe 0x4B.
+
+Tested against a fake pinctrl and sysfs (`tests/test_i2c_recover.py`). **Not yet run on a hung bus.**
+- **Kernel auto-recovery (`scl-gpios` in the i2c1 node) was not done:** it can only be verified by booting it. A pinmux conflict there could fail the i2c-1 probe, which means no IMU at all.
+
+### Deploy v3 (operator, stack stopped; robot on the stand for the restart)
+```
+L=~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so
+V3=~/fc-v1/build/imu-filter-v3/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so
+~/fc-v1/robot/fcctl.sh stop
+readlink $L                                    # expect .../imu-filter-v2/... (rollback target)
+sha256sum $V3                                  # expect a64606d8...1c22
+ln -sfn $V3 $L && readlink -f $L && sha256sum $L
+# laptop: stage the bridge, imu_health, fcctl i2c-recover
+fc/robot/stage.sh mts
+~/fc-v1/robot/fcctl.sh start stock_hh0 --confirm --speed-cap 0.80   # homes the legs
+grep "FC_IMU_STALL on\|FC_IMU_FILTER on" ~/fc-v1/runs/<new run>/robot.log
+```
+- **Stand check (as for v2):** 5 min at zero command, tilt < 3°, and no `FC_IMU_STALL stall` lines.
+- **Optional live check of the short-stall path:** none without touching the bus. Do not induce a stall by hand on the robot.
+
+### Rollback
+```
+~/fc-v1/robot/fcctl.sh stop
+ln -sfn ~/fc-v1/build/imu-filter-v2/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so $L
+sha256sum $L     # 19d60fad...a3a2 (v2)
+```
+Robot files: `git checkout <previous commit> -- final_project/fc/robot && fc/robot/stage.sh mts`. The v2 driver with the new bridge is safe: the marker never appears, so the behaviour is as before.

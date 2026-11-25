@@ -33,7 +33,8 @@ tilt; it seized once while standing ([RCA](notes/rca-20261124-shaking.md), [filt
 | Signed UDP link, 50 Hz bridge, 0.25 s dead-man, fallen cutoff 45°, E-STOP latched until Ready | **robot** (stops) + **device-free** |
 | IMU health hold (caught a 14° lean); lean stack, heat in `status` | **robot** |
 | IMU filter v2 (`FC_IMU_FILTER`, accel-corrected tilt, gyro-X de-spike) installed on mts; **default on** in `stock.sh` (`51c16f4`) | **robot** (5-min stand 2.0–2.8°, 3 fast runs clean). Default-on needs a restage |
-| Bridge auto lie-down + latch on a sustained bad IMU | **device-free** + ROS in Docker; not triggered on the robot |
+| Bridge auto lie-down + latch on a sustained bad IMU | **device-free** + ROS in Docker; fired on mts Nov 25 (I2C bus hang, `frozen`) |
+| IMU driver v3 stall guard (marker + re-init) and bridge short-stall hold (≤ 1 s: stand, resume; longer: lie down); `fcctl.sh i2c-recover` for a hung bus ([v3](notes/imu-filter.md#v3-bno-stall-guard-2026-11-25-built-not-installed)) | **device-free** (unit tests; .so `a64606d8…` built on mts, not installed; i2c-recover untested on a hung bus) |
 | Play screen, `/ops` tests, match flow, run logs, presets with `_stack`, `fc.ctl` | **device-free** + **sim**, used on the **robot** |
 | Goalie, solo role switching vs a human, interception | **sim** only |
 

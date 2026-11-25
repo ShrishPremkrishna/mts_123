@@ -29,6 +29,10 @@
 #                               (robot id defaults to ~/fc-v1/robot/robot_id, written by stage.sh;
 #                                key: ~/fc-v1/robot/link.key, 0600; replay state: run/bridge_state.json)
 #   imu-test <seconds>          delegates to imu_test.py (IMU lane) if present
+#   i2c-recover [--check] [--force]
+#                               free a hung I2C-1 bus (BNO "SDA stuck at low") without a power cycle:
+#                               imu/i2c_recover.sh (9+ SCL pulses, controller unbind/bind; one JSON line).
+#                               Refuses while a robot stack runs unless --force; --check only reads levels
 #   walk | rest                 activate / deactivate the profile's walker controller (optional;
 #                               the gamepad X / R3 do the same)
 # Profiles: profiles/<name>.sh (*_hh0 = alias: same stack with --heading-hold off). State: ~/fc-v1/run/ (pidfiles, active,
@@ -955,6 +959,19 @@ cmd_imu_test() {
   python3 -u "$tool" "$@"
 }
 
+cmd_i2c_recover() {
+  local a check=false force=false
+  for a in "$@"; do
+    case "$a" in --check) check=true ;; --force) force=true ;; *) die "usage: i2c-recover [--check] [--force]" ;; esac
+  done
+  if ! $check && ! $force && pgrep -f 'ros2_control_node|persistent_session.py|ros2 launch' > /dev/null 2>&1; then
+    echo '{"ok":false,"action":"refused","msg":"a robot stack is running (it holds the IMU): fcctl.sh stop first, or --force"}'
+    return 1
+  fi
+  $check || lock
+  if $check; then bash "$HERE/imu/i2c_recover.sh" --check --force; else bash "$HERE/imu/i2c_recover.sh" --force; fi
+}
+
 case "${1:-}" in
   status) cmd_status ;;
   start) shift; cmd_start "$@" ;;
@@ -966,5 +983,6 @@ case "${1:-}" in
   bridge) shift; cmd_bridge "$@" ;;
   walk|rest) cmd_walk "$1" ;;
   imu-test) shift; cmd_imu_test "$@" ;;
+  i2c-recover) shift; cmd_i2c_recover "$@" ;;
   *) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

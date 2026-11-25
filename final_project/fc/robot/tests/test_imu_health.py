@@ -315,3 +315,65 @@ def test_policy_hh0_adds_block_when_defaulted(tmp_path):
     src.write_text('{"gait_reference": {}, "x": 1}')
     heading_hold.policy_hh0(str(src), str(tmp_path / "o.json"))
     assert json.loads((tmp_path / "o.json").read_text())["heading_hold"]["kp"] == 0.0
+
+
+# ---------------------------------------------------------------- v3 driver stall marker
+def _live(h, t0, t1, quat=LEVEL, dt=0.004):
+    """Live stream: accel noise around 1 g (as the v3 driver publishes with FC_IMU_FILTER=1)."""
+    t, k = t0, 0
+    while t < t1:
+        h.update(t, quat, (0.0, 0.0, 0.001 * (k % 3)), True, (0.0, 0.0, 9.81 + 0.002 * (k % 5)))
+        t += dt
+        k += 1
+    return t
+
+
+def _marker(h, t0, t1, quat=LEVEL, dt=0.004):
+    """Stall marker: accel exactly 0, rate 0, orientation held."""
+    t = t0
+    while t < t1:
+        h.update(t, quat, (0.0, 0.0, 0.0), True, (0.0, 0.0, 0.0))
+        t += dt
+    return t
+
+
+def test_stall_marker_short_is_warn_not_frozen_then_long_is_bad():
+    h = ImuHealth()
+    t = _live(h, 0, 2)
+    assert h.summary(now=t)["level"] == "ok" and h.summary(now=t)["stall_ms"] is None
+    t = _marker(h, t, t + 0.6)                       # 600 ms of identical values: would be "frozen"
+    s = h.summary(now=t)
+    assert s["level"] == "warn" and s["bad_cause"] is None and 500 < s["stall_ms"] < 700
+    assert "stall" in s["reasons"][0] and not any("frozen" in r for r in s["reasons"])
+    t = _marker(h, t, t + 0.5)                       # 1.1 s: long
+    s = h.summary(now=t)
+    assert s["level"] == "bad" and s["bad_cause"] == "stall_long"
+
+
+def test_stall_marker_clears_on_fresh_data():
+    h = ImuHealth()
+    t = _live(h, 0, 2)
+    t = _marker(h, t, t + 0.4)
+    t = _live(h, t, t + 0.1)
+    s = h.summary(now=t)
+    assert s["stall_ms"] is None and s["level"] == "ok"
+
+
+def test_stall_marker_needs_a_live_accelerometer_first():
+    """Stock driver (FC_IMU_FILTER=0) publishes accel 0 all the time: never a marker, freezes stay frozen."""
+    h = ImuHealth()
+    t = feed(h, 0, 2, LEVEL, (0, 0, 0))
+    t2 = t
+    while t < t2 + 0.6:
+        h.update(t, LEVEL, (0.0, 0.0, 0.0), True, (0.0, 0.0, 0.0))
+        t += 0.004
+    s = h.summary(now=t)
+    assert s["stall_ms"] is None and s["bad_cause"] == "frozen"
+
+
+def test_stall_marker_does_not_mask_messages_stopping():
+    h = ImuHealth()
+    t = _live(h, 0, 2)
+    t = _marker(h, t, t + 0.3)
+    s = h.summary(now=t + 0.6)                       # and then no message at all
+    assert s["level"] == "bad" and s["bad_cause"] == "stale"

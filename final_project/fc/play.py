@@ -285,6 +285,8 @@ class Ticker:
 
 HOLD_WORDS = {"imu_stale": "balance sensor data stopped", "imu_tilt": "balance sensor reports a tilt",
               "imu_frozen": "balance sensor values frozen",
+              "imu_stall": "balance sensor paused (standing, resumes by itself)",
+              "imu_stall_long": "balance sensor stopped",
               "mux_unseen": "motion channel not found", "mux_not_subscribed": "motion channel not listening",
               "no_cmd_vel_publisher": "motion channel dropped", "mux_stalled": "motion channel stalled"}
 

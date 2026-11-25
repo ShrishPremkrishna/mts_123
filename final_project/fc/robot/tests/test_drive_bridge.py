@@ -708,3 +708,76 @@ def test_latch_file_roundtrip_and_fail_closed(tmp_path):
     assert db.read_latch(str(p)) == {"reason": "unreadable_latch_file"}
     p.write_text("[1]")
     assert db.read_latch(str(p))["reason"] == "malformed_latch_file"
+
+
+# ---------------------------------------------------------------- v3 driver stall: short = hold, long = lie
+
+def test_imu_guard_short_stall_holds_and_resumes_after_valid_data():
+    g = db.ImuGuard(clear_s=1.0)
+    assert g.update(0.0, {"level": "warn", "stall_ms": 10.0}) and g.cause == "stall"
+    assert g.update(0.9, {"level": "warn", "stall_ms": 900.0})      # still stalled: no good run yet
+    assert g.update(1.0, {"level": "ok", "stall_ms": None})          # data back: 0 s good
+    assert g.update(1.9, {"level": "ok", "stall_ms": None})
+    assert not g.update(2.0, {"level": "ok", "stall_ms": None}) and g.cause is None
+
+
+def test_imu_lie_ignores_short_stall_but_fires_on_long_stall():
+    lie = db.ImuLie(sustain_s=0.75)
+    for i in range(10):                                              # 1 s of short stall: never lies
+        assert lie.step(i * 0.1, {"level": "warn", "stall_ms": i * 100.0, "bad_cause": None}, True) is None
+    assert lie.step(1.0, bad("stall_long"), True) is None
+    assert lie.step(1.75, bad("stall_long"), True) == "fire" and lie.reason == "imu_stall_long"
+
+
+def _stall_run(h, g, lie, t, until, marker, walker=True):
+    acts = []
+    k = 0
+    while t < until:
+        acc = (0.0, 0.0, 0.0) if marker else (0.0, 0.0, 9.81 + 0.002 * (k % 5))
+        h.update(t, (0.0, 0.0, 0.0, 1.0), (0.0, 0.0, 0.0 if marker else 0.001 * (k % 3)), True, acc)
+        if k % 12 == 0:                                              # bridge guard loop ~50 ms
+            s = h.summary(now=t)
+            g.update(t, s)
+            acts.append(lie.step(t, s, walker))
+        t += 0.004
+        k += 1
+    return t, acts
+
+
+def test_real_imu_health_short_stall_holds_standing_then_resumes():
+    import imu_health
+    h, g, lie = imu_health.ImuHealth({}), db.ImuGuard(), db.ImuLie()
+    t, _ = _stall_run(h, g, lie, 0.0, 2.0, marker=False)
+    assert not g.hold
+    t, acts = _stall_run(h, g, lie, t, t + 0.9, marker=True)         # 0.9 s stall marker
+    assert g.hold and g.cause == "stall" and "fire" not in acts and lie.phase == "idle"
+    t, acts = _stall_run(h, g, lie, t, t + 0.5, marker=False)        # fresh data
+    assert g.hold                                                    # needs 1 s of good data
+    t, acts = _stall_run(h, g, lie, t, t + 0.7, marker=False)
+    assert not g.hold and lie.phase == "idle"
+
+
+def test_real_imu_health_long_stall_lies_down_and_latches():
+    import imu_health
+    h, g, lie = imu_health.ImuHealth({}), db.ImuGuard(), db.ImuLie()
+    t, _ = _stall_run(h, g, lie, 0.0, 2.0, marker=False)
+    t0 = t
+    t, acts = _stall_run(h, g, lie, t, t + 2.5, marker=True)
+    assert "fire" in acts and lie.reason == "imu_stall_long" and g.cause == "stall_long"
+    i = acts.index("fire")
+    assert 1.6 <= i * 0.048 <= 2.0                                    # 1 s stall_long + 0.75 s sustain
+
+
+def test_real_imu_health_frozen_without_marker_still_lies_down():
+    """A freeze the driver did not mark (stock driver, or a filter-held stream) keeps the old path."""
+    import imu_health
+    h, g, lie = imu_health.ImuHealth({}), db.ImuGuard(), db.ImuLie()
+    t, _ = _stall_run(h, g, lie, 0.0, 2.0, marker=False)
+    acts = []
+    while t < 4.0:
+        h.update(t, (0.0, 0.0, 0.0, 1.0), (0.0, 0.0, 0.0), True, (0.0, 0.0, 9.81))
+        s = h.summary(now=t)
+        g.update(t, s)
+        acts.append(lie.step(t, s, True))
+        t += 0.05
+    assert "fire" in acts and lie.reason == "imu_frozen"

@@ -59,7 +59,9 @@ carry `hold` (reason), `imu_hold`, `mux_ok`, and `bridge.mux` (`why`, publisher/
 
 - **IMU** (`--imu-stop`, default on): ImuHealth `bad` with `bad_cause` `stale` (no message 0.5 s), `frozen`
   (messages arriving, quaternion+gyro+accel bit-identical 0.5 s) or `tilt` → `hold: "imu_<cause>"`,
-  `imu_hold: true`, released after 1 s of `ok`/`warn`.
+  `imu_hold: true`, released after 1 s of `ok`/`warn`. A **short driver stall** (v3 driver marker: accel exactly 0,
+  ≤ 1 s; ImuHealth `stall_ms`, level `warn`) → `hold: "imu_stall"` only: no lie-down, the walker keeps standing and
+  walking resumes 1 s after valid data returns. Longer → `bad_cause` `stall_long` → the lie-down below.
 - **IMU lie-down** (`--imu-lie`, default on; [RCA](../notes/rca-20261124-shaking.md)): zero velocity does not stop
   a walker reacting to a corrupted IMU. Bad for 0.75 s with a walker active → latch like an e-stop (reason
   `imu_<cause>`, `run/estop.json`, re-arm only via `ready --confirm`), one STRICT switch walker → `--liedown`
@@ -326,6 +328,9 @@ now links to the filtered build v2 `~/fc-v1/build/imu-filter-v2/install/.../libc
 (sha 19d60fad…; v1 2486fa0a… retired). The stock profile sets `FC_IMU_FILTER=1` by default; `FC_IMU_FILTER=0` = stock behaviour (see [imu-filter.md](../notes/imu-filter.md)).
 Undo (stack off): `cd ~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib && rm libcontrol_board_hardware_interface.so && mv libcontrol_board_hardware_interface.so.stock-link libcontrol_board_hardware_interface.so`
 (stock sha 01813d58…).
+v3 (stall guard, sha a64606d8…) is built at `~/fc-v1/build/imu-filter-v3`, not installed: deploy/rollback in
+[imu-filter.md](../notes/imu-filter.md#v3-bno-stall-guard-2026-11-25-built-not-installed). A hung I2C bus
+(kernel "SDA stuck at low"): `fcctl.sh i2c-recover` (stack stopped; `--check` read-only), else power cycle.
 
 ## I2C bus change on mts (2026-11-25, operator-approved)
 

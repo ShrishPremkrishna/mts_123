@@ -19,6 +19,15 @@ and reduces them to one level:
         no message arrived for stale_bad_ms (bad_cause "stale"), or the values
         (quaternion, gyro and, when given, accelerometer) stayed bit-identical for
         frozen_bad_ms while messages kept arriving (bad_cause "frozen").
+        Driver stall marker (v3 driver, fc/notes/imu-filter.md "v3"): while the BNO sends no
+        reports the driver publishes linear_acceleration exactly (0, 0, 0), rate 0 and the held
+        orientation. Once a live accelerometer has been seen (|a| > accel_live_mps2), an exact-zero
+        accel sample is that marker, reported as stall_ms. For the first stall_long_ms it is a
+        "warn" (short: the bridge holds zero on stall_ms, the walker keeps standing, and walking
+        resumes when valid data returns; the laptop does not end the run), then "bad" with
+        bad_cause "stall_long" (lie down + latch, as for frozen). A marked stall is not also reported as
+        frozen. Stock driver / FC_IMU_FILTER=0 never fills the accel, so the marker cannot arm
+        there and a stall still reads as "frozen".
   warn  pulse_density, |bias_x|, tilt, staleness or frozen values past their warn limits.
 
 Both clocks matter (2026-11-24, fc/notes/rca-20261124-shaking.md): before the blue
@@ -59,6 +68,8 @@ DEFAULTS = {
     "frozen_bad_ms": 500.0,
     "gap_note_ms": 50.0,         # inter-arrival gaps above this are remembered for gap_max_ms
     "hold_s": 3.0,               # a level persists this long after its condition clears
+    "stall_long_ms": 1000.0,     # driver stall marker longer than this -> "stall_long" (lie down)
+    "accel_live_mps2": 1.0,      # |accel| above this once => the stream carries a live accelerometer
 }
 
 LEVELS = ("ok", "warn", "bad")
@@ -125,6 +136,8 @@ class ImuHealth:
         self._until = {"warn": -math.inf, "bad": -math.inf}
         self._reasons: dict[str, str] = {}
         self._bad_cause = None
+        self._accel_live = False     # a real accelerometer was seen, so exact-zero accel = stall marker
+        self._stall_since = None     # receipt time of the first stall-marker sample of the current run
         self.n = 0
 
     # -- input -------------------------------------------------------------
@@ -133,6 +146,15 @@ class ImuHealth:
         time since the last call). accel_xyz (optional) joins the bit-identical freeze test."""
         p = self.p
         self.n += 1
+        if accel_xyz is not None:
+            ax, ay, az = accel_xyz
+            if ax == 0.0 and ay == 0.0 and az == 0.0 and self._accel_live:
+                if self._stall_since is None:
+                    self._stall_since = t
+            else:
+                self._stall_since = None
+                if ax * ax + ay * ay + az * az > p["accel_live_mps2"] ** 2:
+                    self._accel_live = True
         sample = (tuple(quat_xyzw), tuple(gyro_xyz), None if accel_xyz is None else tuple(accel_xyz))
         if sample != self._last_sample or self._last_change_t is None:
             self._last_change_t = t
@@ -196,17 +218,27 @@ class ImuHealth:
         density = self._pulse_n / len(self._win) if self._win else 0.0
         bias = statistics.median(r[1] for r in self._win) if self._win else 0.0
 
+        stall_ms = None if self._stall_since is None else max(0.0, (now - self._stall_since) * 1000.0)
+
         level, reasons, cause = "ok", [], None
         if stale_ms > p["stale_bad_ms"]:
             level, cause = "bad", "stale"
             reasons.append("no IMU message for %.0f ms" % stale_ms)
+        elif stall_ms is not None and stall_ms > p["stall_long_ms"]:
+            level, cause = "bad", "stall_long"
+            reasons.append("IMU driver reports a BNO stall for %.0f ms (long)" % stall_ms)
+        elif stall_ms is not None:
+            # Short stall: "warn" so the laptop keeps the run going; the bridge's ImuGuard holds zero on
+            # stall_ms itself and lets walking resume once the driver clears the marker.
+            level = "warn"
+            reasons.append("IMU driver reports a BNO stall for %.0f ms (short: holding zero)" % stall_ms)
         elif frozen_ms > p["frozen_bad_ms"]:
             level, cause = "bad", "frozen"
             reasons.append("IMU values frozen for %.0f ms (messages arriving)" % frozen_ms)
         elif stale_ms > p["stale_warn_ms"]:
             level = "warn"
             reasons.append("no IMU message for %.0f ms" % stale_ms)
-        elif frozen_ms > p["frozen_warn_ms"]:
+        elif frozen_ms > p["frozen_warn_ms"] and stall_ms is None:
             level = "warn"
             reasons.append("IMU values frozen for %.0f ms" % frozen_ms)
         if abs(bias) > p["warn_bias"] and len(self._win) >= 50:
@@ -224,9 +256,11 @@ class ImuHealth:
             "bias_x": round(bias, 4),
             "stale_ms": round(stale_ms, 1),
             "frozen_ms": round(frozen_ms, 1),
+            "stall_ms": None if stall_ms is None else round(stall_ms, 1),
             "gap_max_ms": round(gap_max_ms, 1),
             "level": level,
-            "bad_cause": cause,     # "tilt" | "stale" (no messages) | "frozen" (identical values) | None
+            "bad_cause": cause,     # "tilt" | "stale" (no messages) | "frozen" (identical values)
+                                    # | "stall_long" (driver stall marker > stall_long_ms) | None
             "reasons": reasons,
             "n": self.n,
         }

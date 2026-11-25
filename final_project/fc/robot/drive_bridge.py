@@ -21,8 +21,10 @@ Behaviour:
   0600 --state-file at most once a second and on exit, and reloaded on start, so a
   bridge restart does not reopen old sessions. Only laptop `t` values are compared.
 - Holds (publishes zero instead of the command, ack `hold`) while:
-  * --imu-stop (default on): ImuHealth is "bad" with bad_cause stale/frozen/tilt, until it has
-    been ok/warn for IMU_CLEAR_S (ack `imu_hold: true`);
+  * --imu-stop (default on): ImuHealth is "bad" with bad_cause stale/frozen/tilt/stall_long, or reports
+    a short driver stall (stall_ms, the v3 driver's BNO stall marker, first 1 s, hold "imu_stall"),
+    until it has been ok/warn without a stall for IMU_CLEAR_S (ack `imu_hold: true`). A short stall
+    only holds: no lie-down, the walker keeps standing and walking resumes by itself;
   * --mux-guard (default on): the graph does not show exactly one /cmd_vel publisher and
     the mux on our topic, or /cmd_vel went quiet while we publish (ack `mux_ok: false`).
     If the mux disappears after it was seen, the bridge also publishes zero straight to
@@ -36,7 +38,8 @@ Behaviour:
   survives bridge restarts. Only `fcctl.sh ready ... --confirm` removes it (re-arm).
 - IMU lie-down (--imu-lie, default on with --imu-stop; RCA fc/notes/rca-20261124-shaking.md): zero speed
   does not stop a walker policy that reacts to a corrupted IMU (it shook the robot). When ImuHealth stays
-  bad (tilt at zero command, frozen values or no messages) for IMU_LIE_SUSTAIN_S while a walker is active,
+  bad (tilt at zero command, frozen values, no messages or a driver stall > 1 s) for IMU_LIE_SUSTAIN_S
+  while a walker is active,
   the bridge LATCHES like an e-stop (reason imu_<cause>, latch file, re-arm only via ready --confirm) and
   takes the legs off the policy: one STRICT switch walker -> --liedown controller (the switch fcctl down
   uses; its init blend is pure position control and never reads the IMU, and its policy fade-in keeps the
@@ -88,7 +91,11 @@ FALLEN_TILT_DEG = 45.0  # SPEC v1.1 fallen_tilt_deg
 FALLEN_HOLD_S = 0.5     # tilt must stay above the limit this long (a kick or bump is shorter)
 R3_RETRY_S = 1.0        # resend the deactivation if the legs are not confirmed inactive after this
 R3_MAX_TRIES = 3
-IMU_LIE_CAUSES = ("tilt", "frozen", "stale")
+IMU_LIE_CAUSES = ("tilt", "frozen", "stale", "stall_long")
+# A SHORT driver-reported BNO stall (ImuHealth stall_ms set, level "warn", <= imu stall_long_ms = 1 s) only
+# holds zero (cause "stall"): the walker keeps standing on the held orientation and the hold releases
+# IMU_CLEAR_S after valid data returns. Longer ("stall_long"), frozen, stale or tilt => lie down + latch
+# (fc/notes/imu-filter.md, v3).
 IMU_LIE_SUSTAIN_S = 0.75  # ImuHealth bad this long, walker active => lie down + latch (RCA 2026-11-24)
 IMU_LIE_SWITCH_S = 1.0    # STRICT walker -> lie-down switch must be answered ok within this, else R3
 IMU_LIE_WAIT_S = 3.5      # lie-down blend (stack.json init_s 2.5) + hold 1.0, then legs off (like fcctl down)
@@ -400,8 +407,9 @@ def save_replay_state(path: str, state: dict) -> None:
 
 
 class ImuGuard:
-    """IMU hold: set when ImuHealth is bad for a stale stream or a held tilt; released only
-    after clear_s of continuous ok/warn. Anything else ("unknown", None) keeps the current state."""
+    """IMU hold: set when ImuHealth is bad (IMU_LIE_CAUSES) or reports a short driver stall (stall_ms,
+    cause "stall"); released only after clear_s of continuous ok/warn without a stall. Anything else
+    ("unknown", None) keeps the current state."""
 
     def __init__(self, clear_s: float = IMU_CLEAR_S):
         self.clear_s = clear_s
@@ -413,6 +421,8 @@ class ImuGuard:
         level = summary.get("level") if isinstance(summary, dict) else None
         if level == "bad" and summary.get("bad_cause") in IMU_LIE_CAUSES:
             self.hold, self.cause, self._good_since = True, summary["bad_cause"], None
+        elif level in ("ok", "warn") and summary.get("stall_ms") is not None:
+            self.hold, self.cause, self._good_since = True, "stall", None
         elif level in ("ok", "warn"):
             if self._good_since is None:
                 self._good_since = now
@@ -717,7 +727,7 @@ def main(argv=None) -> int:
     parser.add_argument("--state-file", default=DEFAULT_STATE_FILE, help="replay state (0600); '' disables")
     parser.add_argument("--reset-replay", action="store_true", help="ignore (and overwrite) the saved replay state")
     parser.add_argument("--imu-stop", action=argparse.BooleanOptionalAction, default=True,
-                        help="hold zero while ImuHealth is bad (stale/tilt) (default on)")
+                        help="hold zero while ImuHealth is bad (stale/frozen/tilt/stall) (default on)")
     parser.add_argument("--mux-guard", action=argparse.BooleanOptionalAction, default=True,
                         help="hold zero unless exactly one mux forwards our topic to /cmd_vel (default on)")
     parser.add_argument("--max-vx", type=float, default=MAX_VX,
