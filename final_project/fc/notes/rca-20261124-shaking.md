@@ -74,7 +74,7 @@ This combines hypotheses (b) and (c).
   - **The 06:35 "calibration" verdict was a false positive.** The old rule flagged a raw min/max span above 0.01 rad/s, which a 6-LSB dither trips. Re-analysed with segment medians, that run is clean.
   - **Rotation vector repeats are normal at rest.** The fused 0x05 quaternion repeated bit-identically for 1.3–2.9 s, motors off. The 0x07 gyro repeated for at most 130 ms. A freeze test on the quaternion alone would fire on a healthy chip. 0.5 s with the gyro also identical is still abnormal.
   - **Remaining calibration path:** accel and mag dynamic calibration are ON and saved to DCD. Mag affects only heading. Accel could shift the gravity reference, but now the RV agrees with the calibrated accel within 0.02°, and gravity matches the 45° mount. So there is no current evidence of a bad saved calibration. The DCD has not been cleared.
-  - Driver option (not deployed): `fc/robot/imu/stock-bno-dyncal.patch`, see lane-D-gyro.md.
+  - Driver option (not deployed): `fc/robot/imu/stock-bno-dyncal.patch`, see [gyro.md](gyro.md).
 
 ### 2. Battery sag or brownout. Confidence: low (Pi update)
 **Pi update:**
@@ -129,7 +129,7 @@ Done 06:34–06:45 UTC; results are in "Pi evidence" above. Still owed:
    - Start the stack.
    - Watch `fc.ctl status` imu fields for 5 min at zero command: tilt < 3°, |bias_x| < 0.01, no unchanged > 100 ms.
    - Stop at the first warn.
-3. **If it shows bias or freezes on the stand:** run the lane-D bench test (`imu_test.py --mode bno`, motors unpowered, then battery on) to separate in-chip from electrical causes before any floor time.
+3. **If it shows bias or freezes on the stand:** run the [gyro bench test](gyro.md) (`imu_test.py --mode bno`, motors unpowered, then battery on) to separate in-chip from electrical causes before any floor time.
 4. **On the floor:** only with an R3 operator holding the gamepad, and a fresh battery.
 
 ## Software guards to add

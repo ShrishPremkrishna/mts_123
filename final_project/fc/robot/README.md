@@ -12,7 +12,7 @@ gamepad `/teleop_cmd_vel` wins) → `/cmd_vel` → walker. Contract: [../SPEC.md
 | `fcctl.sh` | Runs on the Pi from `~/fc-v1/robot/`: `status` (incl. `phase`/`light`, `mux_alive`, `mux_ok`, `ros.mux`), `ready [profile] [--confirm]`, `down [--keep-stack]`, `start <profile> --confirm`, `stop`, `bridge start\|stop`, `imu-test <seconds>`, plus `walk`/`rest` and `boot` (service only). |
 | `readiness.py` | Pure: the `status` phase (`off/starting/homed/standing/ready/fault`) and the controller check `ready` uses. |
 | `boot/` | Power-on service, prepared and **not installed**: `fc-boot.service`, `install.sh` (install/uninstall/status/print). What it does, rollback and the homing-posture evidence: [boot/README.md](boot/README.md). |
-| `profiles/stock.sh` | Class platform: monorepo `ros2 launch neural_controller launch.py teleop:=False` + teleop→`/teleop_cmd_vel` + `cmd_vel_mux_node`. Domain 0. |
+| `profiles/stock.sh` | Class platform: monorepo `ros2 launch neural_controller launch.py teleop:=False` + teleop→`/teleop_cmd_vel` + `cmd_vel_mux_node`. Domain 0. Default because it is the simplest stack known to walk (25 min on Nov 19, no driver fault), with the stock driver `01813d58` and the same policy as u6 (`ecf3a4ab`); the Pi's neural_controller has local changes, so it is "as installed", not pristine. `FC_IMU_FILTER=1` by default ([below](#imu-filter-driver-on-mts-2026-11-24-operator-approved)). |
 | `profiles/tej_u6.sh` | Tej's `software-ballkick-20261120-u6` via his `kickseen6` kit (prepare + start-native), fresh run dir, no HTTP API; + teleop→`/teleop_cmd_vel`. Domain 168. |
 | `profiles/stock_hh0.sh`, `profiles/tej_u6_hh0.sh` | Aliases of the base profile with `--heading-hold off` (set `FC_HEADING_HOLD=0`, source the base; `--heading-hold on` with an alias is refused). |
 | `stack_overlay.py` | The one per-start overlay builder (generalises `imu/heading_hold.py`, whose kp=0 policy helper it reuses): `--speed-cap`, `--heading-hold off`, and (stock) the lie-down controller, in `<run>/overlay/`, re-read and verified (YAML parsed and compared with the source plus exactly the intended edits; launch text compared; policies compared; gains/limits never wider). Any failure refuses the start before motion. Details: [Stack options](#stack-options-spec-v11). |
@@ -21,7 +21,7 @@ gamepad `/teleop_cmd_vel` wins) → `/cmd_vel` → walker. Contract: [../SPEC.md
 | `provision/` | Laptop: `provision.sh [--check] <host> <id> <team> <tag>` takes a new Pi to game-ready (read-only probe + readiness report; stages via `stage.sh`; writes only `~/fc-v1/` unless `--fix-clone-identity`). Second-robot plan, clone vs class card, and per-robot calibration: [provision/PROVISION.md](provision/PROVISION.md). Not staged to the Pi. |
 | `camstream.py` | Optional, not run by any script yet: front camera as 320 px MJPEG on :8090 (`/stream.mjpg`, `/frame.jpg`, `/health`) for the laptop Play screen (`cam_url` in robots.json). Default source subscribes read-only to camera_ros `/camera/image_raw/compressed` (same ROS env/domain as the profile); `--source picamera2` opens the sensor only when no camera node runs. Not yet run on a Pi. |
 | `keygen.py` | Laptop, once: `python -m fc.robot.keygen` writes `fc/config/link.key` (0600, gitignored). |
-| `vendor/tej_u6/` | Text sources/configs/manifests of u6, the kit, its driver source and gateway source (3.5 MB). Full archive with binaries: `~/workspace/pupper-foundation-artifacts/tej_u6_20261120.tar.gz` (+ `.sha256`). |
+| `vendor/tej_u6/` | Text sources/configs/manifests of u6, the kit, its driver source and gateway source (3.5 MB). Full archive with binaries: `~/workspace/pupper-foundation-artifacts/tej_u6_20261120.tar.gz` (+ `.sha256`, `be1cd1e2…c38781`, 279 MB: u6 release, full kit, pinned dependency sources; driver/native .so match the kit's hashes). |
 
 ## Velocity topology (one mux, one `/cmd_vel` publisher)
 
@@ -275,16 +275,15 @@ packet sent → `/emergency_stop` received median 1.2 ms (max 1.8), → SwitchCo
 on the Pi. A carried robot tilted past 45° for 0.5 s with the bridge up also trips it (harmless: it goes limp;
 re-arm with Ready).
 
-## Floor tests still needed (operator)
+## Floor tests (operator)
 
-1. Gentle lie-down on mts: `ready stock --confirm` (new start, loads the lie-down controller; `status.liedown`
-   true), stand, `down --keep-stack`, watch: slow lowering to the belly (~2.5 s), no tip, no drop at the end; then
-   `ready --confirm` stands again. Hands at its sides the first time (fingers clear of hips and knees); abort =
-   link E-STOP or R3 (legs off at once: a damped drop from part-way down).
-2. Link e-stop from the UI while walking slowly: legs off within a frame, UI shows estopped, Ready re-arms.
-3. Fallen cutoff: tip the standing robot over by hand (bridge up) -> legs off after ~0.5 s, `status.estop.reason`
+Done on mts Nov 24 (stock, robot): gentle lie-down (`down`, smooth, no drop), link E-STOP on the stand, fast gait at
+`--speed-cap 0.8` (0 falls in 8 pushes). Still needed:
+
+1. Link e-stop from the UI while walking slowly: legs off within a frame, UI shows estopped, Ready re-arms.
+2. Fallen cutoff: tip the standing robot over by hand (bridge up) -> legs off after ~0.5 s, `status.estop.reason`
    `fallen`.
-4. `--speed-cap 0.75` bursts per fast-gait.md (stock first; tej_u6 overlay launch not yet run).
+3. tej_u6 overlay launch with `--speed-cap` (not yet run).
 
 State lives in `~/fc-v1/run/` (pidfiles with process start times, `active` = profile + run dir, `lock`,
 `bridge_state.json`); each start
@@ -324,6 +323,6 @@ modes) needs Linux and is skipped on the Mac; run it with (`--init` reaps zombie
 
 `~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so`
 now links to the filtered build v2 `~/fc-v1/build/imu-filter-v2/install/.../libcontrol_board_hardware_interface.so`
-(sha 19d60fad…; v1 2486fa0a… retired). The stock profile sets `FC_IMU_FILTER=1` by default; `FC_IMU_FILTER=0` = stock behaviour (see fc/notes/imu-filter.md).
+(sha 19d60fad…; v1 2486fa0a… retired). The stock profile sets `FC_IMU_FILTER=1` by default; `FC_IMU_FILTER=0` = stock behaviour (see [imu-filter.md](../notes/imu-filter.md)).
 Undo (stack off): `cd ~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib && rm libcontrol_board_hardware_interface.so && mv libcontrol_board_hardware_interface.so.stock-link libcontrol_board_hardware_interface.so`
 (stock sha 01813d58…).

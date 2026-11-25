@@ -1,6 +1,6 @@
 # Pupper FC demo plan (Dec 3, 2026)
 
-Updated Nov 24 (gate status and owner to-do only). Current state: [STATUS.md](STATUS.md). Floor steps: [RUNBOOK.md](RUNBOOK.md). Gate numbers are
+Updated Nov 24 evening (gate status, field facts and owner to-do only). Current state: [STATUS.md](STATUS.md). Floor steps: [RUNBOOK.md](RUNBOOK.md). Gate numbers are
 targets until measured on the floor. Wording on stage: the robot **shoots by running through the ball**. There is
 no leg kick in this demo (maybe a later iteration).
 
@@ -14,8 +14,8 @@ no leg kick in this demo (maybe a later iteration).
 
 Facts the script relies on: fast gait **0.75 m/s** commanded (walker speed cap raised to 0.8 by preset
 `fast-play-robot`; ~0.73 m/s in sim; floor: 0.47 m in a 0.75 burst, gain 0.88, no falls), trot near the ball, shot = contact at speed
-(`contact_vx` 0.4 → 0.6 → 0.75, highest that passes). Field 2.63 × 1.93 m, **1.0 m goal mouths**, fence on all
-sides. Safety: STOP (space), E-STOP over the link (Esc), gamepad R3, fallen-robot cutoff at 45°, gentle lie-down on `down`.
+(`contact_vx` 0.4 → 0.6 → 0.75, highest that passes). Field size measured by the camera calibration (field.json
+fallback 2.68 × 2.19 m), **1.22 m goal mouths**, 7 in (0.178 m) ball, fence on all sides. Safety: STOP (space), E-STOP over the link (Esc), gamepad R3, fallen-robot cutoff at 45°, gentle lie-down on `down`.
 
 ## Stages and gates
 
@@ -37,7 +37,7 @@ holds in counted sets on Dec 1–2. Decide **Wed Dec 2, 8 pm**; never upgrade on
   fixed by the +7° offset. Open: fast gait walks ~8° right of slow (speed-dependent offset), five-stop set not counted.
 - G-fast: partial. Fast gait stable at cap 0.8, 0 falls in 8 fast pushes; contact ladder not run (`contact_vx` 0.3 only).
 - 1. Shootout: not met. `fast-light` 3/7 goals (15.9, 21.7, 16.4 s); failures track robot-tag visibility (bigger tag next).
-- 2. Keeper: 1 run, 0 conceded; saves not counted in camera mode. Not gated yet.
+- 2. Keeper: 1 run, 0 conceded. Camera save counting now exists (device-free, not yet checked on the floor). Not gated yet.
 - 3. Switch: sim only. Robot 2: not available.
 
 Stage 3 uses the solo role rule (defend while the ball threatens our goal, attack otherwise) and the interception
@@ -90,10 +90,12 @@ failure and the limit it shows. Record every session: fixed wide phone plus scre
 - [ ] **Staff, by Wed 25 evening** (last day reachable): robot 2 (Wed 25 → Dec 3, or fixed checkout slots; ours
       installs into `~/fc-v1` only) and a replacement BNO085 IMU or control board for `mts`.
 - [ ] If robot 2 comes: collect it and a second DualSense; run `provision.sh --check` (no motion) while help exists ([PROVISION.md](robot/provision/PROVISION.md)).
-- [ ] **Tags (top failure)**: rigid, flat robot tags **≥ 15 cm** ×2 (blue 10, red 11), same mount; measure tag height and offset.
+- [ ] **Tags (top failure)**: rigid, flat robot tags **≥ 15 cm** ×2 (blue 10, red 11), same mount. Blue's new rigid mount
+      is measured (0.267 m high, 0.02 m behind centre, in params.json); red still needs one.
 - [ ] Ask for **Coda access Nov 26–29** and whether the field may stay up. Confirm demo room, projector input, slot, Wi-Fi.
-- [ ] **Balls**: 3–4 identical light balls, ~18 cm, **≤ 150 g**, matte pink or orange. Weigh them.
+- [ ] **Balls**: new 7 in purple ball in field.json (radius 0.089 m). Get 2–3 more identical ones, **≤ 150 g**; weigh them,
+      run `ctl ballcal` and `ctl rollcal` with them.
 - [ ] **Fence**: foam board or 1×4s, ≤ 12 cm high, ~7 m, **corners cut at 45°**. Required: the sim assumes walls.
-- [ ] **Goals**: widen the mouths to 1.0 m (already in `config/field.json`).
+- [ ] **Goals**: mouths 1.22 m (in `config/field.json`).
 - [ ] Keep people off the field during runs; use a fixed camera feed (the phone feed froze once).
 - [ ] Cold setup drill at the venue ≤ 8 min (own router, camera boom, corner tags).

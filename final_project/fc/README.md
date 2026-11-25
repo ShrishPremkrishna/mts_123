@@ -17,16 +17,20 @@ python -m fc.app --source camera --video clip.mov  # or a folder of jpg/png
 
 # drive a running app from a shell or an agent: terse output, exit 0 ok / 1 failed / 3 health stop / 4 paused
 python -m fc.ctl status                            # one line per robot (--url, default http://127.0.0.1:8800)
-python -m fc.ctl test step vx=0.2 --wait           # ready/down/estop/preset/set/drive/stop/test/last/check: --help
+python -m fc.ctl test step vx=0.2 --wait           # also ready/down/estop/pi/preset/set/drive/stop/last/check/sleep: --help
 python -m fc.ctl batch fc/sessions/S1.batch        # first floor session (RUNBOOK) as one batch; pauses wait for Enter
-python -m fc.ctl rollcal --apply                   # roll the ball a few times: fits ball_decel (brain prediction) and sets it
+python -m fc.ctl rollcal --apply                   # roll the ball a few times: fits ball_decel (brain prediction), sets it live
+python -m fc.ctl ballcal [X Y]                     # ball colour from the ball (or pixel X Y); --show; also Shift-click on /ops
 ```
 
 Flags: `--port 8800`, `--host <LAN IP>` (UI from another device; default 127.0.0.1), `--camera NAME|INDEX`,
 `--no-link` (compute commands, send nothing), `--dry-run-ops` (robot buttons print their ssh command),
 `--udp-host blue=192.168.x.y` (control packets to the Pi's LAN address; overrides robots.json `udp_host`).
 
-Floor session: follow [RUNBOOK.md](RUNBOOK.md).
+Floor session: follow [RUNBOOK.md](RUNBOOK.md). Calibrations: `rollcal --apply` and `/params` edits are live only; to keep
+a value, put it in `config/params.json` (`ball_decel` is global there) or a preset. `ballcal` saves to
+`config/ball_color.json` (loaded at eye start). Field length/width come from the corner-tag calibration
+(`field_from_camera`, default on; field.json is the fallback); goal mouth and ball radius come from `config/field.json`.
 
 The app imports the real `fc.brain` and `fc.sim`; if either fails to import, the app does not start
 (no fallback controller).
@@ -45,6 +49,11 @@ says "ready" only when fcctl reports phase `ready` (else "link ok", "not seen by
 Keys: **space stop** (always), **Esc E-STOP** (always), K kickoff, P play/pause (or start now), R walk back to
 kickoff spots, T / shift+T referee touch +1/-1, V cycle who plays (both, blue alone, red alone; no restart), 1/2
 cycle the first/second robot's job, C camera/field view, H hide the end card. `/ops` is the test page below.
+The overhead view also draws the predicted ball path (the brain's rolling model, `ball_decel`, 3 s) and the
+brain's committed plan (`plan` 1, athletic preset). A frozen camera feed (byte-identical frames) shows
+CAMERA PAUSED; observations go stale, so robots stop. STOP ends a match (end card with the score); Pause keeps it.
+Goals count only in the play phase; on camera a goal is the observed ball crossing a goal line (a ball lying in
+the goal scores once). Screenshots (Nov 23): [notes/play-screenshots/](notes/play-screenshots/).
 
 **Stop vs E-STOP** (both screens). STOP (space) = zero speed to every robot; it stands still with its legs on.
 E-STOP (Esc, the striped header button = all robots, the card/robot button = that robot) = `Link.estop`: a signed
@@ -99,12 +108,16 @@ Output stage: every app-made command (drive, step, deadman, stale stop) goes thr
 brain's clamp + `accel_*` rate limit); an all-zero command passes at once. After an override the app calls
 `Brain.sent` so the brain ramps from what was really sent. Stop, test end, `imu_bad`, `mux_lost` are hard zero.
 
+Stale pose: a robot whose observation is older than `stale_stop_s` gets zero (not in `drive`). The link clamps
+`ttl_s` to 0.05–0.5 s (the bridge's `MAX_TTL`).
+
 Robot health from the bridge acks: IMU `level: bad` -> zero to that robot, the test ends `imu_bad`;
 `mux_ok: false` -> the same with `mux_lost`. New tests on that robot are refused until it clears. Link/IMU
 health (`imu`, `hold`, `imu_hold`, `mux_ok`, auth, RTT, loss, bridge stats) and eye fps go to `events.jsonl`
 at 2 Hz (`lk`, `eye` records), with the full brain debug dict every tick.
 
-Params: every knob (params.json + brain/sim defaults + `app.PARAM_FALLBACKS`) is editable live; limits are
+Params: one dict, `app.PARAM_FALLBACKS` < `brain.DEFAULTS` < `sim.SIM_DEFAULTS` (sim source) < params.json; every
+knob is editable live, unknown keys are rejected, strings are checked against `CHOICES`; limits are
 enforced (speed ceilings vx 0.75 / vy 0.3 / wz 2.0 = `link.CEIL`, the hard cap on every packet; `max_vx`,
 `push_vx`, `contact_vx`, `goalie_vmax` share the vx ceiling). The bridge clamps again with its own `MAX_VX`. The `eye_*` mount knobs apply on the next frame
 (a new `eye_floor_size` recalibrates).
@@ -120,7 +133,7 @@ edited since) and its stack; each robot card shows the running `speed_cap`/`head
 `preset_modified`, `preset_profile`, `preset_stack`, `profile_running` (acks), `stack_running`, `estops` and the
 link address. Shipped: `slow`, `fast`, `learn`, `push`, `headbutt`, `fast-play` (sim/brain), `fast-play-robot`
 (fast-play + `_stack.speed_cap` 0.8), `fast-light` (fast-play-robot with the Nov 24 push tuning, light
-ball), `stock-hh-on`, `stock-hh-off`, `u6-hh-on`, `u6-hh-off` (the `*-hh-off`
+ball), `athletic` (fast-light + committed plan, coast, `fast_yaw_bias_deg` −8; sim only so far), `stock-hh-on`, `stock-hh-off`, `u6-hh-on`, `u6-hh-off` (the `*-hh-off`
 presets now use the base profile + `_stack.heading_hold: off`; the `*_hh0` profiles remain aliases).
 
 Network: `link.py` sends to robots.json `udp_host` (or `--udp-host`) when set, else the ssh alias's address.

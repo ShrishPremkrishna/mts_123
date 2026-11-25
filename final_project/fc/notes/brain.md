@@ -1,4 +1,4 @@
-# Lane A: brain + sim (2026-11-23)
+# Brain and sim design notes (from 2026-11-23)
 
 ## Built
 
@@ -45,7 +45,7 @@ Rerun after the floor `step` test gives real numbers for bias and lag.
 
 ## Fast play (2026-11-23)
 
-**Sim walker model** (`sim_*`, from `notes/fast-gait.md`): vx gain 0.92 up to cmd 0.3, trot saturating to 0.36 m/s at 0.49, fast gait from cmd 0.5 (0.62 / 0.73 / 0.86 / 1.14 at 0.6 / 0.75 / 1.0 / 1.5), backward capped at 0.3, wz clipped at 2.0. Fast gait adds ±0.5 rad/s yaw wobble; each gait switch adds a short random yaw kick. The existing 0.15 s lag already gives the measured stop (0.10–0.11 m from 0.73 m/s). `sim_speed_curve: 0` restores plain gains. The sim also logs first touches of the ball (`sim.contacts`, robot speed) and robot–robot touches (`sim.bumps`).
+**Sim walker model** (`sim_*`, from [fast-gait.md](fast-gait.md)): vx gain 0.92 up to cmd 0.3, trot saturating to 0.36 m/s at 0.49, fast gait from cmd 0.5 (0.62 / 0.73 / 0.86 / 1.14 at 0.6 / 0.75 / 1.0 / 1.5), backward capped at 0.3, wz clipped at 2.0. Fast gait adds ±0.5 rad/s yaw wobble; each gait switch adds a short random yaw kick. The existing 0.15 s lag already gives the measured stop (0.10–0.11 m from 0.73 m/s). `sim_speed_curve: 0` restores plain gains. The sim also logs first touches of the ball (`sim.contacts`, robot speed) and robot–robot touches (`sim.bumps`).
 
 **Brain knobs** (defaults leave today's 0.3 m/s play unchanged):
 - `gait_band`, `gait_lo` 0.45, `gait_hi` 0.6, `gait_hold_s`: forward commands never sit in (0.45, 0.6); the output steps across the band.

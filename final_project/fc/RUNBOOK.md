@@ -21,7 +21,10 @@ the robot; never `down --force`.
 - [ ] Robot tag fitted, corner tags 0-3 down, iPhone Center Stage off.
 - [ ] Code and key on the Pi: **stage** on the robot card (`python -m fc.robot.keygen` once, if no key).
 - [ ] `ssh mts hostname -I`, then `fc/run.sh camera --robots blue --udp-host blue=<LAN IP>`.
-- [ ] Robot card: auth ok, RTT p95 < 20 ms, loss 0. Field: calib < 1.5 px, eye ≥ 15 fps, yaw ≈ 0° facing east.
+- [ ] Robot card: auth ok, RTT p95 < 20 ms, loss 0. Field: calib < 1.5 px, eye ≥ 15 fps, yaw ≈ 0° facing east;
+      `ctl status` shows the field size from the camera.
+- [ ] New ball or light: `python -m fc.ctl ballcal` (ball in view). New ball: `python -m fc.ctl rollcal --apply`, then
+      copy the value into `config/params.json` `ball_decel` (the live setting is lost on restart).
 
 ## Steps
 | # | Action | Pass | If it fails |
@@ -34,6 +37,8 @@ the robot; never `down --force`.
 | 6 | Preset **fast-play-robot**, **down**, **Ready** on the stand, **Ready** on the floor (passes `--speed-cap 0.80`). Step fwd 0.4 and 0.75 | **status** shows `speed_cap` 0.8; no "max_vx > robot speed cap" warning; gain at 0.75 recorded | Warning stays: the stack runs the old cap; down + Ready again |
 | 7 | **Push ball** ×5 with preset **slow**, then ×5 with **fast-light** (light ball; same 0.8 cap as fast-play-robot) | Goals ≤ 30 s, no tip, slows near the ball | Note failing run names |
 | 8 | **down** | Robot lies down, stack stops | STILL STANDING: R3 or support it |
+
+**A/B athletic:** step 7 with **fast-light** ×5 vs **athletic** ×5 (same cap); compare goals, time and `wz_reversals`.
 
 **A/B heading hold:** presets `stock-hh-off` / `u6-hh-off` pass `--heading-hold off`; down + Ready, repeat 5 and 7.
 

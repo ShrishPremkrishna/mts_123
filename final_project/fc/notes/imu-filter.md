@@ -1,6 +1,6 @@
 # IMU crutch: our own tilt filter in the stock driver (2026-11-24)
 
-**Status:** built and tested offline and in sim. **Not deployed.** Default is off: without `FC_IMU_FILTER=1` the new driver behaves like stock.
+**Status (Nov 24):** v2 installed on mts and on by default in the stock profile (`FC_IMU_FILTER=0` = stock behaviour); see [Deployment status](#deployment-status-2026-11-24).
 
 **Patch:** `fc/robot/imu/stock-imu-filter.patch`, sha `983a6e49…` (v2).
 - Applies to the Pi stock driver (`~/pupperv3-monorepo` `0e50afb`, `control_board_hardware_interface` at `e333272`).

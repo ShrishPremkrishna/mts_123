@@ -1,86 +1,73 @@
 # Pupper FC status
 
-**As of Tue Nov 24, 2026 (after the S1 floor session).** Update this page when a capability changes. Plan and
-gates: [DEMO.md](DEMO.md). Floor steps: [RUNBOOK.md](RUNBOOK.md). Contract: [SPEC.md](SPEC.md). App usage:
-[README.md](README.md). Pi side: [robot/README.md](robot/README.md).
+**As of Tue Nov 24, 2026, evening (S1 floor session + software since).** Update this page when a capability changes.
+Plan and gates: [DEMO.md](DEMO.md). Floor steps: [RUNBOOK.md](RUNBOOK.md). Contract: [SPEC.md](SPEC.md). App usage:
+[README.md](README.md). Pi side: [robot/README.md](robot/README.md). Design notes: [notes/](notes/).
 
-Labels: **robot** = observed on the physical robot; **device-free** = automated tests or a Pi/Docker run with no
-motion; **sim** = our kinematic sim (`fc.sim_eval`) or MuJoCo. Run IDs are `fc/runs/20261124T<id>`.
+Labels: **robot** = observed on the physical robot; **device-free** = automated tests, replays of logged runs or a
+Pi/Docker run with no motion; **sim** = our kinematic sim (`fc.sim_eval`) or MuJoCo. Run IDs are `fc/runs/20261124T<id>`.
 
-## Nov 24 floor session (robot `mts`, stock profile)
+## Nov 24 floor session (robot `mts`, stock profile) — robot
 
-| Result | Value (robot) |
+| Result | Value |
 |---|---|
-| Homing on the stand / software stand from the floor | 24–27 s / works |
-| Gentle lie-down (`down`) | verified repeatedly: smooth, no drop |
-| Link E-STOP (Esc) on the stand | confirmed |
-| Dead-man stop | 0.32 s, 3.4 cm (`043546Z`) |
-| goto ×3 | 5.6–6.9 cm (`043608Z`–`043624Z`); one later goto with a heading target missed by 14 cm (`071403Z`) |
-| Step gains, slow | forward 0.91–1.01, lateral 0.79, turn 1.0; onset 0.3–0.8 s; `latency_s` ≤ 0.14 |
-| Heading offset | 180 + 7° (slow gait). Fast gait walks ~8° right of slow (`073515Z` bias −7.9°): offset may need to depend on speed |
-| Fast gait (speed cap 0.8) | stable; 0.47 m in the 0.75 burst, gain 0.88 (`073515Z`); 0 falls in 8 fast pushes |
-| Slow goals | 5 of 13 attempts, 26–44 s. With today's push tuning (`push_max_heading_deg` 40, `push_lat_tol` 0.12, `push_turn_scale` 0.5, `k_turn` 1.0, `contact_vx` 0.2) 2/2: 27.4 s (5.5 m path, 3 turn reversals) and 42.6 s |
-| Fast goals (`fast-light`, light ball) | 3 of 7: 15.9, 21.7, 16.4 s; 4 timeouts. Before the preset, one real own goal (`073530Z`: ball clipped while circling, `clear_margin` 0.06) → `clear_margin` 0.12, `contact_slow_m` 0.5 |
-| Goalie | 1 run, 0 conceded (`071425Z`); saves are not counted in camera mode |
-| Overhead eye | 11 → 31–35 fps live (absent-robot full-frame search off the hot path, `59fbd9a`) |
-| Link | LAN UDP ~8 ms vs Tailscale p95 up to 1.1 s (`073726Z`). `robots.json` `udp_host` 10.5.6.112 (DHCP may change) |
+| Homing on the stand / software stand / gentle lie-down (`down`) | 24–27 s / works / smooth, no drop (repeatedly) |
+| Link E-STOP (Esc) on the stand; dead-man | confirmed; 0.32 s, 3.4 cm (`043546Z`) |
+| goto ×3; step gains (slow) | 5.6–6.9 cm; forward 0.91–1.01, lateral 0.79, turn 1.0, `latency_s` ≤ 0.14 |
+| Heading | slow gait offset 180 + 7°; fast gait walks ~8° right of slow (`073515Z`) |
+| Fast gait (speed cap 0.8) | stable, gain 0.88 at 0.75; 0 falls in 8 fast pushes |
+| Goals | slow 5/13 (26–44 s; 2/2 after push tuning); `fast-light` 3/7 (15.9, 21.7, 16.4 s), 4 timeouts |
+| Goalie | 1 run, 0 conceded (saves were not counted then) |
+| Eye / link | 31–35 fps live; LAN UDP ~8 ms vs Tailscale p95 1.1 s → `robots.json` `udp_host` 10.5.6.112 (DHCP may change) |
 
-**Limiting factor now: seeing the robot's own tag.** The small paper tag (~8 cm, ~30 px at 1920) is seen in 18 % of
-frames in the far half of the field vs 61 % near. Scoring fast runs saw the tag in 95–100 % of frames; every timeout
-saw it 46–89 %. Fix so far: `c52e180` keeps the crop search 1.5 s after a miss (offline replay 32 → 56 %, 43 → 63 %;
-not yet run live). Other losses: the phone feed froze once (`074158Z`), a person walked on the field once (`074019Z`).
-
-**IMU.** The BNO085 intermittently shows gyro-X pulses/bias and false tilt; the walker then leans or shakes. It
-seized once while standing ([RCA](notes/rca-20261124-shaking.md)). The dyncal hypothesis is refuted; the battery
-monitor shares `/dev/i2c-1` but is judged unlikely ([note](notes/imu-filter.md)). Guards and crutch are below.
-
-**Heat.** The Pi idled at 68–70 °C because of the Hailo-8 and the desktop GUI. After operator-approved OS changes
-(`pciex1` off, GUI off, earlier fan curve; undo in [robot/README.md](robot/README.md)) idle is ~57 °C (robot,
-operator reading). Lean stack load 0.8 vs 3–5.
+**Top failure: seeing the robot's own tag.** The old paper tag was seen in 18 % of far-half frames (61 % near);
+scoring runs saw it 95–100 %, timeouts 46–89 %. **IMU:** the BNO085 shows intermittent gyro-X pulses and false
+tilt; it seized once while standing ([RCA](notes/rca-20261124-shaking.md), [filter](notes/imu-filter.md)).
+**Heat:** idle ~57 °C after operator-approved OS changes (undo in [robot/README.md](robot/README.md)).
 
 ## What works
 
 | Capability | Verified by |
 |---|---|
-| Homing, software stand, gentle lie-down, link E-STOP, dead-man, goto, laptop-driven motion | **robot** Nov 24 |
-| Slow push goals (26–44 s) and fast `fast-light` goals (16–22 s) | **robot** Nov 24 (3/7 fast, see above) |
-| Fast gait at speed cap 0.8, no falls | **robot** Nov 24; **sim** (MuJoCo 0.73 m/s, 0/8 falls) |
-| IMU filter driver (`FC_IMU_FILTER=1`: accel-corrected tilt, gyro-X de-spike), v2 .so sha `19d60fad…` on mts | **robot**: 5-min stand check tilt 2.0–2.8°, 3 fast floor runs with no IMU incident. v1 mis-flagged normal near-zero gyro repeats as freezes. Stock profile now sets it by default (`51c16f4`, needs restage) |
-| Bridge auto lie-down + latch on a sustained bad IMU (tilt / stale / frozen) | **device-free** + ROS end-to-end in Docker. Not yet triggered on the robot |
-| IMU health hold stops motion on a gyro fault | **robot** (caught a 14° lean) |
-| Lean stack (no `camera_node` / `foxglove_bridge`), heat in `status` | **robot** Nov 24 |
-| Overhead eye (tags, ball, calibration) at 31–35 fps | **robot** Nov 24 |
+| Homing, stand, lie-down, link E-STOP, dead-man, goto, slow and `fast-light` push goals, fast gait at cap 0.8 | **robot** Nov 24 (rates above); fast gait also **sim** (MuJoCo 0.73 m/s, 0/8 falls) |
 | Signed UDP link, 50 Hz bridge, 0.25 s dead-man, fallen cutoff 45°, E-STOP latched until Ready | **robot** (stops) + **device-free** |
-| Laptop app: Play screen, `/ops` tests, match flow, run logs, presets with `_stack` | **device-free** + **sim**, used on the **robot** |
-| Brain: goalie, solo role switching vs a human, interception | **sim** only |
-| Field length/width from the corner-tag calibration (`field_from_camera`, default on) into one live Field for brain, referee, match flow, UI; logged in each run's params.json, shown in `ctl status`. Goal mouth 1.22 m stays in field.json | **device-free** (unit test). Not yet on the robot |
-| Ball colour calibration: `python -m fc.ctl ballcal [X Y]` / `--show`, Shift-click on the `/ops` camera; applied live, saved to `config/ball_color.json` (loaded at eye start). Ball radius: field.json only (measure the new ball) | **device-free** + synthetic camera. Not yet on the real camera |
-| Ball velocity `fc/ballvel.py` (weighted fit over 0.4 s, outlier gate, kick detection, exactly 0 at rest). Replay of 14 Nov 24 runs: at rest 0 m/s in every frame (old estimator: p95 0.03, max 0.19 m/s). Synthetic rolls: 90 % of true speed 0.06 s after release, error median 0.01-0.02 m/s. `python -m fc.tools.ball_vel_replay --synthetic fc/runs/...` | **device-free** (logged tracks + synthetic). Not yet live |
-| `python -m fc.ctl rollcal [--apply]`: fits `ball_decel` from free rolls (sim: 0.438 for 0.45). Hand rolls of the old ball in `071425Z` fit 0.12-0.29, median 0.15 m/s², vs brain default 0.45 | **device-free** + sim. Not yet run with the new ball |
-| CAMERA PAUSED: byte-identical frames (the `074158Z` freeze) are not processed, so observations go stale and robots stop; > 0.5 s shows a Play banner, `/ops` bar, `ctl status`, run-log event | **device-free** (synthetic frozen feed). Not yet live |
-| Camera goalie shot counting (`ShotCounter`): `ctl test goalie --wait` prints conceded / saved / shots (+ missed, unclear); per-shot log in summary.json. The camera referee now scores a ball lying in the goal once (it scored again every 3 s) | **device-free** + sim physics (12/12 scripted shots agree). Not yet on the floor |
+| IMU health hold (caught a 14° lean); lean stack, heat in `status` | **robot** |
+| IMU filter v2 (`FC_IMU_FILTER`, accel-corrected tilt, gyro-X de-spike) installed on mts; **default on** in `stock.sh` (`51c16f4`) | **robot** (5-min stand 2.0–2.8°, 3 fast runs clean). Default-on needs a restage |
+| Bridge auto lie-down + latch on a sustained bad IMU | **device-free** + ROS in Docker; not triggered on the robot |
+| Play screen, `/ops` tests, match flow, run logs, presets with `_stack`, `fc.ctl` | **device-free** + **sim**, used on the **robot** |
+| Goalie, solo role switching vs a human, interception | **sim** only |
 
-## What is unverified
+## New since the floor session (none run on the robot yet)
 
-- Eye fix `c52e180` (1.5 s crop search) on the live feed.
-- Fast pushes at a repeatable rate; contact ladder 0.4 / 0.6 / 0.75 (only `contact_vx` 0.3 run).
-- Speed-dependent heading offset for the fast gait.
-- Goalie: reaction time; camera save counting on the floor (compare with a hand count).
-- Stage 3 (solo switching vs a human) and interception on the floor.
-- Bridge IMU lie-down on a real fault; the filter's accel stream during a fault.
-- Robot 2: not in hand. Plan: [robot/provision/PROVISION.md](robot/provision/PROVISION.md).
+| Change | Verified by |
+|---|---|
+| Field length/width from the corner-tag calibration (`field_from_camera`, default on), one live Field; goal mouths **1.22 m** (field.json) | **device-free** |
+| Ball colour calibration `ctl ballcal` / Shift-click on `/ops`, saved to `config/ball_color.json` | **device-free** + synthetic camera |
+| Robust ball velocity `fc/ballvel.py`: replay of 14 Nov 24 runs gives 0 m/s at rest in every frame (old p95 0.03, max 0.19); synthetic rolls reach 90 % of true speed in 0.06 s | **device-free** |
+| `ctl rollcal [--apply]` fits `ball_decel` (sim 0.438 for 0.45). `ball_decel` **0.18** is one global value in params.json, from real hand rolls of the old ball (0.12–0.29, median 0.15). `--apply` is live only | **device-free** + sim; not yet fitted for the new ball |
+| CAMERA PAUSED: byte-identical frames are dropped, robots go stale and stop; banner, `ctl status`, run-log event | **device-free** (synthetic frozen feed) |
+| Camera goalie save counting (`ShotCounter`: conceded / saved / missed / unclear); a ball lying in the goal scores once | **device-free** + sim (12/12 scripted shots) |
+| Predicted ball path and the brain's committed plan drawn on Play and `/ops` | **device-free** + sim |
+| **`athletic` preset**: fast-light + planned committed arcs (Dubins to a stage behind the predicted intercept, pure pursuit, replan on real change, `plan_flip_s`), prediction-led intercept, coast on a stale pose (`coast_s` 0.3), `fast_yaw_bias_deg` −8. `--floor`, 100 seeds vs fast-light: wz reversals −23 %, fast reversals −45 %, moving-ball hits 72 → 84, solo median 14.0 → 14.5 s (not faster), 1v1 goals 3.7 → 4.5 ([notes/brain.md](notes/brain.md)) | **sim** only |
+| New 7 in purple ball (radius 0.089 m); new rigid tag mount on blue (`eye_tag_height` 0.267 m, `eye_tag_offset_x` −0.02 m) | config from measurements; not run live |
+| Eye keeps the robot-tag crop search 1.5 s after a miss (`c52e180`): offline replay 32 → 56 %, 43 → 63 % tag-seen | **device-free** (replay) |
+
+## Unverified
+
+- Everything in the table above on the live camera and robot; the new tag mount's tag-seen fraction.
+- Contact ladder 0.4 / 0.6 / 0.75 (only `contact_vx` 0.3 run); speed-dependent heading offset on the floor.
+- Goalie reaction time and save counting vs a hand count; stage 3 (solo switching vs a human); interception.
+- Bridge IMU lie-down on a real fault. Robot 2: not in hand ([PROVISION.md](robot/provision/PROVISION.md)).
 
 ## Next session
 
-1. Bigger rigid robot tag (≥ 15 cm, flat); measure its height and offset into `eye_tag_height` / `eye_tag_offset_x`.
-2. Restage the Pi (`robot/stage.sh mts`); confirm `FC_IMU_FILTER on` in `robot.log` at start.
-3. Fast pushes ×5 with `fast-light`, logging tag-seen fraction per run.
-4. `ctl rollcal --apply` with the new ball, then goalie ×5 (also count saves by hand once to check the app's count).
+1. Restage mts (`robot/stage.sh mts`); confirm `FC_IMU_FILTER on` in `robot.log`; 5-min stand check.
+2. `ctl ballcal` and `ctl rollcal --apply` with the purple ball; copy `ball_decel` into params.json.
+3. Pushes: `fast-light` ×5 vs `athletic` ×5, logging goals, time, tag-seen fraction and `wz_reversals`.
+4. Goalie ×5, saves counted by the app and by hand.
 5. Solo role switching vs a human (stage 3).
 
 ## Blockers (owner)
 
-- **Robot 2**: still not available. Ask staff (reachable until Wed 25 evening).
-- **IMU / control board**: ask staff for a replacement BNO085 or board.
-- **Rigid tags ≥ 15 cm** ×2, **light balls** (≤ 150 g), **fence** with 45° corners, goals at 1.0 m.
-- **Coda access Nov 26–29** and whether the field may stay up.
+Robot 2 and a replacement BNO085/board (staff reachable until Wed 25 evening); a second rigid tag ≥ 15 cm for red;
+more light balls (≤ 150 g) matching the purple one; fence with 45° corners; Coda access Nov 26–29.

@@ -30,7 +30,7 @@ signature, not quantization: keep it bad at 500 ms regardless of command.
 
 Pure stdlib (runs on the Pi's system python3). Thresholds are params; defaults
 were calibrated on kickseen4 (bad) and kickseen6 (mild episode, robot walked and
-kicked fine): see fc/notes/lane-D-gyro.md and fc/robot/imu/replay_health.py.
+kicked fine): see fc/notes/gyro.md and fc/robot/imu/replay_health.py.
 
 Inputs are in the published base frame (/imu_sensor_broadcaster/imu): the driver
 rotates the chip frame by the URDF mount (pitch -135 deg about y). We rotate the

@@ -28,8 +28,9 @@ One laptop process (`python -m fc.app`) owns the loop at 30 Hz and serves the UI
 ## Shared types (`fc/core.py`, the only cross-lane contract)
 
 - `Pose(x, y, yaw)`; `Ball(x, y, vx, vy, t)`; `RobotObs(id, pose, t)`.
-- `Field(length, width, goal_width, ...)` loaded from `fc/config/field.json` — the
-  single geometry source.
+- `Field(length, width, goal_width, ...)`: one live object shared by brain, referee, match flow and UI.
+  `fc/config/field.json` gives goal mouth, ball and robot radius, and the fallback size; with
+  `field_from_camera` (default on) length and width come from the corner-tag calibration.
 - `World(t, ball: Ball|None, robots: dict[str, RobotObs])`.
 - `Cmd(vx, vy, wz, tag)` in body frame; `Cmd.stop()` is zero.
 - `Params`: flat dict of named knobs loaded from `fc/config/params.json`, editable

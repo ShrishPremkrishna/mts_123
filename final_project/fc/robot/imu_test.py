@@ -23,7 +23,7 @@ Modes (--mode, default auto):
   replay Same analysis as ros on a recorded .npz (audit extract.py format).
   auto   ros if a ros2_control_node is running, else bno.
 
-Tomorrow's sequence (see fc/notes/lane-D-gyro.md):
+Tomorrow's sequence (see fc/notes/gyro.md):
   python3 imu_test.py --mode bno --seconds 600 --condition unpowered
   python3 imu_test.py --mode bno --seconds 600 --condition battery_on_motors_off
   (start the stack, legs homed, standing on the stand)
