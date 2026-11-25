@@ -22,7 +22,9 @@ Walker speed model (the deployed policy, fc/notes/fast-gait.md; sim_speed_curve:
   sim_cam_hz, sim_latency_s, sim_pos_noise (m), sim_yaw_noise_deg
   sim_yaw_bias_a/b/c_deg  tag heading bias c + a*cos(yaw) + b*sin(yaw)
   sim_drop_near/far     tag dropout probability at the camera (north, +y) / far (south) edge
-  sim_burst_per_s, sim_burst_s  random dropout bursts per robot
+  sim_burst_per_s, sim_burst_s  random dropout bursts per robot; sim_burst_s_max > sim_burst_s draws each
+                        burst's length uniformly from [sim_burst_s, sim_burst_s_max] (floor: 0.3-1.5 s)
+  sim_fast_dir_deg      the fast gait walks this many degrees off its heading (floor: about -8, to the right)
   sim_ball_drop, sim_ball_noise, sim_ball_vel_noise
 Physics knobs (always on): sim_ball_decel (m/s^2), sim_ball_e_robot, sim_ball_e_wall,
   sim_goal_pause_s, sim_walls (1 = ball bounces off every edge except goal mouths,
@@ -52,7 +54,7 @@ SIM_DEFAULTS = {
     "sim_drift_deg_per_m": 60.0, "sim_yaw_walk_deg": 2.0,
     "sim_cam_hz": 30.0, "sim_latency_s": 0.15, "sim_pos_noise": 0.01, "sim_yaw_noise_deg": 1.5,
     "sim_yaw_bias_a_deg": 10.0, "sim_yaw_bias_b_deg": 5.0, "sim_yaw_bias_c_deg": 0.0,
-    "sim_drop_near": 0.02, "sim_drop_far": 0.25, "sim_burst_per_s": 0.1, "sim_burst_s": 0.4,
+    "sim_drop_near": 0.02, "sim_drop_far": 0.25, "sim_burst_per_s": 0.1, "sim_burst_s": 0.4, "sim_burst_s_max": 0.0,
     "sim_ball_drop": 0.03, "sim_ball_noise": 0.01, "sim_ball_vel_noise": 0.03,
     "sim_ball_decel": 0.45, "sim_ball_e_robot": 0.4, "sim_ball_e_wall": 0.6,
     "sim_goal_pause_s": 1.0, "sim_walls": 1, "sim_trap_s": 6.0,
@@ -60,6 +62,7 @@ SIM_DEFAULTS = {
     "sim_fast_v060": 0.62, "sim_fast_v075": 0.73, "sim_fast_v100": 0.86, "sim_fast_v150": 1.14,
     "sim_vx_clip": 1.5, "sim_vx_back_max": 0.3, "sim_wz_clip": 2.0,
     "sim_fast_wobble": 0.5, "sim_fast_wobble_hz": 2.5, "sim_gait_kick": 0.3, "sim_gait_kick_s": 0.3,
+    "sim_fast_dir_deg": 0.0,
 }
 OFF = {"sim_gain_vx": 1.0, "sim_gain_vy": 1.0, "sim_gain_wz": 1.0, "sim_lag_s": 0.0,
        "sim_drift_deg_per_m": 0.0, "sim_yaw_walk_deg": 0.0, "sim_latency_s": 0.0,
@@ -67,7 +70,7 @@ OFF = {"sim_gain_vx": 1.0, "sim_gain_vy": 1.0, "sim_gain_wz": 1.0, "sim_lag_s": 
        "sim_yaw_bias_b_deg": 0.0, "sim_yaw_bias_c_deg": 0.0, "sim_drop_near": 0.0,
        "sim_drop_far": 0.0, "sim_burst_per_s": 0.0, "sim_ball_drop": 0.0,
        "sim_ball_noise": 0.0, "sim_ball_vel_noise": 0.0,
-       "sim_speed_curve": 0, "sim_fast_wobble": 0.0, "sim_gait_kick": 0.0}
+       "sim_speed_curve": 0, "sim_fast_wobble": 0.0, "sim_gait_kick": 0.0, "sim_fast_dir_deg": 0.0}
 SCENARIOS = ("kickoff", "attack_solo", "shot_on_goal", "random", "return", "rolling_ball")
 
 
@@ -270,7 +273,8 @@ class Sim:
             b.vx += (vx_actual(cvx, p) - b.vx) * alpha
             b.vy += (p["sim_gain_vy"] * cvy - b.vy) * alpha
             b.wz += (wz_t - b.wz) * alpha
-            c, s = math.cos(b.yaw), math.sin(b.yaw)
+            hd = b.yaw + (math.radians(p["sim_fast_dir_deg"]) if b.fast else 0.0)  # walking direction
+            c, s = math.cos(hd), math.sin(hd)
             b.x += (c * b.vx - s * b.vy) * h
             b.y += (s * b.vx + c * b.vy) * h
             moving = abs(b.vx) + abs(b.vy) + 0.2 * abs(b.wz) > 0.02
@@ -388,7 +392,8 @@ class Sim:
         frame_r = {}
         for k, b in self.bots.items():
             if r.random() < p["sim_burst_per_s"] / p["sim_cam_hz"]:
-                b.burst_until = self.t + p["sim_burst_s"]
+                lo, hi = p["sim_burst_s"], p["sim_burst_s_max"]
+                b.burst_until = self.t + (r.uniform(lo, hi) if hi > lo else lo)
             far = min(1.0, max(0.0, (f.width / 2 - b.y) / f.width))
             pdrop = p["sim_drop_near"] + (p["sim_drop_far"] - p["sim_drop_near"]) * far
             if self.t < b.burst_until or r.random() < pdrop:

@@ -196,3 +196,33 @@ def test_sim_eval_new_scenarios_smoke():
     assert r is None or r["arrive"] > 0
     m = se.moving_attack(F, ROBOTS, p, 4)
     assert set(m) == {"hit", "toward", "goal"}
+
+
+def test_fast_gait_walks_off_its_heading_and_bursts_have_a_length_range():
+    from fc.sim import OFF as NO_ERRORS
+    q = {**NO_ERRORS, "sim_fast_dir_deg": -8.0, "sim_speed_curve": 1}  # errors on, all but this one zeroed
+    s = Sim(F, ROBOTS, q, 0)
+    s.reset("kickoff", robots=["blue"])
+    b = s.bots["blue"]
+    b.x, b.y, b.yaw = -0.8, 0.0, 0.0
+    drive(s, {"blue": Cmd(0.75, 0.0, 0.0)}, 1.0)
+    assert abs(b.yaw) < 1e-9 and math.degrees(math.atan2(b.y, b.x + 0.8)) < -7.0  # walks right of its heading
+    b.x, b.y = -0.8, 0.0
+    drive(s, {"blue": Cmd(0.3, 0.0, 0.0)}, 1.0)
+    assert abs(b.y) < 1e-9  # the trot walks straight
+    s = Sim(F, ROBOTS, {"sim_burst_per_s": 30.0, "sim_burst_s": 0.3, "sim_burst_s_max": 1.5}, 2)
+    s.reset("kickoff")
+    lens = set()
+    for _ in range(40):
+        s._capture()
+        lens.add(round(s.bots["blue"].burst_until - s.t, 2))
+    assert min(lens) >= 0.3 - 1e-9 and max(lens) <= 1.5 + 1e-9 and len(lens) > 5
+
+
+def test_sim_eval_solo_reports_jitter_and_floor_knobs_exist():
+    from fc import sim_eval as se
+    assert set(se.FLOOR) <= set(SIM_DEFAULTS)
+    p = {**OFF, "max_vx": 0.75, "push_vx": 0.75, "plan": 1}
+    t, own, st = se.solo(F, ROBOTS, p, 3, "push", limit=10.0)
+    assert {"rev", "fast", "sq", "n", "replans", "coast", "speed", "touch", "min"} <= set(st)
+    assert st["replans"] >= 1 and st["n"] > 0

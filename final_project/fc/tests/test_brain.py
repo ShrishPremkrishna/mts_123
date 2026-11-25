@@ -1,7 +1,7 @@
 """Brain unit tests: geometry, roles, safety, shaping. Run from final_project/: pytest fc/tests -q"""
 import math
 
-from fc.brain import Brain, DEFAULTS, seg_dist, shape, to_body, unit
+from fc.brain import Brain, DEFAULTS, dubins_points, dubins_words, seg_dist, shape, to_body, unit
 from fc.core import Ball, Cmd, Field, Pose, RobotCfg, RobotObs, World
 
 F = Field(length=2.63, width=1.93, goal_width=0.61, goal_depth=0.30, ball_radius=0.09, robot_radius=0.18)
@@ -381,3 +381,100 @@ def test_block_steps_into_the_ball_path_when_the_line_is_too_far():
     K = b._block(Pose(-0.5, 0.2, -math.pi / 2), (0.8, 0.0), (-1.6, 0.0), q)
     assert K is not None and abs(K[1]) < 0.02 and -1.065 < K[0] < 0.8
     assert b._block(Pose(-1.0, 0.0, math.pi / 2), (0.8, 0.0), (-1.6, 0.0), q) is None  # line is reachable
+
+
+# ---------------------------------------------------------------- plan mode, coast, fast-gait heading bias
+PL = {**P, "plan": 1, "max_vx": 0.75, "push_vx": 0.75, "contact_vx": 0.3, "contact_slow_m": 0.5, "max_wz": 2.0}
+
+
+def test_dubins_paths_reach_the_goal_pose():
+    q0, q1 = (0.1, -0.2, 2.5), (-0.6, 0.4, -0.3)
+    words = dubins_words(q0, q1, 0.3)
+    assert words and sum(words[0][1]) <= sum(words[-1][1])
+    for word, seg in words:
+        pts = dubins_points(q0, word, seg, 0.3)
+        assert math.hypot(pts[-1][0] - q1[0], pts[-1][1] - q1[1]) < 0.01
+        hx, hy = pts[-1][0] - pts[-2][0], pts[-1][1] - pts[-2][1]
+        assert abs(math.atan2(math.sin(math.atan2(hy, hx) - q1[2]), math.cos(math.atan2(hy, hx) - q1[2]))) < 0.2
+
+
+def test_plan_off_by_default():
+    assert DEFAULTS["plan"] == 0 and DEFAULTS["coast_s"] == 0 and DEFAULTS["fast_yaw_bias_deg"] == 0
+    _, d = Brain(BLUE, F).decide(mworld(0.0, (0.6, 0.3, 0.0), (0.0, 0.0)), P)
+    assert d["phase"] == "route" and "plan" not in d
+
+
+def test_plan_from_the_wrong_side_goes_round_and_ends_on_the_shot_line():
+    b = Brain(BLUE, F)
+    _, d = b.decide(mworld(0.0, (0.6, 0.1, math.pi), (0.0, 0.0)), PL)
+    assert d["phase"] in ("plan", "plan_turn") and b.replans == 1
+    pts = b.plan["pts"]
+    c = F.ball_radius + F.robot_radius
+    clear = c + PL["clear_margin"]
+    for x, y in pts:  # off the shot line (the run-up and the push), clear of the ball
+        assert math.hypot(x, y) >= clear - 1e-6 or x < -0.5 * c or abs(y) < 0.01
+    stage = [q for q in pts if abs(q[1]) < 0.01 and q[0] < -c]
+    assert stage and min(q[0] for q in stage) <= -(c + PL["plan_stage_m"]) + 0.01  # run-up along the shot line
+    assert pts[-1][0] > 0.2 and abs(pts[-1][1]) < 0.01  # and on through the ball toward the east goal
+
+
+def test_plan_commits_through_noise_and_replans_when_the_ball_moves():
+    b = Brain(BLUE, F)
+    for i in range(45):  # 1.5 s of tag noise (+-2 cm, +-3 deg) and a jittering ball (+-1 cm)
+        n = (-1) ** i
+        b.decide(mworld(i / 30, (-0.9 + 0.02 * n, 0.5, -0.4 + 0.05 * n), (0.0, 0.01 * n)), PL)
+    assert b.replans == 1
+    for i in range(45, 70):  # the ball is moved 0.4 m
+        b.decide(mworld(i / 30, (-0.9, 0.5, -0.4), (0.0, -0.4)), PL)
+    assert b.replans == 2 and abs(b.plan["P"][1] + 0.4) < 0.02
+
+
+def test_plan_runs_to_where_a_rolling_ball_will_be():
+    b = Brain(BLUE, F)
+    _, d = b.decide(mworld(0.0, (-0.9, -0.5, 0.5), (-0.2, 0.6), (0.0, -0.6)), PL)
+    P = d["intercept"]
+    assert P[1] < 0.6 - 0.2 and abs(P[0] + 0.2) < 0.02  # well ahead of the ball along its path
+    assert 0.6 - P[1] <= 0.6 ** 2 / (2 * PL["ball_decel"]) + 1e-6  # no further than where it stops rolling
+
+
+def test_plan_line_zone_slides_off_a_small_lateral_error():
+    b = Brain(BLUE, F)
+    cmd, d = run(b, lambda t: mworld(t, (-0.45, 0.06, 0.0), (0.0, 0.0)), 10, PL)[-1]
+    assert d["phase"] in ("line", "push") and cmd.vy < -0.05 and abs(cmd.wz) < 0.3 and cmd.vx > 0.1
+
+
+def test_coast_keeps_going_slower_on_a_stale_pose_then_stops():
+    q = {**P, "coast_s": 0.3, "coast_vx": 0.25, "pose_stale_s": 1.0, "max_vx": 0.75, "gait_band": 0}
+    b = Brain(BLUE, F)
+    b.out = Cmd(0.6, 0.0, 0.8)
+    outs = [b.decide(world(0.4 + i / 30, (-0.8, 0.0, 0.0), me_t=0.0), q) for i in range(12)]
+    assert all(d["phase"] == "coast" for _, d in outs)
+    vx = [c.vx for c, _ in outs]
+    wz = [c.wz for c, _ in outs]
+    assert vx[0] < 0.6 and vx[-1] < vx[0] and vx[-1] > 0.25 and wz[-1] < wz[0] < 0.8
+    cmd, d = b.decide(world(1.1, (-0.8, 0.0, 0.0), me_t=0.0), q)
+    assert d["phase"] == "pose_stale" and cmd.vx == 0.0
+    b = Brain(BLUE, F)  # coast off: steers on the old pose as before
+    _, d = b.decide(world(0.4, (-0.8, 0.0, 0.0), me_t=0.0), {**q, "coast_s": 0})
+    assert d["phase"] != "coast"
+
+
+def test_fast_yaw_bias_applies_only_in_the_fast_gait():
+    q = {**P, "predict_self": 1, "act_lag_s": 0.0, "fast_yaw_bias_deg": -8.0}
+    b = Brain(BLUE, F)
+    for vx, want in ((0.3, 0.0), (0.75, -8.0)):
+        b.hist = [(0.0, vx, 0.0, 0.0, True)]
+        b.out = Cmd(vx, 0.0, 0.0)
+        pose = b._predict(Pose(0.0, 0.0, 0.0), 0.0, 0.0, q)
+        assert abs(math.degrees(pose.yaw) - want) < 1e-6
+    b.hist = [(0.0, 0.75, 0.0, 0.0, True)]  # dead reckoning walks along the corrected heading
+    pose = b._predict(Pose(0.0, 0.0, 0.0), 0.0, 1.0, q)
+    assert pose.y < -0.09 and abs(math.degrees(pose.yaw) + 8.0) < 1e-6
+
+
+def test_plan_debug_carries_the_committed_path_for_the_ui():
+    b = Brain(BLUE, F)
+    _, d = b.decide(mworld(0.0, (-0.9, 0.5, -0.4), (0.0, 0.0)), PL)
+    pts = d["plan"]
+    assert 2 <= len(pts) <= 20 and all(len(q) == 2 for q in pts)
+    assert pts[-1] == [round(b.plan["pts"][-1][0], 3), round(b.plan["pts"][-1][1], 3)]

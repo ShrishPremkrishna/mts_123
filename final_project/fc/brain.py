@@ -78,6 +78,27 @@ Knobs (params.json; DEFAULTS below apply when a key is missing):
                 speed while it turns round (0 = turn in place first)
   return_block  1 = a returning defender that cannot reach its guard line before the ball steps into
                 the ball's path at the first point it can reach in time (straight-line ball model)
+  plan          1 = planned attack: a Dubins path (min turning radius plan_radius) to a stage plan_stage_m
+                behind the predicted intercept point on the ball->goal line, then straight through the ball;
+                followed with pure pursuit (plan_lookahead, turn rate cap plan_wz: speed drops on tight arcs).
+                Replans only when the intercept point moves > plan_replan_m (scaled down to 30% over the last
+                metre of path), the push direction turns >
+                plan_replan_deg, the robot is > plan_dev_m off the path or the path is used up (at most once per
+                plan_min_s). From the wrong side the path goes via a tangent point beside the ball. No collision-
+                free path -> the old curved approach (0 = always the old approach)
+  plan_horizon_s  intercept horizon for the plan (ETA from the path length at plan_eta_frac * max_vx)
+  plan_near_m, plan_near_lat  behind the ball within plan_near_m surface gap, within 2*push_lat_tol of the
+                line and facing within 45 deg of the push: pure pursuit along the shot line through the ball, sliding
+                off the lateral error (turns scaled by push_turn_scale inside push_lat_tol), until the gap exceeds
+                plan_near_m + 0.4, the offset plan_near_lat or the heading error 70 deg. Only for a ball crossing
+                the line slower than 0.25 m/s (0.4 to stay): a crossing ball is intercepted by a plan
+  plan_look_s   pure-pursuit lookahead grows by this many seconds of the current speed (a short lookahead at
+                speed is a high heading gain: wobble and tag noise become turn reversals)
+  plan_spin_deg pure-pursuit point further off the nose than this: turn in place
+  coast_s       0 = off. Own pose older than this (but younger than pose_stale_s): do not steer on it; keep the
+                last command, vx decaying toward coast_vx and vy/wz toward 0 (time constant coast_tau_s)
+  fast_yaw_bias_deg  added to the robot's heading while the command executing is faster than fast_yaw_vx
+                (the fast gait walks off its tag heading). Set it to the step test's heading_bias_deg at speed
   role_mode goto: walk to (goto_x, goto_y) and, if goto_yaw is a number, face it. Per-call
                 params, not knobs; done within goto_tol_m and goto_yaw_tol_deg (dbg["done"]).
 """
@@ -114,6 +135,10 @@ DEFAULTS = {
     "solo_def_margin": 0.3, "solo_third": 0.333, "ball_decel": 0.45,
     "intercept_max_s": 2.0, "intercept_vmin": 0.15, "intercept_near_m": 0.4, "return_detour": 1, "return_block": 1,
     "solo_zone": 0.0, "return_back_vx": 0.25,
+    "plan": 0, "plan_radius": 0.30, "plan_stage_m": 0.12, "plan_lookahead": 0.35, "plan_wz": 1.8,
+    "plan_replan_m": 0.20, "plan_replan_deg": 20, "plan_dev_m": 0.30, "plan_min_s": 0.5, "plan_horizon_s": 2.5,
+    "plan_eta_frac": 0.7, "plan_near_m": 0.50, "plan_near_lat": 0.35, "plan_spin_deg": 80, "plan_look_s": 0.5,
+    "coast_s": 0.0, "coast_vx": 0.25, "coast_tau_s": 0.5, "fast_yaw_bias_deg": 0.0, "fast_yaw_vx": 0.5,
 }
 
 
@@ -132,6 +157,67 @@ def seg_dist(p, q, c) -> float:
     L2 = vx * vx + vy * vy
     s = 0.0 if L2 < 1e-12 else clamp(((c[0] - p[0]) * vx + (c[1] - p[1]) * vy) / L2, 0.0, 1.0)
     return math.hypot(p[0] + s * vx - c[0], p[1] + s * vy - c[1])
+
+
+_TAU = 2 * math.pi
+
+
+def dubins_words(q0, q1, R: float) -> list:
+    """Dubins paths (word, (t, p, q)) from pose q0 = (x, y, yaw) to q1 with turning radius R, shortest
+    first. Arc lengths in radians, the straight part in units of R."""
+    dx, dy = (q1[0] - q0[0]) / R, (q1[1] - q0[1]) / R
+    d = math.hypot(dx, dy)
+    th = math.atan2(dy, dx) if d > 1e-9 else 0.0
+    a, b = (q0[2] - th) % _TAU, (q1[2] - th) % _TAU
+    sa, sb, ca, cb, cab = math.sin(a), math.sin(b), math.cos(a), math.cos(b), math.cos(a - b)
+    out = []
+    p2 = 2 + d * d - 2 * cab + 2 * d * (sa - sb)
+    if p2 >= 0:
+        t1 = math.atan2(cb - ca, d + sa - sb)
+        out.append(("LSL", ((-a + t1) % _TAU, math.sqrt(p2), (b - t1) % _TAU)))
+    p2 = 2 + d * d - 2 * cab + 2 * d * (sb - sa)
+    if p2 >= 0:
+        t1 = math.atan2(ca - cb, d - sa + sb)
+        out.append(("RSR", ((a - t1) % _TAU, math.sqrt(p2), (-b + t1) % _TAU)))
+    p2 = -2 + d * d + 2 * cab + 2 * d * (sa + sb)
+    if p2 >= 0:
+        pp = math.sqrt(p2)
+        t2 = math.atan2(-ca - cb, d + sa + sb) - math.atan2(-2.0, pp)
+        out.append(("LSR", ((-a + t2) % _TAU, pp, (-b + t2) % _TAU)))
+    p2 = -2 + d * d + 2 * cab - 2 * d * (sa + sb)
+    if p2 >= 0:
+        pp = math.sqrt(p2)
+        t2 = math.atan2(ca + cb, d - sa - sb) - math.atan2(2.0, pp)
+        out.append(("RSL", ((a - t2) % _TAU, pp, (b - t2) % _TAU)))
+    c = (6 - d * d + 2 * cab + 2 * d * (sa - sb)) / 8
+    if abs(c) <= 1:
+        pp = (_TAU - math.acos(c)) % _TAU
+        t = (a - math.atan2(ca - cb, d - sa + sb) + pp / 2) % _TAU
+        out.append(("RLR", (t, pp, (a - b - t + pp) % _TAU)))
+    c = (6 - d * d + 2 * cab + 2 * d * (sb - sa)) / 8
+    if abs(c) <= 1:
+        pp = (_TAU - math.acos(c)) % _TAU
+        t = (-a - math.atan2(ca - cb, d + sa - sb) + pp / 2) % _TAU
+        out.append(("LRL", (t, pp, (b - a - t + pp) % _TAU)))
+    return sorted(out, key=lambda w: sum(w[1]))
+
+
+def dubins_points(q0, word: str, seg, R: float, ds: float = 0.05) -> list:
+    """Sample a Dubins path every ~ds metres: [(x, y), ...] starting at q0."""
+    x, y, h = q0
+    pts = [(x, y)]
+    for typ, L in zip(word, seg):
+        n = max(1, int(math.ceil(L * R / ds)))
+        st = L / n
+        for _ in range(n):
+            if typ == "S":
+                x, y = x + R * st * math.cos(h), y + R * st * math.sin(h)
+            else:
+                k = 1.0 if typ == "L" else -1.0
+                nh = h + k * st
+                x, y, h = x + k * R * (math.sin(nh) - math.sin(h)), y - k * R * (math.cos(nh) - math.cos(h)), nh
+            pts.append((x, y))
+    return pts
 
 
 def to_body(pose: Pose, wx: float, wy: float) -> tuple[float, float]:
@@ -202,6 +288,11 @@ class Brain:
         self.unstick_until = -1.0
         self.fast = False         # commanding the walker's fast gait (vx >= gait_hi)
         self.upshift_t = -1e9     # earliest time the next up-shift is allowed
+        self.plan: dict | None = None  # committed attack path (plan mode)
+        self.near = False         # plan mode: close behind the ball, the push controller has it
+        self.plan_fail_t = -1e9
+        self.replans = 0          # paths planned since reset (sim_eval: replans/min)
+        self.replan_why = "new"   # why the current plan was made (dbg)
 
     # ------------------------------------------------------------------ entry
     def decide(self, world: World, params: dict) -> tuple[Cmd, dict]:
@@ -214,6 +305,13 @@ class Brain:
             self.out, self.hb, self.pushing = Cmd.stop("pose_stale"), None, False
             self.hist.clear()
             return self.out, {"role": "idle", "phase": "pose_stale", "target": None}
+        if 0 < p["coast_s"] < t - me.t and p["role_mode"] != "goto" and (self.out.vx or self.out.vy or self.out.wz):
+            # pose too old to steer on: keep going the way we were, slowing down (dead reckoning)
+            k = math.exp(-dt / max(1e-3, p["coast_tau_s"]))
+            vx = self.out.vx if self.out.vx <= p["coast_vx"] else p["coast_vx"] + k * (self.out.vx - p["coast_vx"])
+            cmd = self._smooth(Cmd(vx, k * self.out.vy, k * self.out.wz, "coast"), dt, p, t)
+            return cmd, {"role": self.role or "idle", "phase": "coast", "target": None,
+                         "pose_age": round(t - me.t, 2)}
         pose = self._predict(self._unbias(me.pose, me.t, p), me.t, t, p)
         others = [o.pose for k, o in world.robots.items()
                   if k != self.cfg.id and t - o.t < p["other_stale_s"]]
@@ -238,7 +336,12 @@ class Brain:
         self.clean = self.clean and math.hypot(pose.x - B[0], pose.y - B[1]) > near_r
         bv = (ball.vx, ball.vy)
         role, costs = self._role(pose, B, others, t, p, bv)
-        if role == "attack":
+        if role != "attack":
+            self.plan = None
+        if role == "attack" and p["plan"] and p["contact_mode"] == "push" and t - self.plan_fail_t >= p["plan_min_s"]:
+            self.returning = self.clearing = False
+            want, dbg = self._attack_plan(pose, B, bv, others, p, t)
+        elif role == "attack":
             self.returning = self.clearing = False
             Bi = self._intercept(pose, B, bv, p)
             want, dbg = self._attack(pose, Bi, others, p, t)
@@ -325,21 +428,29 @@ class Brain:
         """Roll the observed pose forward by commands executed after the camera saw it."""
         lag = p["act_lag_s"]
         self.hist = [hc for hc in self.hist if hc[0] > t - 2.0]
+        fb, fv = math.radians(p["fast_yaw_bias_deg"]), p["fast_yaw_vx"]
+
+        def bias(vx):  # the fast gait walks off its tag heading: steer by the walking direction
+            return fb if fb and vx > fv else 0.0
+
         if not p["predict_self"] or not self.hist:
-            return pose
+            return Pose(pose.x, pose.y, wrap(pose.yaw + bias(self.out.vx))) if fb else pose
         x, y, yaw = pose.x, pose.y, pose.yaw
         lo, hi = t_obs - lag, t - lag
+        v_now = self.hist[0][1]
         for i, (ti, vx, vy, wz, _clean) in enumerate(self.hist):
+            if ti <= hi:
+                v_now = vx
             tj = self.hist[i + 1][0] if i + 1 < len(self.hist) else t
             seg = min(tj, hi) - max(ti, lo)
             if seg <= 0:
                 continue
-            ym = yaw + 0.5 * wz * seg
+            ym = yaw + 0.5 * wz * seg + bias(vx)
             c, s = math.cos(ym), math.sin(ym)
             x += (c * vx - s * vy) * seg
             y += (s * vx + c * vy) * seg
             yaw += wz * seg
-        return Pose(x, y, wrap(yaw))
+        return Pose(x, y, wrap(yaw + bias(v_now)))
 
     # ------------------------------------------------------------------ roles
     def _cost(self, pose: Pose, B, goal_x: float, p: dict) -> float:
@@ -564,6 +675,222 @@ class Brain:
                       cmd.wz * p["push_turn_scale"], phase)
         return cmd, {"phase": phase, "target": [round(tgt[0], 3), round(tgt[1], 3)], "lat": round(l, 3)}
 
+    # ------------------------------------------------------------------ planned attack (plan mode)
+    def _plan_goal(self, pose: Pose, B, bv, p: dict, eta: float | None = None):
+        """(P, u): predicted intercept point (ball after our ETA, capped at plan_horizon_s) and push direction."""
+        f = self.f
+        P = B
+        if math.hypot(bv[0], bv[1]) >= p["intercept_vmin"] and p["plan_horizon_s"] > 0:
+            if eta is None:
+                for _ in range(3):
+                    P = self._ball_at(B, bv, min(p["plan_horizon_s"], self._cost(pose, P, self.att_x, p)), p)
+            else:
+                P = self._ball_at(B, bv, min(p["plan_horizon_s"], eta), p)
+        hw = f.goal_width / 2 - f.ball_radius
+        # aim inside the goal: a ball on the goal line still has a stable push direction
+        aim = (self.att_x * (1 + f.goal_depth / max(1e-3, abs(self.att_x))), clamp(P[1] * p["aim_y_frac"], -hw, hw))
+        stage = f.ball_radius + f.robot_radius + p["plan_stage_m"]
+        return P, self._feasible_dir(P, unit(aim[0] - P[0], aim[1] - P[1]), p, stage)
+
+    def _plan_path(self, pose: Pose, P, u, B, p: dict, t: float) -> dict | None:
+        """Fastest collision-free path to the stage behind P (heading u), directly or via a tangent point beside
+        the ball, then straight through P: Dubins arcs at plan_radius or 0.6x, optionally after a turn on the
+        spot, or turn-straight-turn. None if nothing fits in the field."""
+        f = self.f
+        c = f.ball_radius + f.robot_radius
+        R, d_st = p["plan_radius"], c + p["plan_stage_m"]
+        h = math.atan2(u[1], u[0])
+        n = (-u[1], u[0])
+        S = (P[0] - u[0] * d_st, P[1] - u[1] * d_st, h)
+        clear = c + p["clear_margin"]
+        hl, hw = f.length / 2 - p["field_margin"], f.width / 2 - p["field_margin"]
+        q0 = (pose.x, pose.y, pose.yaw)
+        balls = [B] if math.hypot(P[0] - B[0], P[1] - B[1]) < 0.05 else [B, P]
+
+        def out_of(x, y):
+            return max(0.0, abs(x) - hl, abs(y) - hw)
+
+        def near(x, y):  # (distance, clearance needed) to each ball point: behind the ball only no contact,
+            res = []    # elsewhere the full clearance (a touch there can knock it sideways or back)
+            for Q in balls:
+                rx, ry = x - Q[0], y - Q[1]
+                behind = rx * u[0] + ry * u[1] < -0.5 * c
+                res.append((math.hypot(rx, ry), c + 0.03 if behind else clear))
+            return res
+
+        o0, n0 = out_of(*q0[:2]), near(*q0[:2])
+
+        def ok(pts):  # never closer to the ball than clear (or than the start), never further out of the field
+            for x, y in pts:
+                if out_of(x, y) > o0 + 0.06:  # path points may use 6 cm of the field margin
+                    return False
+                for (d, need), (d0, _n) in zip(near(x, y), n0):
+                    if d < min(need, d0 - 0.02):
+                        return False
+            return True
+
+        vmax, wmax = p["max_vx"], p["plan_wz"]
+
+        def leg(a, b, r):  # fastest collision-free Dubins leg a -> b at radius r: (seconds, points)
+            va = min(vmax, wmax * r)
+            words = sorted(((sg[0] + sg[2]) * r / va + sg[1] * r / vmax, w, sg) for w, sg in dubins_words(a, b, r))
+            for sec, word, seg in words:
+                pts = dubins_points(a, word, seg, r)
+                if math.hypot(pts[-1][0] - b[0], pts[-1][1] - b[1]) < 0.02 and ok(pts):
+                    return sec, pts
+            return None
+
+        def line(a, b):  # already facing b: walk straight, turn on the spot at the end (we are not a car)
+            L = math.hypot(b[0] - a[0], b[1] - a[1])
+            k = max(1, int(L / 0.05))
+            pts = [(a[0] + (b[0] - a[0]) * j / k, a[1] + (b[1] - a[1]) * j / k) for j in range(k + 1)]
+            return (L / vmax + abs(wrap(b[2] - a[2])) / wmax, pts) if ok(pts) else None
+
+        rr = 1.15 * clear
+        sd = math.copysign(1.0, (pose.x - P[0]) * n[0] + (pose.y - P[1]) * n[1])
+        vias = [None]
+        for side in (sd, -sd):
+            for psi in (math.radians(110), math.radians(150)):
+                tx = -math.sin(psi) * u[0] + side * math.cos(psi) * n[0]
+                ty = -math.sin(psi) * u[1] + side * math.cos(psi) * n[1]
+                vias.append((P[0] + rr * (math.cos(psi) * u[0] + side * math.sin(psi) * n[0]),
+                             P[1] + rr * (math.cos(psi) * u[1] + side * math.sin(psi) * n[1]), math.atan2(ty, tx)))
+        best, cache = None, {}
+        for r in (R, 0.6 * R):
+            for W in vias:
+                first = W or S
+                face = math.atan2(first[1] - pose.y, first[0] - pose.x)
+                for yaw0 in {pose.yaw, face}:  # as we are, or spin in place to face the first target
+                    spin = abs(wrap(yaw0 - pose.yaw)) / wmax
+                    if best and spin >= best[0]:
+                        continue
+                    a = leg((pose.x, pose.y, yaw0), first, r)
+                    if yaw0 == face and r == R:
+                        b2 = line((pose.x, pose.y, yaw0), first)
+                        a = b2 if a is None or (b2 and b2[0] < a[0]) else a
+                    if a is None or (best and spin + a[0] >= best[0]):
+                        continue
+                    if W is not None:
+                        if (W, r) not in cache:
+                            cache[(W, r)] = leg(W, S, r)
+                        b2 = cache[(W, r)]
+                        if b2 is None:
+                            continue
+                        a = (a[0] + b2[0], a[1] + b2[1][1:])
+                    if best is None or spin + a[0] < best[0]:
+                        best = (spin + a[0], a[1], yaw0)
+        if best is None:
+            return None
+        _sec, best, yaw0 = best
+        tail = d_st + p["push_ahead"]
+        best += [(S[0] + u[0] * k * 0.05, S[1] + u[1] * k * 0.05) for k in range(1, int(tail / 0.05) + 1)]
+        s = [0.0]
+        for (x0, y0), (x1, y1) in zip(best, best[1:]):
+            s.append(s[-1] + math.hypot(x1 - x0, y1 - y0))
+        self.replans += 1
+        return {"P": P, "u": u, "pts": best, "s": s, "i": 0, "sP": s[-1] - p["push_ahead"], "t": t,
+                "yaw0": yaw0, "spun": abs(wrap(yaw0 - pose.yaw)) < 0.3}
+
+    def _attack_plan(self, pose: Pose, B, bv, others, p: dict, t: float):
+        """Plan mode attack: commit to a path, follow it with pure pursuit, drive through the ball."""
+        f = self.f
+        c = f.ball_radius + f.robot_radius
+        self.hb = None
+        u, n, a, l, _phi = self._frame(pose, B, p)
+        gap = math.hypot(pose.x - B[0], pose.y - B[1]) - c
+        herr = abs(wrap(math.atan2(u[1], u[0]) - pose.yaw))
+        side_v = abs(bv[1] * u[0] - bv[0] * u[1])  # ball speed across the shot line: the line itself is moving
+        if a < 0 and side_v < (0.4 if self.near else 0.25) and (gap < p["plan_near_m"] + 0.4 and abs(l) < p["plan_near_lat"] and herr < math.radians(70)
+                      if self.near else
+                      gap < p["plan_near_m"] and abs(l) < 2 * p["push_lat_tol"] and herr < math.radians(45)):
+            # behind the ball on the shot line: pure pursuit along the line through the ball (the target stays a
+            # lookahead ahead, never inside the turning circle); the lateral error is mostly slid off
+            self.near, self.plan = True, None
+            self.pushing = gap < 0.15
+            L = p["plan_lookahead"] + p["plan_look_s"] * max(0.0, self.out.vx)
+            tgt = (B[0] + u[0] * (a + L), B[1] + u[1] * (a + L))
+            bx, by = to_body(pose, tgt[0] - pose.x, tgt[1] - pose.y)
+            alpha = math.atan2(by, bx)
+            v = p["push_vx"] * max(0.0, math.cos(alpha))  # (_pace caps vx later; turning from the paced speed
+            tol = p["push_lat_tol"]                        # was too weak to hold the line: 35/40 vs 40/40 goals)
+            if gap < 0.25 and abs(l) > 0.5 * tol:  # off-centre at the ball: slide over before walking into it
+                v *= clamp(1.0 - (abs(l) - 0.5 * tol) / tol, 0.0, 1.0)
+            wz = 2.0 * v * math.sin(alpha) / max(0.1, math.hypot(bx, by))
+            if abs(l) < tol:
+                wz *= p["push_turn_scale"]
+            phase = "push" if self.pushing else "line"
+            cmd = Cmd(v, clamp(-p["k_vy"] * l, -p["max_vy"], p["max_vy"]), clamp(wz, -p["plan_wz"], p["plan_wz"]), phase)
+            return cmd, {"phase": phase, "target": [round(tgt[0], 3), round(tgt[1], 3)], "lat": round(l, 3)}
+        self.near = self.pushing = False
+        pl = self.plan
+        if pl is not None:
+            tgt, dev, i = self._pursuit_point(pose, pl, p)
+            eta = p["act_lag_s"] + max(0.0, pl["sP"] - pl["s"][i]) / max(0.05, p["plan_eta_frac"] * p["max_vx"])
+            P, uu = self._plan_goal(pose, B, bv, p, eta)
+            moved = math.hypot(P[0] - pl["P"][0], P[1] - pl["P"][1])
+            turned = math.degrees(abs(wrap(math.atan2(uu[1], uu[0]) - math.atan2(pl["u"][1], pl["u"][0]))))
+            done = i >= len(pl["pts"]) - 2
+            rem = max(0.0, pl["sP"] - pl["s"][i])  # path left to the ball: near it, a smaller miss matters
+            why = "moved" if moved > p["plan_replan_m"] * clamp(rem, 0.3, 1.0) else "turned" if turned > p["plan_replan_deg"] else \
+                "off_path" if dev > p["plan_dev_m"] else "done" if done else ""
+            if why and t - pl["t"] >= p["plan_min_s"]:
+                pl, self.replan_why = None, why
+        if pl is None:
+            P, uu = self._plan_goal(pose, B, bv, p)
+            pl = self._plan_path(pose, P, uu, B, p, t)
+            if pl is not None and P is not B:  # one refinement with the path's own ETA
+                eta = p["act_lag_s"] + pl["sP"] / max(0.05, p["plan_eta_frac"] * p["max_vx"])
+                P2, u2 = self._plan_goal(pose, B, bv, p, eta)
+                if math.hypot(P2[0] - P[0], P2[1] - P[1]) > 0.5 * p["plan_replan_m"]:
+                    pl = self._plan_path(pose, P2, u2, B, p, t) or pl
+            self.plan, pl_why, self.replan_why = pl, self.replan_why, "new"
+            if pl is not None:
+                pl["why"] = pl_why
+            if pl is None:  # nothing fits: the old approach for a while
+                self.plan_fail_t = t
+                return self._attack(pose, B, others, p, t)
+            tgt, dev, i = self._pursuit_point(pose, pl, p)
+        rx, ry = self._repel(pose, others, p)
+        L = p["plan_lookahead"] + p["plan_look_s"] * max(0.0, self.out.vx)
+        bx, by = to_body(pose, tgt[0] - pose.x + L * rx, tgt[1] - pose.y + L * ry)
+        alpha = math.atan2(by, bx)
+        if not pl["spun"]:  # the plan starts with a turn on the spot
+            err = wrap(pl["yaw0"] - pose.yaw)
+            pl["spun"] = abs(err) < 0.25
+            alpha = err if not pl["spun"] else alpha
+        if not pl["spun"] or abs(alpha) > math.radians(p["plan_spin_deg"]):
+            cmd = Cmd(0.0, 0.0, clamp(2.5 * alpha, -p["plan_wz"], p["plan_wz"]), "plan_turn")
+        else:
+            kap = 2.0 * math.sin(alpha) / max(0.1, math.hypot(bx, by))
+            v = min(p["max_vx"], p["plan_wz"] / max(1e-6, abs(kap))) * math.cos(alpha)
+            wz = math.copysign(max(abs(v * kap), p["k_turn"] * abs(alpha)), alpha)
+            cmd = Cmd(v, 0.0, clamp(wz, -p["plan_wz"], p["plan_wz"]), "plan")
+        pts = pl["pts"][i::max(1, -(-(len(pl["pts"]) - i) // 19))] + [pl["pts"][-1]]  # <= 20 points for the UI
+        return cmd, {"phase": "plan", "target": [round(tgt[0], 3), round(tgt[1], 3)], "lat": round(l, 3),
+                     "intercept": [round(pl["P"][0], 3), round(pl["P"][1], 3)], "dev": round(dev, 3), "why": pl["why"],
+                     "plan": [[round(x, 3), round(y, 3)] for x, y in pts]}
+
+    def _pursuit_point(self, pose: Pose, pl: dict, p: dict):
+        """(lookahead point, distance off the path, progress index). Progress only moves forward."""
+        pts, s, i0 = pl["pts"], pl["s"], pl["i"]
+        dev, i = 1e9, i0
+        for j in range(i0, min(len(pts), i0 + 30)):
+            d = math.hypot(pts[j][0] - pose.x, pts[j][1] - pose.y)
+            if d < dev:
+                dev, i = d, j
+        pl["i"] = i
+        look = s[i] + p["plan_lookahead"] + p["plan_look_s"] * max(0.0, self.out.vx)
+        j = i
+        while j + 1 < len(pts) and s[j + 1] < look:
+            j += 1
+        if j + 1 < len(pts):
+            w = (look - s[j]) / max(1e-9, s[j + 1] - s[j])
+            tgt = (pts[j][0] + w * (pts[j + 1][0] - pts[j][0]), pts[j][1] + w * (pts[j + 1][1] - pts[j][1]))
+        else:
+            u = pl["u"]
+            tgt = (pts[-1][0] + u[0] * (look - s[-1]), pts[-1][1] + u[1] * (look - s[-1]))
+        return tgt, dev, i
+
     def _route(self, pose: Pose, B, u, n, phi: float, clear: float, p: dict, t: float):
         """Next waypoint around the ball toward the stage behind it. The way round is kept for
         orbit_hold_s; a waypoint slightly outside the field margin is clamped in, not rejected
@@ -737,7 +1064,7 @@ class Brain:
             self.stuck_ref = (t, pose.x, pose.y)
         elif t - ref[0] > p["stuck_s"]:
             self.unstick_until, self.stuck_ref = t + p["unstick_s"], None
-            self.pushing, self.hb = False, None
+            self.pushing, self.hb, self.plan = False, None, None
         return want, dbg
 
     # ------------------------------------------------------------------ output shaping

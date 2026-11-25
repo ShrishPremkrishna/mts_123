@@ -1,6 +1,6 @@
 """Batch validation of brain + sim. Run from final_project/:
     python -m fc.sim_eval [--seeds N] [--matches M] [--quick] [--off] [--preset NAME ...] [--set key=value ...]
-                          [--field key=value ...] [--scen core human return moving] [--lag 0.3 0.7]
+                          [--field key=value ...] [--scen core human return moving] [--lag 0.3 0.7] [--floor]
 
 Prints one table per error setting (errors ON = measured model, OFF = ideal), one column per
 preset: `base` is params.json, any other name is params.json + fc/config/presets/NAME.json
@@ -8,10 +8,16 @@ preset: `base` is params.json, any other name is params.json + fc/config/presets
 column (to try a value before committing it). `--field` overrides field.json geometry the same way
 (e.g. `--field goal_width=0.8` to try a wider marked goal). `--lag L ...` repeats every column at
 a total lag L (camera latency L/2 + walker lag L/2; the brain's act_lag_s set to L/2, as if measured).
-`--scen` picks row groups (default all): core (rows below), human, return, moving.
+`--scen` picks row groups (default all): core (rows below), human, return, moving. `--floor` adds the
+Nov 24 floor errors on top of the sim's (FLOOR below: 0.1 s camera latency, tag dropouts of 0.3-1.5 s,
+fast gait at ~0.83 of the command and walking 8 deg right of its heading, slower walker onset, a ball
+rolling at 0.18 m/s^2 deceleration: hand rolls of the old ball fit 0.12-0.29, median 0.15).
 
 Rows:
 - solo push/headbutt: goals within 40 s from a random start, median time to goal (s).
+- solo jitter (push runs, per robot-minute of play): wz reversals / reversals < 1 s apart, RMS of the
+  commanded wz (rad/s), replans (plan mode: paths planned), coast share (ticks steering blind).
+- athletic (push runs): mean true speed (m/s), median time to the first touch of the ball (s).
 - goalie: saves of the same shots that score on an empty net.
 - 1v1 (auto roles, kickoff): goals per 3 min each side; deadlocks = the ball stayed within 10 cm
   for 10 s; traps = the sim referee nudged a wall ball.
@@ -51,6 +57,30 @@ from .sim import Sim
 DT = 1.0 / 30
 PRESETS = CONFIG / "presets"
 BAND = (0.45, 0.6)
+FLOOR = {"sim_latency_s": 0.10, "sim_burst_per_s": 0.15, "sim_burst_s": 0.3, "sim_burst_s_max": 1.5,
+         "sim_fast_v060": 0.50, "sim_fast_v075": 0.62, "sim_fast_v100": 0.75, "sim_fast_v150": 1.0,
+         "sim_fast_dir_deg": -8.0, "sim_lag_s": 0.2, "sim_ball_decel": 0.18}
+
+
+class Jitter:
+    """Command smoothness per robot: wz reversals (|wz| > 0.25 one way, then the other), reversals less
+    than 1 s apart, sum of wz^2 for the RMS."""
+
+    def __init__(self):
+        self.sg, self.last, self.rev, self.fast, self.sq, self.n = {}, {}, 0, 0, 0.0, 0
+
+    def add(self, k, c, t: float) -> None:
+        if c is None:
+            return
+        self.n += 1
+        self.sq += c.wz * c.wz
+        if abs(c.wz) > 0.25:
+            sg = 1 if c.wz > 0 else -1
+            if self.sg.get(k, sg) != sg:
+                self.rev += 1
+                self.fast += t - self.last.get(k, -9.0) < 1.0
+                self.last[k] = t
+            self.sg[k] = sg
 
 
 def load_preset(name: str) -> dict:
@@ -77,16 +107,31 @@ def _goals(sim):
 
 
 def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
+    """One robot attacks a resting ball from a random start. Returns (goal time or None, own goal, stats)."""
     p = {**params, "contact_mode": mode, "role_mode": "auto"}
     sim = Sim(field, robots, p, seed)
     sim.reset("attack_solo")
     me = robots[0]
-    brains = {me.id: Brain(me, field)}
-    _loop(sim, brains, p, limit, lambda c, d: bool(_goals(sim)))
+    brain = Brain(me, field)
+    jit, st = Jitter(), {"speed": 0.0, "coast": 0}
+
+    def tick(c, d):
+        jit.add(me.id, c.get(me.id), sim.t)
+        bot = sim.bots.get(me.id)
+        st["speed"] += math.hypot(bot.vx, bot.vy) if bot else 0.0
+        st["coast"] += d.get(me.id, {}).get("phase") == "coast"
+        return bool(_goals(sim))
+
+    t0 = sim.t
+    _loop(sim, {me.id: brain}, p, limit, tick)
     if contacts is not None:
         contacts.extend(c[2] for c in sim.contacts)
     ev = _goals(sim)[0] if _goals(sim) else None
-    return (ev["t"] if ev and ev["team"] == me.team else None), bool(ev and ev["team"] != me.team)
+    n = max(1, jit.n)
+    stats = {"min": (sim.t - t0) / 60, "rev": jit.rev, "fast": jit.fast, "sq": jit.sq, "n": jit.n,
+             "replans": brain.replans, "coast": st["coast"] / n, "speed": st["speed"] / n,
+             "touch": (sim.contacts[0][0] - t0) if sim.contacts else None}
+    return (ev["t"] - t0 if ev and ev["team"] == me.team else None), bool(ev and ev["team"] != me.team), stats
 
 
 def goalie(field, robots, params, seed, style, empty=False):
@@ -107,6 +152,7 @@ def match(field, robots, params, seed, minutes=3.0):
     st = {"flips": 0, "roles": {}, "wz": {}, "flipwz": 0, "fastwz": 0, "lastrev": {}, "jerk": [], "last": {},
           "stall": 0, "anchor": (0.0, 0.0, 0.0), "side": {}, "sideflip": 0, "band": 0, "ticks": 0,
           "speed": [], "switch": 0, "bots": {}}
+    jit = Jitter()
 
     def tick(cmds, dbgs):
         for k, b in brains.items():
@@ -120,6 +166,7 @@ def match(field, robots, params, seed, minutes=3.0):
                 st["flips"] += 1
             st["roles"][k] = r
             c = cmds.get(k)
+            jit.add(k, c, sim.t)
             prev = st["last"].get(k)
             if c:
                 st["ticks"] += 1
@@ -158,7 +205,8 @@ def match(field, robots, params, seed, minutes=3.0):
             "contacts": [c[2] for c in sim.contacts], "bumps": [b[3] for b in sim.bumps],
             "speed": statistics.mean(st["speed"]) if st["speed"] else 0.0,
             "switch_pm": sum(st["bots"].values()) / minutes / n,
-            "band": st["band"] / max(1, st["ticks"])}
+            "band": st["band"] / max(1, st["ticks"]), "wzrms": math.sqrt(jit.sq / max(1, jit.n)),
+            "replans_pm": sum(b.replans for b in brains.values()) / minutes / n}
 
 
 def _fastwz(c, k, st, t):
@@ -377,11 +425,26 @@ def _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt):
     for mode in ("push", "headbutt") if headbutt else ("push",):
         res = [solo(field, robots, params, s, mode, contacts=contacts if mode == "push" else None)
                for s in range(seeds)]
-        times = [t for t, _ in res if t is not None]
+        times = [t for t, _, _ in res if t is not None]
         med = statistics.median(times) if times else float("nan")
         raw[f"solo_{mode}_rate"], raw[f"solo_{mode}_med"] = len(times) / seeds, med
         out[f"solo {mode}: goals (<=40 s)"] = f"{len(times)}/{seeds} ({100 * len(times) / seeds:.0f}%)"
-        out[f"solo {mode}: median s / own goals"] = f"{med:.1f} / {sum(o for _, o in res)}"
+        out[f"solo {mode}: median s / own goals"] = f"{med:.1f} / {sum(o for _, o, _ in res)}"
+        if mode == "push":
+            ss = [x for _, _, x in res]
+            mins = sum(x["min"] for x in ss) or 1.0
+            raw.update(solo_rev=sum(x["rev"] for x in ss) / mins, solo_fastrev=sum(x["fast"] for x in ss) / mins,
+                       solo_wzrms=math.sqrt(sum(x["sq"] for x in ss) / max(1, sum(x["n"] for x in ss))),
+                       solo_replans=sum(x["replans"] for x in ss) / mins,
+                       solo_coast=statistics.mean(x["coast"] for x in ss),
+                       solo_speed=statistics.mean(x["speed"] for x in ss),
+                       solo_touch=_med([x["touch"] for x in ss if x["touch"] is not None]),
+                       solo_p90=_pct(times, 0.9))
+            out["solo push: p90 s"] = f"{raw['solo_p90']:.1f}"
+            out["solo jitter: wz rev / fast rev /min, wz rms"] = (f"{raw['solo_rev']:.1f} / {raw['solo_fastrev']:.1f}, "
+                                                                 f"{raw['solo_wzrms']:.2f}")
+            out["solo jitter: replans /min, coast %"] = f"{raw['solo_replans']:.1f}, {100 * raw['solo_coast']:.0f}%"
+            out["athletic: mean speed m/s, s to ball"] = f"{raw['solo_speed']:.2f}, {raw['solo_touch']:.1f}"
     empty = seeds - sum(goalie(field, robots, params, 1000 + s, "sideways", empty=True) for s in range(seeds))
     for style in ("sideways", "facing"):
         saves = sum(goalie(field, robots, params, 1000 + s, style) for s in range(seeds))
@@ -399,6 +462,8 @@ def _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt):
     out["smooth: wz rev / fast wz rev /min"] = (f"{statistics.mean(m['wzflip_pm'] for m in ms):.1f} / "
                                                f"{raw['fastwz']:.1f}")
     out["smooth: side flips /min, jerk"] = f"{raw['side']:.1f}, {statistics.mean(m['jerk'] for m in ms):.2f}"
+    out["smooth: 1v1 wz rms, replans /min"] = (f"{statistics.mean(m['wzrms'] for m in ms):.2f}, "
+                                              f"{statistics.mean(m['replans_pm'] for m in ms):.1f}")
     contacts += [c for m in ms for c in m["contacts"]]
     bumps = [b for m in ms for b in m["bumps"]]
     raw["contact_mean"] = statistics.mean(contacts) if contacts else 0.0
@@ -440,6 +505,7 @@ def main() -> None:
     ap.add_argument("--field", nargs="*", default=[], metavar="KEY=VALUE", help="override field.json (numbers)")
     ap.add_argument("--scen", nargs="*", default=["core", "human", "return", "moving"],
                     help="row groups: core human return moving")
+    ap.add_argument("--floor", action="store_true", help="add the Nov 24 floor errors (FLOOR) to the sim's")
     ap.add_argument("--lag", nargs="*", type=float, default=[], metavar="S",
                     help="total lag(s) in s; one column per preset and lag")
     a = ap.parse_args()
@@ -451,6 +517,8 @@ def main() -> None:
         except json.JSONDecodeError:
             over[k] = v
     fover = {k: float(v) for k, _, v in (kv.partition("=") for kv in a.field)}
+    if a.floor:
+        over = {**FLOOR, **over}
     if over:
         print("overrides:", over)
     if fover:
