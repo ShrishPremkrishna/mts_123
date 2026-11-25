@@ -364,15 +364,42 @@ def safety_banners(cfg: dict[str, RobotCfg], active, estops: dict, ops: dict, no
 
 
 SETUP_STEPS = ("off", "homed", "standing", "ready")      # power-on order of fcctl phases
+READY_PHASES = ("homed", "standing", "ready")             # stack running: fcctl ready stands / links / re-arms, never homes
+PHASE_FRESH_S = 15.0     # a robot.ready decision needs an fcctl phase at most this old (Pi reboot / battery swap)
+HOME_ASK = ("Is the robot ON THE STAND? The stack is off, so this HOMES the legs (they move to their zero pose). "
+            "Then it stops, ready to stand.")
+
+
+def phase_fresh(phase: str | None, age: float | None) -> bool:
+    return phase is not None and age is not None and 0 <= age <= PHASE_FRESH_S
+
+
+def ready_refusal(phase: str | None, age: float | None, home: bool) -> str | None:
+    """Why robot.ready must not run now (None = go). fcctl ready HOMES the legs when the stack is off, so the
+    decision needs a fresh phase: home=True only from a fresh "off" (operator confirmed: robot on the stand),
+    home=False only from a fresh running-stack phase."""
+    if not phase_fresh(phase, age):
+        old = "unknown" if phase is None or age is None else f"{phase!r} is {age:.0f} s old"
+        return f"phase {old}: run robot.status first (Ready may HOME the legs)"
+    if home and phase != "off":
+        return f"phase is {phase!r}, not off: nothing to home (status changed; press again)"
+    if not home and phase == "off":
+        return "stack is off: Ready would HOME the legs; robot on the stand, then robot.ready with home=true"
+    if not home and phase not in READY_PHASES:
+        return f"phase {phase!r}: check again (robot.status) or stop the stack"
+    return None
 
 
 def setup_step(source: str, host: str, dry_run: bool, phase: str | None, op: dict | None, estopped: bool,
-               detail: str = "") -> dict:
+               detail: str = "", age: float | None = None, linked: bool = False) -> dict:
     """The robot's next setup step, for the one setup button and for agents:
-    {step, label, op (registry name or None), ask (confirm question or None), reason, busy, done (0-3 of off ->
-    homed -> standing -> ready)}. A robot whose phase is unknown is checked first, never homed blind."""
-    done = SETUP_STEPS.index(phase) if phase in SETUP_STEPS else 0
-    out = {"done": done, "busy": False, "ask": None, "reason": ""}
+    {step, label, op (registry name or None), args (extra op args), ask (confirm question or None), reason, busy,
+    done (0-3 of off -> homed -> standing -> ready)}. Never trusts an old phase: a robot.ready step needs an fcctl
+    phase younger than PHASE_FRESH_S (the UI runs robot.status first, then asks), and a "ready" phase with no
+    link acks is shown as disconnected, never Ready."""
+    fresh = phase_fresh(phase, age)
+    done = SETUP_STEPS.index(phase) if phase in SETUP_STEPS else 0     # last known progress (display only)
+    out = {"done": done, "busy": False, "ask": None, "reason": "", "args": {}}
     if source == "sim":
         return {**out, "step": "sim", "label": "Simulated", "op": None, "done": 3}
     if not host and not dry_run:
@@ -383,26 +410,35 @@ def setup_step(source: str, host: str, dry_run: bool, phase: str | None, op: dic
         return {**out, "step": "busy", "label": label, "op": None, "busy": True}
     if op and op.get("op") == "status" and op.get("rc") not in (0, None):
         return {**out, "step": "unreachable", "label": "Retry", "op": "robot.status", "reason": "not reachable over ssh"}
+    if phase == "ready" and linked and not estopped:
+        return {**out, "step": "ready", "label": "Ready", "op": None, "reason": "Standing, linked"}
+    if phase == "ready" and not linked:
+        if fresh:   # the Pi says bridge up, the laptop gets no acks: checking again will not fix it
+            return {**out, "step": "nolink", "label": "No link", "op": None,
+                    "reason": "Pi bridge up, no acks here: wifi, udp_host or --no-link"}
+        return {**out, "step": "disconnected", "label": "Check", "op": "robot.status",
+                "reason": "Link down: state unknown, check"}
+    if phase == "fault" or (fresh and phase not in SETUP_STEPS and phase != "starting"):
+        return {**out, "step": "fault", "label": "Stop stack", "op": "robot.stop_stack", "reason": detail or "robot fault",
+                "ask": "Stops the robot stack: legs go limp. Support the robot first."}
+    if not fresh:
+        why = "not checked yet" if phase is None or age is None else f"last check {age:.0f} s ago"
+        return {**out, "step": "check", "label": "Check", "op": "robot.status", "reason": why}
+    if phase == "off":
+        return {**out, "step": "home", "label": "Home legs", "op": "robot.ready", "args": {"home": True},
+                "reason": "Put it on the stand", "ask": HOME_ASK}
+    if phase == "starting":
+        return {**out, "step": "check", "label": "Check", "op": "robot.status", "reason": "homing, loading controllers"}
     if estopped:
         return {**out, "step": "rearm", "label": "Re-arm", "op": "robot.ready", "reason": "E-stopped: legs off",
                 "ask": "Re-arm: stands it up again and clears the E-stop. Area clear, R3 in reach?"}
-    if phase is None:
-        return {**out, "step": "check", "label": "Check", "op": "robot.status", "reason": "not checked yet"}
-    if phase == "off":
-        return {**out, "step": "home", "label": "Home legs", "op": "robot.ready", "reason": "Put it on the stand",
-                "ask": "Homes the legs: the robot must be on the stand. Then it stops, ready to stand."}
-    if phase == "starting":
-        return {**out, "step": "check", "label": "Check", "op": "robot.status", "reason": "homing, loading controllers"}
     if phase == "homed":
         return {**out, "step": "stand", "label": "Stand up", "op": "robot.ready", "reason": "Put it on the floor",
                 "ask": "Stands it up and starts the link. Robot on the floor, area clear, R3 in reach?"}
     if phase == "standing":
         return {**out, "step": "link", "label": "Start link", "op": "robot.ready", "reason": "Standing, link off",
                 "ask": "Starts the link so the laptop can drive it. Area clear, R3 in reach?"}
-    if phase == "ready":
-        return {**out, "step": "ready", "label": "Ready", "op": None, "reason": "Standing, linked"}
-    return {**out, "step": "fault", "label": "Stop stack", "op": "robot.stop_stack", "reason": detail or "robot fault",
-            "ask": "Stops the robot stack: legs go limp. Support the robot first."}
+    return {**out, "step": "check", "label": "Check", "op": "robot.status", "reason": f"phase {phase}"}
 
 
 def health(source: str, active: bool, seen: bool, L: dict | None, has_link: bool, op: dict | None,

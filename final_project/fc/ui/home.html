@@ -42,6 +42,29 @@
 </style>
 </head>
 <body>
+<script>
+// Space = STOP, Esc = E-STOP (every robot): inline and first, so they work even if /api/ops or a kit module
+// fails to load. Fixed legacy endpoints (/action stop, /action estop with no robot = all); kit.js bindKeys only
+// adds the feedback toast (FC_SAFETY_KEYS.done). Same block in home.html and play.html.
+"use strict";
+(function () {
+  const keys = (window.FC_SAFETY_KEYS = { done: null });
+  const send = (k, body) => fetch("/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    .then((r) => r.json()).catch(() => ({ ok: false, error: "app not reachable: use R3" }))
+    .then((r) => { if (keys.done) keys.done(k, r); });
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space") {
+      e.preventDefault(); e.stopPropagation();
+      send("Space", { action: "stop" });
+    } else if (e.key === "Escape") {
+      e.preventDefault(); e.stopPropagation();
+      send("Esc", { action: "estop", robot: null });
+      for (const d of document.querySelectorAll("dialog[open]")) d.close("no");   // Esc also cancels a question
+    }
+  }, true);
+  document.addEventListener("keyup", (e) => { if (e.code === "Space") e.preventDefault(); }, true);
+})();
+</script>
 <div id="home">
   <div class="left">
     <div class="word display">PUPPER FC</div>
@@ -65,7 +88,9 @@ const ITEMS = [
   { id: "sim", label: "SIMULATION", source: "sim" },
   { id: "bench", label: "TEST BENCH", href: "/ops" },
 ];
-let cur = Math.max(0, ITEMS.findIndex((i) => i.id === new URLSearchParams(location.search).get("item")));
+// the selection starts on the mode that is running (or ?item=), never on a mode one Enter away from a restart
+let cur = ITEMS.findIndex((i) => i.id === new URLSearchParams(location.search).get("item")), picked = cur >= 0;
+cur = Math.max(0, cur);
 let switching = null;
 const item = () => ITEMS[cur];
 const live = (s) => s && item().source === s.source;          // the selected mode is the one running
@@ -76,7 +101,12 @@ async function start() {
   if (it.href) { location.href = it.href; return; }
   if (!s) return;
   if (s.source === it.source) { location.href = "/play"; return; }
-  const r = await ops.run("app.source", { source: it.source });
+  // a restart drops the link, camera and live params: always ask, and say what survives
+  const p = s.preset || {}, lost = (p.modified || []).length;
+  const q = `Restarts the app as ${it.label}: link, camera and robots stop for a few seconds. `
+    + (!p.name ? "No preset loaded: it restarts with base params; live param changes are lost."
+       : `Preset ${p.name} is loaded again. ` + (lost ? `${lost} unsaved live param change(s) are lost.` : "No unsaved live changes."));
+  const r = await ops.run("app.source", { source: it.source }, { ask: q, label: `Switch to ${it.label}` });
   if (r && r.ok) { switching = it.source; $("switchingT").textContent = `STARTING ${it.label}`; $("switching").dataset.on = ""; }
 }
 ops.local({ name: "menu.down", label: "Choose", key: "ArrowDown", run: () => { cur = (cur + 1) % ITEMS.length; render(store.get()); } })
@@ -114,6 +144,7 @@ $("foot").replaceChildren(...prompts);
 ops.bindKeys({ opts: { stop: { done: "Stopped" }, estop: { done: "E-stop sent", level: "bad" } } });
 
 store.subscribe((s, online) => {
+  if (s && !picked) { picked = true; const i = ITEMS.findIndex((x) => x.source === s.source); if (i >= 0) cur = i; }
   if (switching) {                                   // restarting: wait for the other source, then play
     if (online && s && s.source === switching) location.href = s.source === "camera" ? "/?item=play" : "/play";
     return;

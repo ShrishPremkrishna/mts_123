@@ -37,7 +37,7 @@ a value, put it in `config/params.json` (`ball_decel` is global there) or a pres
 The app imports the real `fc.brain` and `fc.sim`; if either fails to import, the app does not start
 (no fallback controller).
 
-## Screens (`/` home, `/play` match, `/ops` test bench)
+## Screens (`/` home, `/play` match, `/ops` test bench, `/play-old` the previous Play screen until the new one is floor-verified)
 
 One look and one set of building blocks: [ui/kit/](ui/kit/) (`tokens.css` every colour/size/motion value,
 `ui.css` one class per component, `kit.js` DOM helpers + the /state poller + the operations client,
@@ -45,8 +45,11 @@ One look and one set of building blocks: [ui/kit/](ui/kit/) (`tokens.css` every 
 
 - **Home `/`**: arrow keys + Enter. **Play** shows the live field camera and a card per robot whose one button
   does the next setup step (Check → Home legs → Stand up → Start link → Ready; Re-arm after an E-stop; Stop
-  stack on a fault); **Simulation** shows the sim field; **Test bench** opens `/ops`. Choosing the mode that is
-  not running restarts the app in place with the other `--source` (`app.source`; refused mid-match).
+  stack on a fault). The button always runs `fcctl status` first and decides on that fresh phase; a `ready`
+  without link acks shows Check / No link, never Ready. **Simulation** shows the sim field; **Test bench** opens
+  `/ops`. The selection starts on the running mode; choosing the other one asks, then restarts the app in place
+  with the other `--source` and the loaded preset (`app.source confirm=true`; refused mid-match; live param
+  edits are lost).
 - **Play `/play`**: field camera with the overlays (C: drawn map), player tiles (robot camera on top when it
   has one: `cam_url` on a robot, a rendered robot's-eye view in sim; 1/2 swap it into the big view), the
   decision ticker, one banner per fact, a ready check before kickoff, and the Robots drawer (Tab: jobs, setup,
@@ -56,7 +59,10 @@ One look and one set of building blocks: [ui/kit/](ui/kit/) (`tokens.css` every 
 
 Every button is an operation in [ops.py](ops.py): `GET /api/ops` lists them (label, key, safety, typed
 params), `POST /api/op {"op", "args"}` runs one (`{ok, op, ...}` or `{ok: false, code, error}`), and
-`/state` carries `avail[op]` (enabled, reason, label, next args) and `play.robots[id].setup` (the robot's next
+Safety rules: `stop` / `estop` with bad or missing args act on every robot (with a warning), never a 400;
+`robot.*` ops are unavailable in a sim without `--dry-run-ops`; `robot.ready` needs an fcctl phase at most
+15 s old and `home=true` to home from phase `off`. Space / Esc are bound inline to `/action stop` / `estop`, so
+they work even if `/api/ops` fails. `/state` carries `avail[op]` (enabled, reason, label, next args) and `play.robots[id].setup` (the robot's next
 step). The UI, `fc.ctl op` and agents use the same list, so a key never does something different from its
 button. `/state?lite=1` leaves out static config (`GET /api/config`). Nothing is shown as ready without
 evidence: `ready` needs a green light and, on a real robot, fcctl phase `ready`. The overhead view draws the

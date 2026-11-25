@@ -64,6 +64,7 @@ TEST_KEYS = {"step": {"vx", "vy", "wz", "seconds"}, "deadman": {"vx", "mute_s"},
 COMMON_KEYS = {"robot", "scenario"}
 IMU_KEYS = {"robot", "seconds", "mode", "condition"}
 ALIASES = {"push": "push_ball", "imu": "imu_test"}
+STATUS_WAIT_S = 65.0    # wait this long for an in-flight fcctl status before sending another robot op
 READY_PHASES = {"homed", "standing", "ready"}     # stack running: ready stands/re-arms, never homes
 POLL_S = 0.25
 SEEN_TESTS = {"step", "deadman", "goto", "push_ball", "goalie"}   # wait for a fresh observation before these
@@ -641,8 +642,20 @@ def robot_ops_mode(st: dict) -> str:
 
 
 def run_op(c: Client, rid: str, body: dict, timeout: float, stream: bool = False) -> dict:
-    """POST /robot, then follow ops[rid] until it ends. Streams fcctl JSON progress lines when asked."""
-    res = need_ok(c.post("/robot", {"robot": rid, **body}), f"{body.get('op')} {rid}")
+    """POST /robot, then follow ops[rid] until it ends. Streams fcctl JSON progress lines when asked.
+    A read-only status already in flight (the app runs one per robot when the camera source starts) is waited
+    for, then the op is sent; any other running op still refuses."""
+    res = c.post("/robot", {"robot": rid, **body})
+    end = time.monotonic() + STATUS_WAIT_S
+    while not res.get("ok") and "still running" in str(res.get("error")) and time.monotonic() < end:
+        cur = (c.state().get("ops") or {}).get(rid) or {}
+        if cur.get("op") != "status":
+            break
+        if cur.get("running"):
+            time.sleep(0.3)
+            continue
+        res = c.post("/robot", {"robot": rid, **body})
+    res = need_ok(res, f"{body.get('op')} {rid}")
     cmd, printed, end = res.get("cmd"), set(), time.monotonic() + timeout
     while True:
         op = (c.state().get("ops") or {}).get(rid)

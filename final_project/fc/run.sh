@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pupper FC laptop app launcher: uses <repo>/.venv-fc (made from fc/requirements.txt if missing).
 #
-#   fc/run.sh                         # sim, Play screen at http://127.0.0.1:8800/  (ops: /ops)
+#   fc/run.sh                         # sim: home http://127.0.0.1:8800/, Play /play, old Play /play-old, ops /ops
 #   fc/run.sh camera --robots blue --udp-host blue=10.19.203.20
 #   fc/run.sh camera --video synthetic --no-link --dry-run-ops    # offline rehearsal
 #

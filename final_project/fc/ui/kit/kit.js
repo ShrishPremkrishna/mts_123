@@ -88,7 +88,7 @@ export async function createOps(store, toast) {
   const ops = new Map(m.ops.map((o) => [o.name, o])), local = new Map(), byKey = new Map();
   for (const o of m.ops) if (o.key) byKey.set(o.key, [...(byKey.get(o.key) || []), o.name]);
   const api = {
-    manifest: m,
+    manifest: m, store, toast,
     get: (name) => ops.get(name) || local.get(name),
     local(o) { local.set(o.name, o); if (o.key) byKey.set(o.key, [...(byKey.get(o.key) || []), o.name]); return api; },
     avail(name) {
@@ -117,13 +117,21 @@ export async function createOps(store, toast) {
       if (r.warnings) toast(r.warnings.join("; "), "bad");
       return r;
     },
-    // keyboard: capture phase, so Space and Esc win over every focused control and any open dialog
+    // keyboard: capture phase, so Space and Esc win over every focused control and any open dialog.
+    // A page whose inline safety block (FC_SAFETY_KEYS) ran first owns Space/Esc (fixed endpoints, no manifest needed); here they
+    // only get their feedback toast.
     bindKeys(extra = {}) {
+      if (window.FC_SAFETY_KEYS) window.FC_SAFETY_KEYS.done = (k, r) => {
+        const o = extra.opts && extra.opts[k === "Space" ? "stop" : "estop"];
+        if (!r || !r.ok) toast((r && r.error) || "app not reachable: use R3", "bad");
+        else if (o && o.done) toast(o.done, o.level);
+      };
       const name = (e) => e.code === "Space" ? "Space" : e.key === "Escape" ? "Esc" : e.key === "Tab" ? "Tab"
         : e.key === "Enter" ? "Enter" : e.key.startsWith("Arrow") ? e.key : e.key.length === 1 ? e.key.toUpperCase() : null;
       document.addEventListener("keydown", (e) => {
         const k = name(e); if (!k) return;
         const safety = k === "Space" || k === "Esc";
+        if (safety && window.FC_SAFETY_KEYS) return;                       // already sent by the inline safety block
         if (!safety && (e.metaKey || e.ctrlKey || e.altKey || e.repeat || dlg.open)) return;   // a dialog owns its keys
         const op = api.forKey(k);
         if (!op) return;

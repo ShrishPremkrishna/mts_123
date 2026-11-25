@@ -131,16 +131,27 @@ def validate(o: Op, args: dict, app) -> tuple[dict, list[str]]:
     return out, errors
 
 
+FAIL_SAFE = ("stop", "estop")    # never refused for their arguments: bad or missing args act on every robot
+
+
 def call(app, name: str, args: dict | None = None) -> dict:
     args = {} if args is None else args
     o = REGISTRY.get(name)
     if o is None:
         return {"ok": False, "op": name, "code": "unknown_op", "error": f"unknown op {name!r}: GET /api/ops lists them"}
-    if not isinstance(args, dict):
+    if name in FAIL_SAFE:
+        clean, errors = validate(o, args, app) if isinstance(args, dict) else ({}, ["args must be a JSON object"])
+        if errors:   # like the legacy /action estop: a malformed stop/e-stop still stops everyone, and says so
+            res = dict(o.run(app, {}) or {"ok": True})
+            res["op"] = name
+            res["warnings"] = res.get("warnings", []) + [f"bad arguments ({'; '.join(errors)}): applied to every robot"]
+            return res
+    elif not isinstance(args, dict):
         return {"ok": False, "op": name, "code": "bad_args", "error": "args must be a JSON object"}
-    clean, errors = validate(o, args, app)
-    if errors:
-        return {"ok": False, "op": name, "code": "bad_args", "error": "; ".join(errors)}
+    else:
+        clean, errors = validate(o, args, app)
+        if errors:
+            return {"ok": False, "op": name, "code": "bad_args", "error": "; ".join(errors)}
     if o.when:
         with app.lock:
             why = o.when(app).get("reason")
@@ -328,46 +339,61 @@ def _robot(app, op_name, a, **extra):
     return app.robot_op({"robot": a["robot"], "op": op_name, **extra})
 
 
+def _real_robots(app):
+    """Robot ops ssh the real Pi: in the sim that would move a robot nobody is watching (dry-run only prints)."""
+    if app.sim is not None and not app.dry_run_ops:
+        return {"reason": "sim: no real robot (start with --dry-run-ops to see the commands)"}
+    return {}
+
+
 @op("robot.ready", "Ready", "fcctl ready: stack off -> homes the legs (robot on the stand) and stops; homed -> stands, "
-    "starts the link and re-arms an e-stop. Run it again for the next step.", "robot", safety="confirm",
-    ask="Homes the legs if the stack is off (robot on the stand); stands it up if homed. Area clear, R3 in reach?",
-    robot=P("robot", required=True, choices=_robots), confirm=P("bool", "must be true", required=True, choices=[True]))
+    "starts the link and re-arms an e-stop. Run it again for the next step. Needs a robot.status at most 15 s old; "
+    "homing (phase off) also needs home=true.", "robot", safety="confirm",
+    ask="Stands it up if homed, starts the link, re-arms an E-stop; with home=true (stack off) it HOMES the legs: "
+        "robot on the stand. Area clear, R3 in reach?",
+    when=_real_robots, robot=P("robot", required=True, choices=_robots), confirm=P("bool", "must be true", required=True, choices=[True]),
+    home=P("bool", "true only to HOME the legs from phase off (robot on the stand)", default=False))
 def _ready(app, a):
+    from .play import ready_refusal   # local: play is imported by app, which imports this module
+    rid = a["robot"]
+    why = ready_refusal(app.robot_phase.get(rid), app.phase_age(rid), a["home"])
+    if why:
+        return {"ok": False, "error": why}
     return _robot(app, "ready", a, confirm=True)
 
 
 @op("robot.down", "Lie down", "fcctl down: gentle lie-down, then the stack stops (keep_stack keeps it homed).", "robot",
-    safety="motion", robot=P("robot", required=True, choices=_robots), keep_stack=P("bool", default=False))
+    safety="motion", when=_real_robots, robot=P("robot", required=True, choices=_robots), keep_stack=P("bool", default=False))
 def _down(app, a):
     return _robot(app, "down", a, keep_stack=a["keep_stack"])
 
 
 @op("robot.status", "Status", "fcctl status: phase, bridge, latch, Pi health.", "robot",
-    robot=P("robot", required=True, choices=_robots))
+    when=_real_robots, robot=P("robot", required=True, choices=_robots))
 def _status(app, a):
     return _robot(app, "status", a)
 
 
 @op("robot.stop_stack", "Stop stack", "fcctl stop: stop the robot stack (legs off).", "robot", safety="stop",
-    robot=P("robot", required=True, choices=_robots))
+    when=_real_robots, robot=P("robot", required=True, choices=_robots))
 def _stop_stack(app, a):
     return _robot(app, "stop", a)
 
 
 @op("robot.bridge", "Bridge", "Start or stop the link bridge on the Pi.", "robot", safety="motion",
-    robot=P("robot", required=True, choices=_robots), on=P("bool", required=True))
+    when=_real_robots, robot=P("robot", required=True, choices=_robots), on=P("bool", required=True))
 def _bridge(app, a):
     return _robot(app, "bridge_start" if a["on"] else "bridge_stop", a)
 
 
 @op("robot.stage", "Stage", "Copy fc/robot to the Pi (rsync) with the link key.", "robot",
-    robot=P("robot", required=True, choices=_robots))
+    when=_real_robots, robot=P("robot", required=True, choices=_robots))
 def _stage(app, a):
     return _robot(app, "stage", a)
 
 
 @op("robot.imu_test", "IMU test", "Record the IMU for some seconds (robot powered, still).", "robot",
-    robot=P("robot", required=True, choices=_robots), seconds=P("int", lo=1, hi=900, default=600),
+    when=_real_robots, robot=P("robot", required=True, choices=_robots), seconds=P("int", lo=1, hi=900, default=600),
     mode=P("str", choices=["bno", "ros", "auto"]), condition=P("str"))
 def _imu(app, a):
     return _robot(app, "imu_test", a, **{k: a[k] for k in ("seconds", "mode", "condition") if k in a})
@@ -382,8 +408,11 @@ def _when_source(app):
 
 
 @op("app.source", "Mode", "Switch between Simulation (sim) and Play (camera: field camera, real robots). Restarts the app "
-    "with the same flags; refused while a match, test or robot operation runs.", "app", safety="motion", when=_when_source,
-    source=P("str", required=True, choices=["sim", "camera"]))
+    "with the same flags and the loaded preset (unsaved live params are lost); refused while a match, test or robot "
+    "operation runs.", "app", safety="motion", when=_when_source,
+    ask="Restarts the app in the other mode: link, camera and robots stop for a few seconds. The loaded preset is kept; "
+        "unsaved live param changes are lost.",
+    source=P("str", required=True, choices=["sim", "camera"]), confirm=P("bool", "must be true", required=True, choices=[True]))
 def _source(app, a):
     return app.switch_source(a["source"])
 

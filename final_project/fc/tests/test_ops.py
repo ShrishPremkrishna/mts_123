@@ -116,6 +116,51 @@ def test_estop_unknown_robot_stops_everyone_and_says_so(app):
     assert ops.call(app, "estop.clear")["ok"] and not app.estops
 
 
+def test_stop_and_estop_are_never_refused_for_their_arguments(app):
+    """A malformed stop/e-stop acts on every robot (like the legacy /action estop) and says so."""
+    for args in ({"robot": 5}, {"robots": ["blue"]}, "all", ["blue"], {"robot": "blue", "now": True}):
+        app.estops.clear()
+        r = ops.call(app, "estop", args)
+        assert r["ok"] and r["robots"] == ["blue", "red"] and "every robot" in r["warnings"][-1], args
+        assert set(app.estops) == {"blue", "red"}
+    for args in ({"robot": "blue"}, {"x": 1}, "now", None):
+        r = ops.call(app, "stop", args)
+        assert r["ok"], args
+    assert "warnings" not in ops.call(app, "stop")
+    app.estops.clear()
+    assert ops.call(app, "estop", {"robot": "blue"})["robots"] == ["blue"] and set(app.estops) == {"blue"}
+    assert ops.call(app, "match.touch", "all")["code"] == "bad_args"             # other ops stay strict
+
+
+def test_robot_ops_unavailable_in_plain_sim(tmp_path):
+    a = App("sim", runs_root=tmp_path / "runs", presets_dir=tmp_path / "presets")   # no --dry-run-ops
+    try:
+        with a.lock:
+            av = ops.availability(a)
+        robot_ops = [n for n in ops.REGISTRY if n.startswith("robot.")]
+        assert robot_ops and all(not av[n]["enabled"] and "sim" in av[n]["reason"] for n in robot_ops)
+        r = ops.call(a, "robot.ready", {"robot": "blue", "confirm": True})
+        assert r["code"] == "unavailable" and not a.ops                       # nothing ran
+    finally:
+        a.close()
+
+
+def test_robot_ready_needs_a_fresh_phase_and_home_to_home(app):
+    from fc.play import PHASE_FRESH_S
+    go = lambda **kw: ops.call(app, "robot.ready", {"robot": "blue", "confirm": True, **kw})  # noqa: E731
+    r = go()
+    assert r["code"] == "refused" and "robot.status" in r["error"] and not app.ops   # never checked
+    app._set_phase("blue", "off")
+    assert "HOME" in go()["error"] and not app.ops                           # off needs home=true (on the stand)
+    app._set_phase("blue", "homed")
+    assert "not off" in go(home=True)["error"] and not app.ops
+    app.robot_phase_t["blue"] -= PHASE_FRESH_S + 1                           # Pi may have rebooted since
+    assert "old" in go()["error"] and not app.ops
+    app._set_phase("blue", "off")
+    r = go(home=True)
+    assert r["ok"] and "fcctl.sh ready stock --confirm" in r["cmd"] and r["seq"] == app.ops["blue"]["seq"]
+
+
 def test_api_ops_and_op_over_http(server):
     app, base = server
     code, m = http(base, "/api/ops")
@@ -128,6 +173,9 @@ def test_api_ops_and_op_over_http(server):
     assert code == 409 and r["code"] == "unavailable"
     code, r = http(base, "/api/op", {"op": "robot.status", "args": {"robot": "blue"}})
     assert code == 200 and r["cmd"].startswith("echo DRY-RUN")
+    for args in ({"robot": 5}, "all", None):                                   # e-stop over HTTP: never a 400
+        code, r = http(base, "/api/op", {"op": "estop", "args": args})
+        assert code == 200 and r["ok"] and r["robots"] == ["blue", "red"], args
 
 
 def test_lite_state_and_config(server):
@@ -143,18 +191,28 @@ def test_lite_state_and_config(server):
 
 
 def test_source_switch_restarts_only_when_idle(app):
-    from fc.app import _without_source
+    from fc.app import _without_source, restart_argv
     assert _without_source(["--source", "sim", "--port", "1", "--source=camera", "--no-link"]) == ["--port", "1", "--no-link"]
-    assert ops.call(app, "app.source", {"source": "camera"})["code"] == "unavailable"      # no launcher hook
+    assert restart_argv("camera", "fast", ["--source", "sim", "--preset", "old", "--port", "1"]) == \
+        ["--source", "camera", "--port", "1", "--preset", "fast"]
+    assert restart_argv("sim", None, ["--preset=old", "--robots", "blue"]) == ["--source", "sim", "--robots", "blue"]
+    go = {"source": "camera", "confirm": True}
+    assert ops.call(app, "app.source", go)["code"] == "unavailable"      # no launcher hook
     calls = []
-    app.restart_hook = calls.append
-    assert ops.call(app, "app.source", {"source": "sim"}) == {"ok": True, "source": "sim", "restarting": False, "op": "app.source"}
+    app.restart_hook = lambda src, preset=None: calls.append((src, preset))
+    assert ops.call(app, "app.source", {"source": "camera"})["code"] == "bad_args"            # must be confirmed
+    assert ops.call(app, "app.source", {"source": "sim", "confirm": True}) == \
+        {"ok": True, "source": "sim", "restarting": False, "op": "app.source"}
     assert ops.call(app, "match.kickoff")["ok"]
-    r = ops.call(app, "app.source", {"source": "camera"})
+    r = ops.call(app, "app.source", go)
     assert r["code"] == "unavailable" and "Stop" in r["error"]                           # never mid-match
     assert ops.call(app, "match.end")["ok"]
-    assert ops.call(app, "app.source", {"source": "camera"})["restarting"] is True
+    app.presets_dir.mkdir(parents=True, exist_ok=True)
+    (app.presets_dir / "fast.json").write_text(json.dumps({"max_vx": 0.3}))
+    assert ops.call(app, "preset.load", {"name": "fast"})["ok"]
+    r = ops.call(app, "app.source", go)
+    assert r["restarting"] is True and r["preset"] == "fast"
     t0 = time.monotonic()
     while not calls and time.monotonic() - t0 < 2:
         time.sleep(0.02)
-    assert calls == ["camera"]
+    assert calls == [("camera", "fast")]                                 # the loaded preset survives the restart

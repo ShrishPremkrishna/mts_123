@@ -77,6 +77,29 @@
 </style>
 </head>
 <body>
+<script>
+// Space = STOP, Esc = E-STOP (every robot): inline and first, so they work even if /api/ops or a kit module
+// fails to load. Fixed legacy endpoints (/action stop, /action estop with no robot = all); kit.js bindKeys only
+// adds the feedback toast (FC_SAFETY_KEYS.done). Same block in home.html and play.html.
+"use strict";
+(function () {
+  const keys = (window.FC_SAFETY_KEYS = { done: null });
+  const send = (k, body) => fetch("/action", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    .then((r) => r.json()).catch(() => ({ ok: false, error: "app not reachable: use R3" }))
+    .then((r) => { if (keys.done) keys.done(k, r); });
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space") {
+      e.preventDefault(); e.stopPropagation();
+      send("Space", { action: "stop" });
+    } else if (e.key === "Escape") {
+      e.preventDefault(); e.stopPropagation();
+      send("Esc", { action: "estop", robot: null });
+      for (const d of document.querySelectorAll("dialog[open]")) d.close("no");   // Esc also cancels a question
+    }
+  }, true);
+  document.addEventListener("keyup", (e) => { if (e.code === "Space") e.preventDefault(); }, true);
+})();
+</script>
 <div id="app">
   <header>
     <a class="brand" href="/" title="Home"><span class="word display">PUPPER FC</span><span class="src" id="src"></span></a>

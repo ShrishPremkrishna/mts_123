@@ -198,8 +198,11 @@ class Eye:
         cfg = load_config(None)
         self.synthetic = self.source_name == "synthetic"
         cfg["ball"]["radius"] = field.ball_radius   # fc/config/field.json is the one source
-        saved = ballcal.load(ball_color_path) if ball_color_path else None
-        self.ball_color_source = str(ball_color_path) if saved else "fieldcam field.yaml default"
+        # The synthetic renderer always paints fieldcam's default (pink) ball, so a floor-calibrated
+        # ball_color.json (e.g. the purple ball of Nov 25) would hide it: synthetic uses the default.
+        saved = ballcal.load(ball_color_path) if ball_color_path and not self.synthetic else None
+        self.ball_color_source = (str(ball_color_path) if saved else
+                                  "fieldcam default (synthetic renderer)" if self.synthetic else "fieldcam field.yaml default")
         if saved:
             cfg["ball"]["colors"] = saved
         self._cfg_size = (field.length, field.width)   # field.json size (the brain's Field may be resized)

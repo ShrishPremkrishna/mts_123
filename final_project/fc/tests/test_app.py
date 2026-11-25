@@ -543,6 +543,12 @@ def test_play_and_ops_pages(server):
     assert code == 200 and b"Pupper FC" in html and b"kickoff" in html.lower()
     code, html = get(base, "/ops")
     assert code == 200 and b"Pupper FC v1" in html
+    code, html = get(base, "/play-old")                      # the fc-v1 Play screen, until the new one is floor-verified
+    assert code == 200 and b"/action" in html and b"/kit/" not in html
+    for page in ("/", "/play"):                              # Space/Esc bound inline to fixed endpoints, no manifest needed
+        html = get(base, page)[1].decode()
+        assert html.index("FC_SAFETY_KEYS") < html.index('type="module"')
+        assert '{ action: "stop" }' in html and '{ action: "estop", robot: null }' in html
     p = state(base)["play"]
     assert p["flow"] is None and p["playing"] == ["blue", "red"] and p["variants"][0] == ["blue", "red"]
     assert p["robots"]["blue"]["health"]["level"] in ("ok", "warn") and p["robots"]["blue"]["cam"] is None
