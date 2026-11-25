@@ -322,6 +322,75 @@ def test_heading_carried_by_commands_then_pulled_to_travel():
     assert math.degrees(tr.travel_bias["fast"]) == pytest.approx(-8, abs=2)
 
 
+def test_gyro_yaw_interpolation_and_freshness():
+    from fc.eye import gyro_turn, gyro_yaw_at
+    s = [(1.0, 0.0, 1.0), (1.1, 0.1, 1.0), (1.2, 0.2, 1.0), (2.0, 1.0, 1.0)]
+    assert gyro_yaw_at(s, 1.05) == pytest.approx(0.05)
+    assert gyro_yaw_at(s, 2.08) == pytest.approx(1.08)          # extrapolated up to 0.1 s past the newest
+    assert gyro_yaw_at(s, 2.2) is None                          # stale
+    assert gyro_yaw_at(s, 0.95) == pytest.approx(-0.05)
+    assert gyro_yaw_at(s, 1.5) is None                          # inside a 0.8 s gap between acks
+    assert gyro_turn(s, 1.0, 1.2) == pytest.approx(0.2)
+    assert gyro_turn(s, 1.0, 2.5) is None and gyro_turn([], 0, 1) is None
+
+
+def _fast_turn_gap(seed, gap, use_gyro):
+    """Synthetic chain bridge YawRate -> acks -> Link._note_gyro -> RobotTrack.carry_yaw while the fast gait
+    turns at 0.6 rad/s for a commanded 1.0, with a 4 deg / 2.5 Hz yaw wobble and roll, gyro scale +1 %, bias
+    0.005 rad/s, noise, ack age 0-10 ms, RTT 20-80 ms (asymmetric +-10 ms), capture time +-15 ms, tag 1 deg.
+    Returns the heading error (deg) at the end of a `gap` s run of blob fixes."""
+    import collections
+
+    from fc.eye import RobotTrack
+    from fc.link import Link
+    from fc.robot.drive_bridge import YawRate
+    rng = random.Random(seed)
+    wob, f = math.radians(4), 2 * math.pi * 2.5
+    theta = lambda t: 0.6 * t + wob * math.sin(f * t)        # noqa: E731 - true heading
+    yr, acks, t, nxt = YawRate(), [], -0.5, -0.5
+    while t < gap + 0.3:
+        r = math.radians(4) * math.sin(f * t)
+        w = (0.6 + wob * f * math.cos(f * t)) * 1.01 + 0.005 + rng.gauss(0, 0.02)
+        yr.update(t, t, (math.sin(r / 2), 0.0, 0.0, math.cos(r / 2)), (0.0, w * math.sin(r), w * math.cos(r)))
+        if t >= nxt:
+            age, rtt = rng.uniform(0, 0.01), rng.uniform(0.02, 0.08)
+            acks.append((t + age + rtt / 2 + rng.uniform(-0.01, 0.01), yr.ack(t + age), rtt))
+            nxt += 1 / 30
+        t += 0.01
+    acks.sort(key=lambda a: a[0])
+    st = {"gz": collections.deque(maxlen=150), "gz_n": -1, "rtt_ms": None}
+    p = {"eye_turn_lag_s": 0.0}
+    tr = RobotTrack()
+    tr.on_tag(0.0, theta(0.0) + math.radians(rng.gauss(0, 1.0)), (0.0, 0.0), [], p)
+    cmds = [(-0.5 + i / 30, 0.1, 0.0, 1.0) for i in range(int((gap + 1) * 30))]
+    ai = 0
+    for k in range(1, int(gap * 30) + 1):
+        while ai < len(acks) and acks[ai][0] <= k / 30 + 0.08:      # what had arrived when the frame is processed
+            ta, gz, rtt = acks[ai]
+            st["rtt_ms"] = rtt * 1000
+            Link._note_gyro(st, gz, ta)
+            ai += 1
+        yaw = tr.carry_yaw(k / 30 + rng.gauss(0, 0.015), cmds, p, list(st["gz"]) if use_gyro else None)
+    assert tr.last["src"] == ("gyro" if use_gyro else "cmd")
+    return abs(math.degrees(wrap(yaw - theta(gap))))
+
+
+def test_heading_between_tags_from_measured_yaw_rate():
+    """Synthetic floor-free check (recorded runs carry no yaw rate): over a 1 s tag gap the commanded turn is
+    ~21 deg off; the measured yaw rate keeps it within a few degrees."""
+    gyro = sorted(_fast_turn_gap(s, 1.0, True) for s in range(60))
+    cmd = sorted(_fast_turn_gap(s, 1.0, False) for s in range(20))
+    assert gyro[30] < 2.0 and gyro[-1] < 7.0, gyro
+    assert cmd[10] > 15.0
+    # stale samples (link hiccup): the commands carry the heading again
+    from fc.eye import RobotTrack
+    tr = RobotTrack()
+    tr.on_tag(0.0, 0.0, (0.0, 0.0), [], {})
+    tr.carry_yaw(0.5, [(i * 0.033, 0.1, 0.0, 1.0) for i in range(16)], {"eye_turn_lag_s": 0.0},
+                 [(-1.0, 0.0, 0.0), (0.2, 0.3, 0.0)])
+    assert tr.last["src"] == "cmd"
+
+
 class _FlatCam:
     """Straight-down camera: 2 mm per pixel at any height, field origin at pixel (480, 270)."""
     def pixel_to_plane(self, uv, z):

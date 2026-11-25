@@ -352,14 +352,15 @@ def _real_robots(app):
     ask="Stands it up if homed, starts the link, re-arms an E-stop; with home=true (stack off) it HOMES the legs: "
         "robot on the stand. Area clear, R3 in reach?",
     when=_real_robots, robot=P("robot", required=True, choices=_robots), confirm=P("bool", "must be true", required=True, choices=[True]),
-    home=P("bool", "true only to HOME the legs from phase off (robot on the stand)", default=False))
+    home=P("bool", "true only to HOME the legs from phase off (robot on the stand)", default=False),
+    pov=P("bool", "start the robot POV feed (fcctl cam start) once ready; default: on if robots.json has a cam_url"))
 def _ready(app, a):
     from .play import ready_refusal   # local: play is imported by app, which imports this module
     rid = a["robot"]
     why = ready_refusal(app.robot_phase.get(rid), app.phase_age(rid), a["home"])
     if why:
         return {"ok": False, "error": why}
-    return _robot(app, "ready", a, confirm=True)
+    return _robot(app, "ready", a, confirm=True, **({"pov": a["pov"]} if "pov" in a else {}))
 
 
 @op("robot.down", "Lie down", "fcctl down: gentle lie-down, then the stack stops (keep_stack keeps it homed).", "robot",

@@ -72,6 +72,10 @@ JPEG_WANTED_S = 3.0      # draw /frame.jpg only while it was fetched this recent
 #   eye_blob 1/0, eye_blob_max_s (blob-only tracking this long after the last decoded tag), eye_board_m,
 #   eye_turn_gain / eye_turn_lag_s (heading change = gain x commanded wz, lag relative to capture time;
 #   Nov 25 runs: 0.95 / 0.05 s fit 3042 tag pairs to 6 deg rms), eye_travel_tau_s (0 = no travel pull).
+# Measured yaw rate (Nov 25): when the bridge's acks carry the IMU yaw integral (drive_bridge.YawRate ->
+# Link.gyro), the heading change between tags is taken from it instead of the commands (the fast gait turns
+# 13-23 deg off the command per tag gap). Used only when samples bracket the interval to within eye_gyro_fresh_s;
+# the travel direction is then a weak prior (eye_travel_tau_gyro_s). A decoded tag still resets the heading.
 ROBOT_COLORS_PATH = CONFIG / "robot_colors.json"
 BLOB_MAX_S = 3.0          # blob-only tracking this long after the last decoded tag
 BLOB_GATE_M = 0.08        # blob centre within this of the predicted spot...
@@ -85,6 +89,10 @@ TURN_GAIN, TURN_LAG_S = 0.95, 0.05
 TRAVEL_TAU_S = 0.3        # heading pulled toward the travel direction with this time constant
 TRAVEL_WIN_S = 0.3        # travel direction = line fit through the fixes of this window
 YAW_CONF_TAU_S = 2.0      # heading confidence decays with this time constant without a decoded tag
+GYRO_FRESH_S = 0.1        # measured yaw used only if a sample lies within this of both interval ends
+GYRO_GAP_S = 0.3          # ...and no gap between ack samples longer than this around an end
+TRAVEL_TAU_GYRO_S = 5.0   # travel-direction pull while the measured yaw carries the heading (weak prior)
+YAW_CONF_GYRO_TAU_S = 8.0  # confidence decay while the measured yaw carries the heading
 
 
 def load_robot_colors(path: Path | None = ROBOT_COLORS_PATH) -> dict[str, list[dict]]:
@@ -194,6 +202,40 @@ def integrate_cmds(cmds, a: float, b: float, hold: float = CMD_HOLD_S) -> dict:
             "wz_max": wz_max, "known": cover >= 0.8 * span}
 
 
+def gyro_yaw_at(samples, x: float, fresh: float = GYRO_FRESH_S, gap: float = GYRO_GAP_S) -> float | None:
+    """Integrated yaw (rad) at time x from (t, yaw, wz) samples sorted by t: linear between samples at most
+    `gap` apart, extrapolated with the end sample's rate up to `fresh` beyond either end, else None."""
+    if not samples:
+        return None
+    t1, y1, w1 = samples[-1]
+    if x >= t1:
+        return y1 + w1 * (x - t1) if x - t1 <= fresh else None
+    t0, y0, w0 = samples[0]
+    if x <= t0:
+        return y0 - w0 * (t0 - x) if t0 - x <= fresh else None
+    lo, hi = 0, len(samples) - 1
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        if samples[mid][0] <= x:
+            lo = mid
+        else:
+            hi = mid
+    (ta, ya, _), (tb, yb, _) = samples[lo], samples[hi]
+    if x == ta:
+        return ya
+    if tb - ta > gap:
+        return None
+    return ya + (yb - ya) * (x - ta) / max(tb - ta, 1e-9)
+
+
+def gyro_turn(samples, a: float, b: float, p: dict | None = None) -> float | None:
+    """Measured heading change over [a, b] (rad), or None if the samples do not cover both ends."""
+    p = p or {}
+    fresh = float(p.get("eye_gyro_fresh_s", GYRO_FRESH_S))
+    ya, yb = gyro_yaw_at(samples, a, fresh), gyro_yaw_at(samples, b, fresh)
+    return None if ya is None or yb is None else yb - ya
+
+
 class RobotTrack:
     """One robot between decoded tags (hot thread only): last fix, learned board geometry, heading."""
 
@@ -271,18 +313,26 @@ class RobotTrack:
         self.t_tag, self.yaw, self.t_yaw, self.conf = t, yaw, t, 1.0
         self.n["tag"] += 1
 
-    def carry_yaw(self, t: float, cmds, p: dict) -> float:
-        """Heading at t without a decoded tag: + gain x commanded turn since the last update (good when slow:
-        6 deg rms; in the fast gait the turn rate departs from the command), then pulled toward the heading
-        implied by the travel direction while walking forward (time constant eye_travel_tau_s)."""
+    def carry_yaw(self, t: float, cmds, p: dict, gyro=None) -> float:
+        """Heading at t without a decoded tag: + the measured turn since the last update when the bridge's
+        yaw-rate samples (`gyro`, Link.gyro) cover it, else gain x commanded turn (good when slow: 6 deg rms;
+        in the fast gait the turn rate departs from the command); then pulled toward the heading implied by
+        the travel direction while walking forward (eye_travel_tau_s; eye_travel_tau_gyro_s, weaker, when
+        measured)."""
         lag = float(p.get("eye_turn_lag_s", TURN_LAG_S))
         dt = max(0.0, t - self.t_yaw)
+        g = gyro_turn(gyro, self.t_yaw, t, p) if gyro and float(p.get("eye_gyro", 1)) else None
         c = integrate_cmds(cmds, self.t_yaw - lag, t - lag)
-        turn = float(p.get("eye_turn_gain", TURN_GAIN)) * c["turn"]
+        if g is not None:
+            turn = g
+            self.conf = max(0.0, self.conf * math.exp(-dt / YAW_CONF_GYRO_TAU_S))
+            tau = float(p.get("eye_travel_tau_gyro_s", TRAVEL_TAU_GYRO_S))
+        else:
+            turn = float(p.get("eye_turn_gain", TURN_GAIN)) * c["turn"]
+            self.conf = max(0.0, self.conf * math.exp(-dt / YAW_CONF_TAU_S) - 0.15 * abs(turn))
+            tau = float(p.get("eye_travel_tau_s", TRAVEL_TAU_S))
         self.yaw = wrap(self.yaw + turn)
-        self.conf = max(0.0, self.conf * math.exp(-dt / YAW_CONF_TAU_S) - 0.15 * abs(turn))
-        tau = float(p.get("eye_travel_tau_s", TRAVEL_TAU_S))
-        self.last = {"turn": turn, "travel": None, "cmd_known": c["known"]}
+        self.last = {"turn": turn, "travel": None, "cmd_known": c["known"], "src": "gyro" if g is not None else "cmd"}
         wk = self.walking(t, cmds, p) if tau > 0 else None
         if wk is not None:
             target = wrap(wk[0] - self._bias(wk[1], p))
@@ -496,6 +546,7 @@ class Eye:
         self._tracks: dict[str, RobotTrack] = {r.id: RobotTrack() for r in robots}
         self._cmd_lock = threading.Lock()
         self._cmds: dict[str, collections.deque] = {r.id: collections.deque(maxlen=300) for r in robots}
+        self.gyro_source = None   # callable(robot id) -> [(t, yaw, wz)] measured yaw rate (app: Link.gyro)
         self._blob_seeds: dict[int, tuple[float, float, float]] = {}   # tag id -> (u, v, t) board seen
         self._cal_lock = threading.Lock()
 
@@ -866,6 +917,15 @@ class Eye:
                 if q is not None:
                     q.append((t, *((c.vx, c.vy, c.wz) if hasattr(c, "vx") else tuple(c[:3]))))
 
+    def _gyro(self, rid: str) -> list:
+        src = self.gyro_source
+        if src is None:
+            return []
+        try:
+            return src(rid) or []
+        except Exception:  # noqa: BLE001 - a broken source falls back to the commands
+            return []
+
     def _cmd_list(self, rid: str) -> list:
         with self._cmd_lock:
             return list(self._cmds.get(rid, ()))
@@ -943,7 +1003,7 @@ class Eye:
             cs, sn = math.cos(yaw), math.sin(yaw)
             return bx + cs * tr.off[0] - sn * tr.off[1], by + sn * tr.off[0] + cs * tr.off[1]
         tr.fixes.append((t, *tag_ctr(tr.yaw)))
-        yaw = tr.carry_yaw(t, self._cmd_list(rid), p)
+        yaw = tr.carry_yaw(t, self._cmd_list(rid), p, self._gyro(rid))
         cx, cy = tag_ctr(yaw)
         tr.fixes[-1] = (t, cx, cy)
         ox = mount["tag_offset_x"]

@@ -177,6 +177,13 @@ def load_robot_config(path: Path = CONFIG / "robots.json") -> tuple[list[RobotCf
     return robots, {str(r["id"]): str(r.get("udp_host") or "") for r in raw}
 
 
+def pov_feeds_allowed(source: str, video: str | None, camera: str, linked: bool) -> bool:
+    """Onboard (robot POV) feeds only for real robots: the camera source on a live camera (not a recorded
+    video or the synthetic renderer) with the link on. In sim or the test server a feed would be a stray
+    HTTP client that nobody watches."""
+    return source == "camera" and not video and camera != "synthetic" and linked
+
+
 def variants(active: list[str]) -> list[list[str]]:
     """Demo variants the V key cycles through: every active robot, then each one alone."""
     return [list(active)] + ([[r] for r in active] if len(active) > 1 else [])
@@ -579,6 +586,8 @@ class App:
             self.eye = Eye(self.field, self.all_robots, self.params, source=video or camera)
             self.eye.start()
             self.link = None if no_link else Link(self.active, self.params, udp_hosts=self.udp_hosts)
+            if self.link is not None:
+                self.eye.gyro_source = self.link.gyro   # measured yaw rate from the acks: heading between tags
         self.lock = threading.RLock()
         self.mode = "idle"
         self.test: dict | None = None
@@ -621,7 +630,10 @@ class App:
         self.robot_phase: dict[str, str] = {}
         self._op_seq = 0                            # robot op counter (ops[rid].seq)
         self.robot_phase_t: dict[str, float] = {}   # monotonic time each phase was reported (setup needs a fresh one)
-        self.cams = {r.id: CamFeed(r.cam_url) for r in self.all_robots if r.cam_url and CAM_URL_RE.fullmatch(r.cam_url)}
+        # Robot POV feeds: real robots only (camera source with a live camera and the link on), never sim/tests.
+        real = pov_feeds_allowed(source, video, camera, self.link is not None)
+        self.cams = {r.id: CamFeed(r.cam_url) for r in self.active
+                     if real and r.cam_url and CAM_URL_RE.fullmatch(r.cam_url) and (r.host or self.udp_hosts.get(r.id))}
         self.recorder: Recorder | None = None
         self._stop = False
         self.say(f"started: source={source}, robots={[r.id for r in self.active]}"
@@ -1649,6 +1661,9 @@ class App:
             # The operator confirmed in the UI: ready homes (stack not running) or stands (homed), and
             # re-arms a latched e-stop; fcctl needs --confirm for each. Stack options come last.
             args = [op, profile, "--confirm", *stack_args(stack)]
+            pov = body.get("pov")
+            if pov is not None and not isinstance(pov, bool):
+                return {"ok": False, "error": "pov must be true or false"}
         elif op == "imu_test":
             secs = body.get("seconds", 5)
             lo, hi = IMU_TEST_S
@@ -1682,6 +1697,9 @@ class App:
         self._op_seq += 1     # lets a client tell this op's result from an older one
         state = {"op": op, "cmd": " ".join(cmd), "running": True, "rc": None, "out": "", "t": time.strftime("%H:%M:%S"),
                  "timeout_s": timeout, "t0": time.monotonic(), "seq": self._op_seq}
+        if op == "ready":   # POV feed after a successful Ready: default on when robots.json has a cam_url
+            pov = body.get("pov")
+            state["pov"] = bool(r.cam_url) if pov is None else pov
         self.ops[rid] = state
         self.say(f"robot {rid}: {op}" + (" (dry run)" if self.dry_run_ops else ""), cmd=state["cmd"])
         target = self._run_stream if op in ("ready", "down") else self._run_op
@@ -1742,8 +1760,30 @@ class App:
                     self.say(f"E-STOP on {rid} cleared: Ready re-armed it", robot=rid)
                 elif e is not None:
                     self.say(f"E-STOP on {rid} was pressed during Ready: still latched, press Ready again", robot=rid)
+            if state.get("pov"):
+                self._pov_start(rid)
             if not self.dry_run_ops:
                 self._refresh_status(rid)   # speed_cap / heading_hold of the stack that is now running
+
+    def _pov_start(self, rid: str) -> None:
+        """fcctl cam start (160x120 @ 5 fps MJPEG, measured 1.3 % of one Pi core, 0.13 Mbit/s) after a
+        successful Ready. Runs on the op's worker thread, never the 30 Hz loop; an already running feed is fine."""
+        host = self.cfg[rid].host
+        if not host or not HOST_RE.fullmatch(host) or host.startswith("-"):
+            return
+        cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "--", host, "bash ~/fc-v1/robot/fcctl.sh cam start"]
+        if self.dry_run_ops:
+            cmd = ["echo", "DRY-RUN:", *cmd]
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd=FINAL_PROJECT)
+        except (subprocess.TimeoutExpired, OSError) as e:
+            self.say(f"robot {rid}: POV feed not started ({type(e).__name__})")
+            return
+        out = (p.stdout + p.stderr).strip()
+        if p.returncode == 0 or "already running" in out:
+            self.say(f"robot {rid}: POV feed on" + (" (dry run)" if self.dry_run_ops else ""), cmd=" ".join(cmd))
+        else:
+            self.say(f"robot {rid}: POV feed not started (rc {p.returncode}): {out[-200:]}")
 
     def _refresh_status(self, rid: str) -> None:
         """fcctl status into robot_status without touching the op shown on the cards."""

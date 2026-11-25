@@ -5,7 +5,8 @@
     "tag": 10,
     "host": "mts",
     "profile": "stock",
-    "udp_host": "10.5.6.112"
+    "udp_host": "10.5.6.112",
+    "cam_url": "http://10.5.6.112:8090/stream.mjpg"
   },
   {
     "id": "red",

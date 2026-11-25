@@ -13,6 +13,8 @@ Behaviour:
   A new sid with a valid MAC starts a new session (laptop restart).
 - Rejected packets are counted and never acked. Accepted packets get a signed ack
   {"v":2,"robot":..,"sid":..,"ack":seq,"ok":true,"imu":..,"profile":..,"bridge":{stats},"mac":..}.
+  Optional "gz": {"wz","yaw","n","ms"} = measured yaw rate for the laptop's heading between tag fixes
+  (YawRate below); omitted while the IMU is bad/stalled or before the first sample. Laptops ignore it if old.
 - Publishes the latest accepted command at --rate Hz (default 50) while it is
   younger than its ttl (default 0.25 s, measured on the Pi's monotonic clock).
 - When the command expires it publishes zero ONCE and goes silent, so the
@@ -323,13 +325,17 @@ class BridgeCore:
 
     def make_ack(self, seq: int, profile: str, imu: dict | None, bridge: dict,
                  hold: str | None = None, imu_hold: bool = False, mux_ok: bool | None = None,
-                 imu_lie: dict | None = None) -> bytes:
-        """Signed reply for an accepted packet. hold: why commands are being replaced by zero."""
-        return sign(self.key, {"v": VERSION, "robot": self.robot_id, "sid": self.sid, "ack": seq, "ok": True,
-                               "profile": profile, "imu": imu, "bridge": bridge,
-                               "hold": "estopped" if self.estopped else "parked" if self.parked else hold,
-                               "imu_hold": imu_hold, "mux_ok": mux_ok, "imu_lie": imu_lie,
-                               "estopped": self.estopped})
+                 imu_lie: dict | None = None, gz: dict | None = None) -> bytes:
+        """Signed reply for an accepted packet. hold: why commands are being replaced by zero.
+        gz: YawRate.ack() (added only when given, so older laptops and tests see the same ack)."""
+        msg = {"v": VERSION, "robot": self.robot_id, "sid": self.sid, "ack": seq, "ok": True,
+               "profile": profile, "imu": imu, "bridge": bridge,
+               "hold": "estopped" if self.estopped else "parked" if self.parked else hold,
+               "imu_hold": imu_hold, "mux_ok": mux_ok, "imu_lie": imu_lie,
+               "estopped": self.estopped}
+        if gz is not None:
+            msg["gz"] = gz
+        return sign(self.key, msg)
 
     def tick(self, now: float, hold: bool = False) -> tuple[float, float, float] | None:
         """Called at the publish rate. Returns the Twist to publish, or None for silence.
@@ -569,6 +575,67 @@ def quat_tilt_deg(quat_xyzw) -> float:
     if not (n > 0.0) or not math.isfinite(n):
         return float("nan")
     return math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - 2.0 * (x * x + y * y) / n))))
+
+
+class YawRate:
+    """Measured yaw rate for the laptop's heading between overhead tag fixes (fc/eye.py), from the same
+    sensor_msgs/Imu the bridge already reads (/imu_sensor_broadcaster/imu). Frame: control_board_hardware_
+    interface read() rotates the gyro by the mount offset (offset_rotation_matrix * gyro; the FC IMU filter
+    v3 publishes sanitized SENSOR-frame rates before that), so angular_velocity is the BODY rate the walker
+    observes (neural_controller obs 0-2: x forward, y left, z up). + z = counter-clockwise seen from above =
+    the sign of the commanded wz. orientation is body -> world.
+      wz   body z rate of the newest sample (rad/s)
+      yaw  integral since the bridge started of the WORLD-vertical rate (up . R(q) w: the gait's roll/pitch
+           do not leak in), trapezoid, dt from the header stamps (receive clock if a stamp is unusable),
+           capped at MAX_DT. The laptop differences it, so the turn between two acks is exact however
+           many acks are lost.
+      n    samples integrated (a smaller n = bridge restarted)
+      ms   age of the newest sample when the ack is built
+    Pure; the caller supplies `now` (monotonic)."""
+
+    MAX_DT = 0.1
+
+    def __init__(self):
+        self.yaw = 0.0
+        self.n = 0
+        self.wz = 0.0
+        self._w_up: float | None = None
+        self._stamp: float | None = None
+        self._t: float | None = None
+
+    @staticmethod
+    def world_rate(quat_xyzw, w) -> float:
+        """World-vertical component of the body rate w: third row of R(q) . w (body z if q is unusable)."""
+        x, y, z, qw = quat_xyzw
+        n = x * x + y * y + z * z + qw * qw
+        if not (0.5 < n < 1.5):
+            return float(w[2])
+        x, y, z, qw = (v / math.sqrt(n) for v in (x, y, z, qw))
+        return 2 * (x * z - qw * y) * w[0] + 2 * (y * z + qw * x) * w[1] + (1 - 2 * (x * x + y * y)) * w[2]
+
+    def update(self, now: float, stamp: float | None, quat_xyzw, w) -> None:
+        if not all(math.isfinite(v) for v in (*quat_xyzw, *w)):
+            return
+        w_up = self.world_rate(quat_xyzw, w)
+        if not math.isfinite(w_up):
+            return
+        dt = None
+        if stamp is not None and self._stamp is not None and 0.0 < stamp - self._stamp <= 1.0:
+            dt = stamp - self._stamp
+        elif self._t is not None:
+            dt = now - self._t
+        if dt is not None and self._w_up is not None:
+            self.yaw += 0.5 * (w_up + self._w_up) * min(max(dt, 0.0), self.MAX_DT)
+        self._w_up, self._stamp, self._t = w_up, stamp, now
+        self.wz = float(w[2])
+        self.n += 1
+
+    def ack(self, now: float, imu: dict | None = None) -> dict | None:
+        """Ack field, or None before the first sample / while ImuHealth says bad or a driver stall."""
+        if self._t is None or (isinstance(imu, dict) and (imu.get("level") == "bad" or imu.get("stall_ms") is not None)):
+            return None
+        return {"wz": round(self.wz, 4), "yaw": round(self.yaw, 5), "n": self.n,
+                "ms": int(round(max(0.0, now - self._t) * 1000))}
 
 
 class FallenGuard:
@@ -826,6 +893,7 @@ def main(argv=None) -> int:
     mux = MuxGuard() if args.mux_guard else None
     emergency_pub = None            # /cmd_vel publisher, exists only while the mux is lost
     state = {"imu": safe_summary(health), "hold": None, "since": None}   # guarded by lock
+    yaw_rate = YawRate()            # measured yaw rate into the acks (guarded by lock)
 
     def latch_record(extra=None):
         rec = {"reason": core.estop_reason, "t_wall": round(time.time(), 3), "pid": os.getpid(),
@@ -877,7 +945,10 @@ def main(argv=None) -> int:
             q, w = msg.orientation, msg.angular_velocity
             now = time.monotonic()
             a = msg.linear_acceleration
+            st = msg.header.stamp
+            stamp = st.sec + st.nanosec * 1e-9 if (st.sec or st.nanosec) else None
             with lock:
+                yaw_rate.update(now, stamp, (q.x, q.y, q.z, q.w), (w.x, w.y, w.z))
                 zero = core.commanding_zero(now, hold=state["hold"] is not None)
                 if health is not None:
                     try:
@@ -937,7 +1008,8 @@ def main(argv=None) -> int:
                 reply = core.make_ack(seq, args.profile, state["imu"], bridge_stats(now), hold=state["hold"],
                                       imu_hold=bool(imu_guard and imu_guard.hold),
                                       mux_ok=None if mux is None else mux.why is None,
-                                      imu_lie=None if imu_lie is None else imu_lie.status()) if ok else None
+                                      imu_lie=None if imu_lie is None else imu_lie.status(),
+                                      gz=yaw_rate.ack(now, state["imu"])) if ok else None
             if reply is not None:  # never answer unauthenticated or replayed packets
                 try:
                     sock.sendto(reply, addr)

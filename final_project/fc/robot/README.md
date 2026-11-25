@@ -19,7 +19,7 @@ gamepad `/teleop_cmd_vel` wins) → `/cmd_vel` → walker. Contract: [../SPEC.md
 | `sim/liedown_sim.py` | Laptop only (not staged): MuJoCo check of the gentle lie-down. [Gentle lie-down](#gentle-lie-down-stock-down-and-stop). |
 | `stage.sh <host>` | Laptop: rsync this dir (minus `vendor/`, `provision/`, `sim/`) to `<host>:~/fc-v1/robot/`, print changes; copy `fc/config/link.key` (0600) and write `robot_id` from the `robots.json` entry for `<host>` (or `FC_ROBOT_ID`). |
 | `provision/` | Laptop: `provision.sh [--check] <host> <id> <team> <tag>` takes a new Pi to game-ready (read-only probe + readiness report; stages via `stage.sh`; writes only `~/fc-v1/` unless `--fix-clone-identity`). Second-robot plan, clone vs class card, and per-robot calibration: [provision/PROVISION.md](provision/PROVISION.md). Not staged to the Pi. |
-| `camstream.py` | Optional robot-POV feed: front camera as small MJPEG on :8090 (`/stream.mjpg`, `/frame.jpg`, `/health`) for the laptop Play screen (`cam_url` in robots.json; blue would be `http://10.5.6.112:8090/stream.mjpg`, not set yet: see below). Started by `fcctl.sh cam start`. `--source picamera2` opens the sensor at the stream rate (sensor `FrameRate` = `--fps`); `--source ros` subscribes read-only to camera_ros `/camera/image_raw/compressed`. Cost: [Robot-POV feed](#robot-pov-feed-cam-measured-on-mts-2026-11-25). |
+| `camstream.py` | Optional robot-POV feed: front camera as small MJPEG on :8090 (`/stream.mjpg`, `/frame.jpg`, `/health`) for the laptop Play screen (`cam_url` in robots.json; blue: `http://10.5.6.112:8090/stream.mjpg`). Started by `fcctl.sh cam start`. `--source picamera2` opens the sensor at the stream rate (sensor `FrameRate` = `--fps`); `--source ros` subscribes read-only to camera_ros `/camera/image_raw/compressed`. Cost: [Robot-POV feed](#robot-pov-feed-cam-measured-on-mts-2026-11-25). |
 | `keygen.py` | Laptop, once: `python -m fc.robot.keygen` writes `fc/config/link.key` (0600, gitignored). |
 | `vendor/tej_u6/` | Text sources/configs/manifests of u6, the kit, its driver source and gateway source (3.5 MB). Full archive with binaries: `~/workspace/pupper-foundation-artifacts/tej_u6_20261120.tar.gz` (+ `.sha256`, `be1cd1e2…c38781`, 279 MB: u6 release, full kit, pinned dependency sources; driver/native .so match the kit's hashes). |
 
@@ -267,9 +267,9 @@ a running feed first (one sensor owner). `stop` (and `down`, when it stops the s
     bash fcctl.sh cam stop                           # status: "cam": {"pid", "alive"}
 
 The laptop reads `cam_url` on a daemon thread (`fc/media.py` `CamFeed`); with the feed off the Play screen shows
-no signal and the thread retries every 2 s. `cam_url` is not in robots.json yet: `App` opens a feed for every
-robot with one, in sim mode and in the test server too (test_app expects `cam` None for blue). Set it once
-app.py opens feeds only for the real source. Measured (2 min each, Pi 5, fan on, laptop fetching the stream):
+no signal and the thread retries every 2 s. Blue's `cam_url` is set in robots.json; `App` opens feeds only for
+real robots (source camera on a live camera with the link on; never sim, replays or tests), and a successful
+Ready runs `cam start` (op param `pov`, `ctl ready --pov on|off`; default on when the robot has a `cam_url`). Measured (2 min each, Pi 5, fan on, laptop fetching the stream):
 
 | | streamer CPU (one core) | Pi busy (4 cores) | Wi-Fi | temp |
 | --- | --- | --- | --- | --- |

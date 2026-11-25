@@ -27,7 +27,8 @@ CONNECTED_AGE_S = 1.0                     # ack younger than this counts as conn
 KEY_FILE = CONFIG / "link.key"
 TAILSCALE_NET = ipaddress.ip_network("100.64.0.0/10")   # CGNAT range Tailscale uses
 LOSS_AFTER_S = 0.5                        # a packet not acked this long after sending counts as lost
-ACK_CORE = {"v", "robot", "sid", "ack", "mac", "ok", "imu", "profile", "bridge"}
+ACK_CORE = {"v", "robot", "sid", "ack", "mac", "ok", "imu", "profile", "bridge", "gz"}
+GYRO_KEEP = 150                           # measured yaw-rate samples kept per robot (~5 s of acks)
 ESTOP_BURST = (5, 0.02)                   # SPEC v1.1: e-stop burst of 5 packets, 20 ms apart
 
 
@@ -112,7 +113,8 @@ class Link:
                            "rtts": deque(maxlen=200),
                            "seq": 0, "sent": 0, "acks": 0, "last_ack_t": None, "rtt_ms": None, "last_ack_seq": 0,
                            "bad_acks": 0, "bad_ack_t": None, "estop_sent": 0, "estopped": None,
-                           "imu": None, "profile": None, "bridge_ok": None, "bridge": None, "last_cmd": [0.0, 0.0, 0.0]} for r in robots}
+                           "imu": None, "profile": None, "bridge_ok": None, "bridge": None, "last_cmd": [0.0, 0.0, 0.0],
+                           "gz": deque(maxlen=GYRO_KEEP), "gz_n": -1} for r in robots}
         self._sent_t: dict[str, dict[int, list]] = {r.id: {} for r in robots}   # seq -> [t_sent, acked]
         self._by_addr: dict[str, str] = {}
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -228,12 +230,41 @@ class Link:
                 st["estopped"] = msg["estopped"]
             if isinstance(msg.get("bridge"), dict):
                 st["bridge"] = msg["bridge"]
+            self._note_gyro(st, msg.get("gz"), now)
             # Fields newer bridges add (imu_hold, mux, ...) are kept as-is for the UI and run log.
             st["extra"] = {k: v for k, v in msg.items() if k not in ACK_CORE}
             self.ack_log.append({"r": rid, "ack": seq, "rtt": st["rtt_ms"]})
             if len(self.ack_log) > 1000:
                 del self.ack_log[:500]
         return rid
+
+    @staticmethod
+    def _note_gyro(st: dict, gz, now: float) -> None:
+        """Ack "gz" (drive_bridge.YawRate; bridges before Nov 25 omit it) -> (t, yaw, wz) on this clock.
+        Sample time = ack receipt - sample age at the ack - half the round trip (the ack's one-way trip)."""
+        if not isinstance(gz, dict):
+            return
+        try:
+            yaw, wz, n, ms = float(gz["yaw"]), float(gz["wz"]), int(gz["n"]), float(gz["ms"])
+        except (KeyError, TypeError, ValueError):
+            return
+        if not (math.isfinite(yaw) and math.isfinite(wz) and math.isfinite(ms)) or not 0 <= ms < 1000:
+            return
+        if n < st["gz_n"]:          # bridge restarted: its integral starts over
+            st["gz"].clear()
+        elif n == st["gz_n"]:       # no new IMU sample since the previous ack
+            return
+        st["gz_n"] = n
+        t = now - ms / 1000 - (st["rtt_ms"] or 0.0) / 2000
+        if st["gz"] and t <= st["gz"][-1][0]:
+            return
+        st["gz"].append((t, yaw, wz))
+
+    def gyro(self, rid: str) -> list[tuple[float, float, float]]:
+        """Measured yaw-rate samples (t monotonic, integrated world yaw rad, body wz rad/s), oldest first."""
+        with self._lock:
+            st = self._st.get(rid)
+            return list(st["gz"]) if st else []
 
     def drain_acks(self) -> list[dict]:
         with self._lock:
@@ -268,7 +299,8 @@ class Link:
                             "connected": age is not None and age < CONNECTED_AGE_S,
                             "ack_age": age, "rtt_ms": st["rtt_ms"], "imu": st["imu"],
                             "profile": st["profile"], "bridge_ok": st["bridge_ok"], "bridge": st["bridge"], "seq": st["seq"], "sent": st["sent"],
-                            "acks": st["acks"], "last_cmd": st["last_cmd"]}
+                            "acks": st["acks"], "last_cmd": st["last_cmd"],
+                            "gyro_age": round(now - st["gz"][-1][0], 3) if st["gz"] else None}
         return out
 
     def close(self) -> None:

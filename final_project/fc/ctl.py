@@ -9,7 +9,7 @@
                                             they parse (robots='["blue"]', confirm=true), else strings.
                                             Prints the JSON reply; exit 0 ok / 1 refused
     check <robot> [--ball] [--yaw DEG]      RUNBOOK gates (seen, eye fps/calib, auth, RTT, loss, not halted)
-    ready <robot> [--preset NAME] [--home]  fcctl ready (stands; re-arms an e-stop). --home: allowed to HOME the legs
+    ready <robot> [--preset NAME] [--home] [--pov on|off]  fcctl ready (stands; re-arms an e-stop). --home: allowed to HOME the legs
     down <robot> [--keep-stack]             fcctl down (lie down; --keep-stack keeps it homed)
     estop <robot|all>                       link E-STOP, waits for the robot's confirmation (3.5 s)
     pi <robot>                              fcctl status: Pi temp/throttle/load, phase, bridge, latch, lean;
@@ -727,7 +727,8 @@ def cmd_ready(c: Client, a) -> None:
                 raise Fail(f"{rid} phase {phase or 'unknown'}: ready would START the stack and HOME the legs."
                            " Robot on the stand? Then rerun with --home")
     timeout = 330
-    op = run_op(c, rid, {"op": "ready", "confirm": True}, timeout, stream=True)
+    pov = {"on": {"pov": True}, "off": {"pov": False}}.get(a.pov or "", {})   # default: on if robots.json has cam_url
+    op = run_op(c, rid, {"op": "ready", "confirm": True, **pov}, timeout, stream=True)
     if is_dry(op):
         say(f"  dry-run: {short(op.get('out') or op.get('cmd'), 200)}")
         say(f"READY {rid} (dry run: nothing ran)")
@@ -1070,6 +1071,8 @@ def build_parser() -> Parser:
     p.add_argument("robot")
     p.add_argument("--preset", default=None)
     p.add_argument("--home", action="store_true", help="allowed to start the stack (HOMES the legs: robot on the stand)")
+    p.add_argument("--pov", choices=["on", "off"], default=None,
+                   help="robot POV feed (fcctl cam start) once ready; default on if robots.json has a cam_url")
     p.set_defaults(fn=cmd_ready)
     p = sub.add_parser("down")
     p.add_argument("robot")

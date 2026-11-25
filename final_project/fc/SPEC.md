@@ -68,7 +68,10 @@ at 50 Hz while the latest packet is younger than `ttl` (default 0.25 s), then ze
 and silence. Signed reply to accepted packets:
 `{"v":2,"robot":id,"sid":..,"ack":seq,"ok":true,"imu":{...},"profile":name,"bridge":{stats},"mac":..}`;
 the laptop ignores acks with a bad MAC, other robot/sid, or old seq and shows `auth`
-(`ok|missing_key|bad_ack`) per robot. Residual risk: a bridge restart forgets retired
+(`ok|missing_key|bad_ack`) per robot. Optional (Nov 25, additive, under the MAC):
+`"gz":{"wz":rad/s,"yaw":rad,"n":int,"ms":int}` = IMU body z rate, integral of the world-vertical
+rate since bridge start, samples integrated, sample age; omitted while the IMU is bad/stalled. Laptops
+without it ignore the field; bridges without it get the commanded-turn heading. Residual risk: a bridge restart forgets retired
 sessions, so a recorded session could be replayed until the laptop sends again.
 
 ## Safety (never relaxed)

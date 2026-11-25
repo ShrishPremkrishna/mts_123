@@ -1046,3 +1046,27 @@ def test_autoplay_op_runs_the_loop_and_stop_writes_cycle_metrics(server):
     assert code == 400 and r["code"] == "bad_args"
     code, r = post(base, "/action", {"action": "test", "test": "autoplay", "after_roll": "later"})
     assert code == 400 and "after_roll" in r["error"]
+
+
+def test_pov_feeds_only_for_real_robots():
+    assert fcapp.pov_feeds_allowed("camera", None, "phone", True)
+    assert not fcapp.pov_feeds_allowed("sim", None, "phone", True)
+    assert not fcapp.pov_feeds_allowed("camera", "run/overhead.mp4", "phone", True)   # replay
+    assert not fcapp.pov_feeds_allowed("camera", None, "synthetic", True)
+    assert not fcapp.pov_feeds_allowed("camera", None, "phone", False)                # --no-link
+
+
+def test_ready_starts_the_pov_feed(server):
+    """robots.json gives blue a cam_url, so a successful Ready also runs fcctl cam start (dry run here);
+    pov=false skips it."""
+    app, base = server
+    assert app.cfg["blue"].cam_url and not app.cams                       # sim: no feed opened
+    code, r = post(base, "/robot", {"robot": "blue", "op": "ready", "confirm": True})
+    assert code == 200
+    assert wait(lambda: any("POV feed on" in e["msg"] for e in app.events), 5)
+    n = sum("POV feed" in e["msg"] for e in app.events)
+    code, r = post(base, "/robot", {"robot": "blue", "op": "ready", "confirm": True, "pov": False})
+    assert code == 200 and wait(lambda: not app.ops["blue"]["running"], 3)
+    time.sleep(0.3)
+    assert sum("POV feed" in e["msg"] for e in app.events) == n
+    assert post(base, "/robot", {"robot": "blue", "op": "ready", "confirm": True, "pov": "yes"})[0] == 400

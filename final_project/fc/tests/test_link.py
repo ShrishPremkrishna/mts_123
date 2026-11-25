@@ -313,3 +313,32 @@ def test_estop_burst_and_estopped_ack(key_file):
     finally:
         link.close()
         echo.close()
+
+
+def test_ack_gz_yaw_rate_samples(key_file):
+    """Acks with the measured yaw rate (drive_bridge.YawRate "gz") become (t, yaw, wz) samples on the laptop
+    clock (receipt - age - rtt/2); acks without it (older bridges) are accepted as before."""
+    robots = [RobotCfg("blue", "blue", 10, "127.0.0.1", "stock")]
+    link = Link(robots, {}, port=9, resolve=lambda h: h, key_file=key_file)
+    try:
+        assert _wait(lambda: link.status()["blue"]["addr"] == "127.0.0.1")
+        core = db.BridgeCore(KEY, "blue")
+        core.sid = link.sid
+
+        def ack(seq, now, gz=None, sent=None):
+            link._sent_t["blue"][seq] = [sent if sent is not None else now - 0.04, False]
+            return link.handle_ack(core.make_ack(seq, "stock", None, {}, gz=gz), "127.0.0.1", now)
+
+        assert ack(1, 100.0) == "blue" and link.gyro("blue") == [] and link.status()["blue"]["gyro_age"] is None
+        assert ack(2, 100.1, {"wz": 0.5, "yaw": 1.0, "n": 10, "ms": 10}) == "blue"
+        (t, yaw, wz), = link.gyro("blue")
+        assert t == pytest.approx(100.1 - 0.010 - 0.020) and (yaw, wz) == (1.0, 0.5)
+        ack(3, 100.13, {"wz": 0.5, "yaw": 1.0, "n": 10, "ms": 40})              # same IMU sample: not repeated
+        ack(4, 100.16, {"wz": 0.5, "yaw": 1.03, "n": 13, "ms": 5})
+        assert [g[1] for g in link.gyro("blue")] == [1.0, 1.03]
+        ack(5, 100.2, {"wz": "x", "yaw": 1.0, "n": 14, "ms": 5})               # malformed: ignored, ack still counts
+        ack(6, 100.23, {"wz": 0.1, "yaw": 0.01, "n": 2, "ms": 5})               # bridge restarted: history cleared
+        assert [g[1] for g in link.gyro("blue")] == [0.01]
+        assert link.status()["blue"]["acks"] == 6 and "gz" not in link.status()["blue"]["extra"]
+    finally:
+        link.close()

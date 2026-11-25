@@ -302,6 +302,43 @@ def test_ack_carries_hold_fields():
     assert (plain["hold"], plain["imu_hold"], plain["mux_ok"]) == (None, False, None)
 
 
+def test_yaw_rate_frame_integral_and_ack_field():
+    """Body z rate, + = counter-clockwise (the commanded wz sign); the integral uses the world-vertical rate,
+    so a roll does not leak in; header stamps give dt; a bad/stalled IMU or no sample yet omits the field."""
+    y = db.YawRate()
+    assert y.ack(0.0) is None
+    ident = (0.0, 0.0, 0.0, 1.0)
+    for i in range(101):                       # 1 s at 100 Hz, 0.5 rad/s about body z = world z
+        y.update(10.0 + i * 0.01, 500.0 + i * 0.01, ident, (0.0, 0.0, 0.5))
+    a = y.ack(11.003)
+    assert a == {"wz": 0.5, "yaw": pytest.approx(0.5, abs=1e-6), "n": 101, "ms": 3}
+    r = math.radians(20)                       # rolled 20 deg about x, turning 0.5 rad/s about world z
+    q = (math.sin(r / 2), 0.0, 0.0, math.cos(r / 2))
+    w_body = (0.0, 0.5 * math.sin(r), 0.5 * math.cos(r))   # world z rate seen in the rolled body
+    assert db.YawRate.world_rate(q, w_body) == pytest.approx(0.5)
+    assert db.YawRate.world_rate((0, 0, 0, 0), (0, 0, 0.3)) == 0.3          # unusable quaternion: body z
+    y.update(11.02, None, ident, (0.0, 0.0, math.nan))                       # non-finite sample ignored
+    assert y.n == 101
+    y.update(11.02, 501.02, ident, (0.0, 0.0, 0.5))                          # 20 ms gap
+    assert y.yaw == pytest.approx(0.51)
+    y.update(13.0, 503.0, ident, (0.0, 0.0, 0.5))                            # long gap: capped at MAX_DT
+    assert y.yaw == pytest.approx(0.51 + 0.5 * db.YawRate.MAX_DT)
+    assert y.ack(13.0, {"level": "bad", "bad_cause": "stale"}) is None
+    assert y.ack(13.0, {"level": "warn", "stall_ms": 120}) is None
+    assert y.ack(13.0, {"level": "ok"})["n"] == 103
+
+
+def test_ack_gz_is_signed_and_optional():
+    c = core()
+    c.on_packet(pkt(seq=1), 0.0)
+    gz = {"wz": 0.1, "yaw": 1.2345, "n": 7, "ms": 4}
+    ack = json.loads(c.make_ack(1, "stock", None, c.snapshot(0.0), gz=gz))
+    assert db.verify(KEY, ack) and ack["gz"] == gz
+    assert not db.verify(KEY, {**ack, "gz": {**gz, "yaw": 9.0}})              # covered by the MAC
+    assert "gz" not in json.loads(c.make_ack(1, "stock", None, c.snapshot(0.0)))
+    assert len(json.dumps(gz, separators=(",", ":"))) < 60                    # small
+
+
 # ---------------------------------------------------------------- hold (IMU / mux) in the publish path
 
 def test_hold_publishes_zero_while_fresh_then_normal_expiry():
