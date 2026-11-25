@@ -64,7 +64,8 @@ FLOOR = {"sim_latency_s": 0.10, "sim_burst_per_s": 0.15, "sim_burst_s": 0.3, "si
 # Nov 25 floor: new evenly rolling ball (rollcal 0.149 m/s^2), fast gait 0.83-0.93 of the command (0.88 used),
 # camera 31 fps at ~50 ms age (+ eye processing), walker speed cap 0.8 (sim_vx_clip)
 FLOOR25 = {**FLOOR, "sim_ball_decel": 0.149, "sim_latency_s": 0.07, "sim_fast_v060": 0.53, "sim_fast_v075": 0.66,
-           "sim_fast_v100": 0.88, "sim_fast_v150": 1.25, "sim_vx_clip": 0.8}
+           "sim_fast_v100": 0.88, "sim_fast_v150": 1.25, "sim_vx_clip": 0.8, "sim_ball_curve": 0.08}
+# sim_ball_curve 0.08: a 0.3 m/s ball turns up to ~0.27 rad/s (~30 deg before it stops), a 1 m/s ball ~5 deg/s
 
 
 class Jitter:

@@ -121,11 +121,13 @@ touches worked; clunky turning near the ball and slow recovery after a sideways 
   dribble_jerk      max jerk (m/s^3) on vx; accel_vx / decel_vx stay the acceleration limits
   dribble_look_s    pure-pursuit lookahead = dribble_look_m + dribble_look_s * speed (never a target inside the
                     turning circle: a short lookahead at speed is a high heading gain)
-  dribble_close     closing speed (m/s) relative to the ball at the touch; dribble_margin = relative speed one
-                    step (0.15 m surface gap) out; beyond that braking-limited at decel_vx/2
-  push_side_m, push_side  lateral bias: the robot walks a line this far beside the ball line (0.03: the
-                    ball sits ~3 cm off centre on one consistent side; 0.06 hit with the edge). auto side with
-                    hysteresis (switches only when the robot is > 2x the bias on the other side)
+  dribble_close     closing speed (m/s) relative to the ball at the touch (0.55: hit hard and straight, then keep
+                    driving through; Nov 25 floor: soft touches let the slightly non-spherical ball curve away on
+                    the carpet); dribble_margin = relative speed one step (0.15 m gap) out; beyond that
+                    braking-limited at decel_vx/2. Below 0.15 m/s only while off the line near the ball
+  push_side_m, push_side  lateral bias (default 0 = dead centre; Nov 25 floor: 6 cm and 3 cm both made the ball
+                    drift sideways). >0: walk a line this far beside the ball line, auto side with hysteresis
+                    (switches only when the robot is > 2x the bias on the other side)
   dribble_horizon_s prediction horizon (s) for the meeting point; the meeting time is a fixed point of our ETA
   Measured constants used for the ETA: dribble_gait_gain (fast gait speed / command, floor 0.83-0.93),
   dribble_onset_s (start-up time, floor 0.3-0.8), ball_decel, ball and robot radius, max_wz.
@@ -174,7 +176,7 @@ DEFAULTS = {
     "plan_flip_s": 0.4,
     "coast_s": 0.0, "coast_vx": 0.25, "coast_tau_s": 0.5, "fast_yaw_bias_deg": 0.0, "fast_yaw_vx": 0.5,
     "dribble": 0, "dribble_alat": 0.8, "dribble_jerk": 4.0, "dribble_look_m": 0.30, "dribble_look_s": 0.5,
-    "dribble_close": 0.15, "dribble_margin": 0.25, "dribble_horizon_s": 3.0, "dribble_gait_gain": 0.88,
+    "dribble_close": 0.55, "dribble_margin": 0.65, "dribble_horizon_s": 3.0, "dribble_gait_gain": 0.88,
     "dribble_onset_s": 0.4, "dribble_cone_deg": 30,
 }
 
@@ -1074,7 +1076,7 @@ class Brain:
             rel = p["dribble_close"] + (p["dribble_margin"] - p["dribble_close"]) * min(1.0, g / 0.15)
             rel += math.sqrt(2 * 0.5 * max(0.1, p["decel_vx"] or p["accel_vx"]) * max(0.0, g - 0.15))
             if gap < 0.25 and abs(le) > 0.06:  # off-centre at the ball: keep pace, but don't close in until lined up
-                rel *= clamp(1.0 - (abs(le) - 0.06) / 0.08, 0.0, 1.0)
+                rel = min(rel, max(0.15, rel * clamp(1.0 - (abs(le) - 0.06) / 0.08, 0.0, 1.0)))  # (never a stall)
             v_des = min(v_des, max(0.0, vb) + rel)
         spin = abs(alpha) > math.radians(75)
         if spin:

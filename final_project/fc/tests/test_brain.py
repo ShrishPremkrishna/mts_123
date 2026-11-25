@@ -530,8 +530,21 @@ def test_plan_debug_carries_the_committed_path_for_the_ui():
     assert pts[-1] == [round(b.plan["pts"][-1][0], 3), round(b.plan["pts"][-1][1], 3)]
 
 
-DR = {**P, "dribble": 1, "max_vx": 0.75, "max_wz": 2.0, "accel_vx": 1.2, "decel_vx": 2.0, "push_side_m": 0.03,
-      "role_mode": "attack"}
+DR = {**P, "dribble": 1, "max_vx": 0.75, "max_wz": 2.0, "accel_vx": 1.2, "decel_vx": 2.0, "role_mode": "attack"}
+
+
+def test_sim_ball_curve_bends_slow_balls_more_than_fast_ones():
+    from fc.sim import Sim
+    turn = {}
+    for v in (0.3, 1.0):
+        sim = Sim(F, [BLUE], {"sim_errors": 0, "sim_ball_curve": 0.08, "sim_ball_decel": 0.0}, 1)
+        sim.reset("attack_solo", robots=[])
+        sim.curve = 0.08
+        sim.kick(0.0, 0.0, v, 0.0)
+        sim.curve = 0.08
+        sim.step({}, 0.5)
+        turn[v] = math.atan2(sim.ball[3], sim.ball[2])
+    assert turn[0.3] > 2.5 * turn[1.0] > 0
 
 
 def test_dribble_off_by_default_and_never_touches_other_presets():
@@ -545,10 +558,13 @@ def test_dribble_meets_a_rolling_ball_ahead_and_carries_it_near_centre():
     w = World(0.0, Ball(0.0, -0.4, 0.0, 0.4, 0.0), {"blue": RobotObs("blue", Pose(-0.9, -0.4, 0.0), 0.0)})
     _, d = b.decide(w, DR)
     assert d["intercept"][1] > -0.3  # aims where the ball will be, not where it is
-    b = Brain(BLUE, F)  # behind the ball on the line: carry, ~3 cm bias, gentle turning
+    b = Brain(BLUE, F)  # behind the ball on the line: carry dead centre, firm hit, gentle turning
     res = run(b, lambda t: world(t, (-0.29, 0.0, 0.0), (0.0, 0.0)), 30, DR)
     cmd, d = res[-1]
-    assert d["phase"] == "dr_carry" and abs(d["side"]) == 0.03 and cmd.vx > 0.1 and abs(cmd.wz) < 0.5
+    assert d["phase"] == "dr_carry" and "side" not in d and cmd.vx >= 0.45 and abs(cmd.wz) < 0.5
+    b = Brain(BLUE, F)  # optional bias still works
+    cmd, d = run(b, lambda t: world(t, (-0.29, 0.0, 0.0), (0.0, 0.0)), 30, {**DR, "push_side_m": 0.03})[-1]
+    assert abs(d["side"]) == 0.03
 
 
 def test_dribble_turning_is_bounded_by_lateral_acceleration():

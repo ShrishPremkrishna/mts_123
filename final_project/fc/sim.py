@@ -26,6 +26,9 @@ Walker speed model (the deployed policy, fc/notes/fast-gait.md; sim_speed_curve:
                         burst's length uniformly from [sim_burst_s, sim_burst_s_max] (floor: 0.3-1.5 s)
   sim_fast_dir_deg      the fast gait walks this many degrees off its heading (floor: about -8, to the right)
   sim_ball_drop, sim_ball_noise, sim_ball_vel_noise
+Ball curve (sim_ball_curve, rad/s at 1 m/s; 0 = off): a slightly non-spherical ball on carpet curves on its own,
+  more the slower it rolls: heading rate = k / max(speed, 0.1) with k = sim_ball_curve * U(-1, 1), redrawn at every
+  robot touch or kick (Nov 25 floor: soft touches let the ball curve away; hard, straight hits stayed straight).
 Physics knobs (always on): sim_ball_decel (m/s^2), sim_ball_e_robot, sim_ball_e_wall,
   sim_goal_pause_s, sim_walls (1 = ball bounces off every edge except goal mouths,
   0 = ball leaving the field is an "out" event and a kickoff reset), sim_trap_s (a ball
@@ -62,7 +65,7 @@ SIM_DEFAULTS = {
     "sim_fast_v060": 0.62, "sim_fast_v075": 0.73, "sim_fast_v100": 0.86, "sim_fast_v150": 1.14,
     "sim_vx_clip": 1.5, "sim_vx_back_max": 0.3, "sim_wz_clip": 2.0,
     "sim_fast_wobble": 0.5, "sim_fast_wobble_hz": 2.5, "sim_gait_kick": 0.3, "sim_gait_kick_s": 0.3,
-    "sim_fast_dir_deg": 0.0,
+    "sim_fast_dir_deg": 0.0, "sim_ball_curve": 0.0,
 }
 OFF = {"sim_gain_vx": 1.0, "sim_gain_vy": 1.0, "sim_gain_wz": 1.0, "sim_lag_s": 0.0,
        "sim_drift_deg_per_m": 0.0, "sim_yaw_walk_deg": 0.0, "sim_latency_s": 0.0,
@@ -70,7 +73,8 @@ OFF = {"sim_gain_vx": 1.0, "sim_gain_vy": 1.0, "sim_gain_wz": 1.0, "sim_lag_s": 
        "sim_yaw_bias_b_deg": 0.0, "sim_yaw_bias_c_deg": 0.0, "sim_drop_near": 0.0,
        "sim_drop_far": 0.0, "sim_burst_per_s": 0.0, "sim_ball_drop": 0.0,
        "sim_ball_noise": 0.0, "sim_ball_vel_noise": 0.0,
-       "sim_speed_curve": 0, "sim_fast_wobble": 0.0, "sim_gait_kick": 0.0, "sim_fast_dir_deg": 0.0}
+       "sim_speed_curve": 0, "sim_fast_wobble": 0.0, "sim_gait_kick": 0.0, "sim_fast_dir_deg": 0.0,
+       "sim_ball_curve": 0.0}
 SCENARIOS = ("kickoff", "attack_solo", "shot_on_goal", "random", "return", "rolling_ball")
 
 
@@ -196,6 +200,7 @@ class Sim:
             k = math.radians(self.p["sim_drift_deg_per_m"]) * r.uniform(0.5, 1.5)
             b.drift = k if r.random() < 0.5 else -k
         self.ball = [bx, by, bvx, bvy]
+        self.curve = self.p["sim_ball_curve"] * r.uniform(-1.0, 1.0)
         self.pause_until = -1.0
         self.trap_ref = (self.t, bx, by)
         self.frames: list[tuple] = []
@@ -218,6 +223,7 @@ class Sim:
         if self.pause_until > 0:
             return False
         self.ball = [x, y, vx, vy]
+        self.curve = self.p["sim_ball_curve"] * self.rng.uniform(-1.0, 1.0)
         self.trap_ref = (self.t, x, y)
         self.events.append({"t": round(self.t, 3), "type": "kick", "x": round(x, 3), "y": round(y, 3),
                             "vx": round(vx, 3), "vy": round(vy, 3)})
@@ -325,6 +331,9 @@ class Sim:
         if sp > 0:
             ns = max(0.0, sp - p["sim_ball_decel"] * h)
             vx, vy = vx * ns / sp, vy * ns / sp
+            if self.curve and ns > 0:  # curves on its own, more the slower it rolls
+                q = self.curve / max(ns, 0.1) * h
+                vx, vy = vx * math.cos(q) - vy * math.sin(q), vx * math.sin(q) + vy * math.cos(q)
         bx, by = bx + vx * h, by + vy * h
         br, rr = f.ball_radius, f.robot_radius
         for b in self.bots.values():
@@ -341,6 +350,7 @@ class Sim:
                 rel = (vx - pvx) * nx + (vy - pvy) * ny
                 if "ball" not in b.touch:
                     b.touch.add("ball")
+                    self.curve = p["sim_ball_curve"] * self.rng.uniform(-1.0, 1.0)
                     self.contacts.append((round(self.t, 3), b.cfg.id, round(math.hypot(b.vx, b.vy), 3),
                                           round(max(0.0, -rel), 3)))
                 if rel < 0:

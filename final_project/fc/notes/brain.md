@@ -196,21 +196,23 @@ of them. Set `ball_decel` from `ctl rollcal` in every preset.
 
 ## Dribble mode (2026-11-25, sim only)
 
-`dribble: 1` (preset `config/presets/dribble.json`; fast-light unchanged). Built from the Nov 25 floor notes: predicting the meeting point and sprinting there worked, as did near-centre repeated touches; clunky turning near the ball, a 6 cm offset (edge hits) and slow recovery after a sideways deflection did not.
+`dribble: 1` (preset `config/presets/dribble.json`; fast-light unchanged). Built from the Nov 25 floor notes: predicting the meeting point and sprinting there worked; clunky turning near the ball and slow recovery after a sideways deflection did not. Second round of floor feedback: **no lateral offset** (6 cm and 3 cm both made the ball drift sideways) and **hit hard and straight** (a soft touch lets the slightly non-spherical ball curve away on the carpet).
 
-- **Meeting point:** fixed point of "ball after our ETA" (ETA = onset scaled by how much we are already moving that way + distance at `dribble_gait_gain * max_vx` + half the turn), horizon `dribble_horizon_s` (3 s). Solved every tick from the ball's filtered velocity, including next to the ball (the old `intercept_near_m` cut-off is gone in this mode). A velocity change > `dribble_cone_deg` or 0.3 m/s is a deflection: filters snap, the side latch resets.
-- **Steering by geometry:** pure pursuit on the ball line offset by `push_side_m` (0.03); lookahead `dribble_look_m + dribble_look_s * v`; `wz = v * kappa`, v capped at `sqrt(dribble_alat / |kappa|)`. Far off the line the stage sits further back (1.2 x lateral offset) so the robot joins the line at a shallow angle. The orbit (`_route`) is kept for a robot in front of the ball.
-- **Speed:** closing speed relative to the ball: `dribble_close` at the touch, `dribble_margin` 0.15 m out, braking-limited (decel_vx / 2) beyond; jerk-limited ramp (`dribble_jerk`) that steps across the gait band.
-- Full knob list and superseded knobs: brain.py module doc. `python -m fc.sim_eval --floor25 --scen solo moving` (FLOOR25 = Nov 25 ball 0.149, gait 0.88, cap 0.8) adds rows for touches/possession, gap while in possession, wz near the ball and deflection re-touch.
+- **Meeting point:** fixed point of "ball after our ETA" (ETA = onset scaled by how much we are already moving that way + distance at `dribble_gait_gain * max_vx` + half the turn), horizon `dribble_horizon_s` (3 s). Solved every tick from the ball's filtered velocity, also next to the ball. A velocity change > `dribble_cone_deg` or 0.3 m/s is a deflection: filters snap and the meeting point is re-solved.
+- **Steering by geometry:** pure pursuit on the ball line (dead centre; `push_side_m` > 0 is still available); lookahead `dribble_look_m + dribble_look_s * v`; `wz = v * kappa`, v capped at `sqrt(dribble_alat / |kappa|)`. Far off the line the stage sits further back (1.2 x lateral offset) so the robot joins the line at a shallow angle. The orbit (`_route`) is kept for a robot in front of the ball.
+- **Speed:** closing speed relative to the ball: `dribble_close` (0.55) at the touch, `dribble_margin` (0.65) 0.15 m out, braking-limited beyond; firm hits, then it keeps driving through. Jerk-limited ramp (`dribble_jerk`) that steps across the gait band.
+- **Sim ball curve:** `sim_ball_curve` (rad/s at 1 m/s, redrawn at every touch/kick): heading rate = k / speed, so slow balls curve and fast ones go straight. `--floor25` sets 0.08 along with the Nov 25 ball decel 0.149, gait 0.88 and cap 0.8.
+- Full knob list and superseded knobs: brain.py module doc. `python -m fc.sim_eval --floor25 --scen solo moving` prints touches/possession, gap in possession, wz near the ball and deflection re-touch.
 
-60 seeds, `--floor25`, errors ON:
+100 seeds, `--floor25` (with ball curve), errors ON:
 
 | | fast-light | dribble |
 |---|---|---|
-| solo goals ≤40 s / median / p90 | 97%, 13.3 s, 21.8 s | 88%, **11.8 s**, 27.3 s |
-| touches/possession, mean gap in possession | 3.8, 0.04 m | 2.1, 0.05 m |
-| near ball (<0.6 m): wz rms, reversals/min | 0.69, 12.8 | 0.69, 14.0 |
-| deflections: re-touch ≤8 s, median | 79%, 2.3 s | 63%, 3.1 s (19 vs 63 deflections) |
-| moving ball: hit ≤6 s, goal ≤15 s, median | 44, 32 of 60, 13.1 s | **53, 33 of 60, 9.8 s** |
+| solo goals ≤40 s / median / p90 | 98%, 13.1 s, 25.6 s | 93%, **8.5 s**, 23.2 s |
+| mean speed, s to first touch | 0.25 m/s, 4.6 s | **0.35 m/s**, 4.2 s |
+| touches/possession, mean gap in possession | 4.0, 0.04 m | 2.7, 0.10 m |
+| near ball (<0.6 m): wz rms, reversals/min | **0.71, 12.8** | 1.05, 22.1 |
+| deflections: re-touch ≤8 s, median | 86%, 2.2 s (136) | 85%, 3.6 s (68) |
+| moving ball: hit ≤6 s, goal ≤15 s, median | 72, 54 of 100, 11.8 s | **96, 70 of 100, 7.5 s** |
 
-Speed sweep (max_vx 0.75/0.9/1.0, walker cap 0.8 vs 1.0): mean speed stays 0.24-0.27 m/s and goal times move < 1 s; most of a solo run is spent turning and in the trot below the gait band, so a higher cap alone buys little in this sim. No dribble-fast preset. Open: 7/60 solo misses (look at wall balls), shorter lookahead scores faster but reverses wz 2x (look_m 0.3 / look_s 0.5: 30 rev/min near the ball).
+Soft touches (close 0.15) under the same curve model: median 11.8 s, moving median 10.8 s. Speed sweep (first round, max_vx 0.75/0.9/1.0 at cap 0.8 vs 1.0) moved goal times < 1 s: no dribble-fast preset. Open: near-ball turning is busier than fast-light (lookahead 0.5 m + 0.5 s; longer is calmer but slower); 7/100 solo misses are mostly wall balls the sim referee had to free.
