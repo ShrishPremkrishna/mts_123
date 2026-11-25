@@ -35,6 +35,7 @@ tilt; it seized once while standing ([RCA](notes/rca-20261124-shaking.md), [filt
 | IMU filter v2 (`FC_IMU_FILTER`, accel-corrected tilt, gyro-X de-spike) installed on mts; **default on** in `stock.sh` (`51c16f4`) | **robot** (5-min stand 2.0–2.8°, 3 fast runs clean). Default-on needs a restage |
 | Bridge auto lie-down + latch on a sustained bad IMU | **device-free** + ROS in Docker; not triggered on the robot |
 | Play screen, `/ops` tests, match flow, run logs, presets with `_stack`, `fc.ctl` | **device-free** + **sim**, used on the **robot** |
+| New UI (Nov 24 night, not on the robot or projector yet): home `/` (Play / Simulation / Test bench, mode switch restarts in place), `/play` on the [ui/kit](ui/kit/) primitives, robot setup as one next-step button, robot camera slot (sim view; real feed needs `cam_url`), one operation registry (`/api/ops`, `/api/op`, `fc.ctl ops` / `op`) | **device-free** (201 tests) + **sim** + synthetic camera, visual QA in a browser |
 | Goalie, solo role switching vs a human, interception | **sim** only |
 
 ## New since the floor session (none run on the robot yet)

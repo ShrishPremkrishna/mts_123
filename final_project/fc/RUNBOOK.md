@@ -1,6 +1,6 @@
 # Floor session runbook (fc v1.1, one robot: blue = `mts`)
 
-Every step runs from the UI (Play screen `/`, tests `/ops`). Each run saves `fc/runs/<UTC>-<test>/`. Stop at the
+Every step runs from the UI (home `/` → Play for setup, match `/play`, tests `/ops`). Each run saves `fc/runs/<UTC>-<test>/`. Stop at the
 first failed step and fix it. Keep sessions under 10 minutes and let the Pi cool between them.
 
 **Three stops, know them before you start.**
