@@ -87,7 +87,7 @@
       <h2>Field <span id="fieldinfo" class="mute" style="text-transform:none"></span></h2>
       <canvas id="field" width="1000" height="740"></canvas>
       <img id="frame" alt="camera">
-      <div id="hint">Solid = sim truth / camera; outline = what the brain sees. Cross = target.</div>
+      <div id="hint">Solid = sim truth / camera; outline = what the brain sees. Cross = target. Shift-click the ball on the camera image to calibrate its colour.</div>
     </div>
     <div class="card">
       <h2>Tests</h2>
@@ -515,6 +515,15 @@ function pollFrame() {
   }
   setTimeout(pollFrame, 1000);
 }
+// Shift-click the ball on the camera image: calibrate the ball colour there (applied live, saved).
+$("frame").addEventListener("click", (e) => {
+  if (!e.shiftKey) return;
+  const img = e.currentTarget, rc = img.getBoundingClientRect();
+  post("/ballcal", { u: (e.clientX - rc.left) / rc.width, v: (e.clientY - rc.top) / rc.height }).then(j => {
+    if (j.ok) say(`ball colour set: ${j.colors.map(c => "[" + c.lo + ".." + c.hi + "]").join(" ")} · ${j.candidates} candidate(s)`);
+    else say("ball calibrate failed: " + (j.error || "?"), true);
+  });
+});
 poll(); pollRuns(); pollFrame();
 </script>
 </body>

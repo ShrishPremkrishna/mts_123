@@ -38,5 +38,6 @@
   "k_turn": 1.0,
   "push_lat_tol": 0.12,
   "push_max_heading_deg": 40,
-  "contact_vx": 0.2
+  "contact_vx": 0.2,
+  "field_from_camera": true
 }

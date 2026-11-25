@@ -57,8 +57,10 @@ class Cmd:
         return Cmd(0.0, 0.0, 0.0, tag)
 
 
-@dataclass(frozen=True)
+@dataclass
 class Field:
+    """One live object shared by brain, referee, match flow and UI. Only length/width change at
+    run time (resize, from the camera's corner-tag calibration); everything reads them live."""
     length: float       # goal line to goal line, m
     width: float        # sideline to sideline, m
     goal_width: float   # mouth width, m
@@ -70,6 +72,10 @@ class Field:
         """Centre of a goal mouth. Blue defends west (x<0)."""
         west = (team == "blue") == own
         return (-self.length / 2 if west else self.length / 2, 0.0)
+
+    def resize(self, length: float, width: float) -> None:
+        """Change the size in place, so every holder of this object sees it at once."""
+        self.length, self.width = float(length), float(width)
 
 
 @dataclass(frozen=True)

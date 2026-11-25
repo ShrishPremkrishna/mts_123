@@ -53,6 +53,8 @@ operator reading). Lean stack load 0.8 vs 3–5.
 | Signed UDP link, 50 Hz bridge, 0.25 s dead-man, fallen cutoff 45°, E-STOP latched until Ready | **robot** (stops) + **device-free** |
 | Laptop app: Play screen, `/ops` tests, match flow, run logs, presets with `_stack` | **device-free** + **sim**, used on the **robot** |
 | Brain: goalie, solo role switching vs a human, interception | **sim** only |
+| Field length/width from the corner-tag calibration (`field_from_camera`, default on) into one live Field for brain, referee, match flow, UI; logged in each run's params.json, shown in `ctl status`. Goal mouth 1.22 m stays in field.json | **device-free** (unit test). Not yet on the robot |
+| Ball colour calibration: `python -m fc.ctl ballcal [X Y]` / `--show`, Shift-click on the `/ops` camera; applied live, saved to `config/ball_color.json` (loaded at eye start). Ball radius: field.json only (measure the new ball) | **device-free** + synthetic camera. Not yet on the real camera |
 
 ## What is unverified
 

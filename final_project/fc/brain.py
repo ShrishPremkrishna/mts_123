@@ -166,9 +166,16 @@ UNCLEAN_TAGS = ("push", "square", "charge", "backoff", "unstick", "line_up", "ba
 class Brain:
     def __init__(self, cfg: RobotCfg, field: Field):
         self.cfg, self.f = cfg, field
-        self.own_x = field.goal_center(cfg.team, own=True)[0]
-        self.att_x = field.goal_center(cfg.team, own=False)[0]
         self.reset()
+
+    # goal x read from the live Field on every use (the app resizes it from the camera calibration)
+    @property
+    def own_x(self) -> float:
+        return self.f.goal_center(self.cfg.team, own=True)[0]
+
+    @property
+    def att_x(self) -> float:
+        return self.f.goal_center(self.cfg.team, own=False)[0]
 
     def reset(self, forget_yaw: bool = False) -> None:
         self.role: str | None = None

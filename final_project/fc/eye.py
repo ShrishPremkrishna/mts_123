@@ -34,7 +34,8 @@ import threading
 import time
 from pathlib import Path
 
-from .core import Ball, Field, Pose, RobotCfg, RobotObs, World, wrap
+from . import ballcal
+from .core import CONFIG, Ball, Field, Pose, RobotCfg, RobotObs, World, wrap
 
 OP = Path(__file__).resolve().parent.parent / "overhead_perception"
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp"}
@@ -185,7 +186,7 @@ class SyntheticSource:
 # ---------------------------------------------------------------------------------------
 class Eye:
     def __init__(self, field: Field, robots: list[RobotCfg], params: dict, source="phone",
-                 width: int = 1920, height: int = 1080):
+                 width: int = 1920, height: int = 1080, ball_color_path: Path | None = CONFIG / "ball_color.json"):
         cv2, np = _fieldcam()
         from fieldcam.config import load_config, set_field_size
         self.cv2, self.np = cv2, np
@@ -193,7 +194,12 @@ class Eye:
         self.source_name = str(source)
         cfg = load_config(None)
         self.synthetic = self.source_name == "synthetic"
-        cfg["ball"]["radius"] = field.ball_radius
+        cfg["ball"]["radius"] = field.ball_radius   # fc/config/field.json is the one source
+        saved = ballcal.load(ball_color_path) if ball_color_path else None
+        self.ball_color_source = str(ball_color_path) if saved else "fieldcam field.yaml default"
+        if saved:
+            cfg["ball"]["colors"] = saved
+        self._cfg_size = (field.length, field.width)   # field.json size (the brain's Field may be resized)
         cfg["field"]["goal_width"] = field.goal_width
         cfg.pop("field_setup", None)
         set_field_size(cfg, field.length, field.width)
@@ -542,7 +548,7 @@ class Eye:
                 self._widen_ball_area()
                 f = perc.cfg["field"]
                 self.message = (f"calibrated: field {f['length']:.2f} x {f['width']:.2f} m (config "
-                                f"{self.field.length:.2f} x {self.field.width:.2f}), lens {self.hfov or 0:.1f} deg, "
+                                f"{self._cfg_size[0]:.2f} x {self._cfg_size[1]:.2f}), lens {self.hfov or 0:.1f} deg, "
                                 f"err {perc.calib_err_px:.1f} px")
             else:
                 self.message = f"not calibrated: {perc.calib_fail or perc.calibration_reason}"
@@ -701,7 +707,7 @@ class Eye:
         if perc is None or not perc.calibration_valid or perc.cam is None or self.src is None:
             return None
         th = self.mount()["tag_height"]
-        key = (id(perc.cam), round(th, 4))
+        key = (id(perc.cam), round(th, 4), self.field.length, self.field.width)
         if self._overlay and self._overlay[0] == key:
             return self._overlay[1]
         np, cv2, f = self.np, self.cv2, self.field
@@ -730,6 +736,68 @@ class Eye:
                 "robots_age": {k: round(now - v.t, 3) for k, v in (w.robots.items() if w else [])},
                 "ball_age": round(now - w.ball.t, 3) if w and w.ball else None,
                 "stage_ms": dict(self.stage_ms)}
+
+    # ---- field size and ball colour (read / set from the app thread) -------------------
+    def calibrated_size(self) -> tuple[float, float] | None:
+        """(length, width) measured from corner tags 0-3, or None while not calibrated."""
+        perc = self.perc
+        if perc is None or not perc.calibration_valid or self.synthetic:
+            return None
+        f = perc.cfg["field"]
+        return float(f["length"]), float(f["width"])
+
+    def ball_colors(self) -> list[dict]:
+        return [{"lo": [int(x) for x in c["lo"]], "hi": [int(x) for x in c["hi"]]} for c in self.cfg["ball"]["colors"]]
+
+    def set_ball_colors(self, colors: list[dict]) -> None:
+        """Apply new HSV ranges live: the detector reads .ranges on every frame."""
+        np = self.np
+        self.cfg["ball"]["colors"] = colors
+        if self.perc is not None:
+            self.perc.ball_det.ranges = [(np.array(c["lo"], np.uint8), np.array(c["hi"], np.uint8)) for c in colors]
+
+    def _cal_frame(self):
+        frame, _ = self.frame()
+        if frame is None:
+            raise ValueError("no camera frame yet")
+        perc = self.perc
+        roi = perc.roi_mask if perc is not None and perc.calibration_valid else None
+        return frame.copy(), roi
+
+    def ball_show(self) -> dict:
+        """Current ranges and how many ball-coloured patches the detector sees in the field."""
+        frame, roi = self._cal_frame()
+        det = self.perc.ball_det if self.perc is not None else None
+        n = ballcal.count_candidates(det.mask(frame, roi), det.min_area) if det else None
+        w = self.latest()
+        return {"colors": self.ball_colors(), "candidates": n, "in_field_only": roi is not None,
+                "source": self.ball_color_source, "ball_radius": self.cfg["ball"]["radius"],
+                "ball_seen": bool(w and w.ball)}
+
+    def ball_calibrate(self, u: float | None = None, v: float | None = None, k: float = ballcal.K_MAD) -> dict:
+        """Sample the ball at pixel (u, v) (or find the most saturated compact blob in the
+        field), compute HSV ranges and apply them live. Returns ranges, where, candidates."""
+        frame, roi = self._cal_frame()
+        perc = self.perc
+        r_px = float(getattr(perc, "ball_radius_px", 0) or 0) if perc is not None else 0.0
+        how = "pixel"
+        if u is None or v is None:
+            blob = ballcal.find_blob(frame, roi)
+            if blob is None:
+                raise ValueError("no saturated compact blob found; pass the ball pixel: ballcal X Y")
+            u, v, r_px = blob
+            how = "auto"
+        elif perc is not None and perc.calibration_valid and perc.cam is not None:
+            r_px = perc._ball_radius_at(u, v) or r_px
+        r_px = r_px or 12.0 * frame.shape[1] / 1920.0
+        px = ballcal.sample_disk(frame, u, v, 0.7 * r_px)
+        colors = ballcal.hsv_ranges(px, k)
+        self.set_ball_colors(colors)
+        self.ball_color_source = "ballcal (live)"
+        out = self.ball_show()
+        out.update({"how": how, "u": round(float(u), 1), "v": round(float(v), 1), "r_px": round(r_px, 1),
+                    "n_pixels": int(len(px)), "frame": [int(frame.shape[1]), int(frame.shape[0])]})
+        return out
 
     def close(self) -> None:
         self._stop = True

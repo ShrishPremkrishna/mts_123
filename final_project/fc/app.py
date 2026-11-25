@@ -413,7 +413,10 @@ class App:
                  runs_root: Path = RUNS, presets_dir: Path = PRESETS, udp_hosts: dict[str, str] | None = None):
         self.source, self.dry_run_ops = source, dry_run_ops
         self.runs_root, self.presets_dir = runs_root, presets_dir
-        self.field = load_field()
+        self.field = load_field()   # ONE live object: brains, referee, match flow, sim, eye, UI
+        self.field_json = (self.field.length, self.field.width)
+        self.field_source = "field.json"
+        self.ball_color_path = CONFIG / "ball_color.json"
         self.all_robots, cfg_udp = load_robot_config()
         self.udp_hosts = {**cfg_udp, **(udp_hosts or {})}
         ids = robot_ids or [r.id for r in self.all_robots]
@@ -545,6 +548,8 @@ class App:
             if world is not None and world.t != now:
                 world = replace(world, t=now)   # brain measures observation age against "now"
             self.world = world
+            if self.eye is not None:
+                self._sync_field()
             lstat = self._lstat = self.link_status()
             self._health_watch(lstat)
             cmds, debug = {}, {}
@@ -756,6 +761,48 @@ class App:
         return want, dbg, "app"
 
     # ---- test bookkeeping --------------------------------------------------------
+    def _sync_field(self) -> None:
+        """field_from_camera: length/width from the corner-tag calibration (resizes the shared
+        Field in place). Calibration lost: keep the last measured size. Param off: field.json."""
+        want, src = self.field_json, "field.json"
+        if self.params.get("field_from_camera", True):
+            size = self.eye.calibrated_size()
+            if size and 1.0 <= size[0] <= 10.0 and 0.8 <= size[1] <= 8.0:
+                want, src = size, "camera"
+            elif self.field_source == "camera":
+                return
+        if abs(want[0] - self.field.length) > 0.005 or abs(want[1] - self.field.width) > 0.005 or src != self.field_source:
+            self.field.resize(*want)
+            self.field_source = src
+            self.say(f"field {self.field.length:.2f} x {self.field.width:.2f} m from {src}"
+                     f" (goal mouth {self.field.goal_width:.2f} m from field.json)")
+
+    def ballcal(self, body: dict) -> dict:
+        """Ball colour calibration on the live camera frame. body: {} auto-find, {x, y} pixel,
+        {u, v} 0..1 of the frame, {show: true} report only; optional k (MAD multiplier)."""
+        if self.eye is None:
+            return {"ok": False, "error": "no camera (sim source)"}
+        try:
+            if body.get("show"):
+                return {"ok": True, **self.eye.ball_show()}
+            x, y = body.get("x"), body.get("y")
+            if body.get("u") is not None and body.get("v") is not None:
+                frame, _ = self.eye.frame()
+                if frame is None:
+                    raise ValueError("no camera frame yet")
+                x, y = float(body["u"]) * frame.shape[1], float(body["v"]) * frame.shape[0]
+            k = float(body.get("k", 3.0))
+            res = self.eye.ball_calibrate(None if x is None else float(x), None if y is None else float(y), k)
+            from . import ballcal
+            ballcal.save(self.ball_color_path, res["colors"], how=res["how"], u=res["u"], v=res["v"], k=k,
+                         saved=time.strftime("%Y-%m-%d %H:%M:%S"))
+            res["saved"] = str(self.ball_color_path)
+            self.say(f"ball colour calibrated ({res['how']} at {res['u']:.0f},{res['v']:.0f}): {res['colors']}"
+                     f", {res['candidates']} candidate(s)")
+            return {"ok": True, **res}
+        except (ValueError, TypeError) as e:
+            return {"ok": False, "error": str(e)}
+
     def _goal_events(self, world: World | None, now: float) -> list[str]:
         """Teams that scored since last tick."""
         if self.sim is not None:
@@ -904,6 +951,7 @@ class App:
             b.reset()
         lstat = self.link_status()
         meta = {"test": name, "robot": robot, "source": self.source, "impl": self.impl_note,
+                "field": asdict(self.field), "field_source": self.field_source,
                 "active": [r.id for r in self.active], "extra": clean(extra),
                 "preset": self.preset_name, "preset_modified": self.preset_modified(),
                 "preset_profile": self.preset_profile, "preset_stack": self.preset_stack,
@@ -1436,7 +1484,7 @@ class App:
             out = clean({
                 "t": now, "source": self.source, "mode": self.mode, "test": test, "impl": self.impl_note,
                 "run_dir": self.run.dir.name if self.run else None, "last_summary": self.last_summary,
-                "field": asdict(self.field), "robots": [asdict(r) for r in self.all_robots],
+                "field": asdict(self.field), "field_source": self.field_source, "robots": [asdict(r) for r in self.all_robots],
                 "active": [r.id for r in self.active], "world": world_json(self.world, now),
                 "truth": truth_json(self.sim.truth()) if self.sim else None,
                 "cmds": {k: {"vx": c.vx, "vy": c.vy, "wz": c.wz, "tag": c.tag} for k, c in self.cmds.items()},
@@ -1586,7 +1634,7 @@ def make_handler(app: App):
             except ValueError as e:
                 return self._json({"ok": False, "error": f"bad JSON: {e}"}, 400)
             route = {"/action": app.action, "/params": app.set_params, "/robot": app.robot_op,
-                     "/preset": app.preset}.get(self.path)
+                     "/preset": app.preset, "/ballcal": app.ballcal}.get(self.path)
             if route is None:
                 return self._json({"ok": False, "error": "not found"}, 404)
             res = route(body)

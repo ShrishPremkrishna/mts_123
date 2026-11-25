@@ -18,6 +18,9 @@
                                             | push_ball | goalie | match | sim_eval args="..." | imu_test seconds= ...
                                             (all take robot=, sim tests scenario=)
     last [n]                                summaries of the last n runs (default 5)
+    ballcal [X Y] [--k K] | --show          ball HSV range from the live frame: at pixel X Y, else the most
+                                            saturated compact blob in the field; applied live, saved to
+                                            fc/config/ball_color.json. --show: current range + candidates
     batch <file> [--from N] [--no-pause [--max-pause S]] [--stop-at-pause]
 
 Batch files: one command per line as typed after `python -m fc.ctl`; `#` comments; `sleep N`; `pause [N] msg`.
@@ -312,8 +315,11 @@ def fmt_status(st: dict) -> list[str]:
     lines = [" · ".join(head)]
     eye = st.get("eye")
     if eye:
+        f = st.get("field") or {}
+        fdesc = (f" · field {num(f.get('length'))} x {num(f.get('width'))} m ({st.get('field_source') or 'field.json'})"
+                 f" mouth {num(f.get('goal_width'))} ball r {num(f.get('ball_radius'), 3)}") if f else ""
         lines.append(f"eye {num(eye.get('fps'), 1)}fps calib {'ok' if eye.get('calibrated') else 'NO'}"
-                     f" err {num(eye.get('calib_err_px'))}px · {short(eye.get('message', ''), 80)}")
+                     f" err {num(eye.get('calib_err_px'))}px{fdesc} · {short(eye.get('message', ''), 80)}")
     for rid in st.get("active") or []:
         lines += robot_status_line(rid, st)
     for b in ((st.get("play") or {}).get("banners") or []):
@@ -849,6 +855,32 @@ def cmd_last(c: Client, a) -> None:
         say(*fmt_summary(r.get("summary"), r.get("name"), compact=True))
 
 
+def fmt_ballcal(res: dict) -> list[str]:
+    rng = " ".join(f"[{c['lo']}..{c['hi']}]" for c in res.get("colors") or [])
+    out = []
+    if res.get("how"):
+        out.append(f"ball colour from {res['how']} pixel ({num(res.get('u'), 0)},{num(res.get('v'), 0)}) r {num(res.get('r_px'), 0)}px"
+                   f" of {res.get('frame')}, {res.get('n_pixels')} px -> applied live, saved {res.get('saved')}")
+    out.append(f"HSV {rng} ({res.get('source')})")
+    n = res.get("candidates")
+    out.append(f"candidates {n}{' in field' if res.get('in_field_only') else ' (whole frame: not calibrated)'}"
+               f" · ball {'SEEN' if res.get('ball_seen') else 'not seen'} · ball_radius {res.get('ball_radius')} m"
+               + ("  <- want exactly 1" if n not in (None, 1) else ""))
+    return out
+
+
+def cmd_ballcal(c: Client, a) -> None:
+    if a.show:
+        body = {"show": True}
+    elif a.xy:
+        if len(a.xy) != 2:
+            raise Usage("ballcal X Y (pixels) or no arguments")
+        body = {"x": a.xy[0], "y": a.xy[1], "k": a.k}
+    else:
+        body = {"k": a.k}
+    say(*fmt_ballcal(need_ok(c.post("/ballcal", body), "ballcal")))
+
+
 def cmd_sleep(c: Client, a) -> None:
     time.sleep(a.secs)
 
@@ -911,6 +943,11 @@ def build_parser() -> Parser:
     p = sub.add_parser("last")
     p.add_argument("n", nargs="?", type=int, default=5)
     p.set_defaults(fn=cmd_last)
+    p = sub.add_parser("ballcal")
+    p.add_argument("xy", nargs="*", type=float)
+    p.add_argument("--k", type=float, default=3.0)
+    p.add_argument("--show", action="store_true")
+    p.set_defaults(fn=cmd_ballcal)
     p = sub.add_parser("sleep")
     p.add_argument("secs", type=float)
     p.set_defaults(fn=cmd_sleep)
