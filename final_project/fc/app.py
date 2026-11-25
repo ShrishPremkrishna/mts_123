@@ -14,6 +14,7 @@ import argparse
 import bisect
 import json
 import math
+import os
 import re
 import shlex
 import subprocess
@@ -1748,6 +1749,37 @@ class App:
                 "overlay": None,   # set by state() at full precision
                 "recording": bool(self.recorder)}
 
+    # ---- mode switch (home screen: Simulation / Play) ----------------------------------------
+    restart_hook = None   # main() sets it: callable(source) that replaces this process with the other source
+
+    def busy_reason(self) -> str:
+        """Why the app should not restart now ("" = free). Caller holds the lock."""
+        if self.mode != "idle":
+            return f"{self.mode} is running: Stop (Space) first"
+        running = [f"{rid} {o.get('op')}" for rid, o in self.ops.items() if o.get("running")]
+        return f"wait for {', '.join(running)}" if running else ""
+
+    def switch_source(self, source: str) -> dict:
+        """Restart as the other source (same flags otherwise). Replies first; the restart zeroes every robot,
+        closes camera/link cleanly, then replaces the process. Robots on a running bridge also stop by the
+        dead-man while the laptop restarts."""
+        if source == self.source:
+            return {"ok": True, "source": source, "restarting": False}
+        if self.restart_hook is None:
+            return {"ok": False, "error": "this app was not started by fc.app main(): restart it with the other --source"}
+        with self.lock:
+            why = self.busy_reason()
+        if why:
+            return {"ok": False, "error": why}
+        self.say(f"switching to {source}: restarting the app")
+        threading.Thread(target=self._restart, args=(source,), daemon=True, name="fc-restart").start()
+        return {"ok": True, "source": source, "restarting": True}
+
+    def _restart(self, source: str) -> None:
+        time.sleep(0.25)          # let the HTTP reply leave first
+        self.close()
+        self.restart_hook(source)
+
     def close(self) -> None:
         self.stop()
         self._stop = True
@@ -1781,7 +1813,9 @@ def make_handler(app: App):
 
         def do_GET(self):  # noqa: N802
             path = self.path.split("?")[0]
-            if path in ("/", "/play"):
+            if path in ("/", "/home"):
+                return self._send(200, (UI / "home.html").read_bytes(), "text/html; charset=utf-8")
+            if path == "/play":
                 return self._send(200, (UI / "play.html").read_bytes(), "text/html; charset=utf-8")
             if path in ("/ops", "/index.html"):
                 return self._send(200, (UI / "index.html").read_bytes(), "text/html; charset=utf-8")
@@ -1870,6 +1904,19 @@ def _udp_arg(s: str) -> tuple[str, str]:
     return rid, addr
 
 
+def _without_source(argv: list[str]) -> list[str]:
+    """argv minus --source X / --source=X (a mode switch keeps every other flag)."""
+    out, skip = [], False
+    for x in argv:
+        if skip:
+            skip = False
+        elif x == "--source":
+            skip = True
+        elif not x.startswith("--source="):
+            out.append(x)
+    return out
+
+
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--source", choices=["sim", "camera"], default="sim")
@@ -1883,9 +1930,12 @@ def main(argv=None) -> None:
     ap.add_argument("--udp-host", action="append", type=_udp_arg, default=[], metavar="ID=ADDR",
                     help="control packets to this address instead of the ssh host (overrides robots.json udp_host)")
     ap.add_argument("--seed", type=int, default=0)
+    argv = list(sys.argv[1:] if argv is None else argv)
     a = ap.parse_args(argv)
     app = App(a.source, a.robots.split(",") if a.robots else None, video=a.video, camera=a.camera,
               dry_run_ops=a.dry_run_ops, seed=a.seed, no_link=a.no_link, udp_hosts=dict(a.udp_host))
+    rest = _without_source(argv)
+    app.restart_hook = lambda src: os.execv(sys.executable, [sys.executable, "-m", "fc.app", "--source", src, *rest])
     app.start()
     srv = serve(app, a.host, a.port)
     print(f"Pupper FC v1: http://{a.host}:{a.port}/   Ctrl-C to quit", flush=True)

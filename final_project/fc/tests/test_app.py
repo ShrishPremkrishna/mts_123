@@ -538,6 +538,8 @@ def test_step_edge_abort_reports(server):
 def test_play_and_ops_pages(server):
     app, base = server
     code, html = get(base, "/")
+    assert code == 200 and b"Pupper FC" in html and b"SIMULATION" in html            # home: pick a mode
+    code, html = get(base, "/play")
     assert code == 200 and b"Pupper FC" in html and b"kickoff" in html.lower()
     code, html = get(base, "/ops")
     assert code == 200 and b"Pupper FC v1" in html
@@ -547,7 +549,7 @@ def test_play_and_ops_pages(server):
     with pytest.raises(urllib.error.HTTPError) as e:
         get(base, "/view.jpg")                                   # sim: no camera frame
     assert e.value.code == 404
-    for f in ("tokens.css", "ui.css", "kit.js", "pitch.js"):     # the UI kit is served, nothing else under /kit
+    for f in ("tokens.css", "ui.css", "kit.js", "pitch.js", "robots.js"):     # the UI kit is served, nothing else under /kit
         code, body = get(base, "/kit/" + f)
         assert code == 200 and body
     assert p["robots"]["blue"]["ready"] is True                 # sim robots on the field are ready

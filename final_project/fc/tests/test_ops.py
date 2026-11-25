@@ -140,3 +140,21 @@ def test_lite_state_and_config(server):
     assert len(json.dumps(lite)) < len(json.dumps(full)) * 0.6
     code, cfg = http(base, "/api/config")
     assert code == 200 and cfg["params"]["max_vx"] == app.params["max_vx"] and cfg["presets"] == [] and "step_s" in cfg["params"]
+
+
+def test_source_switch_restarts_only_when_idle(app):
+    from fc.app import _without_source
+    assert _without_source(["--source", "sim", "--port", "1", "--source=camera", "--no-link"]) == ["--port", "1", "--no-link"]
+    assert ops.call(app, "app.source", {"source": "camera"})["code"] == "unavailable"      # no launcher hook
+    calls = []
+    app.restart_hook = calls.append
+    assert ops.call(app, "app.source", {"source": "sim"}) == {"ok": True, "source": "sim", "restarting": False, "op": "app.source"}
+    assert ops.call(app, "match.kickoff")["ok"]
+    r = ops.call(app, "app.source", {"source": "camera"})
+    assert r["code"] == "unavailable" and "Stop" in r["error"]                           # never mid-match
+    assert ops.call(app, "match.end")["ok"]
+    assert ops.call(app, "app.source", {"source": "camera"})["restarting"] is True
+    t0 = time.monotonic()
+    while not calls and time.monotonic() - t0 < 2:
+        time.sleep(0.02)
+    assert calls == ["camera"]

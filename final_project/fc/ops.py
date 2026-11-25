@@ -373,6 +373,21 @@ def _imu(app, a):
     return _robot(app, "imu_test", a, **{k: a[k] for k in ("seconds", "mode", "condition") if k in a})
 
 
+# ---- app ------------------------------------------------------------------------------------------
+def _when_source(app):
+    if app.restart_hook is None:
+        return {"reason": "started without the launcher: restart with the other --source"}
+    why = app.busy_reason()
+    return {"reason": why} if why else {}
+
+
+@op("app.source", "Mode", "Switch between Simulation (sim) and Play (camera: field camera, real robots). Restarts the app "
+    "with the same flags; refused while a match, test or robot operation runs.", "app", safety="motion", when=_when_source,
+    source=P("str", required=True, choices=["sim", "camera"]))
+def _source(app, a):
+    return app.switch_source(a["source"])
+
+
 # ---- tests, params, presets, sim ------------------------------------------------------------------
 @op("test.run", "Run test", "Start a test run (drive, goto, step, deadman, push_ball, goalie, match, sim_eval). "
     "Per-test keys pass through (step: vx vy wz seconds; goto: target; deadman: vx mute_s; sim_eval: args).",
