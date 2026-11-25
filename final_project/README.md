@@ -1,12 +1,11 @@
 # Pupper FC
 
-> **Current work (Nov 23, 2026): [`fc/`](fc/README.md), a lean rebuild on branch `fc-v1`.** One laptop
+> **Current work (since Nov 23, 2026): [`fc/`](fc/README.md), a lean rebuild on branch `fc-v1`.** One laptop
 > process (overhead camera → brain → signed UDP) drives each robot's stock walker through a small Pi
 > bridge. Floor plan: [fc/RUNBOOK.md](fc/RUNBOOK.md); contract: [fc/SPEC.md](fc/SPEC.md). The previous FC
-> stack below is historical; the Codex Phase 2–4 rebuild is archived at tags `archive/codex-fc-20261123`
-> and `archive/codex-fc-unaccepted-20261123`. First live run Nov 23–24 (homing, stand, IMU); no laptop-driven motion yet: see [fc/STATUS.md](fc/STATUS.md).
-> Demo UI: Play screen at `/` (match flow, decision ticker, stop banners, per-run overhead video; tests at
-> `/ops`), launched with `fc/run.sh` ([lane E note](fc/notes/lane-E-play.md)); sim and synthetic camera only so far.
+> stack below is historical; the Codex Phase 2–4 rebuild and other superseded `codex/*` branches are archived
+> at `archive/*` tags. On Nov 24 the laptop drove `mts` on the floor (goto, push goals, fast gait); results and
+> limits are in [fc/STATUS.md](fc/STATUS.md). Demo UI: Play screen at `/` (tests at `/ops`), launched with `fc/run.sh`.
 
 ## Start here
 

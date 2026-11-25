@@ -2,7 +2,7 @@
 
 This is the team's shared repository, [ShrishPremkrishna/mts_123](https://github.com/ShrishPremkrishna/mts_123), with `main` as the integration branch. Shrish's checkout is `/Users/shrish/workspace/cs123`; other clones use their own repository root.
 
-The final project is **Pupper FC**, two autonomous soccer-playing Puppers using overhead vision. Start with [the project brief](final_project/README.md) and `python3 foundation/scripts/session_status.py`. The checkpoint records dated observations. Fresh robot access, service ownership and teammate progress require verification for the current session.
+The final project is **Pupper FC**, two autonomous soccer-playing Puppers using overhead vision. Current work is [final_project/fc](final_project/fc/STATUS.md) on branch `fc-v1`. Start with [the project brief](final_project/README.md) and `python3 foundation/scripts/session_status.py`. The checkpoint records dated observations. Fresh robot access, service ownership and teammate progress require verification for the current session.
 
 ## Code map
 
@@ -14,7 +14,8 @@ The final project is **Pupper FC**, two autonomous soccer-playing Puppers using 
 | Native policy deployment | [pupper_gait_deploy](pupper_gait_deploy/README.md), with ROS controllers, observation/action conventions and deployment helpers. |
 | Early labs | [PD control](pd_control_lab/README.md), [forward kinematics](forward_kinematics_lab/README.md), [IK walking](ik_heuristic_walking_lab/README.md), and [implicit compliance](implicit_compliance/README.md). |
 | Platform and supporting tools | [pupperv3-monorepo](pupperv3-monorepo/README.md) and [pupper_rebase](pupper_rebase/README.md) hold robot platform sources. [UniMate](UniMate/README.md) generates motion references; [pupper-gait-tuner](pupper-gait-tuner/README.md) supports gait authoring. |
-| Final project | [Pupper FC](final_project/README.md). Current outcomes, ownership and plan; [interactive offline approach-and-shot prototype](final_project/pupper_fc/README.md); [overhead perception](final_project/overhead_perception/README.md) (simulation-verified, desk bring-up only). |
+| Final project (current) | [final_project/fc](final_project/fc/STATUS.md) on branch `fc-v1`: one laptop process (overhead camera → brain → signed UDP) drives the stock walker through a small Pi bridge. Status in [STATUS.md](final_project/fc/STATUS.md), plan in [DEMO.md](final_project/fc/DEMO.md), usage in [README.md](final_project/fc/README.md). |
+| Final project (historical) | Pre-Nov 23 FC stacks: [the earlier brief](final_project/README.md#historical-pre-nov-23), [offline approach-and-shot prototype](final_project/pupper_fc/README.md), [overhead perception](final_project/overhead_perception/README.md), `final_project/behaviors/`. Superseded agent branches are kept as `archive/*` tags. |
 | Evidence, releases and lab submission | [foundation](foundation/README.md), including [the Lab 6 writer packet](foundation/submission/lab6/README.md) and [hardware procedures](foundation/HARDWARE_CHECKLIST.md). |
 
 The harness currently dispatches described tools through a server queue and ROS bridge. Native controllers execute policies on the robot. The person follower supplies velocity through its own ROS source. Training produces assets consumed by these controllers. Exact interfaces and units are in the relevant package sources and agent notes.
@@ -51,6 +52,7 @@ Run these from the repository root after the one-time setup linked above. Select
 
 | Work | Focused offline check |
 | --- | --- |
+| Pupper FC (`final_project/fc`) | `cd final_project && ../.venv-fc/bin/python -m pytest -q fc/tests fc/robot/tests` (`fc/run.sh` creates `.venv-fc`) |
 | API/tool behavior | `.venv-api/bin/python gemini_pupper/lab/test.py todo3` and `.venv-api/bin/python -m pytest -q gemini_pupper/tests/test_ordered_follow.py` |
 | Browser | `npm --prefix gemini_pupper/web test` |
 | CPU motion/model contracts | `FORCE_CPU=1 .venv/bin/python -m pytest -q pupper-mjlab/tests/test_pupper_foundation.py` |

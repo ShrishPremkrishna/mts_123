@@ -118,13 +118,13 @@ edited since) and its stack; each robot card shows the running `speed_cap`/`head
 0.49) or the running options differ from the preset's. Each run's `params.json` records `preset`,
 `preset_modified`, `preset_profile`, `preset_stack`, `profile_running` (acks), `stack_running`, `estops` and the
 link address. Shipped: `slow`, `fast`, `learn`, `push`, `headbutt`, `fast-play` (sim/brain), `fast-play-robot`
-(fast-play + `_stack.speed_cap` 0.8), `stock-hh-on`, `stock-hh-off`, `u6-hh-on`, `u6-hh-off` (the `*-hh-off`
+(fast-play + `_stack.speed_cap` 0.8), `fast-light` (fast-play-robot with the Nov 24 push tuning, light
+ball), `stock-hh-on`, `stock-hh-off`, `u6-hh-on`, `u6-hh-off` (the `*-hh-off`
 presets now use the base profile + `_stack.heading_hold: off`; the `*_hh0` profiles remain aliases).
 
 Network: `link.py` sends to robots.json `udp_host` (or `--udp-host`) when set, else the ssh alias's address.
-`mts` resolves to a Tailscale 100.x address; the UI warns and shows address, RTT, p95 and loss per robot.
-`udp_host` needs `udp_host: str = ""` in `core.RobotCfg` before `sim_eval` can read such a robots.json
-(the app already tolerates it).
+`mts` resolves to a Tailscale 100.x address (p95 up to 1.1 s on Nov 24 vs ~8 ms on the LAN), so set
+`udp_host`; the UI warns and shows address, RTT, p95 and loss per robot.
 
 Robot ops run `ssh <host> bash ~/fc-v1/robot/fcctl.sh ...` or `fc/robot/stage.sh <host>` in the
 background; `start` and `ready` ask for confirmation because they home the legs or stand the robot up, and
@@ -141,4 +141,4 @@ and, when the browser sends `Origin`, this server's own address (else 403).
 Eye offline check (error vs. truth on rendered frames):
 `python -m fc.eye --source synthetic --seconds 8 --save /tmp/eye.jpg`
 
-Tests: `python -m pytest -q fc/tests`
+Tests: `python -m pytest -q fc/tests fc/robot/tests`

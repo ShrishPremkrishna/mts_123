@@ -11,8 +11,8 @@ first failed step and fix it. Keep sessions under 10 minutes and let the Pi cool
 - **R3 on the gamepad**: the same drop, and the only stop if the laptop, link or mux is gone.
 
 The bridge also drops a robot that tilts past 45° (fallen cutoff); the card then says "E-STOPPED by the robot".
-`down` lowers the robot to its belly under position control (stock gentle lie-down; sim-verified only, so keep
-hands at its sides the first time; u6 still drops) and stops the stack. E-STOP or R3 during the lowering aborts it
+`down` lowers the robot to its belly under position control (stock gentle lie-down; robot-verified Nov 24; u6
+still drops) and stops the stack. E-STOP or R3 during the lowering aborts it
 (legs off: a damped drop from part-way down). If it reports **STILL STANDING**, use R3 or support
 the robot; never `down --force`.
 
@@ -32,7 +32,7 @@ the robot; never `down --force`.
 | 4 | Re-arm with **Ready** (stands it up again). Then **Deadman** | E-STOP clears only after Ready; `stop_time_s` ≤ 0.5 | E-STOP still latched: read the Ready output |
 | 5 | **Step** at Base (**Base** button): fwd 0.1 / 0.2 / 0.3, turn ±0.5, east and west | `latency_s` < 0.35, `gain_lin` within ±10 %, `\|heading_bias_deg\|` < 5 | Copy gains/lag into `sim_*` and rerun Sim eval |
 | 6 | Preset **fast-play-robot**, **down**, **Ready** on the stand, **Ready** on the floor (passes `--speed-cap 0.80`). Step fwd 0.4 and 0.75 | **status** shows `speed_cap` 0.8; no "max_vx > robot speed cap" warning; gain at 0.75 recorded | Warning stays: the stack runs the old cap; down + Ready again |
-| 7 | **Push ball** ×5 with preset **slow**, then ×5 with **fast-play-robot** (the 0.8 cap can stay) | Goals ≤ 30 s, no tip, slows near the ball | Note failing run names |
+| 7 | **Push ball** ×5 with preset **slow**, then ×5 with **fast-light** (light ball; same 0.8 cap as fast-play-robot) | Goals ≤ 30 s, no tip, slows near the ball | Note failing run names |
 | 8 | **down** | Robot lies down, stack stops | STILL STANDING: R3 or support it |
 
 **A/B heading hold:** presets `stock-hh-off` / `u6-hh-off` pass `--heading-hold off`; down + Ready, repeat 5 and 7.
