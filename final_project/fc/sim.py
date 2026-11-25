@@ -30,7 +30,8 @@ Ball curve (sim_ball_curve, rad/s at 1 m/s; 0 = off): a slightly non-spherical b
   more the slower it rolls: heading rate = k / max(speed, 0.1) with k = sim_ball_curve * U(-1, 1), redrawn at every
   robot touch or kick (Nov 25 floor: soft touches let the ball curve away; hard, straight hits stayed straight).
 Physics knobs (always on): sim_ball_decel (m/s^2), sim_ball_e_robot, sim_ball_e_wall,
-  sim_goal_pause_s, sim_walls (1 = ball bounces off every edge except goal mouths,
+  sim_goal_pause_s, sim_goal_bounce (with Sim.keep_ball, autoplay: the chance a goal bounces back out of the net
+  instead of resting in it; no kickoff reset), sim_walls (1 = ball bounces off every edge except goal mouths,
   0 = ball leaving the field is an "out" event and a kickoff reset), sim_trap_s (a ball
   near a wall that stays within 10 cm for this long is a "trapped" event: the referee nudges it
   0.35 m inward, like the accepted manual ball replacement).
@@ -65,7 +66,7 @@ SIM_DEFAULTS = {
     "sim_fast_v060": 0.62, "sim_fast_v075": 0.73, "sim_fast_v100": 0.86, "sim_fast_v150": 1.14,
     "sim_vx_clip": 1.5, "sim_vx_back_max": 0.3, "sim_wz_clip": 2.0,
     "sim_fast_wobble": 0.5, "sim_fast_wobble_hz": 2.5, "sim_gait_kick": 0.3, "sim_gait_kick_s": 0.3,
-    "sim_fast_dir_deg": 0.0, "sim_ball_curve": 0.0,
+    "sim_fast_dir_deg": 0.0, "sim_ball_curve": 0.0, "sim_goal_bounce": 0.35,
 }
 OFF = {"sim_gain_vx": 1.0, "sim_gain_vy": 1.0, "sim_gain_wz": 1.0, "sim_lag_s": 0.0,
        "sim_drift_deg_per_m": 0.0, "sim_yaw_walk_deg": 0.0, "sim_latency_s": 0.0,
@@ -123,6 +124,7 @@ class Sim:
         self.contacts: deque = deque(maxlen=5000)
         self.bumps: deque = deque(maxlen=5000)  # robot-robot first touches: (t, a, b, closing speed)
         self.score = {"blue": 0, "red": 0}
+        self.keep_ball = False  # after a goal: no kickoff reset; the ball rests in the net or bounces back out (autoplay)
         self.reset("kickoff")
 
     def set_params(self, params: dict) -> None:
@@ -200,6 +202,7 @@ class Sim:
             k = math.radians(self.p["sim_drift_deg_per_m"]) * r.uniform(0.5, 1.5)
             b.drift = k if r.random() < 0.5 else -k
         self.ball = [bx, by, bvx, bvy]
+        self.netted = False
         self.curve = self.p["sim_ball_curve"] * r.uniform(-1.0, 1.0)
         self.pause_until = -1.0
         self.trap_ref = (self.t, bx, by)
@@ -223,6 +226,7 @@ class Sim:
         if self.pause_until > 0:
             return False
         self.ball = [x, y, vx, vy]
+        self.netted = False
         self.curve = self.p["sim_ball_curve"] * self.rng.uniform(-1.0, 1.0)
         self.trap_ref = (self.t, x, y)
         self.events.append({"t": round(self.t, 3), "type": "kick", "x": round(x, 3), "y": round(y, 3),
@@ -326,6 +330,8 @@ class Sim:
 
     def _ball_step(self, h: float) -> None:
         p, f = self.p, self.f
+        if self.netted:   # resting in the net: the robot cannot reach it, a person rolls it out (kick)
+            return
         bx, by, vx, vy = self.ball
         sp = math.hypot(vx, vy)
         if sp > 0:
@@ -363,6 +369,14 @@ class Sim:
             team = "blue" if side == "east" else "red"
             self.score[team] += 1
             self.events.append({"t": round(self.t, 3), "type": "goal", "goal": side, "team": team})
+            if self.keep_ball:
+                s = 1.0 if bx > 0 else -1.0
+                if self.rng.random() < p["sim_goal_bounce"]:   # hits the back of the net, rolls back into the field
+                    self.ball = [s * (hl - br - 0.01), by, -s * self.rng.uniform(0.2, 0.6), self.rng.uniform(-0.2, 0.2)]
+                else:                                          # stays in the net
+                    self.ball = [s * (hl + min(f.goal_depth / 2, 0.15)), by, 0.0, 0.0]
+                    self.netted = True
+                return
             self.ball = [bx, by, 0.0, 0.0]
             self.pause_until = self.t + p["sim_goal_pause_s"]
             return

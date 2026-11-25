@@ -17,7 +17,7 @@ import math
 import time
 from collections import deque
 
-from .core import Field, RobotCfg, World
+from .core import Cmd, Field, RobotCfg, World
 
 FLOW_DEFAULTS = {
     "countdown_s": 3.0,          # still before play starts / resumes
@@ -221,6 +221,389 @@ class MatchFlow:
                 "countdown_left": round(max(0.0, p["countdown_s"] - el), 2) if self.phase == "countdown" else None,
                 "goal_left": round(max(0.0, p["goal_pause_s"] - el), 2) if self.phase == "goal" else None,
                 "restart_mode": p.get("restart_mode", self.restart_mode)}
+
+
+AUTO_DEFAULTS = {
+    "reset_vx": 0.15,        # walking speed while bringing the ball back (slow, controlled push)
+    "stage_gap_m": 0.12,     # stand this surface gap behind the ball before pushing it
+    "centre_tol_m": 0.15,    # ball this close to the centre spot = back at the centre
+    "backoff_m": 0.40,       # then back off to this surface gap before attacking again
+    "backoff_vx": 0.12,
+    "line_lat_m": 0.09,      # pushing: ball this far off the robot's push line -> line up again
+    "edge_m": 0.12,          # staging points stay this far inside the field (the brain's field_margin)
+    "lost_s": 1.0,           # ball older than this = not seen
+    "out_s": 4.0,            # ball in a goal / off the field / not seen this long -> "please roll it out"
+    "goal_pause_s": 2.0,     # after a goal: stand still while the ball settles
+    "countdown_s": 1.5,      # still before each attack
+    "settle_s": 0.8,         # ball at rest = within rest_m this long
+    "settle_max_s": 4.0,     # ...or give up waiting for rest after this
+    "rest_m": 0.04,
+    "attack_max_s": 90.0,    # no goal by then: bring the ball back and start again
+    "reset_max_s": 60.0,     # ball not at the centre by then: attack from where it is
+}
+FAR_VX = 9.9                              # goto speed cap meaning "the live max_vx" (the app takes the smaller)
+AUTO_RESETS = ("centre", "none")          # after a goal: dribble the ball to the centre spot | attack from where it is
+AUTO_AFTER_ROLL = ("centre", "attack")    # ball rolled out of a goal by a person: to the centre first | attack at once
+# autoplay phase -> plain words (Play screen, ctl)
+AUTO_WORDS = {"countdown": "get ready", "attack": "attacking", "goal": "goal!", "settle": "waiting for the ball to stop",
+              "stage": "lining up behind the ball", "push": "bringing the ball to the centre",
+              "backoff": "backing off", "wait_ball": "waiting for the ball"}
+
+
+def _unit(x: float, y: float) -> tuple[float, float]:
+    d = math.hypot(x, y)
+    return (x / d, y / d) if d > 1e-9 else (1.0, 0.0)
+
+
+def _median(v: list[float]) -> float | None:
+    s = sorted(v)
+    n = len(s)
+    return None if not n else s[n // 2] if n % 2 else 0.5 * (s[n // 2 - 1] + s[n // 2])
+
+
+class AutoPlay:
+    """Hands-off solo demo loop for one robot: attack -> goal -> bring the ball back -> attack ...
+
+        countdown -> attack --goal--> goal (still) -> settle --ball at the centre--> backoff -> countdown
+                                                       |                  ^
+                                                       +--> stage -> push +   (dribble to the centre, slowly)
+        ball in a goal / off the field / not seen (any reset phase) -> wait_ball ("please roll it out" after out_s,
+        no time-out) -> settle (or straight to countdown with after_roll=attack)
+
+    Pure logic: update() advances the phases from the World and the goal events; `want` is what the robot does
+    now: ("attack", team) = the brain attacks the goal that `team` attacks; ("goto", (x, y, yaw, vmax)) = the
+    brain's goto; ("app", Cmd) = an app-made command (back off); ("stop", tag) = hold still. The app turns it
+    into brain params, so this needs no new brain capability. With alternate, each cycle attacks the goal away
+    from the one just scored on: the robot finishes the reset behind the ball facing that goal (no walk round).
+    """
+
+    def __init__(self, cfg: RobotCfg, field: Field, now: float, minutes: float = 10.0, alternate: bool = True,
+                 reset: str = "centre", after_roll: str = "centre", **opts):
+        self.rid, self.home = cfg.id, cfg.team
+        self.f = field
+        self.p = {**AUTO_DEFAULTS, **{k: v for k, v in opts.items() if k in AUTO_DEFAULTS}}
+        self.minutes, self.alternate, self.reset, self.after_roll = minutes, alternate, reset, after_roll
+        self.t0 = now
+        self.team = cfg.team          # whose attack goal this cycle targets (blue attacks east, +x)
+        self.next_team = cfg.team
+        self.cycles: list[dict] = []
+        self.cur: dict = {"wait_s": 0.0, "interventions": 0, "how": "start"}
+        self.interventions = self.attack_timeouts = 0
+        self.unreachable = 0          # stagings in a row that found no reachable point behind the ball
+        self.banner: dict | None = None
+        self.u: tuple[float, float] | None = None     # push direction (frozen during a push)
+        self.side = 0.0                               # staging: which side of the ball to walk round
+        self.wait_t: float | None = None              # wait_ball: since when
+        self.wait_why = ""
+        self.out_long = False                         # the "please roll it out" banner has been shown
+        self.reset_t: float | None = None             # start of the current dribble (reset_max_s)
+        self.stuck_at: tuple[float, float] = (0.0, 0.0)   # where the ball was when the robot gave up on it
+        self._rest: deque = deque()
+        self.want: tuple[str, object] = ("stop", "countdown")
+        self.phase, self.t_phase = "", now
+        self._set("countdown", now)
+
+    # ---- helpers ----------------------------------------------------------------------------
+    def _set(self, phase: str, now: float) -> None:
+        self.phase, self.t_phase = phase, now
+        self._rest.clear()
+
+    def att_sign(self, team: str | None = None) -> float:
+        return 1.0 if (team or self.team) == "blue" else -1.0
+
+    def _ball(self, world: World | None, now: float):
+        b = world.ball if world else None
+        return b if b is not None and now - b.t <= self.p["lost_s"] else None
+
+    def _where(self, b) -> str:
+        """field | goal_east | goal_west | off | unseen."""
+        if b is None:
+            return "unseen"
+        hl, hw, gw = self.f.length / 2, self.f.width / 2, self.f.goal_width / 2
+        if abs(b.x) > hl - 0.02 and abs(b.y) < gw + 0.05:
+            return "goal_east" if b.x > 0 else "goal_west"
+        if abs(b.x) > hl + 0.05 or abs(b.y) > hw + 0.05:
+            return "off"
+        return "field"
+
+    def _at_rest(self, b, now: float) -> bool:
+        if b is None:
+            self._rest.clear()
+            return False
+        self._rest.append((now, b.x, b.y))
+        while math.hypot(self._rest[0][1] - b.x, self._rest[0][2] - b.y) > self.p["rest_m"]:
+            self._rest.popleft()
+        return now - self._rest[0][0] >= self.p["settle_s"]
+
+    def _contact(self) -> float:
+        return self.f.ball_radius + self.f.robot_radius
+
+    def _inside(self, x: float, y: float) -> bool:
+        m = self.p["edge_m"]
+        return abs(x) <= self.f.length / 2 - m and abs(y) <= self.f.width / 2 - m
+
+    def _clamp(self, x: float, y: float) -> tuple[float, float]:
+        hx, hy = self.f.length / 2 - self.p["edge_m"], self.f.width / 2 - self.p["edge_m"]
+        return max(-hx, min(hx, x)), max(-hy, min(hy, y))
+
+    def push_dir(self, bx: float, by: float) -> tuple[float, float] | None:
+        """Direction to push the ball toward the centre spot whose staging point is inside the field (the
+        straight line first, then up to 75 deg either way: still toward the centre). None: no reachable point behind
+        the ball (a ball on a wall, in a corner or on the goal line)."""
+        u0 = _unit(-bx, -by)
+        d = self._contact() + self.p["stage_gap_m"]
+        for deg in (0, 15, -15, 30, -30, 45, -45, 60, -60, 75, -75):
+            c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
+            u = (c * u0[0] - s * u0[1], s * u0[0] + c * u0[1])
+            away = (abs(bx) > 0.1 and u[0] * bx > 0.02) or (abs(by) > 0.1 and u[1] * by > 0.02)
+            if not away and self._inside(bx - u[0] * d, by - u[1] * d):   # never pushes it further out on an axis
+                return u
+        return None
+
+    def centred(self, b, slack: float = 0.0) -> bool:
+        return b is not None and math.hypot(b.x, b.y) <= self.p["centre_tol_m"] + slack
+
+    def _start_attack_soon(self, now: float, how: str) -> None:
+        self.cur["how"] = how
+        self._set("countdown", now)
+
+    def _wait(self, now: float, why: str) -> None:
+        if self.phase != "wait_ball":
+            self.wait_t, self.out_long = now, False
+            self._set("wait_ball", now)
+        self.wait_why = why
+
+    # ---- per tick ---------------------------------------------------------------------------------
+    def update(self, now: float, world: World | None, goals: list[str]) -> list[str]:
+        """Advance. Returns events: "goal:<east|west>", "attack", "phase:<name>", "rolled", "done"."""
+        out: list[str] = []
+        before = self.phase
+        p, b = self.p, self._ball(world, now)
+        me = world.robots.get(self.rid) if world else None
+        pose = me.pose if me is not None and now - me.t <= 0.6 else None
+        where = self._where(b)
+        el = now - self.t_phase
+        self.banner = None
+        if self.minutes and now - self.t0 >= self.minutes * 60:
+            return ["done"]
+        if self.phase == "attack":
+            if goals:
+                side = "east" if goals[0] == "blue" else "west"   # the referee names the team the goal counts for
+                own = (side == "east") != (self.team == "blue")
+                self.cur.update(goal=side, own=own, attack_s=round(el, 1), t_goal=now)
+                self.next_team = ("red" if side == "east" else "blue") if self.alternate else self.home
+                self.unreachable = 0
+                out.append(f"goal:{side}")
+                self._set("goal", now)
+            elif el > p["attack_max_s"]:
+                self.attack_timeouts += 1
+                self.cur.update(goal=None, attack_s=round(el, 1), t_goal=now)
+                self._set("settle", now)
+            else:
+                self.want = ("attack", self.team)
+                if b is None:
+                    self.banner = {"level": "warn", "text": "Ball not seen: robot holding still"}
+        elif self.phase == "goal":
+            self.want = ("stop", "goal")
+            if el >= p["goal_pause_s"]:
+                self._set("settle", now)
+        elif self.phase == "countdown":
+            self.want = ("stop", "countdown")
+            if el >= p["countdown_s"]:
+                self._begin_attack(now)
+                out.append("attack")
+        elif where != "field" and self.phase in ("settle", "stage", "push", "backoff", "wait_ball"):
+            self.want = ("stop", "wait_ball")
+            self._wait(now, where)
+        elif self.phase == "wait_ball" and self.wait_why == "stuck" and not self._unstuck(b):
+            self.want = ("stop", "wait_ball")
+        elif self.phase == "wait_ball":    # the ball is back in the field
+            if self.out_long:
+                self.interventions += 1
+                self.cur["interventions"] += 1
+                out.append("rolled")
+            self.cur["wait_s"] += now - (self.wait_t or now)
+            self.wait_t = None
+            self.reset_t = None
+            if self.out_long and self.after_roll == "attack":
+                self._start_attack_soon(now, "rolled")
+            else:
+                self._set("settle", now)
+            self.want = ("stop", "wait_ball")
+        elif self.phase == "settle":
+            self.want = ("stop", "settle")
+            if self._at_rest(b, now) or el > p["settle_max_s"]:
+                self._after_settle(now, b, pose)
+        elif pose is None:
+            self.want = ("stop", "stale")
+            self.banner = {"level": "warn", "text": "Robot not seen: waiting"}
+        elif self.phase == "stage":
+            self._stage(now, b, pose)
+        elif self.phase == "push":
+            self._push(now, b, pose)
+        elif self.phase == "backoff":
+            self._backoff(now, b, pose, el)
+        if self.phase == "wait_ball":
+            self._wait_banner(now)
+        if self.phase != before:
+            out.append(f"phase:{self.phase}")
+        return out
+
+    def _begin_attack(self, now: float) -> None:
+        c = self.cur
+        team = c.pop("force_team", None) or self.next_team
+        if "attack_s" in c:          # the previous attack ended (goal or time-out): its cycle is complete
+            self.cycles.append(self._cycle(c, now))
+        self.cur = {"wait_s": 0.0, "interventions": 0, "how": "", "team": team, "t_attack": now}
+        self.team = team
+        self.reset_t = None
+        self.want = ("attack", team)
+        self._set("attack", now)
+
+    def _unstuck(self, b) -> bool:
+        """A ball the robot gave up on counts as back once someone moved it or it became reachable."""
+        return b is not None and (math.hypot(b.x - self.stuck_at[0], b.y - self.stuck_at[1]) > 0.25
+                                  or self.push_dir(b.x, b.y) is not None)
+
+    def _cycle(self, c: dict, now: float | None) -> dict:
+        """One finished (or, with now=None, unfinished) cycle: its attack, the goal and the reset after it."""
+        return {"n": len(self.cycles) + 1, "team": c.get("team"), "goal": c.get("goal"), "own": bool(c.get("own")),
+                "attack_s": c.get("attack_s"),
+                "reset_s": None if now is None or c.get("t_goal") is None else round(now - c["t_goal"], 1),
+                "wait_s": round(c.get("wait_s", 0.0), 1), "interventions": c.get("interventions", 0),
+                "reset": c.get("how") or None}
+
+    def _after_settle(self, now: float, b, pose) -> None:
+        if b is None:
+            return
+        if self.reset == "none":
+            return self._start_attack_soon(now, "none")
+        if self.centred(b, 0.05):    # a little slack here: no push-settle dithering at the tolerance
+            return self._go_backoff(now, "centre")
+        if self.reset_t is None:
+            self.reset_t = now
+        elif now - self.reset_t > self.p["reset_max_s"]:
+            self.reset_t = None
+            return self._start_attack_soon(now, "reset_timeout")
+        if self.push_dir(b.x, b.y) is None:
+            self.unreachable += 1
+            if self.unreachable >= 2:       # the attack from there did not score either: ask for help
+                self.unreachable = 0
+                self.wait_t, self.out_long = now - self.p["out_s"], False
+                self._set("wait_ball", now)
+                self.wait_why, self.stuck_at = "stuck", (b.x, b.y)
+                return
+            # can't get behind it toward the centre (wall / goal mouth): attack the nearer goal from where it is
+            self.cur["force_team"] = "blue" if b.x > 0 else "red"
+            return self._start_attack_soon(now, "unreachable")
+        self.side = 0.0
+        self._set("stage", now)
+
+    def _stage(self, now: float, b, pose) -> None:
+        u = self.push_dir(b.x, b.y)
+        if self.centred(b):
+            return self._go_backoff(now, "centre")
+        if u is None or now - (self.reset_t or now) > self.p["reset_max_s"]:
+            return self._set("settle", now)
+        c = self._contact()
+        n = (-u[1], u[0])
+        rx, ry = pose.x - b.x, pose.y - b.y
+        a, l = rx * u[0] + ry * u[1], rx * n[0] + ry * n[1]
+        if not self.side or abs(l) > c + 0.25:
+            self.side = 1.0 if l >= 0 else -1.0
+        yaw = math.atan2(u[1], u[0])
+        d = c + self.p["stage_gap_m"]
+        vmax = FAR_VX if math.hypot(rx, ry) > c + 0.45 else self.p["reset_vx"] * 1.5   # slow only near the ball
+        if a > -0.5 * c:      # not behind the ball yet: walk round it (beside it, then behind it), never through it
+            off = c + 0.2
+            fwd = max(0.0, min(a, c)) if abs(l) < c + 0.12 else -d
+            tgt = self._clamp(b.x + n[0] * self.side * off + u[0] * fwd, b.y + n[1] * self.side * off + u[1] * fwd)
+            self.want = ("goto", (tgt[0], tgt[1], None, vmax))
+            return
+        sx, sy = b.x - u[0] * d, b.y - u[1] * d
+        self.want = ("goto", (sx, sy, yaw, vmax))
+        if math.hypot(pose.x - sx, pose.y - sy) < 0.08 and abs(_wrap(pose.yaw - yaw)) < math.radians(12):
+            self.u, self.unreachable = u, 0
+            self._set("push", now)
+
+    def _push(self, now: float, b, pose) -> None:
+        # follow the ball -> centre line as the ball drifts; a staging rotated off it (wall) keeps its own line
+        u = _unit(-b.x, -b.y)
+        if self.u and u[0] * self.u[0] + u[1] * self.u[1] < math.cos(math.radians(20)):
+            u = self.u
+        n = (-u[1], u[0])
+        c = self._contact()
+        if self.centred(b):
+            return self._set("settle", now)
+        rx, ry = b.x - pose.x, b.y - pose.y
+        ahead, lat = rx * u[0] + ry * u[1], rx * n[0] + ry * n[1]
+        left = -(b.x * u[0] + b.y * u[1])            # how far the ball still is from the centre's foot point
+        if abs(lat) > self.p["line_lat_m"] or ahead < 0.5 * c or ahead > c + 0.5:
+            return self._set("stage", now)           # lost the ball off the line: line up again
+        if left < 0.03:
+            return self._set("settle", now)          # passed the point nearest the centre
+        tx, ty = b.x + u[0] * (left - c), b.y + u[1] * (left - c)   # where the robot stands with the ball at the foot point
+        self.want = ("goto", (tx, ty, math.atan2(u[1], u[0]), self.p["reset_vx"]))
+        if math.hypot(pose.x - tx, pose.y - ty) < 0.05:
+            self._set("settle", now)
+
+    def _go_backoff(self, now: float, how: str) -> None:
+        self.cur["how"] = how
+        self.reset_t = None
+        self._set("backoff", now)
+
+    def _backoff(self, now: float, b, pose, el: float) -> None:
+        if b is None:
+            return
+        gap = math.hypot(pose.x - b.x, pose.y - b.y) - self._contact()
+        fwd = (b.x - pose.x) * math.cos(pose.yaw) + (b.y - pose.y) * math.sin(pose.yaw)
+        sign = -1.0 if fwd >= 0 else 1.0             # step away from the ball: back if it is in front
+        hx, hy = pose.x + sign * 0.2 * math.cos(pose.yaw), pose.y + sign * 0.2 * math.sin(pose.yaw)
+        if gap >= self.p["backoff_m"] or el > 6.0 or not self._inside(hx, hy):
+            self.want = ("stop", "backoff")
+            return self._start_attack_soon(now, self.cur.get("how") or "centre")
+        self.want = ("app", Cmd(sign * self.p["backoff_vx"], 0.0, 0.0, "ap_backoff"))
+
+    def _wait_banner(self, now: float) -> None:
+        long = now - (self.wait_t or now) >= self.p["out_s"]
+        self.out_long = self.out_long or long
+        why = self.wait_why
+        if not long:
+            self.banner = {"level": "warn", "text": "Waiting for the ball…"}
+        elif why.startswith("goal_"):
+            self.banner = {"level": "bad", "text": f"Ball is in the {why[5:]} goal: please roll it out onto the field"}
+        elif why == "off":
+            self.banner = {"level": "bad", "text": "Ball is off the field: please roll it back onto the field"}
+        elif why == "stuck":
+            self.banner = {"level": "bad", "text": "Robot can't get the ball out: please roll it onto the field"}
+        else:
+            self.banner = {"level": "bad", "text": "Ball not seen: please put it on the field"}
+
+    # ---- reporting ----------------------------------------------------------------------------------
+    def summary(self, now: float) -> dict:
+        log = self.cycles + ([self._cycle(self.cur, None)] if "attack_s" in self.cur else [])
+        goals = [c for c in log if c.get("goal")]
+        att = [c["attack_s"] for c in goals if isinstance(c.get("attack_s"), (int, float))]
+        res = [c["reset_s"] for c in log if isinstance(c.get("reset_s"), (int, float))]
+        return {"goals": len([c for c in goals if not c["own"]]), "own_goals": len([c for c in goals if c["own"]]),
+                "cycles": len(log), "interventions": self.interventions,
+                "attack_timeouts": self.attack_timeouts,
+                "time_per_goal_s": _median(att), "reset_s": _median(res),
+                "time_s": round(now - self.t0, 1), "cycle_log": log[-50:],
+                "alternate": self.alternate, "reset": self.reset, "after_roll": self.after_roll,
+                "minutes": self.minutes}
+
+    def json(self, now: float) -> dict:
+        s = self.summary(now)
+        last = s.pop("cycle_log")[-1:]
+        return {**s, "phase": self.phase, "words": AUTO_WORDS.get(self.phase, self.phase),
+                "phase_s": round(now - self.t_phase, 1), "attacking": self.team, "banner": self.banner,
+                "last": last[0] if last else None,
+                "left_s": round(max(0.0, self.minutes * 60 - (now - self.t0)), 0) if self.minutes else None}
+
+
+def _wrap(a: float) -> float:
+    return (a + math.pi) % (2 * math.pi) - math.pi
 
 
 class Ticker:

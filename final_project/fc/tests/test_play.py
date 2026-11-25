@@ -1,4 +1,5 @@
 """Play screen logic without the app: match flow, ticker, banners, health lights, recorder."""
+import math
 import time
 
 import pytest
@@ -226,3 +227,104 @@ def test_ready_refusal_needs_fresh_phase_and_home_flag():
     assert "not off" in ready_refusal("homed", 1.0, True)                   # confirmed for a stand, not this
     assert all(ready_refusal(p, 1.0, False) is None for p in ("homed", "standing", "ready"))
     assert ready_refusal("starting", 1.0, False) and ready_refusal("fault", 1.0, False)
+
+# ---- autoplay: the hands-off solo loop ------------------------------------------------------------
+from fc.core import Pose, RobotObs  # noqa: E402
+from fc.play import AUTO_DEFAULTS, AutoPlay  # noqa: E402
+
+
+def aw(t, ball=None, pose=None):
+    return World(t, Ball(*ball, t=t) if ball else None, {"blue": RobotObs("blue", Pose(*pose), t)} if pose else {})
+
+
+def arun(a, t0, t1, ball=None, pose=None, goals_at=None):
+    evs, t = [], t0
+    while t < t1:
+        goals = [goals_at.pop(0)[1]] if goals_at and goals_at[0][0] <= t else []
+        evs += a.update(t, aw(t, ball, pose), goals)
+        t += 1 / 30
+    return evs, t
+
+
+def test_autoplay_full_cycle_goal_net_roll_out_dribble_back_alternate():
+    a = AutoPlay(BLUE, F, 0.0, minutes=0)
+    assert a.phase == "countdown" and a.want == ("stop", "countdown")
+    pose = (0.5, 0.3, 0.0)
+    evs, t = arun(a, 0, 2, ball=(0.8, 0.2), pose=pose)
+    assert "attack" in evs and a.want == ("attack", "blue")                 # blue attacks east, ball anywhere
+    evs, t = arun(a, t, t + 0.2, ball=(1.3, 0.1), pose=pose, goals_at=[(t, "blue")])
+    assert "goal:east" in evs and a.phase == "goal" and a.want == ("stop", "goal")
+    _, t = arun(a, t, t + 3, ball=(1.45, 0.1), pose=pose)                  # resting in the net
+    assert a.phase == "wait_ball" and a.banner["text"] == "Waiting for the ball…"
+    _, t = arun(a, t, t + AUTO_DEFAULTS["out_s"], ball=(1.45, 0.1), pose=pose)
+    assert a.banner["level"] == "bad" and "east goal: please roll it out" in a.banner["text"]
+    _, t = arun(a, t, t + 30, ball=(1.45, 0.1), pose=pose)                 # never times out
+    assert a.phase == "wait_ball"
+    evs, t = arun(a, t, t + 0.1, ball=(0.6, 0.0), pose=pose)               # a person rolled it out
+    assert "rolled" in evs and a.interventions == 1 and a.phase == "settle"
+    _, t = arun(a, t, t + 1.5, ball=(0.6, 0.0), pose=pose)                 # at rest -> line up behind it
+    assert a.phase == "stage" and a.want[0] == "goto"
+    # robot in front of the ball (between it and the centre): it walks round, never straight through
+    x, y, yaw, _v = a.want[1]
+    assert yaw is None and abs(y) > 0.4
+    stage = (0.6 + 0.269 + AUTO_DEFAULTS["stage_gap_m"], 0.0, math.pi)     # behind it, facing the centre
+    _, t = arun(a, t, t + 0.2, ball=(0.6, 0.0), pose=stage)
+    assert a.phase == "push" and a.want[0] == "goto" and a.want[1][3] == AUTO_DEFAULTS["reset_vx"]
+    assert a.want[1][0] == pytest.approx(0.269, abs=0.01)                  # stops with the ball on the spot
+    _, t = arun(a, t, t + 0.2, ball=(0.05, 0.0), pose=(0.32, 0.0, math.pi))
+    assert a.phase == "settle"
+    _, t = arun(a, t, t + 1.5, ball=(0.05, 0.0), pose=(0.32, 0.0, math.pi))
+    assert a.phase == "backoff" and a.want[0] == "app" and a.want[1].vx < 0  # backs away from the ball
+    evs, t = arun(a, t, t + 0.2, ball=(0.05, 0.0), pose=(0.75, 0.0, math.pi))
+    assert a.phase == "countdown"
+    evs, t = arun(a, t, t + 2, ball=(0.05, 0.0), pose=(0.75, 0.0, math.pi))
+    assert "attack" in evs and a.want == ("attack", "red")                  # alternate: the west goal, straight ahead
+    s = a.summary(t)
+    assert s["goals"] == 1 and s["cycles"] == 1 and s["interventions"] == 1 and s["own_goals"] == 0
+    c = s["cycle_log"][0]
+    assert c["goal"] == "east" and c["reset"] == "centre" and c["interventions"] == 1 and c["reset_s"] > 30
+    assert c["wait_s"] > 30 and s["time_per_goal_s"] == c["attack_s"]
+
+
+def test_autoplay_push_direction_and_unreachable_balls():
+    a = AutoPlay(BLUE, F, 0.0)
+    u = a.push_dir(0.6, 0.3)
+    assert u[0] < 0 and u[1] < 0 and math.hypot(*u) == pytest.approx(1)
+    hl, hw = F.length / 2, F.width / 2
+    assert a.push_dir(hl - 0.1, hw - 0.1) is None                          # corner
+    assert a.push_dir(hl - 0.05, 0.0) is None                              # on the goal line in the mouth
+    assert a.push_dir(0.3, hw - 0.12) is None                              # on a wall: the brain's attack handles it
+    u = a.push_dir(0.3, hw - 0.3)                                          # near a wall: rotated, still toward the centre
+    assert u is not None and u[1] < 0.05 and u[0] * -0.3 + u[1] * -(hw - 0.3) > 0
+
+
+def test_autoplay_unreachable_attacks_nearer_goal_then_asks_for_help():
+    a = AutoPlay(BLUE, F, 0.0, minutes=0, alternate=True, attack_max_s=5.0)
+    pose, corner = (0.0, 0.0, 0.0), (-(F.length / 2 - 0.1), F.width / 2 - 0.1)
+    _, t = arun(a, 0, 2, ball=corner, pose=pose)
+    _, t = arun(a, t, t + 6, ball=corner, pose=pose)                       # attack times out
+    assert a.attack_timeouts == 1
+    evs, t = arun(a, t, t + 3.5, ball=corner, pose=pose)
+    assert "attack" in evs and a.team == "red"                              # west goal is nearer the ball
+    _, t = arun(a, t, t + 6, ball=corner, pose=pose)
+    _, t = arun(a, t, t + 1.5, ball=corner, pose=pose)
+    assert a.phase == "wait_ball" and "can't get the ball out" in a.banner["text"]
+    _, t = arun(a, t, t + 10, ball=corner, pose=pose)
+    assert a.phase == "wait_ball"                                           # still there: keep asking
+    evs, t = arun(a, t, t + 0.1, ball=(-0.5, 0.2), pose=pose)
+    assert "rolled" in evs and a.phase == "settle"
+
+
+def test_autoplay_waits_for_robot_and_ends_on_minutes():
+    a = AutoPlay(BLUE, F, 0.0, minutes=0.1, reset="none")
+    _, t = arun(a, 0, 2, ball=(0.5, 0.0), pose=(0.0, 0.0, 0.0))
+    _, t = arun(a, t, t + 0.1, ball=(0.5, 0.0), pose=(0.0, 0.0, 0.0), goals_at=[(t, "red")])
+    assert a.cycles == [] and a.cur["own"] is True                          # west goal while attacking east
+    _, t = arun(a, t, t + 3.5, ball=(0.5, 0.0), pose=None)                  # reset none: attack from there
+    assert a.phase == "countdown"
+    evs, _ = arun(a, t, 6.1, ball=(0.5, 0.0), pose=None)
+    assert evs[-1] == "done" and a.summary(6.1)["own_goals"] == 1
+    b = AutoPlay(BLUE, F, 0.0, minutes=0)
+    b._set("stage", 0.0)
+    b.update(0.1, aw(0.1, (0.5, 0.0), None), [])
+    assert b.want == ("stop", "stale") and b.banner["text"] == "Robot not seen: waiting"

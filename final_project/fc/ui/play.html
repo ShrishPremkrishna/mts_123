@@ -228,7 +228,14 @@ function renderTiles(s) {
 function renderCenter(s) {
   const f = s.play.flow, c = $("center"); let node = null, low = false;
   if (f && f.goals.length && f.goals[f.goals.length - 1].n !== lastGoal) { lastGoal = f.goals[f.goals.length - 1].n; pitch.goal(f.goals[f.goals.length - 1].team); }
-  if (f) {
+  const au = s.play.auto;
+  if (au) {   // autoplay: hands-off solo loop; one plate with the tally and what it is doing
+    low = au.phase !== "goal";
+    node = au.phase === "goal" ? h("div", { class: "plate goal display", "data-team": teamOf(s, s.test && s.test.robot) || "blue", "data-fill": "team" }, h("span", null, "GOAL"))
+      : h("div", null, h("div", { class: "plate title display" }, h("span", null, `AUTOPLAY · ${au.goals} GOAL${au.goals === 1 ? "" : "S"}`)),
+          h("div", null, h("div", { class: "sub" }, [cap(au.words), au.time_per_goal_s != null ? `${au.time_per_goal_s.toFixed(0)} s per goal` : null,
+            au.interventions ? `${au.interventions} ball returns by hand` : null].filter(Boolean).join(" · "))));
+  } else if (f) {
     if (f.phase === "goal") { const g = f.goals[f.goals.length - 1] || {}; node = h("div", { class: "plate goal display", "data-team": g.team || "blue", "data-fill": "team" }, h("span", null, "GOAL")); }
     else if (f.phase === "countdown") node = h("div", { class: "count display num" }, Math.max(1, Math.ceil(f.countdown_left - (performance.now() - store.at()) / 1000)));
     else if (f.phase === "kickoff") { low = true; node = h("div", null, h("div", { class: "plate title display" }, h("span", null, "KICKOFF")), f.waiting.length ? h("div", null, h("div", { class: "sub" }, `Waiting for ${f.waiting.join(", ")}`)) : null); }
@@ -259,7 +266,7 @@ function renderCenter(s) {
 // ---- key bar: built once from the registry, refreshed every poll ----
 const touchN = h("span", { class: "count num" }, "0");
 const touch = ops.prompt("T", touchN); touch.shiftArgs = { delta: -1 };
-const prompts = [ops.prompt("Space"), ops.prompt("Esc"), h("i", { class: "sep" }), ops.prompt("K"), ops.prompt("P"), ops.prompt("R"), ops.prompt("V"), touch,
+const prompts = [ops.prompt("Space"), ops.prompt("Esc"), h("i", { class: "sep" }), ops.prompt("K"), ops.prompt("P"), ops.prompt("R"), ops.prompt("V"), touch, ops.prompt("A"),
   h("i", { class: "grow" }), ops.prompt("C"), ops.prompt("1"), ops.prompt("2"), h("i", { class: "sep" }), ops.prompt("Tab")];
 $("bar").replaceChildren(...prompts);
 ops.bindKeys({ shift: { "match.touch": { delta: -1 } }, opts: { stop: { done: "Stopped" }, estop: { done: "E-stop sent", level: "bad" } } });

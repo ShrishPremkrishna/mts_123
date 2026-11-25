@@ -47,6 +47,29 @@ def test_goal_detection_and_kickoff_reset():
     assert math.hypot(tb["x"], tb["y"]) < 0.1  # auto reset to kickoff after the pause
 
 
+def test_keep_ball_after_goal_rests_in_net_or_bounces_back():
+    """Autoplay: no kickoff reset after a goal; the ball stays in the net (unreachable) until a person rolls it out,
+    or bounces back into the field."""
+    seen = set()
+    for bounce in (0.0, 1.0):
+        s = Sim(F, ROBOTS, {**OFF, "sim_goal_bounce": bounce}, 0)
+        s.keep_ball = True
+        s.reset("shot_on_goal", robots=[], team="red")
+        drive(s, {}, 8.0)
+        goals = [e for e in s.events if e["type"] == "goal"]
+        tb = s.truth()["ball"]
+        assert len(goals) == 1 and not s.truth()["paused"]
+        if bounce:
+            assert tb["x"] < F.length / 2 and not s.netted                 # back in the field
+        else:
+            assert tb["x"] > F.length / 2 and s.netted and tb["vx"] == 0   # resting in the net
+            assert s.kick(1.0, 0.0, -0.5, 0.0) and not s.netted            # a person rolls it out
+            drive(s, {}, 1.0)
+            assert s.truth()["ball"]["x"] < 1.0
+        seen.add(bounce)
+    assert seen == {0.0, 1.0}
+
+
 def test_ball_bounces_off_sideline_not_goal_mouth_edges():
     s = Sim(F, ROBOTS, OFF, 0)
     s.reset("kickoff", robots=[])

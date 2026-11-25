@@ -32,8 +32,8 @@ from .core import CONFIG, Cmd, RobotCfg, World, load_field, load_params, wrap
 from .link import CEIL, Link
 from .media import CamFeed, Recorder
 from . import ops as OPS
-from .play import (FLOW_DEFAULTS, FLOW_LIMITS, JOBS, RESTART_MODES, MatchFlow, Ticker, action_label, banners, down_failed,
-                   estop_view, health, safety_banners, setup_step)
+from .play import (AUTO_AFTER_ROLL, AUTO_RESETS, FLOW_DEFAULTS, FLOW_LIMITS, JOBS, RESTART_MODES, AutoPlay, MatchFlow,
+                   Ticker, action_label, banners, down_failed, estop_view, health, safety_banners, setup_step)
 from .runlog import RUNS, Metrics, RunLog, list_runs
 from .sim import Sim
 from .sim import SIM_DEFAULTS
@@ -92,11 +92,12 @@ LIMITS.update(shot_vmin=(0.05, 3.0), shot_horizon_s=(0.5, 10.0), shot_mouth_marg
               ball_decel=(0.0, 3.0))
 CHOICES = {"role_mode": ["auto", "attack", "defend"], "contact_mode": ["push", "headbutt"],
            "ball_lost": ["hold", "search"], "goalie_style": ["sideways", "facing"], "restart_mode": RESTART_MODES}
-TESTS = ["drive", "goto", "step", "deadman", "push_ball", "goalie", "match", "sim_eval"]
-ONE_ROBOT_TESTS = {"drive", "goto", "step", "deadman", "push_ball", "goalie"}
-BRAIN_MODES = {"play", "goto", "push_ball", "goalie", "match"}
+TESTS = ["drive", "goto", "step", "deadman", "push_ball", "goalie", "match", "sim_eval", "autoplay"]
+ONE_ROBOT_TESTS = {"drive", "goto", "step", "deadman", "push_ball", "goalie", "autoplay"}
+BRAIN_MODES = {"play", "goto", "push_ball", "goalie", "match", "autoplay"}
 # Sim scenario each test starts from (sim source only; the UI can override).
-SIM_SCENARIO = {"push_ball": "attack_solo", "goalie": "shot_on_goal", "match": "kickoff"}
+SIM_SCENARIO = {"push_ball": "attack_solo", "goalie": "shot_on_goal", "match": "kickoff", "autoplay": "attack_solo"}
+SIM_HUMAN_S = 3.0      # sim autoplay: the "please roll the ball out" banner is up this long before the sim person does it
 ROBOT_OPS = ["status", "ready", "down", "start", "stop", "bridge_start", "bridge_stop", "imu_test", "stage"]
 CONFIRM_OPS = {"start", "ready"}                   # may home the legs / stand the robot up
 ALWAYS_OPS = {"stop", "down"}                      # never refused by a running op
@@ -115,6 +116,22 @@ STACK_SPEED_CAP = (0.30, 1.00)
 STACK_HEADING_HOLD = ("on", "off")
 STOCK_SPEED_CAP = 0.49                             # walker cap without --speed-cap
 ESTOP_RESEND_S = 3.0                               # after the burst, resend e-stop each tick until an ack confirms it
+
+
+def auto_args(body: dict, num) -> dict:
+    """autoplay test arguments (UI / ctl / op) -> AutoPlay keywords; ValueError on a bad one."""
+    out = {"minutes": num(body, "minutes", 10.0, 0.0, 240.0),
+           "reset_vx": num(body, "reset_vx", 0.15, 0.05, 0.3)}
+    for k, choices, default in (("reset", AUTO_RESETS, "centre"), ("after_roll", AUTO_AFTER_ROLL, "centre")):
+        v = body.get(k) or default
+        if v not in choices:
+            raise ValueError(f"{k} must be one of {list(choices)}")
+        out[k] = v
+    alt = body.get("alternate", True)
+    if not isinstance(alt, bool):
+        raise ValueError("alternate must be true or false")
+    out["alternate"] = alt
+    return out
 
 
 def validate_stack(raw) -> tuple[dict, list[str]]:
@@ -595,6 +612,8 @@ class App:
         self.playing: list[str] = [r.id for r in self.active]
         self.flow: MatchFlow | None = None
         self.last_match: dict | None = None
+        self.auto: AutoPlay | None = None          # autoplay test: the solo demo loop (play.AutoPlay)
+        self.auto_brain: Brain | None = None       # ...its own brain, whose team picks the attacked goal
         self.ticker = Ticker()
         self.robot_phase: dict[str, str] = {}
         self._op_seq = 0                            # robot op counter (ops[rid].seq)
@@ -691,7 +710,7 @@ class App:
                 else:   # every app-made command gets the brain's clamp + rate limit
                     cmd = shape(want, self.prev.get(r.id, Cmd()), dt, self.params)
                 if src != "brain" and self.mode in BRAIN_MODES and r.id in self.brains:
-                    self.brains[r.id].sent(cmd)   # next brain ramp starts from what really went out
+                    self._brain(r.id).sent(cmd)   # next brain ramp starts from what really went out
                 self.prev[r.id] = cmd
                 cmds[r.id], debug[r.id] = cmd, dbg
             acks = self.link.drain_acks() if (self.link and self.run) else []
@@ -843,7 +862,19 @@ class App:
         if not fresh:
             return Cmd.stop("stale"), {"role": "idle", "phase": "not seen", "target": None}, "app"
         params = self.params
-        if mode == "goto" or flow_goto:
+        if mode == "autoplay" and self.auto:
+            kind, arg = self.auto.want
+            if kind == "stop":
+                return Cmd.stop(arg), {"role": "idle", "phase": arg, "target": None}, "hard"
+            if kind == "app":
+                return arg, {"role": "autoplay", "phase": "backoff", "target": None}, "app"
+            if kind == "goto":
+                x, y, yaw, vmax = arg
+                params = {**params, "role_mode": "goto", "goto_x": x, "goto_y": y, "goto_yaw": yaw,
+                          "max_vx": min(params["max_vx"], vmax), "goto_tol_m": 0.05, "goto_yaw_tol_deg": 8}
+            else:
+                params = {**params, "role_mode": "attack"}
+        elif mode == "goto" or flow_goto:
             tgt = flow_goto or test["target"]
             params = {**params, "role_mode": "goto", "goto_x": tgt[0], "goto_y": tgt[1],
                       "goto_yaw": tgt[2] if len(tgt) > 2 else None}
@@ -856,7 +887,7 @@ class App:
         elif mode == "match":
             params = {**params, "role_mode": "auto"}
         try:
-            cmd, dbg = self.brains[r.id].decide(world, params)
+            cmd, dbg = self._brain(r.id).decide(world, params)
         except Exception as e:  # noqa: BLE001 - a brain bug must not move the robot
             self._throttled(f"brain-{r.id}", f"brain error {r.id}: {type(e).__name__}: {e}")
             return Cmd.stop("brain_error"), {"role": "idle", "phase": "brain error", "target": None}, "hard"
@@ -864,6 +895,12 @@ class App:
         if mode == "goto":
             test["done_since"] = (test.get("done_since") or now) if dbg.get("done") else None
         return cmd, dbg, "brain"
+
+    def _brain(self, rid: str) -> Brain:
+        """The brain driving this robot now: autoplay's own (its team = the goal it attacks), else the robot's."""
+        if self.auto_brain is not None and self.mode == "autoplay" and rid == (self.test or {}).get("robot"):
+            return self.auto_brain
+        return self.brains[rid]
 
     def _pipeline_cmd(self, test: dict, fresh: bool, now: float) -> tuple[Cmd, dict, str]:
         """step / deadman phases by elapsed time. Losing the tag aborts (see _check_test)."""
@@ -988,6 +1025,8 @@ class App:
             return
         el = now - t["t0"]
         name = t["name"]
+        if name == "autoplay" and self.auto:
+            return self._auto_tick(t, world, now, goals)
         if name == "push_ball":
             team = self.cfg[t["robot"]].team
             if goals:
@@ -1091,6 +1130,50 @@ class App:
         else:
             t.pop("ref_wait", None)
 
+    def _auto_tick(self, t: dict, world: World | None, now: float, goals: list[str]) -> None:
+        a, rid = self.auto, t["robot"]
+        evs = a.update(now, world, goals)
+        if "done" in evs:
+            return self._finish("done", **a.summary(now))
+        for ev in evs:
+            if ev.startswith("goal:"):
+                g = a.cur
+                self.say(f"autoplay GOAL in the {ev[5:]} goal{' (own goal)' if g.get('own') else ''}"
+                         f" after {g.get('attack_s')} s", goal=ev[5:], own=g.get("own"), attack_s=g.get("attack_s"))
+            elif ev == "rolled":
+                self.say("autoplay: ball back in the field (intervention)", interventions=a.interventions)
+            elif ev == "attack":
+                last = a.cycles[-1] if a.cycles else None
+                self.say(f"autoplay: attack the {'east' if a.att_sign() > 0 else 'west'} goal"
+                         + (f" (reset {last['reset']} in {last['reset_s']} s)" if last else ""), cycle=last)
+            if ev.startswith("phase:") or ev == "attack":    # fresh brain memory per phase, ramp from what went out
+                b = self.auto_brain
+                if ev == "attack":
+                    b.cfg = replace(self.cfg[rid], team=a.team)
+                b.reset()
+                b.out = self.prev.get(rid, Cmd())
+        # sim: the person who rolls the ball out of the net once the banner has been up a while
+        if (self.sim is not None and a.phase == "wait_ball" and a.out_long and a.wait_t is not None
+                and now - a.wait_t >= a.p["out_s"] + SIM_HUMAN_S and not t.get("sim_rolled_t")):
+            self._sim_roll_out(a)
+            t["sim_rolled_t"] = now
+            t["sim_rolls"] = t.get("sim_rolls", 0) + 1
+        if a.phase != "wait_ball":
+            t.pop("sim_rolled_t", None)
+        s = a.json(now)
+        t.update(phase=a.phase, words=s["words"], goals=s["goals"], own_goals=s["own_goals"], cycles=s["cycles"],
+                 interventions=s["interventions"], banner=(a.banner or {}).get("text"), attacking=s["attacking"])
+
+    def _sim_roll_out(self, a: AutoPlay) -> None:
+        """Sim stand-in for the person: roll the ball from the goal mouth (or a random spot) back into the field."""
+        r, f = self.sim.rng, self.field
+        bx = self.sim.ball[0]
+        s = (1.0 if bx > 0 else -1.0) if abs(bx) > 0.5 else r.choice((-1.0, 1.0))
+        x, y = s * (f.length / 2 - 0.25), r.uniform(-0.3, 0.3)
+        tx, ty = s * r.uniform(0.0, 0.5), r.uniform(-0.4, 0.4)
+        self.sim.shoot(tx, ty, 0.0, x=x, y=y)
+        self.say("sim: a person rolls the ball back onto the field")
+
     def _goto_report(self, t: dict, el: float) -> dict:
         p, tgt = t.get("last_pose"), t["target"]
         if p is None:
@@ -1154,6 +1237,14 @@ class App:
         if self.flow is not None:
             self.last_match = {**self.flow.json(time.monotonic(), self.params), "result": result}
             self.flow = None
+        if self.auto is not None:
+            if t and t.get("name") == "autoplay" and "goals" not in summary:
+                summary = {**self.auto.summary(time.monotonic()), **summary}
+            self.auto = self.auto_brain = None
+            if self.sim is not None:
+                self.sim.keep_ball = False
+                if self.sim.netted:       # a ball left lying in the net would stay frozen: back to kickoff
+                    self._reset_sim("kickoff")
         self.teleop.clear()
         if self.link:
             self.link.stop_all()
@@ -1312,13 +1403,15 @@ class App:
                 extra = {"vx": self._num(body, "vx", self.params["deadman_vx"], 0.03, 0.2),
                          "mute_s": self._num(body, "mute_s", self.params["deadman_mute_s"], 0.5, 5.0),
                          "obs": [], "sent": []}
+            elif name == "autoplay":
+                extra = auto_args(body, self._num)
         except ValueError as e:
             return {"ok": False, "error": str(e)}
         if self.sim:
             scen = body.get("scenario") or SIM_SCENARIO.get(name)
             in_sim = set((truth_json(self.sim.truth()) or {}).get("robots", {}))
             if scen:
-                self._reset_sim(scen, [robot] if name in ("push_ball", "goalie") else None)
+                self._reset_sim(scen, [robot] if name in ("push_ball", "goalie", "autoplay") else None)
             elif name in ("drive", "goto", "step", "deadman") and robot not in in_sim:
                 self._reset_sim("kickoff")  # bring every robot back onto the field
         if name == "goto":
@@ -1330,6 +1423,12 @@ class App:
             self._begin("goto", robot, target=[float(v) for v in tgt[:3] if v is not None], start=start)
         elif name == "match":
             self._begin("match", None, score0=dict(self.score))
+        elif name == "autoplay":
+            self._begin("autoplay", robot, **extra)
+            self.auto = AutoPlay(self.cfg[robot], self.field, time.monotonic(), **extra)
+            self.auto_brain = Brain(self.cfg[robot], self.field)
+            if self.sim is not None:
+                self.sim.keep_ball = True     # a goal leaves the ball in the net (or bouncing back), no kickoff reset
         elif name == "sim_eval":
             self._begin("sim_eval", None)
             threading.Thread(target=self._sim_eval, args=(self.test, str(body.get("args", ""))), daemon=True).start()
@@ -1747,8 +1846,9 @@ class App:
             hl = health(self.source, r.id in active, r.id in seen, (lstat or {}).get(r.id), self.link is not None,
                         self.ops.get(r.id), self.robot_phase.get(r.id), r.id in self.imu_bad, r.id in self.mux_lost,
                         estopped=r.id in self.estops)
+            auto_me = self.auto is not None and r.id == (self.test or {}).get("robot")
             robots[r.id] = {
-                "action": action_label(dbg, getattr(self.cmds.get(r.id), "tag", "")),
+                "action": self.auto.json(now)["words"] if auto_me else action_label(dbg, getattr(self.cmds.get(r.id), "tag", "")),
                 "role": dbg.get("role"),
                 "health": hl,
                 # ready to play: green light AND (sim, or fcctl reported phase ready). "link ok" alone is not ready.
@@ -1766,11 +1866,16 @@ class App:
         if self.eye is not None and getattr(self.eye, "paused", False):
             cam = [{"robot": None, "team": None, "level": "bad", "kind": "camera",
                     "text": "CAMERA PAUSED: the overhead picture is frozen - robots stop (stale). Check the phone"}]
+        auto = self.auto.json(now) if self.auto else None
+        auto_b = [{"robot": self.auto.rid, "team": self.cfg[self.auto.rid].team, "kind": "autoplay", **self.auto.banner}] \
+            if self.auto and self.auto.banner else []
         return {"flow": self.flow.json(now, self.params) if self.flow else None, "last_match": self.last_match,
+                "auto": auto,
                 "playing": self.playing, "variants": variants([r.id for r in self.active]), "robots": robots,
                 "ticker": list(self.ticker.items)[-12:],
                 "banners": cam + safety_banners(self.cfg, [r.id for r in self.active], self.estops, self.ops, now,
                                           self.link is not None, self.sim is not None, ESTOP_RESEND_S)
+                + auto_b
                 + banners(self.cfg, [p for p in self.playing if p not in self.estops], moving, self.cmds, self.imu_bad,
                           self.mux_lost, lstat, self.link is not None),
                 "overlay": None,   # set by state() at full precision

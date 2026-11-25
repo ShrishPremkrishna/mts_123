@@ -26,6 +26,8 @@ def test_test_body_translates_and_refuses_typos():
     assert ctl.test_body("step", {"vx": 0.2, "seconds": 1.5, "robot": "blue"}) == {
         "action": "test", "test": "step", "vx": 0.2, "seconds": 1.5, "robot": "blue"}
     assert ctl.test_body("sim_eval", {"args": "--help"})["args"] == "--help"
+    assert ctl.test_body("autoplay", {"minutes": 3})["minutes"] == 3
+    assert ctl.test_timeout("autoplay", {}, {"minutes": 3}) == 210 and ctl.test_timeout("autoplay", {}, {"minutes": 0}) == math.inf
     for name, kv in (("step", {"vz": 1}), ("goto", {"x": 1}), ("nope", {}), ("goto", {"x": 1, "y": 2, "yaw": "east"})):
         with pytest.raises(ctl.Usage):
             ctl.test_body(name, kv)

@@ -52,6 +52,7 @@ tilt; it seized once while standing ([RCA](notes/rca-20261124-shaking.md), [filt
 | Predicted ball path and the brain's committed plan drawn on Play and `/ops` | **device-free** + sim |
 | **`athletic` preset**: fast-light + planned committed arcs (Dubins to a stage behind the predicted intercept, pure pursuit, replan on real change, `plan_flip_s`), prediction-led intercept, coast on a stale pose (`coast_s` 0.3), `fast_yaw_bias_deg` −8. `--floor`, 100 seeds vs fast-light: wz reversals −23 %, fast reversals −45 %, moving-ball hits 72 → 84, solo median 14.0 → 14.5 s (not faster), 1v1 goals 3.7 → 4.5 ([notes/brain.md](notes/brain.md)) | **sim** only |
 | New 7 in purple ball (radius 0.089 m); new rigid tag mount on blue (`eye_tag_height` 0.267 m, `eye_tag_offset_x` −0.02 m) | config from measurements; not run live |
+| **Autoplay** (`ctl test autoplay minutes=N`, op `autoplay.start`, key A on Play): hands-off solo loop — attack the ball wherever it is, score, dribble the ball back to the centre with the brain's goto at 0.15 m/s, back off, attack the other goal; "please roll the ball out" banner (no time-out) for a ball in a net; per-cycle goals / time per goal / reset time / interventions in the summary. Brain unchanged | **device-free** + **sim** (Nov 25: 3-min run, 4 goals in 4 cycles, ball netted each time and rolled out by the scripted person) |
 | Eye keeps the robot-tag crop search 1.5 s after a miss (`c52e180`): offline replay 32 → 56 %, 43 → 63 % tag-seen | **device-free** (replay) |
 
 ## Unverified

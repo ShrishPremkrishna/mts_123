@@ -418,13 +418,52 @@ def _source(app, a):
 
 
 # ---- tests, params, presets, sim ------------------------------------------------------------------
-@op("test.run", "Run test", "Start a test run (drive, goto, step, deadman, push_ball, goalie, match, sim_eval). "
-    "Per-test keys pass through (step: vx vy wz seconds; goto: target; deadman: vx mute_s; sim_eval: args).",
+@op("test.run", "Run test", "Start a test run (drive, goto, step, deadman, push_ball, goalie, match, sim_eval, autoplay). "
+    "Per-test keys pass through (step: vx vy wz seconds; goto: target; deadman: vx mute_s; sim_eval: args; "
+    "autoplay: minutes alternate reset after_roll reset_vx).",
     "test", safety="motion", extra=True, test=P("str", required=True, choices=lambda app: _tests()),
     robot=P("robot", choices=_robots), scenario=P("str"))
 def _test(app, a):
     with app.lock:
         return app._start_test(a)
+
+
+def _auto_robot(app):
+    """Autoplay's robot: the one playing solo, else the first active robot."""
+    act = _active(app)
+    return app.playing[0] if len(app.playing) == 1 and app.playing[0] in act else (act or [None])[0]
+
+
+def _when_autoplay(app):
+    if app.test:
+        return {"reason": "autoplay is running: Space stops it" if app.test.get("name") == "autoplay"
+                else f"{app.test.get('name')} is running: Stop first", "state": "on" if app.test.get("name") == "autoplay" else None}
+    rid = _auto_robot(app)
+    if rid is None:
+        return {"reason": "no active robot"}
+    if app.halted(rid):
+        return {"reason": f"{rid} halted ({app.halted(rid)})"}
+    return {"label": f"Autoplay {rid.upper()}", "args": {"robot": rid}}
+
+
+@op("autoplay.start", "Autoplay", "Hands-off solo demo loop: attack the ball wherever it is, score, bring the ball back "
+    "to the centre spot slowly, back off, attack again (alternating goals); a ball left in a net shows \"please roll the "
+    "ball out\" and waits. Ends after `minutes` (0 = until Stop) or on Stop / E-stop / IMU / motion-link loss.", "test",
+    key="A", safety="motion", when=_when_autoplay,
+    ask="Starts the hands-off loop: the robot keeps attacking, scoring and bringing the ball back by itself. Area clear, "
+        "Space / R3 in reach?",
+    robot=P("robot", choices=_robots), minutes=P("num", "0 = until Stop", lo=0, hi=240, default=10),
+    alternate=P("bool", "attack the other goal each cycle", default=True),
+    reset=P("str", "after a goal: centre = dribble the ball to the centre spot, none = attack from where it is",
+            choices=["centre", "none"], default="centre"),
+    after_roll=P("str", "ball rolled out of a goal by a person: centre first, or attack at once",
+                 choices=["centre", "attack"], default="centre"),
+    reset_vx=P("num", "walking speed while bringing the ball back, m/s", lo=0.05, hi=0.3, default=0.15),
+    confirm=P("bool", "set by the UI's question", choices=[True]))
+def _autoplay(app, a):
+    a = {k: v for k, v in a.items() if k != "confirm"}
+    with app.lock:
+        return app._start_test({"test": "autoplay", "robot": a.pop("robot", None) or _auto_robot(app), **a})
 
 
 @op("freeplay.start", "Free play", "Brain on every active robot with the current params (no match flow).", "test",

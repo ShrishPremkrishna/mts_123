@@ -1023,3 +1023,26 @@ def test_camera_paused_is_logged_and_bannered(server):
     msgs = [e["msg"] for e in app.events]
     assert sum("CAMERA PAUSED" in m for m in msgs) == 1 and "camera picture moving again" in msgs
     assert banners[0]["kind"] == "camera" and "CAMERA PAUSED" in banners[0]["text"]
+
+
+def test_autoplay_op_runs_the_loop_and_stop_writes_cycle_metrics(server):
+    app, base = server
+    code, r = post(base, "/api/op", {"op": "autoplay.start", "args": {"robot": "blue", "minutes": 0, "reset_vx": 0.2}})
+    assert code == 200 and r["ok"], r
+    assert app.sim.keep_ball and app.mode == "autoplay" and app.auto is not None
+    s = state(base)
+    assert s["test"]["name"] == "autoplay" and s["play"]["auto"]["phase"] in ("countdown", "attack")
+    assert not s["avail"]["autoplay.start"]["enabled"] and "Space stops" in s["avail"]["autoplay.start"]["reason"]
+    assert wait(lambda: (app.auto and app.auto.phase == "attack"), 4)
+    assert wait(lambda: app.debug.get("blue", {}).get("role") == "attack", 2)  # the brain attacks
+    with app.lock:                               # a goal: the referee event drives the loop into its reset
+        app.auto.update(time.monotonic(), app.world, ["blue"])
+        assert app.auto.phase == "goal" and app.auto.next_team == "red"
+    code, r = post(base, "/api/op", {"op": "stop"})
+    assert code == 200 and app.mode == "idle" and app.auto is None and not app.sim.keep_ball
+    ls = state(base)["last_summary"]
+    assert ls["result"] == "stopped" and ls["goals"] == 1 and ls["cycles"] == 1 and ls["cycle_log"][0]["goal"] == "east"
+    code, r = post(base, "/api/op", {"op": "autoplay.start", "args": {"reset": "sideways"}})
+    assert code == 400 and r["code"] == "bad_args"
+    code, r = post(base, "/action", {"action": "test", "test": "autoplay", "after_roll": "later"})
+    assert code == 400 and "after_roll" in r["error"]

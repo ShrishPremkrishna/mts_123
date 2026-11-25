@@ -21,6 +21,8 @@
     stop                                    zero speed to every robot (ends the running test)
     test <name> [k=v ...] [--wait]          step vx= vy= wz= seconds= | goto x= y= [yaw=DEG] | deadman [vx= mute_s=]
                                             | push_ball | goalie | match | sim_eval args="..." | imu_test seconds= ...
+                                            | autoplay [minutes=N (0 = until stop) alternate=false reset=none
+                                              after_roll=attack reset_vx=0.15]: hands-off solo loop
                                             (all take robot=, sim tests scenario=)
     last [n]                                summaries of the last n runs (default 5)
     ballcal [X Y] [--k K] | --show          ball HSV range from the live frame: at pixel X Y, else the most
@@ -60,14 +62,15 @@ HEALTH_RESULTS = {"estop", "estopped", "imu_bad", "mux_lost", "loop_error", "edg
 # lost_tag (camera lost the robot > stale_stop_s; the app already zeroed it) ends a batch only twice in a row.
 LOST_TAG_STREAK = 2
 TEST_KEYS = {"step": {"vx", "vy", "wz", "seconds"}, "deadman": {"vx", "mute_s"}, "goto": {"x", "y", "yaw", "target"},
-             "sim_eval": {"args"}, "push_ball": set(), "goalie": set(), "match": set()}
+             "sim_eval": {"args"}, "push_ball": set(), "goalie": set(), "match": set(),
+             "autoplay": {"minutes", "alternate", "reset", "after_roll", "reset_vx"}}
 COMMON_KEYS = {"robot", "scenario"}
 IMU_KEYS = {"robot", "seconds", "mode", "condition"}
 ALIASES = {"push": "push_ball", "imu": "imu_test"}
 STATUS_WAIT_S = 65.0    # wait this long for an in-flight fcctl status before sending another robot op
 READY_PHASES = {"homed", "standing", "ready"}     # stack running: ready stands/re-arms, never homes
 POLL_S = 0.25
-SEEN_TESTS = {"step", "deadman", "goto", "push_ball", "goalie"}   # wait for a fresh observation before these
+SEEN_TESTS = {"step", "deadman", "goto", "push_ball", "goalie", "autoplay"}   # wait for a fresh observation before these
 SEEN_WAIT_S, SEEN_MAX_AGE_S = 3.0, 0.3
 
 
@@ -220,10 +223,20 @@ def key_line(test: str, s: dict) -> str | None:
         sc = g("score") or {}
         score = " - ".join(f"{k} {v}" for k, v in sc.items()) if isinstance(sc, dict) else num(sc)
         return f"score {score or '-'} touches {num(g('touches'))} goals {short(g('goals'), 60) if g('goals') else '-'}"
+    if test == "autoplay":
+        return (f"goals {num(g('goals'))} own {num(g('own_goals'))} cycles {num(g('cycles'))}"
+                f" time/goal {num(g('time_per_goal_s'), 1)}s reset {num(g('reset_s'), 1)}s"
+                f" interventions {num(g('interventions'))} attack timeouts {num(g('attack_timeouts'))}")
     if test == "sim_eval":
         tail = [x for x in str(g("output_tail") or "").splitlines() if x.strip()][-3:]
         return f"rc {num(g('returncode'))}" + ("".join(f"\n  | {short(x, 150)}" for x in tail))
     return None
+
+
+def autoplay_line(t: dict) -> str:
+    """Running autoplay -> one progress line (printed when it changes)."""
+    return (f"autoplay {t.get('phase')}: goals {num(t.get('goals'))} cycles {num(t.get('cycles'))}"
+            f" interventions {num(t.get('interventions'))}" + (f" | {t['banner']}" if t.get("banner") else ""))
 
 
 def robot_line(rid: str, m: dict) -> str:
@@ -789,8 +802,11 @@ def wait_summary(c: Client, run: str, st: dict | None = None, wait_s: float = 4.
         st = c.state()
 
 
-def test_timeout(name: str, params: dict) -> float:
+def test_timeout(name: str, params: dict, kv: dict | None = None) -> float:
     p = lambda k, d: float(params.get(k, d))  # noqa: E731
+    if name == "autoplay":
+        m = (kv or {}).get("minutes", 10)
+        return float(m) * 60 + 30 if isinstance(m, (int, float)) and m > 0 else float("inf")
     if name in ("push_ball", "goalie", "goto"):
         return p("test_timeout_s", 45) + 15
     if name == "match":
@@ -820,7 +836,8 @@ def cmd_test(c: Client, a) -> None:
     if not a.wait:
         say(f"started {name} -> {run}")
         return
-    end = time.monotonic() + (a.timeout or test_timeout(name, st0.get("params") or {}))
+    end = time.monotonic() + (a.timeout or test_timeout(name, st0.get("params") or {}, kv))
+    last_line = None
     try:
         while True:
             st = c.state()
@@ -830,6 +847,11 @@ def cmd_test(c: Client, a) -> None:
             if time.monotonic() > end:
                 c.post("/action", {"action": "stop"})
                 raise Fail(f"test {name}: no end after {end - time.monotonic():.0f} s; STOP sent")
+            if name == "autoplay":
+                line = autoplay_line(t)
+                if line != last_line:
+                    say(line)
+                    last_line = line
             time.sleep(POLL_S)
     except KeyboardInterrupt:
         c.post("/action", {"action": "stop"})
