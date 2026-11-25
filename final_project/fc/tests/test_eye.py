@@ -239,3 +239,143 @@ def test_synthetic_ignores_a_floor_ball_colour(tmp_path):
     eye = Eye(load_field(), [BLUE], {}, source="synthetic", ball_color_path=path)
     assert eye.ball_color_source.startswith("fieldcam default")
     assert eye.cfg["ball"]["colors"] != ballcal.load(path)
+
+
+# ---- robot tag board blob (tag blurred at speed) ---------------------------------------------------------
+BOARD_BGR = (230, 140, 40)   # bright blue tape (OpenCV BGR): HSV ~ (104, 211, 230)
+BLUE_HSV = [{"lo": [98, 120, 150], "hi": [114, 255, 255]}]
+
+
+def _board_frame(u, v, side=40, angle=20.0, blur=0, extra=()):
+    """Carpet-grey frame with a blue board (white tag square in the middle) centred at (u, v)."""
+    import cv2
+    import numpy as np
+    f = np.full((540, 960, 3), (70, 75, 72), np.uint8)
+    for (cu, cv_, s, a), col in [((u, v, side, angle), BOARD_BGR), ((u, v, side * 0.55, angle), (250, 250, 250))]:
+        box = cv2.boxPoints(((cu, cv_), (s, s), a)).astype(np.int32)
+        cv2.fillConvexPoly(f, box, col)
+    for (eu, ev, r) in extra:
+        cv2.circle(f, (eu, ev), r, BOARD_BGR, -1)
+    if blur:
+        f = cv2.blur(f, (blur, 1))
+    return f
+
+
+@needs_cv2
+def test_find_board_picks_the_board_not_small_or_far_blue_things():
+    import cv2
+    from fc.eye import color_mask, find_board
+    exp = 40 * 40
+    f = _board_frame(400, 300, extra=[(372, 330, 5), (380, 336, 4), (700, 100, 22)])   # display icons, far blob
+    m = color_mask(cv2.cvtColor(f, cv2.COLOR_BGR2HSV), BLUE_HSV)
+    b = find_board(m, (410, 295), exp, 60)
+    assert b is not None and abs(b[0] - 400) < 2 and abs(b[1] - 300) < 2, b
+    assert find_board(m, (650, 120), exp, 30) is None          # the far blob is too small for a board / gated
+    blurred = _board_frame(400, 300, blur=15)                   # ~0.1 m of horizontal motion blur
+    b = find_board(color_mask(cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV), BLUE_HSV), (400, 300), exp, 60)
+    assert b is not None and math.hypot(b[0] - 400, b[1] - 300) < 3, b
+
+
+@needs_cv2
+def test_board_colour_from_the_ring_around_a_tag():
+    import cv2
+    import numpy as np
+    from fc import ballcal
+    from fc.eye import board_ring_pixels
+    f = _board_frame(480, 270, side=60, angle=0)
+    tag = np.array([[464, 254], [496, 254], [496, 286], [464, 286]], np.float32)   # the white square
+    cols = ballcal.hsv_ranges(board_ring_pixels(f, tag))
+    h, s, v = cv2.cvtColor(np.uint8([[BOARD_BGR]]), cv2.COLOR_BGR2HSV)[0, 0]
+    assert len(cols) == 1 and cols[0]["lo"][0] <= h <= cols[0]["hi"][0] and cols[0]["lo"][1] <= s and cols[0]["lo"][2] <= v
+
+
+def test_integrate_cmds_holds_each_command_at_most_the_bridge_ttl():
+    from fc.eye import integrate_cmds
+    cmds = [(0.0, 0.2, 0.0, 1.0), (0.1, 0.2, 0.0, 1.0), (0.2, 0.7, 0.1, -0.5)]   # then silence
+    c = integrate_cmds(cmds, 0.0, 0.2)
+    assert c["turn"] == pytest.approx(0.2) and c["known"] and c["vx_min"] == 0.2
+    c = integrate_cmds(cmds, 0.2, 1.0)        # last command counts for 0.25 s only
+    assert c["turn"] == pytest.approx(-0.125) and not c["known"]
+    assert integrate_cmds([], 0.0, 1.0)["known"] is False
+
+
+def test_heading_carried_by_commands_then_pulled_to_travel():
+    from fc.eye import TURN_GAIN, RobotTrack
+    p = {"eye_turn_lag_s": 0.0, "fast_yaw_bias_deg": 0.0}
+    tr = RobotTrack()
+    tr.on_tag(0.0, 0.0, (0.0, 0.0), [], p)
+    cmds = [(i * 0.033, 0.1, 0.0, 1.0) for i in range(16)]       # slow turn in place, 1 rad/s for ~0.5 s
+    yaw = tr.carry_yaw(0.5, cmds, p)
+    assert yaw == pytest.approx(TURN_GAIN * 0.5, abs=0.03) and tr.conf < 1.0
+    # walking fast and straight, but along 30 deg while the carried heading says 0: travel wins over ~1 s
+    tr = RobotTrack()
+    tr.on_tag(0.0, 0.0, (0.0, 0.0), [], p)
+    a = math.radians(30)
+    cmds = [(i * 0.033, 0.7, 0.0, 0.0) for i in range(40)]
+    for i in range(1, 37):
+        t = i * 0.033
+        tr.fixes.append((t, 0.6 * t * math.cos(a), 0.6 * t * math.sin(a)))
+        yaw = tr.carry_yaw(t, cmds, p)
+    assert abs(math.degrees(yaw) - 30) < 4, math.degrees(yaw)
+    # the fast gait's offset between walking direction and tag heading is learned at decoded tags
+    tr.on_tag(1.2, math.radians(38), (0.6 * 1.2 * math.cos(a), 0.6 * 1.2 * math.sin(a)), cmds, p)
+    assert math.degrees(tr.travel_bias["fast"]) == pytest.approx(-8, abs=2)
+
+
+class _FlatCam:
+    """Straight-down camera: 2 mm per pixel at any height, field origin at pixel (480, 270)."""
+    def pixel_to_plane(self, uv, z):
+        import numpy as np
+        uv = np.asarray(uv, float).reshape(-1, 2)
+        return np.stack([(uv[:, 0] - 480) * 0.002, (270 - uv[:, 1]) * 0.002], axis=1)
+
+
+@needs_cv2
+def test_blob_fix_when_the_tag_blurs_lands_where_the_tag_would():
+    """Tag decoded once (heading reset, board offset learned), then the robot moves 6 cm with the tag
+    unreadable: the board gives a fresh 'blob' observation at the right place; heading carried."""
+    import numpy as np
+    eye = Eye(load_field(), [BLUE], {"eye_board_m": 0.08}, source="synthetic")
+    eye.perc = type("P", (), {"cam": _FlatCam(), "calibration_valid": True})()
+    eye.robot_colors = {"blue": BLUE_HSV}
+    mount = {"tag_height": 0.267, "tag_offset_x": -0.02, "yaw_offset": 0.0, "floor_size": 0.15}
+    tr = eye._tracks["blue"]
+    f = _board_frame(480, 270, side=40, angle=0)
+    tag = np.array([[469, 259], [491, 259], [491, 281], [469, 281]], np.float32)   # TL TR BR BL: nose +y
+    x, y, yaw = Eye.tag_pose(eye.perc.cam.pixel_to_plane(tag, 0.267), mount)
+    eye._track_tag("blue", tr, f, tag, yaw, 10.0, mount, True)
+    assert tr.n_off == 1 and math.hypot(*tr.off) < 0.005
+    f2 = _board_frame(480, 240, side=40, angle=0, blur=9)     # 30 px = 6 cm along +y, blurred
+    obs = eye._track_blob("blue", BLUE.tag, tr, f2, 10.1, mount)
+    assert obs is not None and obs.src == "blob" and obs.t == 10.1 and obs.yaw_t == 10.0
+    assert math.hypot(obs.pose.x - x, obs.pose.y - (y + 0.06)) < 0.006, (obs.pose, x, y)
+    assert obs.pose.yaw == pytest.approx(yaw) and 0 < obs.yaw_conf < 1
+    assert eye._blob_seeds[BLUE.tag][:2] == pytest.approx((480, 240), abs=2)   # the tag crop follows the board
+    # far too long since a decoded tag: no blob fix (a lost track never wanders off on its own)
+    assert eye._track_blob("blue", BLUE.tag, tr, f2, 10.0 + eye.params.get("eye_blob_max_s", 3.0) + 0.5, mount) is None
+    eye.robot_colors = {}
+    assert eye._track_blob("blue", BLUE.tag, tr, f2, 10.2, mount) is None      # unknown colour: no blob tracking
+
+
+@needs_cv2
+def test_robot_colors_file_roundtrip_and_synthetic_ignores_it(tmp_path):
+    from fc.eye import load_robot_colors, save_robot_colors
+    path = tmp_path / "robot_colors.json"
+    assert load_robot_colors(path) == {}
+    save_robot_colors(path, "blue", BLUE_HSV, how="test")
+    save_robot_colors(path, "red", [{"lo": [5, 100, 100], "hi": [15, 255, 255]}])
+    assert load_robot_colors(path)["blue"] == BLUE_HSV and set(load_robot_colors(path)) == {"blue", "red"}
+    assert Eye(load_field(), [BLUE], {}, source="synthetic", robot_colors_path=path).robot_colors == {}
+
+
+def test_world_json_marks_blob_fixes_and_ctl_has_robotcal():
+    from fc.app import world_json
+    from fc.core import Pose, RobotObs, World
+    from fc.ctl import fmt_robotcal
+    w = World(5.0, None, {"blue": RobotObs("blue", Pose(0, 0, 0), 4.9, src="blob", yaw_t=4.0, yaw_conf=0.6),
+                          "red": RobotObs("red", Pose(1, 0, 0), 4.9)})
+    j = world_json(w, 5.0)
+    assert j["robots"]["blue"]["src"] == "blob" and j["robots"]["blue"]["yc"] == 0.6 and "src" not in j["robots"]["red"]
+    lines = fmt_robotcal({"robot": "blue", "colors": BLUE_HSV, "source": "x", "candidates": 2,
+                          "fixes": {"tag": 3, "blob": 9, "miss": 0, "old": 0, "yaw_conf": 0.5, "off_cm": [0, 0]}})
+    assert any("want exactly 1" in ln for ln in lines)

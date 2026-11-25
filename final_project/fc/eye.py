@@ -20,6 +20,10 @@ hot path: ~1 s per call on carpet texture (1000+ candidate quads), which was the
 The annotated /frame.jpg is only drawn while someone is fetching it. Per-stage timings are
 in status()["stage_ms"]; `python -m fc.tools.eye_bench VIDEO` measures them offline.
 
+Robot board blob (2026-11-25): when the robot tag is not decoded (motion blur in the fast gait), its
+coloured tag board is tracked instead (RobotObs.src "blob", heading carried; see BLOB_* below).
+`python -m fc.tools.robot_track_replay RUN` measures coverage and errors on a recorded run.
+
 Sources: a live camera name/index ("phone"), a video file, a folder of images, or
 "synthetic" (fieldcam's renderer with moving robots; truth kept for checking).
 
@@ -28,6 +32,7 @@ Sources: a live camera name/index ("phone"), a video file, a folder of images, o
 from __future__ import annotations
 
 import collections
+import json
 import math
 import sys
 import threading
@@ -57,6 +62,235 @@ DEEP_AFTER_S = 3.0       # a robot unseen this long gets the slow 2x whole-frame
 DEEP_PERIOD_S = 3.0      # ...at most this often (background)
 BALL_GLOBAL_EVERY = 15   # frames between whole-field ball checks while tracking it
 JPEG_WANTED_S = 3.0      # draw /frame.jpg only while it was fetched this recently
+
+# Robot board blob (Nov 25). In the fast gait the robot tag decoded in ~6% of frames (motion blur), so the
+# brain ran on a 1 s old pose and stale-stopped. The tag sits on a board wrapped in coloured tape, and a
+# colour blob survives blur. When the tag is not decoded, the board is looked for near where the robot was;
+# its centre gives the position (same parallax model as the tag, at the tag height) and the heading is
+# carried from the last decoded tag by the commands sent (x measured turn gain) and, when walking fast and
+# straight, pulled toward the direction of travel. Params (live dict, defaults here):
+#   eye_blob 1/0, eye_blob_max_s (blob-only tracking this long after the last decoded tag), eye_board_m,
+#   eye_turn_gain / eye_turn_lag_s (heading change = gain x commanded wz, lag relative to capture time;
+#   Nov 25 runs: 0.95 / 0.05 s fit 3042 tag pairs to 6 deg rms), eye_travel_tau_s (0 = no travel pull).
+ROBOT_COLORS_PATH = CONFIG / "robot_colors.json"
+BLOB_MAX_S = 3.0          # blob-only tracking this long after the last decoded tag
+BLOB_GATE_M = 0.08        # blob centre within this of the predicted spot...
+BLOB_SPEED = 1.2          # ...grown by this (m/s) per second since the last fix...
+BLOB_GATE_MAX_M = 0.45    # ...up to this
+BOARD_M = 0.14            # side of the visible coloured board (13 x 15 cm on blue)
+BLOB_AREA = (0.35, 2.8)   # blob hull area / expected board area (blur stretches it, a broken ring shrinks it)
+BLOB_ASPECT = 2.6         # longest / shortest side of the blob's rotated rectangle
+CMD_HOLD_S = 0.25         # a command counts this long without a newer one (the bridge's ttl_s)
+TURN_GAIN, TURN_LAG_S = 0.95, 0.05
+TRAVEL_TAU_S = 0.3        # heading pulled toward the travel direction with this time constant
+TRAVEL_WIN_S = 0.3        # travel direction = line fit through the fixes of this window
+YAW_CONF_TAU_S = 2.0      # heading confidence decays with this time constant without a decoded tag
+
+
+def load_robot_colors(path: Path | None = ROBOT_COLORS_PATH) -> dict[str, list[dict]]:
+    """{robot id: [{lo, hi}, ...]} from robot_colors.json ({} if missing / unreadable). A robot with no
+    entry gets no blob tracking (its board colour is unknown)."""
+    try:
+        data = json.loads(Path(path).read_text())
+    except (OSError, ValueError, TypeError):
+        return {}
+    out = {}
+    for rid, v in (data.items() if isinstance(data, dict) else []):
+        try:
+            cols = [{"lo": [int(x) for x in c["lo"]], "hi": [int(x) for x in c["hi"]]} for c in v["colors"]]
+        except (KeyError, TypeError, ValueError):
+            continue
+        if cols and all(len(c["lo"]) == 3 and len(c["hi"]) == 3 for c in cols):
+            out[rid] = cols
+    return out
+
+
+def save_robot_colors(path: Path, rid: str, colors: list[dict], **meta) -> None:
+    """Set one robot's entry in robot_colors.json, keeping the others."""
+    try:
+        data = json.loads(Path(path).read_text())
+        data = data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        data = {}
+    data[rid] = {"colors": colors, **meta}
+    Path(path).write_text(json.dumps(data, indent=1) + "\n")
+
+
+def board_ring_pixels(bgr, corners, inner: float = 1.15, outer: float = 1.6, s_min: int = 70):
+    """HSV pixels of the board around a decoded tag: between the tag outline grown by `inner` and by
+    `outer` (the blue area is ~1.8x the 7.6 cm tag), keeping saturated ones (not carpet, tag or legs)."""
+    cv2, np = _fieldcam()
+    c = np.asarray(corners, np.float32).reshape(4, 2)
+    ctr = c.mean(axis=0)
+    h, w = bgr.shape[:2]
+    big = (c - ctr) * outer + ctr
+    x0, y0 = (max(0, int(v) - 2) for v in big.min(axis=0))
+    x1, y1 = (int(v) + 3 for v in big.max(axis=0))
+    x1, y1 = min(w, x1), min(h, y1)
+    if x1 - x0 < 4 or y1 - y0 < 4:
+        raise ValueError("tag outside the frame")
+    m = np.zeros((y1 - y0, x1 - x0), np.uint8)
+    off = np.array([x0, y0], np.float32)
+    cv2.fillConvexPoly(m, np.round(big - off).astype(np.int32), 255)
+    cv2.fillConvexPoly(m, np.round((c - ctr) * inner + ctr - off).astype(np.int32), 0)
+    hsv = cv2.cvtColor(bgr[y0:y1, x0:x1], cv2.COLOR_BGR2HSV)
+    px = hsv[m > 0]
+    return px[px[:, 1] >= s_min]
+
+
+def color_mask(hsv, colors: list[dict]):
+    cv2, np = _fieldcam()
+    m = None
+    for c in colors:
+        k = cv2.inRange(hsv, np.array(c["lo"], np.uint8), np.array(c["hi"], np.uint8))
+        m = k if m is None else m | k
+    return m
+
+
+def find_board(mask, pred, exp_area: float, gate_px: float, offset=(0, 0)):
+    """The board blob in a colour mask: (u, v, hull area, score) in full-frame pixels, or None.
+    Candidates: outer contours whose convex hull (fills the tag hole and a ring broken by blur) has
+    BLOB_AREA x exp_area and aspect <= BLOB_ASPECT, centre within gate_px of `pred`. Best = nearest
+    to `pred` and closest to the expected size."""
+    cv2, np = _fieldcam()
+    best = None
+    for c in cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]:
+        if cv2.contourArea(c) < 0.12 * exp_area:
+            continue
+        hull = cv2.convexHull(c)
+        a = cv2.contourArea(hull)
+        if not BLOB_AREA[0] * exp_area <= a <= BLOB_AREA[1] * exp_area:
+            continue
+        (_, _), (rw, rh), _ = cv2.minAreaRect(hull)
+        if max(rw, rh) > BLOB_ASPECT * max(min(rw, rh), 1.0):
+            continue
+        m = cv2.moments(hull)
+        u, v = m["m10"] / m["m00"] + offset[0], m["m01"] / m["m00"] + offset[1]
+        d = math.hypot(u - pred[0], v - pred[1])
+        if d > gate_px:
+            continue
+        score = d / max(gate_px, 1.0) + abs(math.log(a / exp_area))
+        if best is None or score < best[3]:
+            best = (u, v, a, score)
+    return best
+
+
+def integrate_cmds(cmds, a: float, b: float, hold: float = CMD_HOLD_S) -> dict:
+    """Commanded motion over [a, b] from (t, vx, vy, wz) records sorted by t (zero-order hold, each for at
+    most `hold` s: the bridge stops a robot that hears nothing). turn = integral of wz (rad); vx_min, vx,
+    vy (time means), wz_max = max |wz|; known = the window is covered by commands."""
+    turn = vx_s = vy_s = cover = 0.0
+    vx_min, wz_max = math.inf, 0.0
+    for i, (t, vx, vy, wz) in enumerate(cmds):
+        t_end = min(t + hold, cmds[i + 1][0] if i + 1 < len(cmds) else t + hold)
+        lo, hi = max(a, t), min(b, t_end)
+        if hi <= lo:
+            continue
+        d = hi - lo
+        turn, vx_s, vy_s, cover = turn + wz * d, vx_s + vx * d, vy_s + vy * d, cover + d
+        vx_min, wz_max = min(vx_min, vx), max(wz_max, abs(wz))
+    span = max(b - a, 1e-9)
+    return {"turn": turn, "vx_min": vx_min if cover else 0.0, "vx": vx_s / span, "vy": vy_s / span,
+            "wz_max": wz_max, "known": cover >= 0.8 * span}
+
+
+class RobotTrack:
+    """One robot between decoded tags (hot thread only): last fix, learned board geometry, heading."""
+
+    def __init__(self):
+        self.t_tag: float | None = None      # capture time of the last decoded tag
+        self.px: tuple | None = None         # (u, v, t) board / tag centre pixel of the last fix
+        self.vpx = (0.0, 0.0)                # pixel velocity (px/s)
+        self.off = (0.0, 0.0)                # tag centre - board centre, body frame (m), learned
+        self.n_off = 0
+        self.area_k = 1.0                    # board hull area / expected (learned while the tag is seen)
+        self.yaw: float | None = None        # heading in tag convention (what Eye.tag_pose returns)
+        self.t_yaw = 0.0
+        self.conf = 0.0
+        self.travel_bias: dict[str, float] = {}  # walking dir - tag yaw per speed class, learned
+        self.fixes: collections.deque = collections.deque(maxlen=40)   # (t, x, y) tag centre (m)
+        self.n = {"tag": 0, "blob": 0, "miss": 0, "old": 0}
+        self.last: dict = {}                 # what the last carry_yaw did (debug / replay)
+
+    def note_px(self, u: float, v: float, t: float) -> None:
+        if self.px is not None and 0.0 < t - self.px[2] < 0.3:
+            dt = t - self.px[2]
+            k = 0.5
+            self.vpx = (k * (u - self.px[0]) / dt + (1 - k) * self.vpx[0], k * (v - self.px[1]) / dt + (1 - k) * self.vpx[1])
+        elif self.px is None or t - self.px[2] >= 0.3:
+            self.vpx = (0.0, 0.0)
+        self.px = (u, v, t)
+
+    def predict_px(self, t: float) -> tuple[float, float]:
+        dt = min(max(0.0, t - self.px[2]), 0.3)
+        return self.px[0] + self.vpx[0] * dt, self.px[1] + self.vpx[1] * dt
+
+    def travel(self, t: float, window: float = TRAVEL_WIN_S) -> tuple[float, float] | None:
+        """(direction rad, speed m/s) of the tag centre over the last `window` s: least-squares line through
+        >= 4 fixes spanning >= 60 % of the window. None if fewer fixes or slower than 0.15 m/s."""
+        pts = [f for f in self.fixes if t - window - 1e-6 <= f[0] <= t]
+        if len(pts) < 4 or pts[-1][0] - pts[0][0] < 0.6 * window:
+            return None
+        n = len(pts)
+        tm = sum(f[0] for f in pts) / n
+        xm, ym = sum(f[1] for f in pts) / n, sum(f[2] for f in pts) / n
+        stt = sum((f[0] - tm) ** 2 for f in pts)
+        vx = sum((f[0] - tm) * (f[1] - xm) for f in pts) / stt
+        vy = sum((f[0] - tm) * (f[2] - ym) for f in pts) / stt
+        v = math.hypot(vx, vy)
+        return (math.atan2(vy, vx), v) if v >= 0.15 else None
+
+    def walking(self, t: float, cmds, p: dict) -> tuple[float, str] | None:
+        """Heading implied by the travel direction (tag convention, before the bias) and the speed class,
+        while walking forward (commanded vx >= 0.3 over the window): travel - commanded direction + half the
+        commanded turn over the window (a chord points at the heading of its middle)."""
+        lag = float(p.get("eye_turn_lag_s", TURN_LAG_S))
+        c = integrate_cmds(cmds, t - TRAVEL_WIN_S - lag, t - lag)
+        tr = self.travel(t)
+        if tr is None or not c["known"] or c["vx_min"] < 0.3:
+            return None
+        half = 0.5 * float(p.get("eye_turn_gain", TURN_GAIN)) * c["turn"]
+        cls = "fast" if c["vx"] > float(p.get("fast_yaw_vx", 0.5)) else "slow"
+        return wrap(tr[0] - math.atan2(c["vy"], c["vx"]) + half), cls
+
+    def _bias(self, cls: str, p: dict) -> float:
+        """walking direction - tag heading for this speed class: learned at decoded tags, else the brain's
+        convention (walking direction = tag heading + fast_yaw_bias above fast_yaw_vx)."""
+        b = self.travel_bias.get(cls)
+        if b is not None:
+            return b
+        return math.radians(float(p.get("fast_yaw_bias_deg", 0.0))) if cls == "fast" else 0.0
+
+    def on_tag(self, t: float, yaw: float, ctr: tuple, cmds, p: dict) -> None:
+        self.fixes.append((t, ctr[0], ctr[1]))
+        wk = self.walking(t, cmds, p)
+        if wk is not None:   # learn how the gait walks off its tag heading (per speed class)
+            s, cls = wrap(wk[0] - yaw), wk[1]
+            old = self.travel_bias.get(cls)
+            self.travel_bias[cls] = s if old is None else wrap(old + 0.15 * wrap(s - old))
+        self.t_tag, self.yaw, self.t_yaw, self.conf = t, yaw, t, 1.0
+        self.n["tag"] += 1
+
+    def carry_yaw(self, t: float, cmds, p: dict) -> float:
+        """Heading at t without a decoded tag: + gain x commanded turn since the last update (good when slow:
+        6 deg rms; in the fast gait the turn rate departs from the command), then pulled toward the heading
+        implied by the travel direction while walking forward (time constant eye_travel_tau_s)."""
+        lag = float(p.get("eye_turn_lag_s", TURN_LAG_S))
+        dt = max(0.0, t - self.t_yaw)
+        c = integrate_cmds(cmds, self.t_yaw - lag, t - lag)
+        turn = float(p.get("eye_turn_gain", TURN_GAIN)) * c["turn"]
+        self.yaw = wrap(self.yaw + turn)
+        self.conf = max(0.0, self.conf * math.exp(-dt / YAW_CONF_TAU_S) - 0.15 * abs(turn))
+        tau = float(p.get("eye_travel_tau_s", TRAVEL_TAU_S))
+        self.last = {"turn": turn, "travel": None, "cmd_known": c["known"]}
+        wk = self.walking(t, cmds, p) if tau > 0 else None
+        if wk is not None:
+            target = wrap(wk[0] - self._bias(wk[1], p))
+            self.last["travel"] = target
+            self.yaw = wrap(self.yaw + (1 - math.exp(-dt / tau)) * wrap(target - self.yaw))
+            self.conf = max(self.conf, 0.5)
+        self.t_yaw = t
+        return self.yaw
 
 
 def _fieldcam():
@@ -189,7 +423,8 @@ class SyntheticSource:
 # ---------------------------------------------------------------------------------------
 class Eye:
     def __init__(self, field: Field, robots: list[RobotCfg], params: dict, source="phone",
-                 width: int = 1920, height: int = 1080, ball_color_path: Path | None = CONFIG / "ball_color.json"):
+                 width: int = 1920, height: int = 1080, ball_color_path: Path | None = CONFIG / "ball_color.json",
+                 robot_colors_path: Path | None = ROBOT_COLORS_PATH):
         cv2, np = _fieldcam()
         from fieldcam.config import load_config, set_field_size
         self.cv2, self.np = cv2, np
@@ -254,6 +489,15 @@ class Eye:
         self._frame, self._frame_n = None, 0          # latest raw frame (recorder, Play view)
         self._view: tuple | None = None              # (frame_n, width, jpeg) cache for view_jpeg
         self._overlay: tuple | None = None           # (cam id, tag height, homographies) cache
+        # robot board blobs (see BLOB_* above): colours per robot (none on the synthetic renderer, which
+        # draws no board), per-robot tracks, commands sent (app thread -> note_cmds) for the heading
+        self.robot_colors = load_robot_colors(robot_colors_path) if robot_colors_path and not self.synthetic else {}
+        self.robot_colors_source = {rid: str(robot_colors_path) for rid in self.robot_colors}
+        self._tracks: dict[str, RobotTrack] = {r.id: RobotTrack() for r in robots}
+        self._cmd_lock = threading.Lock()
+        self._cmds: dict[str, collections.deque] = {r.id: collections.deque(maxlen=300) for r in robots}
+        self._blob_seeds: dict[int, tuple[float, float, float]] = {}   # tag id -> (u, v, t) board seen
+        self._cal_lock = threading.Lock()
 
     # ---- setup -------------------------------------------------------------------
     def mount(self) -> dict:
@@ -324,6 +568,7 @@ class Eye:
         self._roi_det = (standard(), relaxed())               # hot thread only
         self._scan_det = TagDetector(self.perc.tag_det.expected)   # scan thread only
         self._deep_det = (standard(0.01), relaxed(0.02))           # scan thread only (Tej's sizes)
+        self._cal_det = (standard(0.01), relaxed(0.02))            # robotcal (app thread, under _cal_lock)
         self.perc.tag_det.detect = self._detect_tags
         self._ball_full = self.perc.ball_det.detect
         self.perc.ball_det.detect = self._detect_ball
@@ -372,6 +617,9 @@ class Eye:
                 with self._seed_lock:
                     tags, self._scan_floor = dict(self._scan_floor), {}
                     seeds = dict(self._seeds)
+                    for tid, b in self._blob_seeds.items():   # the board seen more recently: look there
+                        if tid not in seeds or b[2] > seeds[tid][2]:
+                            seeds[tid] = b
                 for tid in self._robot_tags:
                     s = seeds.get(tid)
                     if s is None or t - s[2] > SEED_KEEP_S:
@@ -395,7 +643,6 @@ class Eye:
         """Background: full-frame tag detection on the newest frame ~4x a second (floor tags for
         the drift check; robots that the crops lost), and the slow 2x whole-frame search for a
         robot not seen for a while. OpenCV releases the GIL, so this runs beside the hot thread."""
-        cv2 = self.cv2
         last_n, next_deep = -1, 0.0
         while not self._stop:
             with self._scan_cv:
@@ -409,27 +656,35 @@ class Eye:
                 time.sleep(0.1)
                 continue
             t0 = time.perf_counter()
-            try:
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                tags = self._scan_det.detect(gray)
-                with self._seed_lock:
-                    seen = {tid: s[2] for tid, s in self._seeds.items()}
-                lost = {tid for tid in self._robot_tags - tags.keys() if t_recv - seen.get(tid, -1e9) > DEEP_AFTER_S}
-                now = time.monotonic()
-                if lost and now >= next_deep:
-                    next_deep = now + DEEP_PERIOD_S
-                    t1 = time.perf_counter()
-                    h, w = gray.shape
-                    tags.update(self._look(gray, (w / 2, h / 2), max(w, h), lost, self._deep_det, scales=(2,)))
-                    self._scan_ms("deep", t1)
-                floor = {k: v for k, v in tags.items() if k not in self._robot_tags}
-                with self._seed_lock:
-                    self._scan_floor = floor
-                self._note_seeds(tags, t_recv)
-            except Exception as e:  # noqa: BLE001 - the scan must never stop perception
-                self.message = f"scan error: {type(e).__name__}: {e}"
-            self._scan_ms("scan", t0)
+            next_deep = self.scan_once(frame, t_recv, next_deep)
             time.sleep(max(0.0, SCAN_PERIOD_S - (time.perf_counter() - t0)))
+
+    def scan_once(self, frame, t_recv: float, next_deep: float = 0.0, now: float | None = None) -> float:
+        """One background scan of `frame` (also called inline by the offline replay). Returns when the
+        next deep search may run."""
+        cv2 = self.cv2
+        t0 = time.perf_counter()
+        try:
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            tags = self._scan_det.detect(gray)
+            with self._seed_lock:
+                seen = {tid: s[2] for tid, s in self._seeds.items()}
+            lost = {tid for tid in self._robot_tags - tags.keys() if t_recv - seen.get(tid, -1e9) > DEEP_AFTER_S}
+            now = time.monotonic() if now is None else now
+            if lost and now >= next_deep:
+                next_deep = now + DEEP_PERIOD_S
+                t1 = time.perf_counter()
+                h, w = gray.shape
+                tags.update(self._look(gray, (w / 2, h / 2), max(w, h), lost, self._deep_det, scales=(2,)))
+                self._scan_ms("deep", t1)
+            floor = {k: v for k, v in tags.items() if k not in self._robot_tags}
+            with self._seed_lock:
+                self._scan_floor = floor
+            self._note_seeds(tags, t_recv)
+        except Exception as e:  # noqa: BLE001 - the scan must never stop perception
+            self.message = f"scan error: {type(e).__name__}: {e}"
+        self._scan_ms("scan", t0)
+        return next_deep
 
     def _scan_ms(self, stage: str, t0: float) -> None:
         ms = (time.perf_counter() - t0) * 1000
@@ -573,12 +828,21 @@ class Eye:
                 self.message = f"calibration lost: {perc.calibration_reason}"
             return None
         cam, tags = perc.cam, perc.debug.get("tags", {})
+        blob_on = bool(self.params.get("eye_blob", 1))
+        t0 = time.perf_counter()
         for rid, rc in perc.cfg["robots"].items():
             tag = tags.get(rc["tag_id"])
-            if tag is None:
-                continue
-            x, y, yaw = self.tag_pose(cam.pixel_to_plane(tag, mount["tag_height"]), mount)
-            self._last[rid] = RobotObs(rid, Pose(x, y, yaw), t_cap)
+            tr = self._tracks.get(rid)
+            if tag is not None:
+                x, y, yaw = self.tag_pose(cam.pixel_to_plane(tag, mount["tag_height"]), mount)
+                self._last[rid] = RobotObs(rid, Pose(x, y, yaw), t_cap)
+                if tr is not None:
+                    self._track_tag(rid, tr, frame, tag, yaw, t_cap, mount, blob_on)
+            elif tr is not None and blob_on:
+                obs = self._track_blob(rid, rc["tag_id"], tr, frame, t_cap, mount)
+                if obs is not None:
+                    self._last[rid] = obs
+        self._add("blob", t0)
         robots = {k: v for k, v in self._last.items() if t_cap - v.t < KEEP_ROBOT_S}
         ball = None
         px = perc.debug.get("ball_px")
@@ -591,6 +855,104 @@ class Eye:
         if self._ball is not None and t_cap - self._ball.t < KEEP_ROBOT_S:
             ball = self._ball
         return World(now, ball, robots)
+
+    # ---- robot board blob (between decoded tags) ------------------------------------------
+    def note_cmds(self, t: float, cmds: dict) -> None:
+        """Commands sent at monotonic time t ({robot id: Cmd or (vx, vy, wz, ...)}), for the heading
+        between decoded tags. Called by the app every control tick (any thread)."""
+        with self._cmd_lock:
+            for rid, c in cmds.items():
+                q = self._cmds.get(rid)
+                if q is not None:
+                    q.append((t, *((c.vx, c.vy, c.wz) if hasattr(c, "vx") else tuple(c[:3]))))
+
+    def _cmd_list(self, rid: str) -> list:
+        with self._cmd_lock:
+            return list(self._cmds.get(rid, ()))
+
+    def _board_px(self, cam, uv, h: float) -> tuple[float, float]:
+        """(expected board area px^2, board side px) at pixel uv for a board at height h."""
+        np = self.np
+        d = 8.0
+        q = cam.pixel_to_plane(np.array([uv, (uv[0] + d, uv[1]), (uv[0], uv[1] + d)], float), h)
+        a, b = q[1] - q[0], q[2] - q[0]
+        m2 = abs(float(a[0] * b[1] - a[1] * b[0])) / (d * d)   # floor m^2 per pixel
+        bm = float(self.params.get("eye_board_m", BOARD_M))
+        area = bm * bm / max(m2, 1e-12)
+        return area, math.sqrt(area)
+
+    def _board_in(self, frame, colors, pred, exp_area: float, gate_px: float):
+        cv2 = self.cv2
+        side = math.sqrt(exp_area)
+        half = gate_px + 0.9 * side
+        h, w = frame.shape[:2]
+        x0, y0 = max(0, int(pred[0] - half)), max(0, int(pred[1] - half))
+        x1, y1 = min(w, int(pred[0] + half) + 1), min(h, int(pred[1] + half) + 1)
+        if x1 - x0 < 8 or y1 - y0 < 8:
+            return None
+        m = color_mask(cv2.cvtColor(frame[y0:y1, x0:x1], cv2.COLOR_BGR2HSV), colors)
+        k = max(3, int(side * 0.1) | 1)
+        m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
+        return find_board(m, pred, exp_area, gate_px, (x0, y0))
+
+    def _track_tag(self, rid, tr: RobotTrack, frame, tag, yaw, t, mount, blob_on) -> None:
+        """Decoded tag: reset the heading; learn where the board centre sits relative to the tag and how
+        big it looks, so blob-only fixes land where the tag would have."""
+        h = mount["tag_height"]
+        cam = self.perc.cam
+        c = tag.mean(axis=0)
+        ctr = cam.pixel_to_plane([c], h)[0]
+        tr.on_tag(t, yaw, (float(ctr[0]), float(ctr[1])), self._cmd_list(rid), self.params)
+        colors = self.robot_colors.get(rid)
+        b = None
+        if blob_on and colors:
+            exp, side = self._board_px(cam, c, h)
+            b = self._board_in(frame, colors, c, exp * tr.area_k, 0.5 * side)
+            if b is not None:
+                bxy = cam.pixel_to_plane([b[:2]], h)[0]
+                dx, dy = float(ctr[0] - bxy[0]), float(ctr[1] - bxy[1])
+                cs, sn = math.cos(yaw), math.sin(yaw)
+                ob = (cs * dx + sn * dy, -sn * dx + cs * dy)   # into the body (tag heading) frame
+                if math.hypot(*ob) < 0.06:
+                    k = max(0.1, 1.0 / (tr.n_off + 1))
+                    tr.off = (tr.off[0] + k * (ob[0] - tr.off[0]), tr.off[1] + k * (ob[1] - tr.off[1]))
+                    tr.n_off += 1
+                    tr.area_k = min(2.0, max(0.5, tr.area_k + 0.1 * (b[2] / exp - tr.area_k)))
+        tr.note_px(*((b[0], b[1]) if b is not None else (float(c[0]), float(c[1]))), t)
+
+    def _track_blob(self, rid, tid, tr: RobotTrack, frame, t, mount) -> RobotObs | None:
+        """No decoded tag: the board near where the robot was -> position (heading carried)."""
+        colors = self.robot_colors.get(rid)
+        p = self.params
+        if not colors or tr.t_tag is None or tr.px is None or tr.yaw is None:
+            return None
+        if t - tr.t_tag > float(p.get("eye_blob_max_s", BLOB_MAX_S)):
+            tr.n["old"] += 1
+            return None
+        cam, h = self.perc.cam, mount["tag_height"]
+        pred = tr.predict_px(t)
+        exp, side = self._board_px(cam, pred, h)
+        gate_m = min(BLOB_GATE_M + BLOB_SPEED * (t - tr.px[2]), BLOB_GATE_MAX_M)
+        b = self._board_in(frame, colors, pred, exp * tr.area_k, gate_m * side / float(p.get("eye_board_m", BOARD_M)))
+        if b is None:
+            tr.n["miss"] += 1
+            return None
+        bx, by = (float(v) for v in cam.pixel_to_plane([b[:2]], h)[0])
+
+        def tag_ctr(yaw):
+            cs, sn = math.cos(yaw), math.sin(yaw)
+            return bx + cs * tr.off[0] - sn * tr.off[1], by + sn * tr.off[0] + cs * tr.off[1]
+        tr.fixes.append((t, *tag_ctr(tr.yaw)))
+        yaw = tr.carry_yaw(t, self._cmd_list(rid), p)
+        cx, cy = tag_ctr(yaw)
+        tr.fixes[-1] = (t, cx, cy)
+        ox = mount["tag_offset_x"]
+        tr.note_px(b[0], b[1], t)
+        tr.n["blob"] += 1
+        with self._seed_lock:
+            self._blob_seeds[tid] = (b[0], b[1], self._t_frame)
+        return RobotObs(rid, Pose(cx - math.cos(yaw) * ox, cy - math.sin(yaw) * ox, yaw), t,
+                        src="blob", yaw_t=tr.t_tag, yaw_conf=round(tr.conf, 3))
 
     @staticmethod
     def tag_pose(c, mount: dict) -> tuple[float, float, float]:
@@ -770,7 +1132,19 @@ class Eye:
                 "ball_age": round(now - w.ball.t, 3) if w and w.ball else None,
                 "paused": self.paused or (self.src is not None and now - self._t_new > FROZEN_S), "picture_age": round(now - self._t_new, 2), "pauses": self.pauses,
                 "ball_vel": {"resets": self.ball_vel.resets, "outliers": self.ball_vel.outliers},
+                "robots_src": {k: v.src for k, v in (w.robots.items() if w else [])},
+                "blob": self.blob_status(),
                 "stage_ms": dict(self.stage_ms)}
+
+    def blob_status(self) -> dict:
+        """Per robot: board colour known, fixes by source (tag / blob / board missed / too long since a
+        tag), heading confidence and age, learned board offset (cm) and size factor."""
+        out = {}
+        for rid, tr in self._tracks.items():
+            out[rid] = {"colors": rid in self.robot_colors, **tr.n, "yaw_conf": round(tr.conf, 2),
+                        "off_cm": [round(v * 100, 1) for v in tr.off], "area_k": round(tr.area_k, 2),
+                        "travel_bias_deg": {k: round(math.degrees(v), 1) for k, v in tr.travel_bias.items()}}
+        return out
 
     def ball_track(self, since: float = -math.inf) -> list[tuple[float, float, float]]:
         """Raw ball sightings (t_capture, x, y) newer than `since` (for ctl rollcal)."""
@@ -836,6 +1210,63 @@ class Eye:
         out = self.ball_show()
         out.update({"how": how, "u": round(float(u), 1), "v": round(float(v), 1), "r_px": round(r_px, 1),
                     "n_pixels": int(len(px)), "frame": [int(frame.shape[1]), int(frame.shape[0])]})
+        return out
+
+    def robot_show(self, rid: str) -> dict:
+        """A robot's board colour and how many board-sized blobs of it the field shows (want 1)."""
+        if rid not in self._tracks:
+            raise ValueError(f"unknown robot {rid!r} (configured: {sorted(self._tracks)})")
+        out = {"robot": rid, "colors": self.robot_colors.get(rid), "source": self.robot_colors_source.get(rid),
+               "candidates": None, "fixes": self.blob_status()[rid]}
+        if out["colors"] and self.perc is not None and self.perc.calibration_valid:
+            frame, roi = self._cal_frame()
+            out["candidates"] = self._board_candidates(frame, roi, out["colors"])
+        return out
+
+    def _board_candidates(self, frame, roi, colors) -> int:
+        cv2 = self.cv2
+        m = color_mask(cv2.cvtColor(frame, cv2.COLOR_BGR2HSV), colors)
+        if roi is not None:
+            m &= roi
+        m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
+        cam, h, n = self.perc.cam, self.mount()["tag_height"], 0
+        for c in cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]:
+            hull = cv2.convexHull(c)
+            a = cv2.contourArea(hull)
+            if a < 20:
+                continue
+            mm = cv2.moments(hull)
+            exp, _ = self._board_px(cam, (mm["m10"] / mm["m00"], mm["m01"] / mm["m00"]), h)
+            n += BLOB_AREA[0] * exp <= a <= BLOB_AREA[1] * exp
+        return n
+
+    def robot_calibrate(self, rid: str, k: float = ballcal.K_MAD) -> dict:
+        """Board colour of robot `rid` from the live frame: find its tag (crop around where it was, else the
+        whole frame), sample the board ring around it, compute HSV ranges and apply them live. The caller
+        saves them (save_robot_colors)."""
+        rc = self.cfg["robots"].get(rid)
+        if rc is None:
+            raise ValueError(f"unknown robot {rid!r} (configured: {sorted(self.cfg['robots'])})")
+        frame, _ = self._cal_frame()
+        gray = self.cv2.cvtColor(frame, self.cv2.COLOR_BGR2GRAY)
+        tid = rc["tag_id"]
+        with self._seed_lock:
+            seed = self._seeds.get(tid)
+        with self._cal_lock:
+            tags = self._look(gray, seed[:2], 260 * self._px, {tid}, self._cal_det) if seed else {}
+            if tid not in tags:
+                h, w = gray.shape
+                tags = self._look(gray, (w / 2, h / 2), max(w, h), {tid}, self._cal_det, scales=(1, 2))
+        if tid not in tags:
+            raise ValueError(f"tag {tid} of robot {rid} not found in the current frame (robot still, in view?)")
+        px = board_ring_pixels(frame, tags[tid])
+        colors = ballcal.hsv_ranges(px, k)
+        self.robot_colors[rid] = colors
+        self.robot_colors_source[rid] = "robotcal (live)"
+        c = tags[tid].mean(axis=0)
+        out = self.robot_show(rid)
+        out.update({"tag": tid, "u": round(float(c[0]), 1), "v": round(float(c[1]), 1), "n_pixels": int(len(px)),
+                    "frame": [int(frame.shape[1]), int(frame.shape[0])]})
         return out
 
     def close(self) -> None:

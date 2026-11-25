@@ -35,7 +35,11 @@ class Ball:
 class RobotObs:
     id: str
     pose: Pose
-    t: float  # capture time
+    t: float  # capture time of the position
+    # Optional (Nov 25, eye blob tracking): how the position was measured and how old the heading is.
+    src: str = "tag"            # "tag" (decoded) | "blob" (coloured tag board, heading carried) | "sim"
+    yaw_t: float | None = None  # capture time of the last decoded-tag heading (None = same as t)
+    yaw_conf: float = 1.0       # 1 = decoded tag this frame; lower = heading carried by commands / travel
 
 
 @dataclass(frozen=True)

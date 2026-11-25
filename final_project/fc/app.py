@@ -210,6 +210,9 @@ def world_json(w: World | None, now: float) -> dict | None:
     if w.ball is not None:
         ball = {"x": w.ball.x, "y": w.ball.y, "vx": w.ball.vx, "vy": w.ball.vy, "age": now - w.ball.t}
     robots = {rid: {"x": r.pose.x, "y": r.pose.y, "yaw": r.pose.yaw, "age": now - r.t} for rid, r in w.robots.items()}
+    for rid, r in w.robots.items():   # eye board fix (tag blurred): say so, with the heading confidence
+        if getattr(r, "src", "tag") not in ("tag", "sim"):
+            robots[rid].update(src=r.src, yc=r.yaw_conf)
     return {"t": w.t, "ball": ball, "robots": robots}
 
 
@@ -713,6 +716,8 @@ class App:
                     self._brain(r.id).sent(cmd)   # next brain ramp starts from what really went out
                 self.prev[r.id] = cmd
                 cmds[r.id], debug[r.id] = cmd, dbg
+            if self.eye is not None and cmds:
+                self.eye.note_cmds(now, cmds)   # heading between decoded tags (eye board tracking)
             acks = self.link.drain_acks() if (self.link and self.run) else []
             if self.metrics:
                 self.metrics.tick(now, world, {k: (c.vx, c.vy, c.wz, c.tag) for k, c in cmds.items()},
@@ -986,6 +991,29 @@ class App:
             res["saved"] = str(self.ball_color_path)
             self.say(f"ball colour calibrated ({res['how']} at {res['u']:.0f},{res['v']:.0f}): {res['colors']}"
                      f", {res['candidates']} candidate(s)")
+            return {"ok": True, **res}
+        except (ValueError, TypeError) as e:
+            return {"ok": False, "error": str(e)}
+
+    def robotcal(self, body: dict) -> dict:
+        """Robot tag-board colour (eye blob tracking) from the live frame. body: {robot, k?} calibrate
+        (robot still and its tag in view), {robot, show: true} report only. Saved to robot_colors.json."""
+        if self.eye is None:
+            return {"ok": False, "error": "no camera (sim source)"}
+        try:
+            rid = str(body.get("robot") or "")
+            if body.get("show"):
+                return {"ok": True, **self.eye.robot_show(rid)}
+            k = float(body.get("k", 3.0))
+            res = self.eye.robot_calibrate(rid, k)
+            if getattr(self.eye, "synthetic", False):
+                return {"ok": True, **res, "saved": None, "warnings": ["synthetic video: colour not saved"]}
+            from .eye import ROBOT_COLORS_PATH, save_robot_colors
+            path = getattr(self, "robot_colors_path", ROBOT_COLORS_PATH)
+            save_robot_colors(path, rid, res["colors"], how=f"robotcal tag {res['tag']} at {res['u']:.0f},{res['v']:.0f}",
+                              k=k, saved=time.strftime("%Y-%m-%d %H:%M:%S"))
+            res["saved"] = str(path)
+            self.say(f"robot {rid} board colour calibrated: {res['colors']}, {res['candidates']} candidate(s)")
             return {"ok": True, **res}
         except (ValueError, TypeError) as e:
             return {"ok": False, "error": str(e)}
@@ -2013,7 +2041,7 @@ def make_handler(app: App):
                 code = 200 if res.get("ok") else {"unknown_op": 404, "bad_args": 400}.get(res.get("code"), 409)
                 return self._json(res, code)
             route = {"/action": app.action, "/params": app.set_params, "/robot": app.robot_op,
-                     "/preset": app.preset, "/ballcal": app.ballcal}.get(self.path)
+                     "/preset": app.preset, "/ballcal": app.ballcal, "/robotcal": app.robotcal}.get(self.path)
             if route is None:
                 return self._json({"ok": False, "error": "not found"}, 404)
             res = route(body)

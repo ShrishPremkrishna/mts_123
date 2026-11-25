@@ -28,6 +28,10 @@
     ballcal [X Y] [--k K] | --show          ball HSV range from the live frame: at pixel X Y, else the most
                                             saturated compact blob in the field; applied live, saved to
                                             fc/config/ball_color.json. --show: current range + candidates
+    robotcal <robot> [--k K] | --show       robot tag-board colour for the eye's blob tracking (tag blurred
+                                            at speed): robot still, tag in view; samples the board around
+                                            the tag, applied live, saved to fc/config/robot_colors.json.
+                                            --show: current range, fixes by source, candidates in field
     rollcal [--secs S] [--apply]            roll the ball across the field a few times (no robot near it):
                                             fits the rolling deceleration and prints the ball_decel to set
                                             (--apply sets it live; keep it with a preset save)
@@ -953,6 +957,26 @@ def cmd_ballcal(c: Client, a) -> None:
     say(*fmt_ballcal(need_ok(c.post("/ballcal", body), "ballcal")))
 
 
+def fmt_robotcal(res: dict) -> list[str]:
+    rng = " ".join(f"[{c['lo']}..{c['hi']}]" for c in res.get("colors") or []) or "none (no blob tracking)"
+    out = []
+    if res.get("tag") is not None:
+        out.append(f"robot {res.get('robot')} board colour from tag {res['tag']} at ({num(res.get('u'), 0)},"
+                   f"{num(res.get('v'), 0)}), {res.get('n_pixels')} px -> applied live, saved {res.get('saved')}")
+    out.append(f"HSV {rng} ({res.get('source')})")
+    n = res.get("candidates")
+    f = res.get("fixes") or {}
+    out.append(f"board-sized blobs in field {n}" + ("  <- want exactly 1" if n not in (None, 1) else "")
+               + f" · fixes: tag {f.get('tag')} board {f.get('blob')} (missed {f.get('miss')}, too long since tag"
+               f" {f.get('old')}) · heading conf {f.get('yaw_conf')} · board offset {f.get('off_cm')} cm")
+    return out
+
+
+def cmd_robotcal(c: Client, a) -> None:
+    body = {"robot": a.robot, "show": True} if a.show else {"robot": a.robot, "k": a.k}
+    say(*fmt_robotcal(need_ok(c.post("/robotcal", body), "robotcal")))
+
+
 ROLLCAL_POLL_S = 0.5
 
 
@@ -1083,6 +1107,11 @@ def build_parser() -> Parser:
     p.add_argument("--k", type=float, default=3.0)
     p.add_argument("--show", action="store_true")
     p.set_defaults(fn=cmd_ballcal)
+    p = sub.add_parser("robotcal")
+    p.add_argument("robot")
+    p.add_argument("--k", type=float, default=3.0)
+    p.add_argument("--show", action="store_true")
+    p.set_defaults(fn=cmd_robotcal)
     p = sub.add_parser("rollcal")
     p.add_argument("--secs", type=float, default=40.0, help="collect this long (default 40)")
     p.add_argument("--rolls", type=int, default=4, help="ask for this many rolls")
