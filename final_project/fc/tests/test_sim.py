@@ -224,5 +224,6 @@ def test_sim_eval_solo_reports_jitter_and_floor_knobs_exist():
     assert set(se.FLOOR) <= set(SIM_DEFAULTS)
     p = {**OFF, "max_vx": 0.75, "push_vx": 0.75, "plan": 1}
     t, own, st = se.solo(F, ROBOTS, p, 3, "push", limit=10.0)
-    assert {"rev", "fast", "sq", "n", "replans", "coast", "speed", "touch", "min"} <= set(st)
+    assert {"rev", "fast", "sq", "n", "replans", "coast", "speed", "touch", "min", "align", "talign", "near_vy",
+            "shot"} <= set(st)
     assert st["replans"] >= 1 and st["n"] > 0

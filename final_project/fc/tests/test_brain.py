@@ -583,3 +583,51 @@ def test_dribble_snaps_to_a_deflected_ball():
         b.decide(mk(i / 30, 0.4, 0.0), DR)
     _, d = b.decide(mk(6 / 30, 0.0, 0.5), DR)  # knocked sideways
     assert d.get("deflect") == 1 and b.deflects == 1 and d["intercept"][1] > 0.1
+
+
+DR3 = {**DR, "max_vy": 0.3, "dribble_line_m": 0.9, "dribble_line_lat": 0.3, "dribble_line_deg": 70, "dribble_db_deg": 7,
+       "dribble_k_vy": 3.0, "dribble_near_m": 0.15, "dribble_commit_s": 0.3, "dribble_shot_m": 1.0}
+
+
+def test_dribble_v3_knobs_off_by_default():
+    for k in ("dribble_near_m", "dribble_line_m", "dribble_commit_s", "dribble_shot_m", "solo_reach"):
+        assert DEFAULTS[k] == 0, k
+
+
+def test_dribble_line_mode_slides_off_lateral_error_without_turning():
+    b = Brain(BLUE, F)
+    cmd, d = b.decide(world(0.0, (-0.45, 0.06, 0.0), (0.0, 0.0)), DR3)
+    assert b.dr_line and d["phase"].startswith("dr_")
+    assert cmd.vy < 0 and abs(cmd.wz) < 0.05  # robot left of the line: slide right, small error inside the deadband
+
+
+def test_dribble_commits_to_a_turn_direction_before_reversing():
+    b = Brain(BLUE, F)
+    b.dr_sg = 1.0  # turning left
+    w = lambda t: world(t, (-0.6, 0.0, math.radians(25)), (0.0, 0.0))  # heading 25 deg left of the line: turn right
+    b.decide(w(0.0), DR3)
+    assert b.dr_sg == 1.0 and b.dr_flip_t is not None  # the reversal waits
+    for i in range(1, 12):
+        b.decide(w(i / 30), DR3)
+    assert b.dr_sg == -1.0  # ... at most dribble_commit_s
+
+
+def test_dribble_shoots_when_centred_and_in_range():
+    b = Brain(BLUE, F)
+    cmd, d = b.decide(world(0.0, (0.6, 0.0, 0.0), (0.9, 0.0)), DR3)
+    assert d["phase"] == "dr_shot" and b.pushing
+    b = Brain(BLUE, F)  # far from goal: no shot
+    _, d = b.decide(world(0.0, (-0.9, 0.0, 0.0), (-0.6, 0.0)), DR3)
+    assert d["phase"] != "dr_shot"
+
+
+def test_solo_reach_attacks_a_shot_it_can_meet_first():
+    q = {**DR3, "role_mode": "auto", "ball_decel": 0.149}
+    w = mworld(0.0, (-0.8, 0.0, 0.0), (0.3, 0.0), (-0.8, 0.0))  # between the ball and our goal, facing it
+    _, d = Brain(BLUE, F).decide(w, q)
+    assert d["role"] == "defend"
+    _, d = Brain(BLUE, F).decide(w, {**q, "solo_reach": 1})
+    assert d["role"] == "attack"
+    w = mworld(0.0, (0.9, 0.0, 0.0), (0.3, 0.0), (-0.8, 0.0))  # upfield of the ball: cannot get there first
+    _, d = Brain(BLUE, F).decide(w, {**q, "solo_reach": 1})
+    assert d["role"] == "defend"

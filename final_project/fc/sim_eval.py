@@ -9,7 +9,7 @@ column (to try a value before committing it). `--field` overrides field.json geo
 (e.g. `--field goal_width=0.8` to try a wider marked goal). `--lag L ...` repeats every column at
 a total lag L (camera latency L/2 + walker lag L/2; the brain's act_lag_s set to L/2, as if measured).
 `--scen` picks row groups (default all): core (rows below), human, return, moving; solo = the solo push
-rows only (fast). `--floor25` = FLOOR updated with the Nov 25 measurements (FLOOR25 below, cap 0.8). `--floor` adds the
+rows only (fast); goalie = the goalie and 1v1 rows of core (no headbutt). `--floor25` = FLOOR updated with the Nov 25 measurements (FLOOR25 below, cap 0.8). `--floor` adds the
 Nov 24 floor errors on top of the sim's (FLOOR below: 0.1 s camera latency, tag dropouts of 0.3-1.5 s,
 fast gait at ~0.83 of the command and walking 8 deg right of its heading, slower walker onset, a ball
 rolling at 0.18 m/s^2 deceleration: hand rolls of the old ball fit 0.12-0.29, median 0.15).
@@ -19,6 +19,9 @@ Rows:
 - solo jitter (push runs, per robot-minute of play): wz reversals / reversals < 1 s apart, RMS of the
   commanded wz (rad/s), replans (plan mode: paths planned), coast share (ticks steering blind).
 - athletic (push runs): mean true speed (m/s), median time to the first touch of the ball (s).
+- alignment (push runs): |robot heading - direction ball -> attack goal centre| at the first touch of each
+  possession (arrival). near ball: share of ticks within 0.6 m commanding |vy| > 0.03; shot = ball speed
+  as it crosses the goal line (median).
 - goalie: saves of the same shots that score on an empty net.
 - 1v1 (auto roles, kickoff): goals per 3 min each side; deadlocks = the ball stayed within 10 cm
   for 10 s; traps = the sim referee nudged a wall ball.
@@ -121,10 +124,14 @@ def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
     brain = Brain(me, field)
     jit, near, st = Jitter(), Jitter(), {"speed": 0.0, "coast": 0}
     cc = field.ball_radius + field.robot_radius
-    dr = {"poss": 0, "touch": 0, "in": False, "gap": 0.0, "ng": 0, "nc": 0, "check": [], "defl": [], "rec": []}
+    dr = {"poss": 0, "touch": 0, "in": False, "gap": 0.0, "ng": 0, "nc": 0, "check": [], "defl": [], "rec": [],
+          "align": [], "talign": [], "prev": None, "vy": 0, "shot": None, "bsp": 0.0}
 
     def tick(c, d):
         jit.add(me.id, c.get(me.id), sim.t)
+        if _goals(sim) and dr["shot"] is None:
+            dr["shot"] = dr["bsp"]  # ball speed the tick before it crossed the line
+        dr["bsp"] = math.hypot(sim.ball[2], sim.ball[3])
         bot = sim.bots.get(me.id)
         st["speed"] += math.hypot(bot.vx, bot.vy) if bot else 0.0
         st["coast"] += d.get(me.id, {}).get("phase") == "coast"
@@ -132,15 +139,22 @@ def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
             gap = math.hypot(sim.ball[0] - bot.x, sim.ball[1] - bot.y) - cc
             if gap < 0.6:
                 near.add(me.id, c.get(me.id), sim.t)
+                dr["vy"] += abs(getattr(c.get(me.id), "vy", 0.0)) > 0.03
             new = list(sim.contacts)[dr["nc"]:]
             dr["nc"] = len(sim.contacts)
             for ct in new:
                 dr["touch"] += 1
                 if not dr["in"]:
                     dr["in"], dr["poss"] = True, dr["poss"] + 1
+                    g = math.atan2(-sim.ball[1], brain.att_x - sim.ball[0])  # heading error vs ball -> goal centre
+                    dr["align"].append(abs(math.degrees(math.atan2(math.sin(g - bot.yaw), math.cos(g - bot.yaw)))))
+                    px, py = dr["prev"][0] if dr["prev"] else (bot.x, bot.y)  # travel over the last 0.2 s (the hit follows it)
+                    tv = math.atan2(bot.y - py, bot.x - px)
+                    dr["talign"].append(abs(math.degrees(math.atan2(math.sin(g - tv), math.cos(g - tv)))))
                 if dr["defl"] and dr["defl"][-1][1] is None:
                     dr["defl"][-1][1] = ct[0] - dr["defl"][-1][0]
                 dr["check"].append(ct[0] + 0.15)
+            dr["prev"] = (dr["prev"] or [])[-5:] + [(bot.x, bot.y)]
             if dr["in"] and gap > 0.6:
                 dr["in"] = False
             if dr["in"]:
@@ -165,7 +179,8 @@ def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
              "touch": (sim.contacts[0][0] - t0) if sim.contacts else None,
              "dr_touch": dr["touch"], "dr_poss": dr["poss"], "dr_gap": dr["gap"], "dr_ng": dr["ng"],
              "near_sq": near.sq, "near_n": near.n, "near_rev": near.rev,
-             "defl": len(dr["defl"]), "rec": [x[1] for x in dr["defl"] if x[1] is not None and x[1] <= 8.0]}
+             "defl": len(dr["defl"]), "rec": [x[1] for x in dr["defl"] if x[1] is not None and x[1] <= 8.0],
+             "align": dr["align"], "talign": dr["talign"], "near_vy": dr["vy"], "shot": dr["shot"]}
     return (ev["t"] - t0 if ev and ev["team"] == me.team else None), bool(ev and ev["team"] != me.team), stats
 
 
@@ -272,7 +287,7 @@ def human_solo(field, robots, params, seed, minutes=3.0):
     s, xl = _guard_line(field, me.team, p)
     hl, hw, gw = field.length / 2, field.width / 2, field.goal_width / 2
     third = params.get("solo_third", 0.333) * field.length
-    st = {"next": 3.0, "ev": [], "flips": 0, "role": None}
+    st = {"next": 3.0, "ev": [], "flips": 0, "role": None, "d2a": 0}
 
     def close(e, t):
         e["end"] = t
@@ -282,6 +297,7 @@ def human_solo(field, robots, params, seed, minutes=3.0):
         role = brain.role
         if st["role"] not in (None, role):
             st["flips"] += 1
+            st["d2a"] += role == "attack"
         st["role"] = role
         _fastwz(cmds.get(me.id), me.id, st, t)
         e = st["ev"][-1] if st["ev"] else None
@@ -318,7 +334,7 @@ def human_solo(field, robots, params, seed, minutes=3.0):
     _loop(sim, {me.id: brain}, p, minutes * 60, tick)
     goals = [g for g in sim.events if g["type"] == "goal"]
     return {"scored": sum(g["team"] == me.team for g in goals), "conceded": sum(g["team"] != me.team for g in goals),
-            "ev": st["ev"], "flips_pm": st["flips"] / minutes, "fastwz_pm": st.get("fastwz", 0) / minutes}
+            "ev": st["ev"], "flips_pm": st["flips"] / minutes, "d2a_pm": st["d2a"] / minutes, "fastwz_pm": st.get("fastwz", 0) / minutes}
 
 
 def return_test(field, robots, params, seed, window=8.0, forced=False):
@@ -407,6 +423,8 @@ def evaluate(seeds: int, errors: bool, minutes: float, matches: int, overrides: 
         _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt)
     elif "solo" in scen:
         _core(out, raw, field, robots, params, seeds, minutes, matches, False, solo_only=True)
+    if "goalie" in scen and "core" not in scen:
+        _team(out, raw, field, robots, params, seeds, minutes, matches, [])
     if "human" in scen:
         _human(out, raw, field, robots, params, matches, minutes)
     if "return" in scen:
@@ -446,11 +464,12 @@ def _human(out, raw, field, robots, params, matches, minutes):
     raw.update(h_scored=sum(m["scored"] for m in ms) * k, h_conceded=sum(m["conceded"] for m in ms) * k,
                h_saves=saves / max(1, len(shots)), h_flips=statistics.mean(m["flips_pm"] for m in ms),
                h_react_def=_med(rd), h_react_move=_med(rm), h_right_shot=right_s / max(1, len(shots)),
-               h_right_roll=right_r / max(1, len(rolls)), h_fastwz=statistics.mean(m["fastwz_pm"] for m in ms))
+               h_right_roll=right_r / max(1, len(rolls)), h_fastwz=statistics.mean(m["fastwz_pm"] for m in ms),
+               h_d2a=statistics.mean(m["d2a_pm"] for m in ms))
     out[f"human ({matches}x{minutes:g} min): robot goals / conceded /3min"] = (f"{raw['h_scored']:.1f} / "
                                                                          f"{raw['h_conceded']:.1f}")
     out["human: saves of shots"] = f"{saves}/{len(shots)} ({100 * raw['h_saves']:.0f}%)"
-    out["human: role switches /min"] = f"{raw['h_flips']:.1f}"
+    out["human: role switches /min, defend->attack /min"] = f"{raw['h_flips']:.1f}, {raw['h_d2a']:.1f}"
     out["human: react s, ->defend / ->moving back"] = f"{raw['h_react_def']:.2f} / {raw['h_react_move']:.2f}"
     out["human: right role, shots / rolls"] = (f"{100 * raw['h_right_shot']:.0f}% / "
                                                f"{100 * raw['h_right_roll']:.0f}%")
@@ -494,8 +513,20 @@ def _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt, so
             out["near ball (<0.6 m): wz rms, rev/min"] = f"{raw['near_rms']:.2f}, {raw['near_rev']:.1f}"
             out["deflections: n, re-touch <=8 s, median s"] = (f"{nd}, {100 * raw['rec_ok']:.0f}%, "
                                                                f"{raw['rec_med']:.1f}")
-    if solo_only:
-        return
+            al = [a for x in ss for a in x["align"]]
+            sh = [x["shot"] for x in ss if x["shot"] is not None]
+            ta = [a for x in ss for a in x["talign"]]
+            raw.update(align_med=_med(al), align_p90=_pct(al, 0.9), talign_med=_med(ta),
+                       near_vy=sum(x["near_vy"] for x in ss) / max(1, nn), shot_med=_med(sh))
+            out["align at arrival deg: heading med/p90, travel med"] = (f"{raw['align_med']:.0f} / {raw['align_p90']:.0f}, "
+                                                                     f"{raw['talign_med']:.0f}")
+            out["near ball: vy in use %, shot m/s at goal"] = f"{100 * raw['near_vy']:.0f}%, {raw['shot_med']:.2f}"
+    if not solo_only:
+        _team(out, raw, field, robots, params, seeds, minutes, matches, contacts)
+
+
+def _team(out, raw, field, robots, params, seeds, minutes, matches, contacts):
+    """Goalie saves and 1v1 rows."""
     empty = seeds - sum(goalie(field, robots, params, 1000 + s, "sideways", empty=True) for s in range(seeds))
     for style in ("sideways", "facing"):
         saves = sum(goalie(field, robots, params, 1000 + s, style) for s in range(seeds))

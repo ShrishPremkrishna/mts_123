@@ -133,6 +133,20 @@ touches worked; clunky turning near the ball and slow recovery after a sideways 
   dribble_onset_s (start-up time, floor 0.3-0.8), ball_decel, ball and robot radius, max_wz.
   dribble_cone_deg  a ball velocity change of more than this (or 0.3 m/s) is a deflection: filters snap,
                     the side latch resets and the meeting point is re-solved at once (it is every tick anyway)
+  v3 knobs (each 0 = v2 behaviour):
+  dribble_near_m    within this surface gap the meeting point is pulled onto the ball itself (a far meeting point
+                    swung the line under a carried ball: turn reversals at the touch)
+  dribble_line_m    line mode: behind the ball within this gap, |lateral| < dribble_line_lat and heading within
+                    dribble_line_deg of the push direction (hysteresis on all three). The heading tracks the push
+                    direction minus atan(lateral / dribble_line_look) with gain dribble_k_head and a dribble_db_deg
+                    deadband; the lateral error is slid off with vy (dribble_k_vy, up to max_vy). At the ball and
+                    > 6 cm off centre it keeps pace without closing in (0.15 m/s floor for a wall ball)
+  dribble_commit_s  minimum turn commitment: a wz reversal (> 0.2 rad/s the other way) waits this long unless it
+                    exceeds dribble_commit_wz
+  dribble_shot_m    shot: in line mode at the ball, within this distance of the goal line, heading ray inside the
+                    mouth, within dribble_shot_deg and 4 cm of centre -> closing speed dribble_shot_close (latched)
+  solo_reach        solo roles: a threatening ball is attacked instead of defended when we can stand behind it on its
+                    way in solo_reach_s (0 once attacking) before it gets there and >= 0.5 s before our goal line
 In dribble mode these are not used: k_turn (except turn in place), push_vx, push_turn_scale, push_lat_tol,
 push_max_heading_deg, k_curve, push_ahead, contact_vx, contact_slow_m (_pace), intercept_*, plan_*.
 """
@@ -169,7 +183,7 @@ DEFAULTS = {
     "solo_roles": 1, "solo_hold_s": 1.0, "solo_def_vmin": 0.15, "solo_def_horizon_s": 3.0,
     "solo_def_margin": 0.3, "solo_third": 0.333, "ball_decel": 0.45,
     "intercept_max_s": 2.0, "intercept_vmin": 0.15, "intercept_near_m": 0.4, "return_detour": 1, "return_block": 1,
-    "solo_zone": 0.0, "return_back_vx": 0.25,
+    "solo_zone": 0.0, "return_back_vx": 0.25, "solo_reach": 0, "solo_reach_s": 0.4,
     "plan": 0, "plan_radius": 0.30, "plan_stage_m": 0.12, "plan_lookahead": 0.35, "plan_wz": 1.8,
     "plan_replan_m": 0.20, "plan_replan_deg": 20, "plan_dev_m": 0.30, "plan_min_s": 0.5, "plan_horizon_s": 2.5,
     "plan_eta_frac": 0.7, "plan_near_m": 0.50, "plan_near_lat": 0.35, "plan_spin_deg": 80, "plan_look_s": 0.5,
@@ -178,6 +192,9 @@ DEFAULTS = {
     "dribble": 0, "dribble_alat": 0.8, "dribble_jerk": 4.0, "dribble_look_m": 0.30, "dribble_look_s": 0.5,
     "dribble_close": 0.55, "dribble_margin": 0.65, "dribble_horizon_s": 3.0, "dribble_gait_gain": 0.88,
     "dribble_onset_s": 0.4, "dribble_cone_deg": 30,
+    "dribble_near_m": 0.0, "dribble_line_m": 0.0, "dribble_line_lat": 0.15, "dribble_line_deg": 35, "dribble_line_look": 0.8,
+    "dribble_db_deg": 4.0, "dribble_k_vy": 1.5, "dribble_k_head": 2.0, "dribble_commit_s": 0.0, "dribble_commit_wz": 0.8,
+    "dribble_shot_m": 0.0, "dribble_shot_close": 1.0, "dribble_shot_deg": 15,
 }
 
 
@@ -338,6 +355,9 @@ class Brain:
         self.dr_P: tuple | None = None   # dribble: filtered meeting point
         self.dr_t = -1e9          # dribble: time of the last update
         self.deflects = 0         # dribble: ball deflections seen since reset (sim_eval)
+        self.dr_line = False      # dribble: line mode (heading on the push direction, lateral error by vy)
+        self.dr_shot = False      # dribble: committed shot
+        self.dr_sg, self.dr_flip_t = 0.0, None  # dribble: committed turn direction, start of a pending reversal
 
     # ------------------------------------------------------------------ entry
     def decide(self, world: World, params: dict) -> tuple[Cmd, dict]:
@@ -557,8 +577,23 @@ class Brain:
             P = self._ball_at(B, bv, min(p["intercept_max_s"], self._cost(pose, P, self.att_x, p)), p)
         return P
 
-    def _solo_role(self, B, bv, p: dict) -> str:
-        """One robot vs a human: defend while the ball threatens our goal, attack otherwise."""
+    def _reach_first(self, pose: Pose, B, bv, T: float, p: dict) -> bool:
+        """solo_reach: can we stand behind the ball on its way to our goal at least solo_reach_s (0 once we are
+        already attacking) before it gets there, and >= 0.5 s before it reaches our goal line?"""
+        if pose is None or not p["solo_reach"] or T == math.inf:
+            return False
+        margin = 0.0 if self.role == "attack" else p["solo_reach_s"]
+        tau = 0.1
+        while tau <= T - 0.5:
+            Q = self._ball_at(B, bv, tau, p)
+            if self._dr_eta(pose, Q, self._dr_dir(Q, p), p) + margin <= tau:
+                return True
+            tau += 0.1
+        return False
+
+    def _solo_role(self, B, bv, p: dict, pose: Pose | None = None) -> str:
+        """One robot vs a human: defend while the ball threatens our goal, attack otherwise (solo_reach: also
+        attack a threatening ball we can reach first)."""
         s = 1.0 if self.own_x > 0 else -1.0
         depth = abs(self.own_x) - s * B[0]
         approach = s * bv[0]
@@ -568,9 +603,10 @@ class Brain:
             T, y = self._arrival(B, bv, self.own_x, p)
             on_target = y is not None and abs(y) < self.f.goal_width / 2 + p["solo_def_margin"]
             if on_target and (T <= p["solo_def_horizon_s"] or in_third):
-                return "defend"
+                return "attack" if self._reach_first(pose, B, bv, T, p) else "defend"
         if in_third and approach > -vmin and math.hypot(bv[0], bv[1]) > vmin:
-            return "defend"  # moving (not away) inside our third
+            T, _y = self._arrival(B, bv, self.own_x, p)
+            return "attack" if self._reach_first(pose, B, bv, T, p) else "defend"  # moving (not away) in our third
         if self.role == "defend" and p["solo_zone"] > 0 and depth > p["solo_zone"] * self.f.length:
             return "defend"  # keeper first: leave the goal only for a ball inside the home zone
         return "attack"
@@ -582,7 +618,7 @@ class Brain:
             return mode, {}
         hold = p["role_hold_s"]
         if not others:
-            want, costs = (self._solo_role(B, bv, p), {"solo": 1}) if p["solo_roles"] else ("attack", {})
+            want, costs = (self._solo_role(B, bv, p, pose), {"solo": 1}) if p["solo_roles"] else ("attack", {})
             hold = p["solo_hold_s"] if p["solo_roles"] else 0.0
         else:
             my = self._cost(pose, B, self.att_x, p)
@@ -1012,6 +1048,10 @@ class Brain:
             for _ in range(4):
                 P = self._ball_at(B, bvf, min(p["dribble_horizon_s"], self._dr_eta(pose, P, u, p)), p)
                 u = self._dr_dir(P, p)
+            nm = p["dribble_near_m"]
+            if nm > 0:  # at the ball: play the ball itself (a far meeting point swings the line under a carried ball)
+                w = clamp((math.hypot(pose.x - B[0], pose.y - B[1]) - c) / nm, 0.0, 1.0)
+                P = (B[0] + w * (P[0] - B[0]), B[1] + w * (P[1] - B[1]))
         if fresh or deflect or self.dr_P is None or math.hypot(P[0] - self.dr_P[0], P[1] - self.dr_P[1]) > 0.25:
             self.dr_P = P
         else:  # 3 s of prediction multiplies velocity noise: smooth the point (tau 0.2 s)
@@ -1078,7 +1118,43 @@ class Brain:
             if gap < 0.25 and abs(le) > 0.06:  # off-centre at the ball: keep pace, but don't close in until lined up
                 rel = min(rel, max(0.15, rel * clamp(1.0 - (abs(le) - 0.06) / 0.08, 0.0, 1.0)))  # (never a stall)
             v_des = min(v_des, max(0.0, vb) + rel)
-        spin = abs(alpha) > math.radians(75)
+        # line mode: close behind the ball and roughly lined up -> the heading tracks the push direction (plus a
+        # gentle pull toward the line), a deadband ignores small errors and vy slides off the lateral error
+        herr = wrap(math.atan2(u[1], u[0]) - pose.yaw)
+        lm = p["dribble_line_m"]
+        if lm > 0 and self.behind and a < 0:
+            k_in = 0.0 if not self.dr_line else 1.0
+            self.dr_line = (gap < lm + 0.2 * k_in and abs(le) < p["dribble_line_lat"] * (1 + 0.5 * k_in)
+                            and abs(herr) < math.radians(p["dribble_line_deg"]) * (1 + 0.4 * k_in))
+        else:
+            self.dr_line = False
+        # shot: in range of the goal, lined up and centred -> commit: full speed through the ball
+        sm = p["dribble_shot_m"]
+        if sm > 0 and self.dr_line and gap < 0.3:
+            gx = self.att_x
+            ray = (gx - B[0]) / math.cos(pose.yaw) if math.cos(pose.yaw) * (gx - B[0]) > 0 else math.inf
+            y_hit = B[1] + math.sin(pose.yaw) * ray if ray < math.inf else math.inf
+            mouth = f.goal_width / 2 - f.ball_radius
+            k_in = 1.0 if self.dr_shot else 0.0
+            self.dr_shot = (abs(gx - B[0]) < sm * (1 + 0.3 * k_in) and abs(y_hit) < mouth * (1 + 0.3 * k_in)
+                            and abs(herr) < math.radians(p["dribble_shot_deg"]) * (1 + k_in)
+                            and abs(le) < 0.04 * (1 + 0.5 * k_in))  # dead centre: an off-centre hard hit flies wide
+        elif not (self.dr_shot and gap < 0.4 and self.dr_line):
+            self.dr_shot = False
+        if self.dr_line:
+            phase = "dr_shot" if self.dr_shot else phase
+            v_des = vmax
+            if bear > 0.5:
+                vb = bvf[0] * math.cos(pose.yaw) + bvf[1] * math.sin(pose.yaw)
+                g = max(0.0, gap)
+                close = p["dribble_shot_close"] if self.dr_shot else p["dribble_close"]
+                rel = close + (max(close, p["dribble_margin"]) - close) * min(1.0, g / 0.15)
+                rel += math.sqrt(2 * 0.5 * max(0.1, p["decel_vx"] or p["accel_vx"]) * max(0.0, g - 0.15))
+                if gap < 0.25 and abs(le) > 0.06 and not self.dr_shot:  # off-centre at the ball: keep pace, slide
+                    wall = min(f.length / 2 - abs(B[0]), f.width / 2 - abs(B[1])) < c + 0.05  # (a wall ball may
+                    rel = max(0.15 if wall else 0.0, rel * clamp(1.0 - (abs(le) - 0.06) / 0.08, 0.0, 1.0))  # not let us)
+                v_des = min(v_des, max(0.0, vb) + rel)
+        spin = abs(alpha) > math.radians(75) and not self.dr_line
         if spin:
             v_des = 0.0
         # jerk-limited speed (time constant 0.25 s toward v_des)
@@ -1095,13 +1171,34 @@ class Brain:
         self.dr_a = (v - v_now) / max(1e-3, dt)  # back-calculated: no wind-up at a clamp
         if spin:
             wz = clamp(1.5 * alpha, -p["max_wz"], p["max_wz"])
+        elif self.dr_line:
+            ah = wrap(herr - math.atan2(le, p["dribble_line_look"]))
+            ah = math.copysign(max(0.0, abs(ah) - math.radians(p["dribble_db_deg"])), ah)
+            wz = clamp(p["dribble_k_head"] * ah, -alat / max(v, 0.2), alat / max(v, 0.2))
         else:  # curvature times speed, bounded by the lateral-acceleration limit
             wz = kap * max(v, 0.2)
             wz = clamp(wz, -alat / max(v, 0.2), alat / max(v, 0.2))
+        cs = p["dribble_commit_s"]
+        if cs > 0:  # minimum commitment: a turn the other way waits cs (unless it is big, or a turn on the spot)
+            sg = 1.0 if wz > 0 else -1.0
+            if abs(wz) > 0.2 and self.dr_sg and sg != self.dr_sg and not spin:
+                if self.dr_flip_t is None:
+                    self.dr_flip_t = t
+                if t - self.dr_flip_t < cs and abs(wz) < p["dribble_commit_wz"]:
+                    wz = sg * 0.2
+                else:
+                    self.dr_sg, self.dr_flip_t = sg, None
+            else:
+                self.dr_flip_t = None
+                if abs(wz) > 0.2:
+                    self.dr_sg = sg
         vy = 0.0
-        if self.behind and gap < 0.3 and abs(le) < 0.2:  # slide the last centimetres with the lateral axis
+        if self.dr_line:  # world lateral correction along -n, expressed in the body frame
+            vy = clamp(-p["dribble_k_vy"] * le * (-math.sin(pose.yaw) * n[0] + math.cos(pose.yaw) * n[1]),
+                       -p["max_vy"], p["max_vy"])
+        elif self.behind and gap < 0.3 and abs(le) < 0.2:  # slide the last centimetres with the lateral axis
             vy = clamp(-p["k_vy"] * le, -p["max_vy"], p["max_vy"])
-        self.pushing = phase == "dr_carry"
+        self.pushing = phase in ("dr_carry", "dr_shot")
         dbg = {"phase": phase, "target": [round(carrot[0], 3), round(carrot[1], 3)], "lat": round(le, 3),
                "intercept": [round(P[0], 3), round(P[1], 3)], "kappa": round(kap, 2)}
         if d_side:

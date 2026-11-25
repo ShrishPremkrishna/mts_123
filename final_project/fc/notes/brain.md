@@ -216,3 +216,34 @@ of them. Set `ball_decel` from `ctl rollcal` in every preset.
 | moving ball: hit ≤6 s, goal ≤15 s, median | 72, 54 of 100, 11.8 s | **96, 70 of 100, 7.5 s** |
 
 Soft touches (close 0.15) under the same curve model: median 11.8 s, moving median 10.8 s. Speed sweep (first round, max_vx 0.75/0.9/1.0 at cap 0.8 vs 1.0) moved goal times < 1 s: no dribble-fast preset. Open: near-ball turning is busier than fast-light (lookahead 0.5 m + 0.5 s; longer is calmer but slower); 7/100 solo misses are mostly wall balls the sim referee had to free.
+
+## Dribble v3 (2026-11-25, sim only)
+
+`config/presets/dribble.json` is v3; `dribble-v2.json` keeps v2 for A/B (v3 misses the alignment target and recovers from deflections slower). New knobs default to 0 (v2 unchanged; tests check it); details in the brain.py module doc.
+
+- **Where v2's near-ball reversals came from** (per-reversal context): 2/3 happened within 0.1 m of the ball, most > 0.2 m off the meeting-point line. The meeting point 1–3 s ahead swung the line under a carried ball, and pure pursuit then turned into the ball and shouldered it. Fixes:
+  - `dribble_near_m` 0.15: at the ball, play the ball itself.
+  - Line mode (`dribble_line_*`, `dribble_k_head`, `dribble_db_deg` 7, `dribble_k_vy` 3, `max_vy` 0.3): heading follows the push direction with a deadband, and vy slides off the lateral error. Off centre at the ball it keeps pace without closing in.
+  - `dribble_commit_s` 0.3: a turn the other way waits 0.3 s unless it is big (> 0.8 rad/s).
+- **Shot** (`dribble_shot_m` 1.0): latched when centred (4 cm) and lined up within 1 m of the goal. In the sim carrying already runs near top speed, so the gain is small (shot 0.50 → 0.58 m/s). The first version froze steering during the shot; walking drift then made the hit off-centre and sent the ball wide. Steering stays on.
+- **`fast_yaw_bias_deg` −8** (STATUS: the fast gait walks ~8° right). This is worth ~1.5 s of median: v3 without it scores 97% at a 9.7 s median with 15° alignment. v2 with it reaches 8.1 s. Set it from the step test.
+- **Goalie:** `goalie_vmax` 0.75, `k_goalie` 6, `return_vx` 0.75. `solo_reach` 1 switches to attack when the robot can stand behind a threatening ball ≥ 0.4 s before it arrives, so it meets the shot head-on and counters.
+- **Tried, no gain (dropped):** a wz low-pass (τ 0.15–0.3 s: slower, same reversals), fading the line pull near the ball, a different stage distance (0.6–1.6 × lateral), a wider centring tolerance (worse), max_vx 0.8, dribble_close 0.7, dribble_alat 1.3.
+
+`python -m fc.sim_eval --seeds 100 --matches 10 --floor25 --scen solo moving human goalie --preset fast-light dribble-v2 dribble`, errors ON:
+
+| | fast-light | dribble v2 | dribble v3 |
+|---|---|---|---|
+| solo goals / median / p90 | 98%, 13.1, 25.6 s | 93%, 8.5, 23.2 s | **98%, 7.7, 17.9 s** |
+| mean speed, s to first touch | 0.25, 4.6 | 0.35, 4.2 | 0.38, 4.1 |
+| near ball: wz rms, reversals/min | 0.71, 12.8 | 1.05, 22.1 | 0.94, **12.1** |
+| heading error at arrival, median / p90 | 26 / 118° | 19 / 66° | 19 / 77° (target 15: missed) |
+| near ball: vy in use, shot speed at goal | 35%, 0.22 | 28%, 0.50 | 49%, 0.58 m/s |
+| deflections: re-touch ≤ 8 s, median | 86%, 2.2 s | 85%, 3.6 s | 71%, 4.6 s (41 vs 68 deflections) |
+| moving ball: hit / goal of 100, median | 72 / 54, 11.8 s | 96 / 70, 7.5 s | 96 / **83**, 7.3 s |
+| goalie saves (defend) | 89% | 89% | **94%** |
+| human: robot goals / conceded per 3 min, saves | 1.3 / 7.4, 55% | 2.6 / 8.4, 48% | **4.5 / 7.3, 55%** |
+| human: defend → attack switches/min | 6.5 | 6.5 | 6.3 |
+| 1v1: goals/3 min, traps | 5.3, 10 | 7.4, 16 | 8.5, 18 |
+
+Alignment is the heading at the first touch of each possession against the direction from the ball to the goal centre. One in ten arrivals is a touch from the wrong side (~145°), and chase arrivals are 12–18° off. Medians at 100 seeds move about ±0.4 s between nearby settings. At 200 seeds the ranking holds: v3 98%, 8.2 s, 12.2 reversals/min; v2 94%, 8.7 s, 22.2.
