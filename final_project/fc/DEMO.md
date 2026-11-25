@@ -1,6 +1,6 @@
 # Pupper FC demo plan (Dec 3, 2026)
 
-Updated Nov 24 evening (gate status, field facts and owner to-do only). Current state: [STATUS.md](STATUS.md). Floor steps: [RUNBOOK.md](RUNBOOK.md). Gate numbers are
+Updated Nov 25 (gate status only). Current state: [STATUS.md](STATUS.md). Floor steps: [RUNBOOK.md](RUNBOOK.md). Gate numbers are
 targets until measured on the floor. Wording on stage: the robot **shoots by running through the ball**. There is
 no leg kick in this demo (maybe a later iteration).
 
@@ -32,13 +32,14 @@ holds in counted sets on Dec 1–2. Decide **Wed Dec 2, 8 pm**; never upgrade on
 | Robot 2 | In hand Wed 25; passes G0 by Sat 28 night | Sat 28 | Lock stage 3 or lower; stop robot-2 work |
 | **4. Match** (two robots) | Goal within 90 s in ≥ 4/5; 0 falls in 10 match-minutes | Sun 29 | Stage 3 live, match as film |
 
-**Gate status (Nov 24, robot unless noted; details in [STATUS.md](STATUS.md)):**
-- G0: mostly met. Dead-man 0.32 s, link E-STOP and gentle lie-down confirmed; `latency_s` ≤ 0.14; slow heading bias
-  fixed by the +7° offset. Open: fast gait walks ~8° right of slow (speed-dependent offset), five-stop set not counted.
-- G-fast: partial. Fast gait stable at cap 0.8, 0 falls in 8 fast pushes; contact ladder not run (`contact_vx` 0.3 only).
-- 1. Shootout: not met. `fast-light` 3/7 goals (15.9, 21.7, 16.4 s); failures track robot-tag visibility (bigger tag next).
-- 2. Keeper: 1 run, 0 conceded. Camera save counting now exists (device-free, not yet checked on the floor). Not gated yet.
-- 3. Switch: sim only. Robot 2: not available.
+**Gate status (Nov 25, robot unless noted; details in [STATUS.md](STATUS.md)):**
+- G0: mostly met (Nov 24). Dead-man 0.32 s, link E-STOP and gentle lie-down confirmed; `latency_s` ≤ 0.14. Open: fast
+  gait walks ~8° right of slow, five-stop set not counted.
+- G-fast: partial. Fast gait stable at cap 0.8, 0 falls in 8 fast pushes (Nov 24); contact ladder not run.
+- 1. Shootout: close, not counted. `dribble` v3 3/3 (4.3–9.3 s) then 6/6 solo from anywhere (8.6–20.3 s); `athletic`
+  3/3, `fast-light` 3/3. Next: a counted 10-set from 3 spots with blob tracking staged.
+- 2. Keeper: 1 run Nov 24, 0 conceded. Camera save counting device-free only. Not gated yet.
+- 3. Switch: vs a human 0–3 (role flipping, occlusion); `vs-human` preset sim only. Robot 2: not available.
 
 Stage 3 uses the solo role rule (defend while the ball threatens our goal, attack otherwise) and the interception
 lead, both in the brain since `bc8e68a` and sim-only so far. Fallback: red's tag (id 11) on a box a human moves.
