@@ -40,5 +40,5 @@
   "push_max_heading_deg": 40,
   "contact_vx": 0.2,
   "field_from_camera": true,
-  "ball_decel": 0.18
+  "ball_decel": 0.149
 }
