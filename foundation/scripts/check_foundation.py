@@ -191,7 +191,6 @@ def build_checks(api_python, numerical_python):
         ('classical', pytest(numerical_python, 'foundation/tests')),
         ('floor_input', pytest(api_python, 'foundation/hardware/floor_stock')),
         ('tool_queue', pytest(api_python, 'gemini_pupper/tests')),
-        ('final_project', pytest(api_python, 'final_project/behaviors', 'final_project/pupper_fc/tests')),
         ('compliance', pytest(numerical_python, 'implicit_compliance/tests')),
         ('course_follow', [numerical_python, 'follow_me_pupper/lab/test.py']),
         ('course_color', [numerical_python, 'follow_me_pupper/lab/test.py', 'step5']),

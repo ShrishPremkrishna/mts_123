@@ -12,8 +12,6 @@ from fieldcam.config import SIM_CONFIG, load_config, set_field_size
 from fieldcam.corner_anchor import FarCorner, anchor_geometry
 from fieldcam.pipeline import Perception
 from fieldcam.sim import SimArena
-from final_project.pupper_fc.arena_camera import ArenaCamera, camera_settings
-from final_project.pupper_fc.lobby import PROFILE
 
 
 def scene(tag_size, *, colors=False):
@@ -80,6 +78,11 @@ def test_rectified_color_heading_is_signed_and_lost_nose_never_coasts_as_measure
 
 
 def test_snapshot_is_bound_to_camera_revision_and_required_for_corner_mode():
+    # ArenaCamera/lobby lived in final_project/pupper_fc, removed from the tree on 2026-11-24
+    # (restore from tag archive/pre-fc-v1-cleanup to run this).
+    arena_camera = pytest.importorskip("final_project.pupper_fc.arena_camera")
+    ArenaCamera, camera_settings = arena_camera.ArenaCamera, arena_camera.camera_settings
+    PROFILE = pytest.importorskip("final_project.pupper_fc.lobby").PROFILE
     p = json.loads(PROFILE.read_text())
     anchor = dict(corner="west_north", tag_id=0, length=2.6, width=1.6, inset_x=.15, inset_y=.15,
                   rotation=30, tag_size=.40, goal_width=.6)

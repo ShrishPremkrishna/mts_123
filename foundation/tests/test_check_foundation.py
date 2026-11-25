@@ -17,13 +17,11 @@ spec.loader.exec_module(runner)
 
 def test_check_plan_routes_incompatible_environments_without_dropping_groups():
     checks = dict(runner.build_checks('/api/bin/python', '/numeric/bin/python'))
-    assert len(checks) == 12
+    assert len(checks) == 11
+    assert 'final_project' not in checks  # fc has its own suite (.venv-fc)
     assert checks['tool_queue'][0] == checks['floor_input'][0] == checks['course_tools'][0] == '/api/bin/python'
     assert checks['classical'][0] == checks['motion_export'][0] == checks['course_follow'][0] == '/numeric/bin/python'
     assert checks['controller_cpp'] == ['bash', 'pupper_gait_deploy/test/run_host_test.sh']
-    assert checks['final_project'] == ['/api/bin/python', '-m', 'pytest',
-                                     'final_project/behaviors', 'final_project/pupper_fc/tests',
-                                     '-q', '-p', 'no:cacheprovider']
     assert len([p for p in checks['motion_export'] if p.startswith('pupper-mjlab/tests/')]) == 23
 
 
