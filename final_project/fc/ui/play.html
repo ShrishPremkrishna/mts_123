@@ -429,7 +429,8 @@ function renderCenter() {
   $("estop").classList.toggle("latched", Object.keys(S.estop).length > 0);
   if (S.source === "camera" && S.eye && !S.eye.calibrated) b.push(`<div class="banner warn">Camera: ${esc(S.eye.message)}</div>`);
   const bh = b.join(""); if ($("banners").dataset.h !== bh) { $("banners").dataset.h = bh; $("banners").innerHTML = bh; }
-  $("legend").textContent = camOn() ? "ring = where it thinks it is · × = where it is going" : S.truth ? "solid = robot · dashed ring = what it sees · × = where it is going" : "× = where it is going";
+  $("legend").textContent = (camOn() ? "ring = where it thinks it is · × = where it is going" : S.truth ? "solid = robot · dashed ring = what it sees · × = where it is going" : "× = where it is going")
+    + " · dots = where the ball will roll (3 s)";
 }
 function renderTicker() {
   const items = S.play.ticker.slice().reverse().slice(0, 3);
@@ -575,6 +576,47 @@ function trail(rid, p, team, now) {
   }
   cx.restore();
 }
+// predicted ball path: the brain's model (straight line, rolling deceleration ball_decel, kept on the field)
+const PRED_H = 3.0, PRED_STEP = 0.1;
+function ballPath(b, v) {
+  const sp = Math.hypot(v.vx || 0, v.vy || 0);
+  if (sp < 0.05) return [];
+  const a = Math.max(1e-6, +S.params.ball_decel || 0.45), F = S.field, r = F.ball_radius, out = [];
+  const lx = F.length / 2 - r, ly = F.width / 2 - r, cl = (q, m) => Math.max(-m, Math.min(m, q));
+  const hEnd = Math.min(PRED_H, sp / a);
+  for (let h = PRED_STEP; h <= hEnd + 1e-9; h += PRED_STEP) {
+    const s = (sp * h - 0.5 * a * h * h) / sp;
+    out.push([cl(b.x + v.vx * s, lx), cl(b.y + v.vy * s, ly), h]);
+  }
+  return out;
+}
+function drawPrediction(b, v) {
+  const pts = ballPath(b, v);
+  if (!pts.length) return;
+  const dpr = devicePixelRatio || 1, r = S.field.ball_radius * 0.45;
+  cx.save(); cx.fillStyle = M.cam ? "#fff" : "#ffd1e6";
+  let px = b.x, py = b.y;
+  for (const [x, y, h] of pts) {
+    if (Math.hypot(x - px, y - py) < 3.2 * r) continue;   // evenly spaced dots, not a smear when slow
+    px = x; py = y;
+    cx.globalAlpha = 0.85 * (1 - h / (PRED_H + PRED_STEP));
+    poly(circlePts(x, y, r, 10)); cx.fill();
+  }
+  cx.globalAlpha = 0.9; cx.strokeStyle = "#ff5fa2"; cx.lineWidth = 2 * dpr;   // where it stops (or the horizon)
+  const e = pts[pts.length - 1]; poly(circlePts(e[0], e[1], S.field.ball_radius * 0.9, 16)); cx.stroke();
+  cx.restore();
+}
+// the brain's planned path for a robot (debug "plan": [[x, y], ...]), when it sends one
+function drawPlan(p, team, plan) {
+  const pts = plan.filter((q) => Array.isArray(q) && isFinite(q[0]) && isFinite(q[1]));
+  if (!pts.length) return;
+  const dpr = devicePixelRatio || 1, line = [[p.x, p.y], ...pts.map((q) => [q[0], q[1]])];
+  cx.save(); cx.strokeStyle = M.cam ? "#fde047" : SOFT[team]; cx.lineWidth = 2 * dpr; cx.globalAlpha = 0.8;
+  cx.setLineDash([2 * dpr, 5 * dpr]); poly(line, false); cx.stroke(); cx.setLineDash([]);
+  cx.fillStyle = cx.strokeStyle;
+  for (const q of pts) { poly(circlePts(q[0], q[1], 0.018, 8)); cx.fill(); }
+  cx.restore();
+}
 let lastFrame = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
@@ -596,9 +638,11 @@ function frame(now) {
     const anchor = truth || seen;
     if (!anchor) continue;
     trail(rid, anchor, tm, now);
+    if (Array.isArray(d.plan) && d.plan.length) drawPlan(anchor, tm, d.plan);
     if (d.target && (S.play.robots[rid] || {}).playing) target(rid, anchor, tm, d.target);
   }
   const bt = T && T.ball && smooth("tb", T.ball, dt, 0.05), bw = smooth("wb", Wd.ball, dt, 0.05);
+  if (bw && Wd.ball.age < 1.0) drawPrediction(bw, Wd.ball);
   if (bt) drawBall(bt, false);
   if (bw) drawBall(bw, !!bt || M.cam);
   for (const rid of ids) {

@@ -64,6 +64,10 @@ PARAM_FALLBACKS = {
     "restart_mode": "ball_rest",  # after a goal: resume when the ball rests anywhere | walk to kickoff spots
     "record": 1,                # camera source: write each run's overhead video to <run>/overhead.mp4
     "rec_fps": 15.0,
+    "shot_vmin": 0.3,           # camera goalie: ball speed toward our goal that can be a shot (ShotCounter)
+    "shot_horizon_s": 4.0,      # ...predicted to reach the goal line within this
+    "shot_mouth_margin": 0.1,   # ...inside the mouth widened by this on each side
+    "shot_end_s": 0.3,          # ...and over once off target this long (saved / missed)
 }
 # Hard limits for live edits. Speed ceilings mirror link.CEIL (the hard cap on every packet).
 LIMITS = {
@@ -82,6 +86,8 @@ LIMITS.update({k: (0.0, CEIL["vx"]) for k in ("push_vx", "contact_vx", "goalie_v
 LIMITS.update({k: (0.0, 0.5) for k in ("hb_charge_vx", "hb_backoff_vx")})
 LIMITS.update(return_vx=(0.0, 2.0), decel_vx=(0.0, 5.0), decel_wz=(0.0, 20.0))   # return_vx > max_vx = no extra cap
 LIMITS.update(FLOW_LIMITS, record=(0, 1), rec_fps=(2, 30))
+LIMITS.update(shot_vmin=(0.05, 3.0), shot_horizon_s=(0.5, 10.0), shot_mouth_margin=(0.0, 0.5), shot_end_s=(0.1, 2.0),
+              ball_decel=(0.0, 3.0))
 CHOICES = {"role_mode": ["auto", "attack", "defend"], "contact_mode": ["push", "headbutt"],
            "ball_lost": ["hold", "search"], "goalie_style": ["sideways", "facing"], "restart_mode": RESTART_MODES}
 TESTS = ["drive", "goto", "step", "deadman", "push_ball", "goalie", "match", "sim_eval"]
@@ -404,6 +410,112 @@ def analyze_deadman(obs, t_mute, rest_speed=0.03, tail_s=0.3, lead_s=0.8):
     return {**out, "result": "stopped", "stop_time_s": st, "pass": st <= 0.5}
 
 
+def ball_crossing(b, x_line: float, decel: float) -> tuple[float, float | None]:
+    """(seconds, y) when ball b (x, y, vx, vy), rolling straight and slowing at `decel`, reaches
+    x = x_line; (inf, None) if it rolls away or stops first. Same model as the brain's _arrival."""
+    if abs(b.vx) < 1e-6 or (x_line - b.x) * b.vx <= 0:
+        return math.inf, None
+    sp = math.hypot(b.vx, b.vy)
+    path = (x_line - b.x) / b.vx * sp
+    a = max(1e-6, decel)
+    disc = sp * sp - 2 * a * path
+    if disc < 0:
+        return math.inf, None
+    return (sp - math.sqrt(disc)) / a, b.y + b.vy * (x_line - b.x) / b.vx
+
+
+class ShotCounter:
+    """Shots on one team's goal from the overhead ball track (camera goalie test; the sim test
+    counts its own scripted shots).
+
+    A shot starts when the ball rolls toward our goal line at >= shot_vmin and the rolling model
+    (ball_decel) has it cross the line inside the mouth (+ shot_mouth_margin) within
+    shot_horizon_s. It ends as
+      conceded  a goal for the other team while it is on (or within GRACE_S after it ended),
+      saved     no longer on target (stopped, reversed or deflected) for shot_end_s and our robot
+                came within reach of the ball (robot + ball radius + 0.12 m) during the shot,
+      missed    the same without our robot near the ball (stopped short, wide),
+      unclear   ball not seen for 1 s.
+    A goal with no shot seen first counts as a conceded shot. Known gap: a ball carried through
+    the air toward the goal looks like a shot."""
+    GRACE_S = 1.5
+    LOST_S = 1.0
+
+    def __init__(self, team: str, field, params: dict):
+        self.team, self.f, self.p = team, field, params
+        self.side = -1.0 if team == "blue" else 1.0    # blue keeps the west goal
+        self.shot: dict | None = None
+        self.log: list[dict] = []
+        self.quiet_until = -math.inf
+
+    def counts(self) -> dict:
+        c = {k: sum(1 for s in self.log if s["result"] == k) for k in ("conceded", "saved", "missed", "unclear")}
+        return {**c, "shots": len(self.log)}
+
+    def on_target(self, b) -> tuple[bool, float, float | None]:
+        p, f = self.p, self.f
+        sp = math.hypot(b.vx, b.vy)
+        if sp < float(p.get("shot_vmin", 0.3)):
+            return False, math.inf, None
+        t, y = ball_crossing(b, self.side * f.length / 2, float(p.get("ball_decel", 0.45)))
+        ok = (t <= float(p.get("shot_horizon_s", 4.0))
+              and abs(y) <= f.goal_width / 2 + float(p.get("shot_mouth_margin", 0.1)))
+        return ok, t, y
+
+    def update(self, now: float, world, goals: list[str], robot_id: str | None) -> list[dict]:
+        """One tick. Returns the shots that ended this tick (each also kept in self.log)."""
+        ended = []
+        conceded = any(g != self.team for g in goals)
+        b = world.ball if world else None
+        fresh = b is not None and now - b.t <= 0.3
+        me = world.robots.get(robot_id) if (world and robot_id) else None
+        s = self.shot
+        if conceded:
+            if s is not None:
+                ended.append(self._end(s, now, "conceded"))
+            else:
+                last = self.log[-1] if self.log else None
+                if last is not None and now - last["t1"] <= self.GRACE_S and last["result"] != "conceded":
+                    last["result"], last["late"] = "conceded", True   # it rolled in after all
+                    ended.append(last)
+                else:
+                    ended.append(self._end({"t0": now, "v": None, "y": None, "near": False, "off_t": None}, now,
+                                           "conceded", unseen=True))
+            self.quiet_until = now + 3.0   # the ball sits in the goal / is carried back
+            return ended
+        if now < self.quiet_until:
+            return ended
+        if s is None:
+            if fresh:
+                ok, t, y = self.on_target(b)
+                if ok:
+                    self.shot = {"t0": now, "v": round(math.hypot(b.vx, b.vy), 2), "y": round(y, 2),
+                                 "eta_s": round(t, 2), "from": [round(b.x, 2), round(b.y, 2)], "near": False,
+                                 "off_t": None, "seen_t": now}
+            return ended
+        if fresh:
+            s["seen_t"] = now
+            if me is not None:
+                reach = self.f.robot_radius + self.f.ball_radius + 0.12
+                s["near"] = s["near"] or math.hypot(me.pose.x - b.x, me.pose.y - b.y) <= reach
+            ok = self.on_target(b)[0]
+            s["off_t"] = None if ok else (s["off_t"] or now)
+            if s["off_t"] is not None and now - s["off_t"] >= float(self.p.get("shot_end_s", 0.3)):
+                ended.append(self._end(s, now, "saved" if s["near"] else "missed"))
+        elif now - s["seen_t"] > self.LOST_S:
+            ended.append(self._end(s, now, "unclear"))
+        return ended
+
+    def _end(self, s: dict, now: float, result: str, unseen: bool = False) -> dict:
+        rec = {"t0": s["t0"], "t1": now, "result": result, "v": s.get("v"), "y": s.get("y"),
+               "eta_s": s.get("eta_s"), "from": s.get("from"), "near": s.get("near", False)}
+        if unseen:
+            rec["unseen"] = True
+        self.log.append(rec)
+        self.shot = None
+        return rec
+
+
 # ---------------------------------------------------------------------------------------
 # the app
 # ---------------------------------------------------------------------------------------
@@ -469,6 +581,10 @@ class App:
         self._lstat: dict[str, dict] = {}
         self._sim_ev_n = 0
         self._goal_cooldown = 0.0
+        self._goal_armed = True    # camera referee: False after a goal until the ball is back in the field
+        self._shots: ShotCounter | None = None    # camera goalie test: shots on the robot's goal
+        self._paused = False                       # eye reported CAMERA PAUSED last tick
+        self._ball_track: deque = deque(maxlen=2400)   # sim: ball sightings for /ball_track (the eye keeps its own)
         self._err_t: dict[str, float] = {}
         self._lk_t = 0.0
         self.loop_stats = {"hz": 0.0, "overruns": 0, "tick_ms": 0.0}
@@ -550,6 +666,11 @@ class App:
             self.world = world
             if self.eye is not None:
                 self._sync_field()
+                self._watch_eye()
+            elif world is not None and world.ball is not None and (
+                    not self._ball_track or world.ball.t > self._ball_track[-1][0] + 1e-6):
+                b = world.ball
+                self._ball_track.append((b.t, b.x, b.y))
             lstat = self._lstat = self.link_status()
             self._health_watch(lstat)
             cmds, debug = {}, {}
@@ -611,7 +732,8 @@ class App:
                             "profile", "bridge_ok", "bridge", "extra", "sent", "acks", "addr")} for rid, st in lstat.items()}
                     if self.eye:
                         es = self.eye.status()
-                        rec["eye"] = {"fps": es["fps"], "calibrated": es["calibrated"], "msg": es["message"][:80]}
+                        rec["eye"] = {"fps": es["fps"], "calibrated": es["calibrated"], "msg": es["message"][:80],
+                                      "paused": es.get("paused"), "picture_age": es.get("picture_age")}
                 self.run.event(rec)
             self._check_test(world, now)
 
@@ -777,6 +899,24 @@ class App:
             self.say(f"field {self.field.length:.2f} x {self.field.width:.2f} m from {src}"
                      f" (goal mouth {self.field.goal_width:.2f} m from field.json)")
 
+    def _watch_eye(self) -> None:
+        """CAMERA PAUSED (frozen feed / no frames): the eye stops refreshing observations, so robots
+        go stale and stop by themselves; here it is logged, once per pause."""
+        paused = bool(getattr(self.eye, "paused", False))
+        if paused and not self._paused:
+            self.say("CAMERA PAUSED: the overhead picture stopped changing (frozen phone feed?) - observations"
+                     " are stale, robots stop; check the phone / camera app", camera_paused=True)
+        elif self._paused and not paused:
+            self.say("camera picture moving again", camera_paused=False)
+        self._paused = paused
+
+    def ball_track(self, since: float = -math.inf) -> list:
+        """Raw ball sightings [(t_capture, x, y)] newer than `since` (for ctl rollcal)."""
+        if self.eye is not None:
+            return self.eye.ball_track(since)
+        with self.lock:
+            return [p for p in self._ball_track if p[0] > since]
+
     def ballcal(self, body: dict) -> dict:
         """Ball colour calibration on the live camera frame. body: {} auto-find, {x, y} pixel,
         {u, v} 0..1 of the frame, {show: true} report only; optional k (MAD multiplier)."""
@@ -810,13 +950,19 @@ class App:
             self._sim_ev_n = len(self.sim.events)
             return [ev["team"] for ev in new if ev.get("type") == "goal" and ev.get("team") in ("blue", "red")]
         b = world.ball if world else None
-        if b is None or now < self._goal_cooldown:
+        if b is None:
             return []
         f = self.field
         # Goal when the ball centre reaches the goal line (minus an optional margin) inside the mouth.
+        # Re-armed once the ball is back in the field: a ball left lying in the goal scores once.
         line = f.length / 2 - float(self.params.get("goal_line_margin_m", 0.0))
+        if abs(b.x) < line - 0.15:
+            self._goal_armed = True
+        if now < self._goal_cooldown or not self._goal_armed:
+            return []
         if abs(b.x) >= line and abs(b.y) < f.goal_width / 2:
             self._goal_cooldown = now + 3.0
+            self._goal_armed = False
             return ["blue" if b.x > 0 else "red"]
         return []
 
@@ -852,10 +998,25 @@ class App:
                     t["saved"] += 0 if conceded else 1
                     t["shot_t0"] = now
                     self._reset_sim("shot_on_goal", [t["robot"]])
+            else:
+                # camera: shots seen in the ball track (ShotCounter); goals come from the same referee
+                sc = self._shots if self._shots is not None and self._shots.team == team else None
+                if sc is None:
+                    sc = self._shots = ShotCounter(team, self.field, self.params)
+                for shot in sc.update(now, world, goals, t["robot"]):
+                    self.say(f"shot on {team}'s goal: {shot['result'].upper()}"
+                             + (f" ({shot['v']} m/s at y {shot['y']})" if shot.get("v") is not None else " (not seen coming)")
+                             + (" - rolled in late" if shot.get("late") else ""), shot=shot)
+                t.update(sc.counts())
             if el > self.params["test_timeout_s"]:
-                shots = t["conceded"] + t["saved"] if self.sim else None
-                self._finish("done", conceded=t["conceded"], saved=t["saved"] if self.sim else None,
-                             shots=shots, time_s=round(el, 2))
+                if self.sim is not None:
+                    self._finish("done", conceded=t["conceded"], saved=t["saved"], shots=t["conceded"] + t["saved"],
+                                 time_s=round(el, 2))
+                else:
+                    c = self._shots.counts() if self._shots else {}
+                    self._finish("done", conceded=t["conceded"], saved=c.get("saved", 0), shots=c.get("shots", 0),
+                                 missed=c.get("missed", 0), unclear=c.get("unclear", 0),
+                                 shot_log=self._shots.log if self._shots else [], time_s=round(el, 2))
         elif name == "match":
             if el > self.params["match_s"]:
                 self._finish("full_time", score={k: self.score[k] - t["score0"][k] for k in self.score},
@@ -946,6 +1107,7 @@ class App:
         if self.test:
             self._finish("replaced")
         self.test = {"name": name, "robot": robot, "t0": time.monotonic(), **extra}
+        self._shots = None
         self.mode = name
         for b in self.brains.values():  # fresh role/latch memory for every run
             b.reset()
@@ -1548,10 +1710,14 @@ class App:
                 "phase": self.robot_phase.get(r.id), "playing": r.id in self.playing,
                 "cam": self.cams[r.id].status() if r.id in self.cams else None,
             }
+        cam = []
+        if self.eye is not None and getattr(self.eye, "paused", False):
+            cam = [{"robot": None, "team": None, "level": "bad", "kind": "camera",
+                    "text": "CAMERA PAUSED: the overhead picture is frozen - robots stop (stale). Check the phone"}]
         return {"flow": self.flow.json(now, self.params) if self.flow else None, "last_match": self.last_match,
                 "playing": self.playing, "variants": variants([r.id for r in self.active]), "robots": robots,
                 "ticker": list(self.ticker.items)[-12:],
-                "banners": safety_banners(self.cfg, [r.id for r in self.active], self.estops, self.ops, now,
+                "banners": cam + safety_banners(self.cfg, [r.id for r in self.active], self.estops, self.ops, now,
                                           self.link is not None, self.sim is not None, ESTOP_RESEND_S)
                 + banners(self.cfg, [p for p in self.playing if p not in self.estops], moving, self.cmds, self.imu_bad,
                           self.mux_lost, lstat, self.link is not None),
@@ -1607,6 +1773,14 @@ def make_handler(app: App):
                 return self._json(app.state())
             if path == "/runs":
                 return self._json(list_runs(app.runs_root))
+            if path == "/ball_track":
+                q = dict(p.split("=", 1) for p in self.path.partition("?")[2].split("&") if "=" in p)
+                try:
+                    since = float(q.get("since", "-inf"))
+                except ValueError:
+                    since = -math.inf
+                pts = [[round(v, 4) for v in p] for p in app.ball_track(since - 1e-3)]
+                return self._json({"now": time.monotonic(), "points": [p for p in pts if p[0] > since]})
             if path == "/frame.jpg":
                 jpg = app.eye.jpeg() if app.eye else None
                 return self._send(200, jpg, "image/jpeg") if jpg else self._send(404, b"no frame", "text/plain")

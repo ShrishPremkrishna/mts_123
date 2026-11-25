@@ -460,3 +460,84 @@ def test_ready_without_status_when_bridge_acks_and_homed_next(capsys):
     c = RealOpsClient("homed", [{"phase": "error", "ok": False, "msg": "another profile running", "at": "profile"}], rc=1)
     with pytest.raises(ctl.Fail, match="another profile running"):
         ctl.cmd_ready(c, ap.parse_args(["ready", "blue"]))
+
+
+# ---- camera paused, goalie shots, rollcal ------------------------------------------------------
+def test_fmt_status_camera_paused():
+    st = {**CAMERA_STATE, "eye": {**CAMERA_STATE["eye"], "paused": True, "picture_age": 2.34},
+          "play": {**CAMERA_STATE["play"], "banners": [{"kind": "camera", "text": "CAMERA PAUSED: frozen"}]}}
+    lines = ctl.fmt_status(st)
+    assert lines[0].startswith("camera CAMERA PAUSED · mode")
+    assert lines[1].startswith("CAMERA PAUSED: picture unchanged for 2.3 s · eye 29.6fps")
+    assert lines[-1] == "  banner: CAMERA PAUSED: frozen"
+    assert "PAUSED" not in "".join(ctl.fmt_status(CAMERA_STATE))
+
+
+def test_goalie_summary_line_has_shots():
+    s = {"result": "done", "robot": "blue", "conceded": 1, "saved": 3, "shots": 5, "missed": 1, "unclear": 0}
+    assert ctl.key_line("goalie", s) == "conceded 1 saved 3 shots 5 missed 1"
+    assert ctl.key_line("goalie", {"conceded": 0, "saved": None, "shots": None}) == "conceded 0 saved - shots -"
+
+
+class RollClient:
+    """/ball_track serving three synthetic free rolls (decel 0.3) in two polls."""
+    def __init__(self, decel=0.3):
+        from fc.tests.test_eye import roll
+        pts = []
+        for k, v0 in enumerate((0.9, 1.2, 0.7)):
+            pts += [[100 + 10 * k + t, x, y] for t, x, y, _ in roll(v0, decel, seed=k)]
+        self.chunks, self.posts = [pts[: len(pts) // 2], pts[len(pts) // 2:]], []
+
+    def get(self, path):
+        if "since=1e18" in path:
+            return {"now": 99.0, "points": []}
+        return {"now": 200.0, "points": self.chunks.pop(0) if self.chunks else []}
+
+    def state(self):
+        return {"params": {"ball_decel": 0.45}}
+
+    def post(self, path, body):
+        self.posts.append((path, body))
+        return {"ok": True, "applied": body, "errors": []}
+
+
+def test_rollcal_fits_and_applies(capsys, monkeypatch):
+    monkeypatch.setattr(ctl, "ROLLCAL_POLL_S", 0.0)
+    c = RollClient()
+    a = ctl.build_parser().parse_args(["rollcal", "--secs", "0.2", "--rolls", "3", "--stop-after", "--apply"])
+    a.fn(c, a)
+    out = capsys.readouterr().out
+    assert "3 roll(s) seen" in out and "ROLLCAL ball_decel 0.3" in out and "now 0.45" in out
+    assert "python -m fc.ctl set ball_decel=0.3" in out
+    assert c.posts and c.posts[0][0] == "/params" and abs(c.posts[0][1]["ball_decel"] - 0.3) < 0.05
+
+
+def test_rollcal_without_rolls_fails(capsys, monkeypatch):
+    monkeypatch.setattr(ctl, "ROLLCAL_POLL_S", 0.0)
+    c = RollClient()
+    c.chunks = [[[1.0 + i / 30, 0.0, 0.0] for i in range(60)]]
+    a = ctl.build_parser().parse_args(["rollcal", "--secs", "0.05"])
+    with pytest.raises(ctl.Fail):
+        a.fn(c, a)
+    assert "no clean free roll" in capsys.readouterr().out
+
+
+def test_rollcal_live_against_sim_app(live, capsys, monkeypatch):
+    """The sim's rolling_ball scenario through the real /ball_track: the fit lands near sim_ball_decel."""
+    app, url = live
+    monkeypatch.setattr(ctl, "ROLLCAL_POLL_S", 0.2)
+    import threading
+    import time
+
+    def roll_some():
+        for _ in range(3):
+            with app.lock:
+                app._reset_sim("rolling_ball")
+            time.sleep(1.6)
+    th = threading.Thread(target=roll_some, daemon=True)
+    th.start()
+    rc = ctl.main(["--url", url, "rollcal", "--secs", "5"])
+    out = capsys.readouterr().out
+    assert rc == 0, out
+    fitted = float(out.split("ROLLCAL ball_decel ")[1].split()[0])
+    assert abs(fitted - app.params["sim_ball_decel"]) < 0.12, out

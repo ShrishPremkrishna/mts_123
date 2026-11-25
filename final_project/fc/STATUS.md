@@ -55,13 +55,17 @@ operator reading). Lean stack load 0.8 vs 3–5.
 | Brain: goalie, solo role switching vs a human, interception | **sim** only |
 | Field length/width from the corner-tag calibration (`field_from_camera`, default on) into one live Field for brain, referee, match flow, UI; logged in each run's params.json, shown in `ctl status`. Goal mouth 1.22 m stays in field.json | **device-free** (unit test). Not yet on the robot |
 | Ball colour calibration: `python -m fc.ctl ballcal [X Y]` / `--show`, Shift-click on the `/ops` camera; applied live, saved to `config/ball_color.json` (loaded at eye start). Ball radius: field.json only (measure the new ball) | **device-free** + synthetic camera. Not yet on the real camera |
+| Ball velocity `fc/ballvel.py` (weighted fit over 0.4 s, outlier gate, kick detection, exactly 0 at rest). Replay of 14 Nov 24 runs: at rest 0 m/s in every frame (old estimator: p95 0.03, max 0.19 m/s). Synthetic rolls: 90 % of true speed 0.06 s after release, error median 0.01-0.02 m/s. `python -m fc.tools.ball_vel_replay --synthetic fc/runs/...` | **device-free** (logged tracks + synthetic). Not yet live |
+| `python -m fc.ctl rollcal [--apply]`: fits `ball_decel` from free rolls (sim: 0.438 for 0.45). Hand rolls of the old ball in `071425Z` fit 0.12-0.29, median 0.15 m/s², vs brain default 0.45 | **device-free** + sim. Not yet run with the new ball |
+| CAMERA PAUSED: byte-identical frames (the `074158Z` freeze) are not processed, so observations go stale and robots stop; > 0.5 s shows a Play banner, `/ops` bar, `ctl status`, run-log event | **device-free** (synthetic frozen feed). Not yet live |
+| Camera goalie shot counting (`ShotCounter`): `ctl test goalie --wait` prints conceded / saved / shots (+ missed, unclear); per-shot log in summary.json. The camera referee now scores a ball lying in the goal once (it scored again every 3 s) | **device-free** + sim physics (12/12 scripted shots agree). Not yet on the floor |
 
 ## What is unverified
 
 - Eye fix `c52e180` (1.5 s crop search) on the live feed.
 - Fast pushes at a repeatable rate; contact ladder 0.4 / 0.6 / 0.75 (only `contact_vx` 0.3 run).
 - Speed-dependent heading offset for the fast gait.
-- Goalie: reaction time and save counting (not implemented in camera mode).
+- Goalie: reaction time; camera save counting on the floor (compare with a hand count).
 - Stage 3 (solo switching vs a human) and interception on the floor.
 - Bridge IMU lie-down on a real fault; the filter's accel stream during a fault.
 - Robot 2: not in hand. Plan: [robot/provision/PROVISION.md](robot/provision/PROVISION.md).
@@ -71,7 +75,7 @@ operator reading). Lean stack load 0.8 vs 3–5.
 1. Bigger rigid robot tag (≥ 15 cm, flat); measure its height and offset into `eye_tag_height` / `eye_tag_offset_x`.
 2. Restage the Pi (`robot/stage.sh mts`); confirm `FC_IMU_FILTER on` in `robot.log` at start.
 3. Fast pushes ×5 with `fast-light`, logging tag-seen fraction per run.
-4. Goalie ×5 (count saves by hand until the app does).
+4. `ctl rollcal --apply` with the new ball, then goalie ×5 (also count saves by hand once to check the app's count).
 5. Solo role switching vs a human (stage 3).
 
 ## Blockers (owner)

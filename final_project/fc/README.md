@@ -19,6 +19,7 @@ python -m fc.app --source camera --video clip.mov  # or a folder of jpg/png
 python -m fc.ctl status                            # one line per robot (--url, default http://127.0.0.1:8800)
 python -m fc.ctl test step vx=0.2 --wait           # ready/down/estop/preset/set/drive/stop/test/last/check: --help
 python -m fc.ctl batch fc/sessions/S1.batch        # first floor session (RUNBOOK) as one batch; pauses wait for Enter
+python -m fc.ctl rollcal --apply                   # roll the ball a few times: fits ball_decel (brain prediction) and sets it
 ```
 
 Flags: `--port 8800`, `--host <LAN IP>` (UI from another device; default 127.0.0.1), `--camera NAME|INDEX`,
@@ -85,7 +86,7 @@ UI: **space = stop all, Esc = E-STOP all, always** (per-robot E-STOP on each car
 | `step` | open loop: still 0.7 s, hold (vx, vy, wz) for `step_s`, zero for `step_settle_s` | `gain_lin`/`gain_wz` (actual / commanded), `latency_s` (fit), `onset_s`, `heading_bias_deg` (walk direction minus tag yaw), `lateral_m`, `yaw_drift_deg_per_m`, `pass` |
 | `deadman` | walk at `deadman_vx` for `deadman_drive_s`, then send **nothing** for `deadman_mute_s` | `stop_time_s` (last packet -> at rest, from the camera; hinge fit), `coast_m`, `pass` (≤ 0.5 s). Sim emulates the bridge ttl |
 | `push_ball` | `role_mode=attack` until a goal or `test_timeout_s` | `goal`/`own_goal`/`timeout`, `time_s` |
-| `goalie` | `role_mode=defend`; in sim a new shot every `goalie_shot_s` | `conceded`, `saved` |
+| `goalie` | `role_mode=defend`; in sim a new shot every `goalie_shot_s`; on camera shots come from the ball track (`shot_*` params) | `conceded`, `saved`, `shots` (camera also `missed`, `unclear`, `shot_log`) |
 | `match` | both robots, `role_mode=auto`, for `match_s` | goals during the match |
 | `sim_eval` | runs `python -m fc.sim_eval <args>` | output table |
 

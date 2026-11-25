@@ -258,6 +258,28 @@ function drawBall(b, ghost) {
   }
   cx.restore();
 }
+// predicted ball path (the brain's model: straight, slowing at ball_decel, kept on the field), 3 s
+function drawPrediction(b) {
+  const sp = Math.hypot(b.vx || 0, b.vy || 0);
+  if (sp < 0.05 || b.age > 1.0) return;
+  const a = Math.max(1e-6, +S.params.ball_decel || 0.45), F = S.field, r = F.ball_radius;
+  const cl = (q, m) => Math.max(-m, Math.min(m, q)), H = Math.min(3.0, sp / a);
+  cx.save(); cx.fillStyle = "#fbcfe8";
+  for (let h = 0.1; h <= H + 1e-9; h += 0.1) {
+    const s = (sp * h - 0.5 * a * h * h) / sp;
+    const [x, y] = P(cl(b.x + b.vx * s, F.length / 2 - r), cl(b.y + b.vy * s, F.width / 2 - r));
+    cx.globalAlpha = 0.85 * (1 - h / 3.1); cx.beginPath(); cx.arc(x, y, Math.max(2, r * 0.45 * view.s), 0, 7); cx.fill();
+  }
+  cx.restore();
+}
+function drawPlan(p, plan) {
+  const pts = plan.filter((q) => Array.isArray(q) && isFinite(q[0]) && isFinite(q[1]));
+  if (!pts.length) return;
+  cx.save(); cx.strokeStyle = "#fde047"; cx.fillStyle = "#fde047"; cx.lineWidth = 1.5; cx.setLineDash([2, 4]);
+  cx.beginPath(); cx.moveTo(...P(p.x, p.y)); for (const q of pts) cx.lineTo(...P(q[0], q[1])); cx.stroke();
+  cx.setLineDash([]); for (const q of pts) { const [x, y] = P(q[0], q[1]); cx.beginPath(); cx.arc(x, y, 3, 0, 7); cx.fill(); }
+  cx.restore();
+}
 function draw() {
   if (!S) return; if (!view) setupView();
   const F = S.field, L = F.length / 2, W = F.width / 2, G = F.goal_width / 2, D = F.goal_depth;
@@ -276,9 +298,10 @@ function draw() {
   const T = S.truth, Wd = S.world;
   if (T) { if (T.ball) drawBall(T.ball, false); for (const [id, p] of Object.entries(T.robots || {})) if (p) drawRobot(id, p, false, id); }
   if (Wd) {
-    if (Wd.ball) drawBall(Wd.ball, !!T);
+    if (Wd.ball) { drawPrediction(Wd.ball); drawBall(Wd.ball, !!T); }
     for (const [id, p] of Object.entries(Wd.robots || {})) {
       const d = S.debug[id] || {};
+      if (Array.isArray(d.plan) && d.plan.length) drawPlan(p, d.plan);
       const lab = (T ? "" : id + " ") + (d.role ? `${d.role}/${d.phase || ""}` : "");
       drawRobot(id, p, !!T, T ? null : lab);
       if (T && lab) { const [x, y] = P(p.x, p.y); cx.fillStyle = "#fff"; cx.font = "12px system-ui"; cx.fillText(lab, x + 14, y + 26); }
@@ -297,6 +320,10 @@ function draw() {
   }
   if (gotoArmed) { cx.fillStyle = "#fde047"; cx.font = "bold 18px system-ui"; cx.fillText("click a goto target", 12, 24); }
   if (!Wd) { cx.fillStyle = "#fff"; cx.font = "bold 18px system-ui"; cx.fillText("no world yet (camera not calibrated?)", 12, cv.height - 14); }
+  if (S.eye && S.eye.paused) {
+    cx.fillStyle = "#7f1d1dee"; cx.fillRect(0, 0, cv.width, 44); cx.fillStyle = "#fff"; cx.font = "bold 24px system-ui";
+    cx.fillText(`CAMERA PAUSED: picture unchanged for ${(S.eye.picture_age || 0).toFixed(1)} s - robots stop (stale)`, 12, 30);
+  }
 }
 
 // ---------- panels ----------

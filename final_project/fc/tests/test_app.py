@@ -847,3 +847,162 @@ def test_shipped_stack_presets():
     for n in ("stock-hh-off", "u6-hh-off"):
         stack, err = fcapp.validate_stack(data[n].get("_stack"))
         assert not err and stack.get("heading_hold") == "off", n
+
+
+# ---- camera goalie: shot counting, ball track, camera paused ---------------------------------
+from fc.app import ShotCounter, ball_crossing  # noqa: E402
+from fc.core import Ball, Pose, RobotObs, World, load_field  # noqa: E402
+
+
+def _w(t, ball, keeper=None):
+    robots = {"blue": RobotObs("blue", Pose(*keeper, 0.0), t)} if keeper else {}
+    return World(t, Ball(*ball, t), robots)
+
+
+def _shoot(sc, v=1.0, y_end=0.0, keeper=None, stop_at=None, t0=0.0, goal_team="red", decel=0.3):
+    """Ball rolled from x = 0 at the west (blue) goal: straight at (-L/2, y_end), slowing at decel.
+    stop_at: x where the keeper stops it dead. Returns (results, t_end)."""
+    f, out, t = sc.f, [], t0
+    L = f.length / 2
+    ux, uy = -L, y_end
+    n = math.hypot(ux, uy)
+    ux, uy = ux / n, uy / n
+    x, y, sp = 0.0, 0.0, v
+    while t < t0 + 8:
+        goals = []
+        if x <= -L and abs(y) < f.goal_width / 2:
+            goals = [goal_team]
+        elif stop_at is not None and x <= stop_at:
+            sp = 0.0
+        out += sc.update(t, _w(t, (x, y, ux * sp, uy * sp), keeper), goals, "blue")
+        if goals:
+            break
+        x, y = x + ux * sp / 30, y + uy * sp / 30
+        sp = max(0.0, sp - decel / 30)
+        t += 1 / 30
+    for k in range(60):   # ball lies still afterwards
+        out += sc.update(t + k / 30, _w(t + k / 30, (x, y, 0.0, 0.0), keeper), [], "blue")
+    return out, t + 2
+
+
+def test_ball_crossing_matches_rolling_model():
+    t, y = ball_crossing(Ball(0.0, 0.0, -1.0, 0.0), -1.0, 0.3)
+    assert math.isclose(t, (1 - math.sqrt(1 - 0.6)) / 0.3, rel_tol=1e-6) and y == 0.0
+    assert ball_crossing(Ball(0.0, 0.0, -0.5, 0.0), -1.0, 0.3)[0] == math.inf   # stops first (needs 0.42 m)
+    assert ball_crossing(Ball(0.0, 0.0, 1.0, 0.0), -1.0, 0.3)[0] == math.inf    # rolling away
+
+
+def test_shot_counter_classifies_conceded_saved_missed():
+    f = load_field()
+    p = {"ball_decel": 0.3, "shot_vmin": 0.3, "shot_horizon_s": 4.0, "shot_mouth_margin": 0.1, "shot_end_s": 0.3}
+    keeper = (-f.length / 2 + 0.25, 0.0)
+    sc = ShotCounter("blue", f, p)
+    res, t = _shoot(sc, v=1.2)                                           # nobody there: in
+    assert [r["result"] for r in res] == ["conceded"] and res[0]["v"] == 1.2
+    res, t = _shoot(sc, v=1.2, keeper=keeper, stop_at=keeper[0] + 0.15, t0=t + 4)   # keeper stops it
+    assert [r["result"] for r in res] == ["saved"] and res[0]["near"]
+    res, t = _shoot(sc, v=1.2, y_end=f.width / 2, t0=t + 1)            # wide of the mouth: not a shot
+    assert res == []
+    res, t = _shoot(sc, v=1.2, stop_at=-0.6, t0=t + 1)                  # stops short, keeper nowhere near
+    assert [r["result"] for r in res] == ["missed"]
+    res, t = _shoot(sc, v=0.2, t0=t + 1)                                 # too slow to be a shot
+    assert res == []
+    assert sc.counts() == {"conceded": 1, "saved": 1, "missed": 1, "unclear": 0, "shots": 3}
+    # a goal nobody saw coming still counts, and a "saved" ball that rolls in late becomes conceded
+    sc2 = ShotCounter("blue", f, p)
+    assert sc2.update(0.0, _w(0.0, (-f.length / 2, 0.0, 0.0, 0.0)), ["red"], "blue")[0]["unseen"]
+    sc3 = ShotCounter("blue", f, p)
+    sc3.log.append({"t0": 0, "t1": 1.0, "result": "saved", "v": 1, "y": 0, "near": True})
+    assert sc3.update(1.5, _w(1.5, (-f.length / 2, 0.0, 0.0, 0.0)), ["red"], "blue")[0]["late"]
+    assert sc3.counts()["conceded"] == 1 and sc3.counts()["saved"] == 0
+    # own team's goal at the other end does not count against the keeper; red keeps the east goal
+    assert ShotCounter("blue", f, p).update(0.0, None, ["blue"], "blue") == []
+    assert ShotCounter("red", f, p).on_target(Ball(0.0, 0.0, 1.5, 0.0))[0]
+
+
+def test_shot_counter_agrees_with_sim_physics():
+    """Scripted shots in the sim (keeper stands still): every sim goal is a conceded shot, every
+    shot the keeper's body stops is saved or missed, never a phantom."""
+    from fc.app import PARAM_FALLBACKS
+    from fc.brain import DEFAULTS
+    from fc.core import Cmd, load_params
+    from fc.core import RobotCfg as RC
+    from fc.sim import SIM_DEFAULTS, Sim
+    field = load_field()
+    params = {**PARAM_FALLBACKS, **DEFAULTS, **SIM_DEFAULTS, **load_params()}
+    params["ball_decel"] = params["sim_ball_decel"]
+    blue = RC("blue", "blue", 10, "", "stock")
+    agree, n = 0, 12
+    for seed in range(n):
+        sim = Sim(field, [blue], params, seed=seed)
+        sim.reset("shot_on_goal")
+        sc, t, k = ShotCounter("blue", field, params), 0.0, len(sim.events)
+        while t < 6.0:
+            sim.step({"blue": Cmd()}, 1 / 30)
+            t += 1 / 30
+            goals = [e["team"] for e in sim.events[k:] if e.get("type") == "goal"]
+            k = len(sim.events)
+            sc.update(t, sim.observe(t), goals, "blue")
+        scored = any(e.get("type") == "goal" for e in sim.events)
+        c = sc.counts()
+        assert c["shots"] == 1, (seed, sc.log)
+        agree += (c["conceded"] == 1) == scored
+    assert agree == n
+
+
+def test_camera_goalie_counts_shots_in_summary(server):
+    """The camera branch of the goalie test (sim swapped out after the start): referee goals from
+    the ball position, shots from the ball track, counts in the summary."""
+    app, base = server
+    with app.lock:
+        assert app.action({"action": "test", "test": "goalie", "robot": "blue"})["ok"]
+        sim, app.sim = app.sim, None
+        try:
+            f, t = app.field, app.test
+            sc_t0 = time.monotonic()
+            x, sp = 0.0, 1.2
+            now = sc_t0
+            while x > -f.length / 2 - 0.01:
+                app._check_test(_w(now, (x, 0.0, -sp, 0.0)), now)
+                x, now = x - sp / 30, now + 1 / 30
+            app._check_test(_w(now, (x, 0.0, 0.0, 0.0)), now)
+            assert t["conceded"] == 1 and t["shots"] == 1
+            app.params["test_timeout_s"] = 1.0
+            app._check_test(_w(now + 4, (x, 0.0, 0.0, 0.0)), now + 4)   # still in the goal: no second goal
+            assert t["conceded"] == 1
+            app._check_test(_w(now + 5, (x, 0.0, 0.0, 0.0)), now + 5)
+            s = app.last_summary
+            assert s["result"] == "done" and s["conceded"] == 1 and s["shots"] == 1 and s["saved"] == 0
+            assert s["shot_log"][0]["result"] == "conceded"
+        finally:
+            app.sim = sim
+    assert any("shot on blue's goal: CONCEDED" in e["msg"] for e in app.events)
+
+
+def test_ball_track_endpoint(server):
+    app, base = server
+    assert wait(lambda: len(app.ball_track()) > 5, 3)
+    code, body = get(base, "/ball_track")
+    j = json.loads(body)
+    assert code == 200 and len(j["points"]) > 5 and j["now"] > 0
+    last = j["points"][-1][0]
+    j2 = json.loads(get(base, f"/ball_track?since={last}")[1])
+    assert all(p[0] > last for p in j2["points"])
+
+
+def test_camera_paused_is_logged_and_bannered(server):
+    from types import SimpleNamespace
+    app, base = server
+    with app.lock:
+        app.eye = SimpleNamespace(paused=True)
+        try:
+            app._watch_eye()
+            app._watch_eye()
+            banners = app.play_state(time.monotonic())["banners"]
+            app.eye.paused = False
+            app._watch_eye()
+        finally:
+            app.eye = None
+    msgs = [e["msg"] for e in app.events]
+    assert sum("CAMERA PAUSED" in m for m in msgs) == 1 and "camera picture moving again" in msgs
+    assert banners[0]["kind"] == "camera" and "CAMERA PAUSED" in banners[0]["text"]

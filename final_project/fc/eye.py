@@ -35,12 +35,15 @@ import time
 from pathlib import Path
 
 from . import ballcal
+from .ballvel import BallVelocity, fit_decel  # noqa: F401 - fit_decel re-exported
 from .core import CONFIG, Ball, Field, Pose, RobotCfg, RobotObs, World, wrap
 
 OP = Path(__file__).resolve().parent.parent / "overhead_perception"
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp"}
 KEEP_ROBOT_S = 1.0   # keep reporting a robot's last raw pose (with its old time) this long
-BALL_VEL_WINDOW_S = 0.3
+BALL_TRACK_S = 60.0  # raw ball sightings kept for `ctl rollcal` (GET /ball_track)
+FROZEN_DIFF = 0.05   # mean |grey diff| on a 1/8 subsample below this = the same picture again (live noise ~1)
+FROZEN_S = 0.5       # same picture (or no frame) this long = CAMERA PAUSED
 # Pixel sizes below are for a 1920 px wide picture and scale with the width.
 ROI_HALF_PX = 110        # robot-tag crop half size around the last sighting
 ROI_GROW_PX_S = 340      # ...grown by this per second since the last sighting (~0.6 m/s)
@@ -220,7 +223,14 @@ class Eye:
         self.hfov: float | None = None
         self.frames, self.fps, self.message = 0, 0.0, "starting"
         self._last: dict[str, RobotObs] = {}
-        self._balls: list[tuple[float, float, float]] = []
+        self.ball_vel = BallVelocity()
+        self._ball: Ball | None = None
+        self.ball_raw: collections.deque = collections.deque(maxlen=int(BALL_TRACK_S * 40))   # (t_cap, x, y)
+        # frozen feed: the same picture again (or no frame) for FROZEN_S -> paused, observations not refreshed
+        self._sig = None                 # 1/8 grey subsample of the last frame
+        self._t_new = time.monotonic()  # receipt time of the last frame that differed from the one before
+        self.paused = False
+        self.pauses = 0
         self._next_cal = self._next_jpg = 0.0
         self._jpeg_wanted = -1e9
         # tracking state (hot thread) and what the background scan hands over (under _seed_lock)
@@ -530,7 +540,7 @@ class Eye:
 
     # ---- per frame ---------------------------------------------------------------------
     def process(self, frame, t_recv: float) -> World | None:
-        np, perc = self.np, self.perc
+        perc = self.perc
         now = time.monotonic()
         mount = self.mount()
         self._apply_floor_size(mount["floor_size"])
@@ -572,19 +582,11 @@ class Eye:
         self._seen = {"ball": px is not None, **{k: v.t == t_cap for k, v in robots.items()}}
         if px is not None:
             bx, by = (float(v) for v in cam.pixel_to_plane([px[:2]], perc.cfg["ball"]["radius"])[0])
-            self._balls.append((t_cap, bx, by))
-        self._balls = [b for b in self._balls if t_cap - b[0] < BALL_VEL_WINDOW_S]
-        if self._balls and t_cap - self._balls[-1][0] < KEEP_ROBOT_S:
-            t, bx, by = self._balls[-1]
-            vx = vy = 0.0
-            if len(self._balls) >= 3:
-                ts = np.array([b[0] for b in self._balls])
-                ts = ts - ts.mean()
-                d = float((ts ** 2).sum())
-                if d > 1e-6:
-                    vx = float((ts * np.array([b[1] for b in self._balls])).sum() / d)
-                    vy = float((ts * np.array([b[2] for b in self._balls])).sum() / d)
-            ball = Ball(bx, by, vx, vy, t)
+            self.ball_raw.append((t_cap, bx, by))
+            fx, fy, vx, vy = self.ball_vel.update(t_cap, bx, by, float(self.params.get("ball_decel", 0.0) or 0.0))
+            self._ball = Ball(fx, fy, vx, vy, t_cap)
+        if self._ball is not None and t_cap - self._ball.t < KEEP_ROBOT_S:
+            ball = self._ball
         return World(now, ball, robots)
 
     @staticmethod
@@ -625,10 +627,13 @@ class Eye:
             frame, t_recv = self.src.read()
             if frame is None:
                 self.message = "no frame (camera lost?)"
+                self._paused_check()
                 with self._lock:
                     self._world = None
                 continue
             self._tm = {"wait": time.perf_counter() - t_wait}
+            if self._same_picture(frame, t_recv):
+                continue   # nothing new: the last World keeps its capture times, so it goes stale
             t0 = time.perf_counter()
             try:
                 world = self.process(frame, t_recv)
@@ -659,6 +664,31 @@ class Eye:
                 self.stage_ms[k] = round(v if k not in self.stage_ms else 0.9 * self.stage_ms[k] + 0.1 * v, 2)
             rec["t"], rec["seen"] = now, self._seen   # what this frame measured (for eye_bench)
             self.trace.append(rec)
+
+    def _same_picture(self, frame, t_recv: float) -> bool:
+        """True if this frame is (almost) the picture before it. A live camera's sensor noise
+        differs by ~1 grey level per pixel between frames; the frozen phone feed of Nov 24
+        (074158Z) delivered byte-identical frames at full rate. Updates `paused`."""
+        np = self.np
+        sig = frame[::8, ::8].astype(np.int16)
+        prev, self._sig = self._sig, sig
+        same = prev is not None and prev.shape == sig.shape and float(np.abs(sig - prev).mean()) < FROZEN_DIFF
+        if not same:
+            self._t_new = t_recv
+        self._paused_check()
+        return same
+
+    def _paused_check(self) -> bool:
+        """paused = no new picture for FROZEN_S (frozen feed or no frames). Eye thread only; logged
+        once per pause."""
+        age = time.monotonic() - self._t_new
+        was, self.paused = self.paused, self.src is not None and age > FROZEN_S
+        if self.paused and not was:
+            self.pauses += 1
+            print(f"[eye] CAMERA PAUSED: no new picture for {age:.1f} s (frozen feed?)", flush=True)
+        elif was and not self.paused:
+            print("[eye] camera picture moving again", flush=True)
+        return self.paused
 
     # ---- public (SPEC) -------------------------------------------------------------------
     def start(self) -> "Eye":
@@ -735,7 +765,13 @@ class Eye:
                 "mount": self.mount(),
                 "robots_age": {k: round(now - v.t, 3) for k, v in (w.robots.items() if w else [])},
                 "ball_age": round(now - w.ball.t, 3) if w and w.ball else None,
+                "paused": self.paused or (self.src is not None and now - self._t_new > FROZEN_S), "picture_age": round(now - self._t_new, 2), "pauses": self.pauses,
+                "ball_vel": {"resets": self.ball_vel.resets, "outliers": self.ball_vel.outliers},
                 "stage_ms": dict(self.stage_ms)}
+
+    def ball_track(self, since: float = -math.inf) -> list[tuple[float, float, float]]:
+        """Raw ball sightings (t_capture, x, y) newer than `since` (for ctl rollcal)."""
+        return [p for p in list(self.ball_raw) if p[0] > since]
 
     # ---- field size and ball colour (read / set from the app thread) -------------------
     def calibrated_size(self) -> tuple[float, float] | None:

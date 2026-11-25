@@ -21,6 +21,9 @@
     ballcal [X Y] [--k K] | --show          ball HSV range from the live frame: at pixel X Y, else the most
                                             saturated compact blob in the field; applied live, saved to
                                             fc/config/ball_color.json. --show: current range + candidates
+    rollcal [--secs S] [--apply]            roll the ball across the field a few times (no robot near it):
+                                            fits the rolling deceleration and prints the ball_decel to set
+                                            (--apply sets it live; keep it with a preset save)
     batch <file> [--from N] [--no-pause [--max-pause S]] [--stop-at-pause]
 
 Batch files: one command per line as typed after `python -m fc.ctl`; `#` comments; `sleep N`; `pause [N] msg`.
@@ -205,7 +208,8 @@ def key_line(test: str, s: dict) -> str | None:
         b = g("ball")
         return f"ball at end ({num(b.get('x'))},{num(b.get('y'))})" if b else "ball at end -"
     if test == "goalie":
-        return f"conceded {num(g('conceded'))} saved {num(g('saved'))} shots {num(g('shots'))}"
+        extra = "".join(f" {k} {num(g(k))}" for k in ("missed", "unclear") if g(k))
+        return f"conceded {num(g('conceded'))} saved {num(g('saved'))} shots {num(g('shots'))}{extra}"
     if test == "match":
         sc = g("score") or {}
         score = " - ".join(f"{k} {v}" for k, v in sc.items()) if isinstance(sc, dict) else num(sc)
@@ -309,21 +313,24 @@ def fmt_status(st: dict) -> list[str]:
     lp = st.get("loop") or {}
     ball = (st.get("world") or {}).get("ball")
     bdesc = f"ball ({num(ball.get('x'))},{num(ball.get('y'))}) {num(ball.get('age'), 1)}s" if ball else "ball NOT SEEN"
-    head = [f"{st.get('source')}{' dry-run-ops' if st.get('dry_run_ops') else ''}", f"mode {st.get('mode')}",
+    eye = st.get("eye")
+    paused = bool(eye and eye.get("paused"))
+    head = [f"{st.get('source')}{' dry-run-ops' if st.get('dry_run_ops') else ''}"
+            + (" CAMERA PAUSED" if paused else ""), f"mode {st.get('mode')}",
             f"test {tdesc}", f"preset {pname}" + (f" [{stack}]" if stack else ""),
             f"loop {num(lp.get('hz'), 1)}Hz ovr {lp.get('overruns')}", bdesc]
     lines = [" · ".join(head)]
-    eye = st.get("eye")
     if eye:
         f = st.get("field") or {}
         fdesc = (f" · field {num(f.get('length'))} x {num(f.get('width'))} m ({st.get('field_source') or 'field.json'})"
                  f" mouth {num(f.get('goal_width'))} ball r {num(f.get('ball_radius'), 3)}") if f else ""
-        lines.append(f"eye {num(eye.get('fps'), 1)}fps calib {'ok' if eye.get('calibrated') else 'NO'}"
+        lines.append(("CAMERA PAUSED: picture unchanged for " + num(eye.get("picture_age"), 1) + " s · " if paused else "")
+                     + f"eye {num(eye.get('fps'), 1)}fps calib {'ok' if eye.get('calibrated') else 'NO'}"
                      f" err {num(eye.get('calib_err_px'))}px{fdesc} · {short(eye.get('message', ''), 80)}")
     for rid in st.get("active") or []:
         lines += robot_status_line(rid, st)
     for b in ((st.get("play") or {}).get("banners") or []):
-        if b.get("kind") in ("estop", "down"):
+        if b.get("kind") in ("estop", "down", "camera"):
             lines.append(f"  banner: {short(b.get('text'), 140)}")
     return lines
 
@@ -881,6 +888,62 @@ def cmd_ballcal(c: Client, a) -> None:
     say(*fmt_ballcal(need_ok(c.post("/ballcal", body), "ballcal")))
 
 
+ROLLCAL_POLL_S = 0.5
+
+
+def fmt_rollcal(fit: dict, current) -> list[str]:
+    out = []
+    for i, r in enumerate(fit.get("rolls") or [], 1):
+        out.append(f"  roll {i}: v0 {num(r['v0'])} m/s over {num(r['dist_m'])} m in {num(r['secs'])} s ->"
+                   f" decel {num(r['decel'], 3)} m/s² (fit rms {num(r['rms_m'] * 100, 1)} cm)"
+                   + ("" if r.get("used") else "  [not used]"))
+    if fit.get("decel") is None:
+        out.append("ROLLCAL: no clean free roll found (roll it faster than 0.15 m/s, straight, robot out of the way)")
+    else:
+        used = sorted(r["decel"] for r in fit["rolls"] if r.get("used"))
+        out.append(f"ROLLCAL ball_decel {num(fit['decel'], 3)} m/s² (median of {len(used)} roll(s), "
+                   f"{num(used[0], 3)}-{num(used[-1], 3)}; now {num(current, 3)}): python -m fc.ctl set ball_decel={num(fit['decel'], 3)}")
+    return out
+
+
+def cmd_rollcal(c: Client, a) -> None:
+    """Collect raw ball sightings while the operator rolls the ball, then fit the deceleration."""
+    from .ballvel import fit_decel   # stdlib only
+    first = c.get("/ball_track?since=1e18")
+    if not isinstance(first, dict) or "now" not in first:
+        raise Fail("this app has no /ball_track (restart it with the current code)")
+    since, pts = first["now"], []
+    say(f"rollcal: roll the ball across the field {a.rolls}+ times in {num(a.secs, 0)} s (robot out of the way;"
+        " let it roll free until it stops or hits something). Ctrl-C to finish early.")
+    end = time.monotonic() + a.secs
+    found = 0
+    try:
+        while time.monotonic() < end:
+            time.sleep(ROLLCAL_POLL_S)
+            res = c.get(f"/ball_track?since={since}")
+            new = [tuple(p) for p in (res or {}).get("points") or []]
+            if new:
+                pts += new
+                since = new[-1][0]
+                n = len(fit_decel(pts)["rolls"])
+                if n > found:
+                    found = n
+                    say(f"  {n} roll(s) seen")
+                    if n >= a.rolls and a.stop_after:
+                        break
+    except KeyboardInterrupt:
+        say("  (finished early)")
+    fit = fit_decel(pts)
+    current = (c.state().get("params") or {}).get("ball_decel")
+    say(f"  {len(pts)} ball sightings", *fmt_rollcal(fit, current))
+    if fit.get("decel") is None:
+        raise Fail("rollcal: no rolls")
+    if a.apply:
+        res = c.post("/params", {"ball_decel": fit["decel"]})
+        need_ok(res, "set ball_decel")
+        say(f"set ball_decel={fit['decel']} (live; save a preset to keep it)")
+
+
 def cmd_sleep(c: Client, a) -> None:
     time.sleep(a.secs)
 
@@ -948,6 +1011,12 @@ def build_parser() -> Parser:
     p.add_argument("--k", type=float, default=3.0)
     p.add_argument("--show", action="store_true")
     p.set_defaults(fn=cmd_ballcal)
+    p = sub.add_parser("rollcal")
+    p.add_argument("--secs", type=float, default=40.0, help="collect this long (default 40)")
+    p.add_argument("--rolls", type=int, default=4, help="ask for this many rolls")
+    p.add_argument("--stop-after", action="store_true", help="finish as soon as --rolls rolls were seen")
+    p.add_argument("--apply", action="store_true", help="set ball_decel live to the fitted value")
+    p.set_defaults(fn=cmd_rollcal)
     p = sub.add_parser("sleep")
     p.add_argument("secs", type=float)
     p.set_defaults(fn=cmd_sleep)
