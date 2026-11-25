@@ -326,3 +326,11 @@ now links to the filtered build v2 `~/fc-v1/build/imu-filter-v2/install/.../libc
 (sha 19d60fad…; v1 2486fa0a… retired). The stock profile sets `FC_IMU_FILTER=1` by default; `FC_IMU_FILTER=0` = stock behaviour (see [imu-filter.md](../notes/imu-filter.md)).
 Undo (stack off): `cd ~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib && rm libcontrol_board_hardware_interface.so && mv libcontrol_board_hardware_interface.so.stock-link libcontrol_board_hardware_interface.so`
 (stock sha 01813d58…).
+
+## I2C bus change on mts (2026-11-25, operator-approved)
+
+The BNO085 shares I2C-1 with the battery ADC (0x48) and the face screen's GT911 touch controller (0x5d). A stuck bus
+(SDA held low; kernel "SDA stuck at low", every op timing out) froze the IMU mid-walk and only a power cycle cleared it.
+The three `dtoverlay=waveshare-4dpic-*` lines in `/boot/firmware/config.txt` are commented out (`#fc-off(2026-11-25 i2c touch)`)
+so the kernel no longer drives the touch controller (screen/touch unused; GUI is off). Backup:
+`/boot/firmware/config.txt.bak-pre-fc-i2c-20261125`. Undo: uncomment the three lines, reboot.
