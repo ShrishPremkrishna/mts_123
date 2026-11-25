@@ -528,3 +528,42 @@ def test_plan_debug_carries_the_committed_path_for_the_ui():
     pts = d["plan"]
     assert 2 <= len(pts) <= 20 and all(len(q) == 2 for q in pts)
     assert pts[-1] == [round(b.plan["pts"][-1][0], 3), round(b.plan["pts"][-1][1], 3)]
+
+
+DR = {**P, "dribble": 1, "max_vx": 0.75, "max_wz": 2.0, "accel_vx": 1.2, "decel_vx": 2.0, "push_side_m": 0.03,
+      "role_mode": "attack"}
+
+
+def test_dribble_off_by_default_and_never_touches_other_presets():
+    b = Brain(BLUE, F)
+    _, d = b.decide(world(0.0, (-0.6, 0.0, 0.0), (0.0, 0.0)), P)
+    assert not d["phase"].startswith("dr_")
+
+
+def test_dribble_meets_a_rolling_ball_ahead_and_carries_it_near_centre():
+    b = Brain(BLUE, F)
+    w = World(0.0, Ball(0.0, -0.4, 0.0, 0.4, 0.0), {"blue": RobotObs("blue", Pose(-0.9, -0.4, 0.0), 0.0)})
+    _, d = b.decide(w, DR)
+    assert d["intercept"][1] > -0.3  # aims where the ball will be, not where it is
+    b = Brain(BLUE, F)  # behind the ball on the line: carry, ~3 cm bias, gentle turning
+    res = run(b, lambda t: world(t, (-0.29, 0.0, 0.0), (0.0, 0.0)), 30, DR)
+    cmd, d = res[-1]
+    assert d["phase"] == "dr_carry" and abs(d["side"]) == 0.03 and cmd.vx > 0.1 and abs(cmd.wz) < 0.5
+
+
+def test_dribble_turning_is_bounded_by_lateral_acceleration():
+    b = Brain(BLUE, F)
+    b.out = Cmd(0.7, 0.0, 0.0)
+    for i in range(10):
+        cmd, _ = b.decide(world(i / 30, (-1.0, 0.5, -0.6), (0.3, 0.0)), DR)
+        v = max(cmd.vx, 0.2)
+        assert abs(cmd.wz) <= DR.get("dribble_alat", DEFAULTS["dribble_alat"]) / v + 0.15 or cmd.vx < 0.05
+
+
+def test_dribble_snaps_to_a_deflected_ball():
+    b = Brain(BLUE, F)
+    mk = lambda t, vx, vy: World(t, Ball(0.0, 0.0, vx, vy, t), {"blue": RobotObs("blue", Pose(-0.4, 0.0, 0.0), t)})
+    for i in range(5):
+        b.decide(mk(i / 30, 0.4, 0.0), DR)
+    _, d = b.decide(mk(6 / 30, 0.0, 0.5), DR)  # knocked sideways
+    assert d.get("deflect") == 1 and b.deflects == 1 and d["intercept"][1] > 0.1

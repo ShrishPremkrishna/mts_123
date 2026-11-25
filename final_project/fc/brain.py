@@ -111,6 +111,28 @@ Knobs (params.json; DEFAULTS below apply when a key is missing):
                 (the fast gait walks off its tag heading). Set it to the step test's heading_bias_deg at speed
   role_mode goto: walk to (goto_x, goto_y) and, if goto_yaw is a number, face it. Per-call
                 params, not knobs; done within goto_tol_m and goto_yaw_tol_deg (dbg["done"]).
+
+Dribble mode (dribble: 1, push contact; takes precedence over plan). One controller from meeting the ball to
+carrying it, stated in physical quantities (Nov 25 floor: prediction-and-sprint and near-centre repeated
+touches worked; clunky turning near the ball and slow recovery after a sideways deflection did not):
+  max_vx            top speed (walker cap 0.8 today)
+  dribble_alat      max lateral acceleration (m/s^2): smoothness. Turning is wz = v*kappa with kappa from pure
+                    pursuit, and v is cut to sqrt(alat/|kappa|): near the ball turns are gentle and scale with speed
+  dribble_jerk      max jerk (m/s^3) on vx; accel_vx / decel_vx stay the acceleration limits
+  dribble_look_s    pure-pursuit lookahead = dribble_look_m + dribble_look_s * speed (never a target inside the
+                    turning circle: a short lookahead at speed is a high heading gain)
+  dribble_close     closing speed (m/s) relative to the ball at the touch; dribble_margin = relative speed one
+                    step (0.15 m surface gap) out; beyond that braking-limited at decel_vx/2
+  push_side_m, push_side  lateral bias: the robot walks a line this far beside the ball line (0.03: the
+                    ball sits ~3 cm off centre on one consistent side; 0.06 hit with the edge). auto side with
+                    hysteresis (switches only when the robot is > 2x the bias on the other side)
+  dribble_horizon_s prediction horizon (s) for the meeting point; the meeting time is a fixed point of our ETA
+  Measured constants used for the ETA: dribble_gait_gain (fast gait speed / command, floor 0.83-0.93),
+  dribble_onset_s (start-up time, floor 0.3-0.8), ball_decel, ball and robot radius, max_wz.
+  dribble_cone_deg  a ball velocity change of more than this (or 0.3 m/s) is a deflection: filters snap,
+                    the side latch resets and the meeting point is re-solved at once (it is every tick anyway)
+In dribble mode these are not used: k_turn (except turn in place), push_vx, push_turn_scale, push_lat_tol,
+push_max_heading_deg, k_curve, push_ahead, contact_vx, contact_slow_m (_pace), intercept_*, plan_*.
 """
 from __future__ import annotations
 
@@ -151,6 +173,9 @@ DEFAULTS = {
     "plan_eta_frac": 0.7, "plan_near_m": 0.50, "plan_near_lat": 0.35, "plan_spin_deg": 80, "plan_look_s": 0.5,
     "plan_flip_s": 0.4,
     "coast_s": 0.0, "coast_vx": 0.25, "coast_tau_s": 0.5, "fast_yaw_bias_deg": 0.0, "fast_yaw_vx": 0.5,
+    "dribble": 0, "dribble_alat": 0.8, "dribble_jerk": 4.0, "dribble_look_m": 0.30, "dribble_look_s": 0.5,
+    "dribble_close": 0.15, "dribble_margin": 0.25, "dribble_horizon_s": 3.0, "dribble_gait_gain": 0.88,
+    "dribble_onset_s": 0.4, "dribble_cone_deg": 30,
 }
 
 
@@ -258,7 +283,7 @@ def shape(cmd: Cmd, prev: Cmd, dt: float, params: dict, accel_vx: float | None =
                prev.wz + clamp(wz - prev.wz, -aw, aw), cmd.tag)
 
 
-UNCLEAN_TAGS = ("push", "square", "charge", "backoff", "unstick", "line_up", "ball_lost")  # never yaw_learn from these
+UNCLEAN_TAGS = ("push", "square", "charge", "backoff", "unstick", "line_up", "ball_lost", "dr_")  # never yaw_learn from these
 
 
 class Brain:
@@ -306,6 +331,11 @@ class Brain:
         self.plan_fail_t = -1e9
         self.replans = 0          # paths planned since reset (sim_eval: replans/min)
         self.replan_why = "new"   # why the current plan was made (dbg)
+        self.dr_a = 0.0           # dribble: commanded vx acceleration (jerk-limited)
+        self.dr_bv: tuple | None = None  # dribble: filtered ball velocity
+        self.dr_P: tuple | None = None   # dribble: filtered meeting point
+        self.dr_t = -1e9          # dribble: time of the last update
+        self.deflects = 0         # dribble: ball deflections seen since reset (sim_eval)
 
     # ------------------------------------------------------------------ entry
     def decide(self, world: World, params: dict) -> tuple[Cmd, dict]:
@@ -353,7 +383,10 @@ class Brain:
             self.plan = None
             if not self.clearing:
                 self.push_side = 0.0
-        if role == "attack" and p["plan"] and p["contact_mode"] == "push" and t - self.plan_fail_t >= p["plan_min_s"]:
+        if role == "attack" and p["dribble"] and p["contact_mode"] == "push":
+            self.returning = self.clearing = False
+            want, dbg = self._attack_dribble(pose, B, bv, others, p, t, dt)
+        elif role == "attack" and p["plan"] and p["contact_mode"] == "push" and t - self.plan_fail_t >= p["plan_min_s"]:
             self.returning = self.clearing = False
             want, dbg = self._attack_plan(pose, B, bv, others, p, t)
         elif role == "attack":
@@ -365,7 +398,7 @@ class Brain:
         else:
             want, dbg = self._defend(pose, B, bv, others, p, t)
         want, dbg = self._unstick(pose, want, dbg, t, p)
-        if not (p["return_detour"] and dbg["phase"] == "return"):
+        if not (p["return_detour"] and dbg["phase"] == "return") and not dbg["phase"].startswith("dr_"):
             want = self._pace(pose, B, want, p)
         cmd = self._smooth(want, dt, p, t, accel_vx=p["hb_accel"] if dbg["phase"] in ("charge", "backoff") else None)
         dbg.update(role=role, pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)],
@@ -924,6 +957,156 @@ class Brain:
         return cmd, {"phase": "plan", "target": [round(tgt[0], 3), round(tgt[1], 3)], "lat": round(l, 3),
                      "intercept": [round(pl["P"][0], 3), round(pl["P"][1], 3)], "dev": round(dev, 3), "why": pl["why"],
                      "plan": [[round(x, 3), round(y, 3)] for x, y in pts]}
+
+    # ------------------------------------------------------------------ dribble mode
+    def _dr_eta(self, pose: Pose, Q, u, p: dict) -> float:
+        """Seconds until we stand at the contact point behind Q (push direction u): start-up (less if already
+        moving that way) + distance at the measured gait speed (+ the walk round the ball) + half the turn."""
+        c = self.f.ball_radius + self.f.robot_radius
+        S = (Q[0] - u[0] * c, Q[1] - u[1] * c)
+        d = math.hypot(S[0] - pose.x, S[1] - pose.y)
+        a = (pose.x - Q[0]) * u[0] + (pose.y - Q[1]) * u[1]
+        d += 1.5 * max(0.0, a + 0.5 * c)  # in front of the ball: walk round it
+        v = max(0.1, p["dribble_gait_gain"] * p["max_vx"])
+        head = math.atan2(S[1] - pose.y, S[0] - pose.x) if d > 0.15 else math.atan2(u[1], u[0])
+        turn = abs(wrap(head - pose.yaw))
+        v0 = max(0.0, self.out.vx) * max(0.0, math.cos(turn))
+        return p["dribble_onset_s"] * (1.0 - min(1.0, v0 / v)) + d / v + 0.5 * turn / max(0.1, p["max_wz"])
+
+    def _dr_dir(self, P, p: dict):
+        f = self.f
+        hw = f.goal_width / 2 - f.ball_radius
+        aim = (self.att_x * (1 + f.goal_depth / max(1e-3, abs(self.att_x))), clamp(P[1] * p["aim_y_frac"], -hw, hw))
+        return self._feasible_dir(P, unit(aim[0] - P[0], aim[1] - P[1]), p)
+
+    def _attack_dribble(self, pose: Pose, B, bv, others, p: dict, t: float, dt: float):
+        """Meet the ball where it will be, then keep touching it toward the goal (see the module doc)."""
+        f = self.f
+        c = f.ball_radius + f.robot_radius
+        clear = c + p["clear_margin"]
+        self.hb, self.plan = None, None
+        fresh = t - self.dr_t > 0.5
+        self.dr_t = t
+        # ball velocity: light low-pass; a big change of direction/speed is a deflection -> snap and re-solve
+        sp = math.hypot(bv[0], bv[1])
+        deflect = False
+        if fresh or self.dr_bv is None:
+            self.dr_bv = bv
+        else:
+            fv = self.dr_bv
+            fs = math.hypot(fv[0], fv[1])
+            ang = abs(wrap(math.atan2(bv[1], bv[0]) - math.atan2(fv[1], fv[0]))) if min(sp, fs) > 0.15 else 0.0
+            if ang > math.radians(p["dribble_cone_deg"]) or abs(sp - fs) > 0.3:
+                deflect = True
+                self.deflects += 1
+                self.dr_bv = bv
+            else:
+                k = min(1.0, dt / 0.1)
+                self.dr_bv = (fv[0] + k * (bv[0] - fv[0]), fv[1] + k * (bv[1] - fv[1]))
+        bvf = self.dr_bv
+        # meeting point: fixed point of "ball after our ETA", capped at the horizon
+        P, u = B, self._dr_dir(B, p)
+        if math.hypot(bvf[0], bvf[1]) > 0.05:
+            for _ in range(4):
+                P = self._ball_at(B, bvf, min(p["dribble_horizon_s"], self._dr_eta(pose, P, u, p)), p)
+                u = self._dr_dir(P, p)
+        if fresh or deflect or self.dr_P is None or math.hypot(P[0] - self.dr_P[0], P[1] - self.dr_P[1]) > 0.25:
+            self.dr_P = P
+        else:  # 3 s of prediction multiplies velocity noise: smooth the point (tau 0.2 s)
+            k = min(1.0, dt / 0.2)
+            self.dr_P = (self.dr_P[0] + k * (P[0] - self.dr_P[0]), self.dr_P[1] + k * (P[1] - self.dr_P[1]))
+        P = self.dr_P
+        u = self._dr_dir(P, p)
+        n = (-u[1], u[0])
+        rx, ry = pose.x - P[0], pose.y - P[1]
+        a, l = rx * u[0] + ry * u[1], rx * n[0] + ry * n[1]
+        phi = math.atan2(l, a)
+        cone = math.radians(p["behind_cone_deg"])
+        self.behind = abs(phi) > (cone - math.radians(15) if self.behind else cone)
+        # lateral bias: the side we are on, switched only from > 2x the bias on the other side
+        bias = p["push_side_m"]
+        if bias <= 0 or deflect or not self.behind:
+            self.push_side = 0.0
+        if bias > 0 and self.behind:
+            mode = p["push_side"]
+            if mode in ("left", "right"):
+                self.push_side = -1.0 if mode == "left" else 1.0
+            elif not self.push_side or self.push_side * l < -2 * bias:
+                self.push_side = 1.0 if l > 0 else -1.0 if l < 0 else (self.push_side or 1.0)
+        d_side = self.push_side * bias if bias > 0 else 0.0
+        le = l - d_side
+        v_now = max(0.0, self.out.vx)
+        L = p["dribble_look_m"] + p["dribble_look_s"] * v_now
+        gap = math.hypot(pose.x - B[0], pose.y - B[1]) - c
+        if not self.behind:
+            tgt = self._route(pose, P, u, n, phi, clear, p, t)
+            phase = "dr_route"
+            ex, ey = unit(tgt[0] - pose.x, tgt[1] - pose.y)
+            back = c + 1.2 * abs(le)  # a far-off-line robot stages further back: it joins the line at a shallow angle
+            Sf = self._clamp_field((P[0] - u[0] * back + n[0] * d_side, P[1] - u[1] * back + n[1] * d_side), p)
+            if seg_dist((pose.x, pose.y), Sf, P) >= clear:
+                tgt, (ex, ey) = Sf, u  # ... and the carrot runs on along the line, not past the stage
+            d = math.hypot(tgt[0] - pose.x, tgt[1] - pose.y)
+            carrot = tgt
+            if d < L:  # never chase a point inside the turning circle: extend it
+                carrot = (tgt[0] + ex * (L - d), tgt[1] + ey * (L - d))
+        else:
+            # pure pursuit on the (offset) ball line; far off the line the carrot stays behind the ball so the
+            # robot joins the line before it reaches the ball
+            # robot joins the line before it reaches the ball; the carrot is always >= L/2 ahead of us
+            along = max(a + 0.5 * L, min(a + L, -(c + 1.2 * max(0.0, abs(le) - 0.03))))
+            carrot = (P[0] + u[0] * along + n[0] * d_side, P[1] + u[1] * along + n[1] * d_side)
+            phase = "dr_carry" if gap < 0.15 and abs(le) < 0.08 else "dr_chase"
+        rpx, rpy = self._repel(pose, others, p)
+        bx, by = to_body(pose, carrot[0] - pose.x + L * rpx, carrot[1] - pose.y + L * rpy)
+        Ld = max(0.05, math.hypot(bx, by))
+        alpha = math.atan2(by, bx)
+        kap = 2.0 * math.sin(alpha) / Ld
+        alat = p["dribble_alat"]
+        vmax = p["max_vx"]
+        v_des = min(vmax, math.sqrt(alat / max(1e-6, abs(kap))))
+        # closing speed toward the ball: braking-limited far out, dribble_margin one step out, dribble_close at touch
+        dxb, dyb = B[0] - pose.x, B[1] - pose.y
+        bear = math.cos(wrap(math.atan2(dyb, dxb) - pose.yaw))
+        if bear > 0.5:
+            vb = bvf[0] * math.cos(pose.yaw) + bvf[1] * math.sin(pose.yaw)
+            g = max(0.0, gap)
+            rel = p["dribble_close"] + (p["dribble_margin"] - p["dribble_close"]) * min(1.0, g / 0.15)
+            rel += math.sqrt(2 * 0.5 * max(0.1, p["decel_vx"] or p["accel_vx"]) * max(0.0, g - 0.15))
+            if gap < 0.25 and abs(le) > 0.06:  # off-centre at the ball: keep pace, but don't close in until lined up
+                rel *= clamp(1.0 - (abs(le) - 0.06) / 0.08, 0.0, 1.0)
+            v_des = min(v_des, max(0.0, vb) + rel)
+        spin = abs(alpha) > math.radians(75)
+        if spin:
+            v_des = 0.0
+        # jerk-limited speed (time constant 0.25 s toward v_des)
+        dec = p["decel_vx"] or p["accel_vx"]
+        a_t = clamp((v_des - v_now) / 0.25, -dec, p["accel_vx"])
+        j = p["dribble_jerk"] * dt
+        self.dr_a = clamp(self.dr_a + clamp(a_t - self.dr_a, -j, j), -dec, p["accel_vx"])
+        v = clamp(v_now + self.dr_a * dt, 0.0, vmax)
+        if (v - v_des) * self.dr_a > 0 and abs(v - v_des) < abs(self.dr_a) * dt:
+            v = v_des
+        lo, hi = p["gait_lo"], p["gait_hi"]
+        if p["gait_band"] and lo < v < hi:  # the walker's gait switch: step across the band, don't stall in it
+            v = hi if v_des >= hi else lo if v_des <= lo else v
+        self.dr_a = (v - v_now) / max(1e-3, dt)  # back-calculated: no wind-up at a clamp
+        if spin:
+            wz = clamp(1.5 * alpha, -p["max_wz"], p["max_wz"])
+        else:  # curvature times speed, bounded by the lateral-acceleration limit
+            wz = kap * max(v, 0.2)
+            wz = clamp(wz, -alat / max(v, 0.2), alat / max(v, 0.2))
+        vy = 0.0
+        if self.behind and gap < 0.3 and abs(le) < 0.2:  # slide the last centimetres with the lateral axis
+            vy = clamp(-p["k_vy"] * le, -p["max_vy"], p["max_vy"])
+        self.pushing = phase == "dr_carry"
+        dbg = {"phase": phase, "target": [round(carrot[0], 3), round(carrot[1], 3)], "lat": round(le, 3),
+               "intercept": [round(P[0], 3), round(P[1], 3)], "kappa": round(kap, 2)}
+        if d_side:
+            dbg["side"] = round(d_side, 3)
+        if deflect:
+            dbg["deflect"] = 1
+        return Cmd(v, vy, wz, phase), dbg
 
     def _pursuit_point(self, pose: Pose, pl: dict, p: dict):
         """(lookahead point, distance off the path, progress index). Progress only moves forward."""

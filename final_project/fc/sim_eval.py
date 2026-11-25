@@ -8,7 +8,8 @@ preset: `base` is params.json, any other name is params.json + fc/config/presets
 column (to try a value before committing it). `--field` overrides field.json geometry the same way
 (e.g. `--field goal_width=0.8` to try a wider marked goal). `--lag L ...` repeats every column at
 a total lag L (camera latency L/2 + walker lag L/2; the brain's act_lag_s set to L/2, as if measured).
-`--scen` picks row groups (default all): core (rows below), human, return, moving. `--floor` adds the
+`--scen` picks row groups (default all): core (rows below), human, return, moving; solo = the solo push
+rows only (fast). `--floor25` = FLOOR updated with the Nov 25 measurements (FLOOR25 below, cap 0.8). `--floor` adds the
 Nov 24 floor errors on top of the sim's (FLOOR below: 0.1 s camera latency, tag dropouts of 0.3-1.5 s,
 fast gait at ~0.83 of the command and walking 8 deg right of its heading, slower walker onset, a ball
 rolling at 0.18 m/s^2 deceleration: hand rolls of the old ball fit 0.12-0.29, median 0.15).
@@ -60,6 +61,10 @@ BAND = (0.45, 0.6)
 FLOOR = {"sim_latency_s": 0.10, "sim_burst_per_s": 0.15, "sim_burst_s": 0.3, "sim_burst_s_max": 1.5,
          "sim_fast_v060": 0.50, "sim_fast_v075": 0.62, "sim_fast_v100": 0.75, "sim_fast_v150": 1.0,
          "sim_fast_dir_deg": -8.0, "sim_lag_s": 0.2, "sim_ball_decel": 0.18}
+# Nov 25 floor: new evenly rolling ball (rollcal 0.149 m/s^2), fast gait 0.83-0.93 of the command (0.88 used),
+# camera 31 fps at ~50 ms age (+ eye processing), walker speed cap 0.8 (sim_vx_clip)
+FLOOR25 = {**FLOOR, "sim_ball_decel": 0.149, "sim_latency_s": 0.07, "sim_fast_v060": 0.53, "sim_fast_v075": 0.66,
+           "sim_fast_v100": 0.88, "sim_fast_v150": 1.25, "sim_vx_clip": 0.8}
 
 
 class Jitter:
@@ -113,13 +118,39 @@ def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
     sim.reset("attack_solo")
     me = robots[0]
     brain = Brain(me, field)
-    jit, st = Jitter(), {"speed": 0.0, "coast": 0}
+    jit, near, st = Jitter(), Jitter(), {"speed": 0.0, "coast": 0}
+    cc = field.ball_radius + field.robot_radius
+    dr = {"poss": 0, "touch": 0, "in": False, "gap": 0.0, "ng": 0, "nc": 0, "check": [], "defl": [], "rec": []}
 
     def tick(c, d):
         jit.add(me.id, c.get(me.id), sim.t)
         bot = sim.bots.get(me.id)
         st["speed"] += math.hypot(bot.vx, bot.vy) if bot else 0.0
         st["coast"] += d.get(me.id, {}).get("phase") == "coast"
+        if bot:
+            gap = math.hypot(sim.ball[0] - bot.x, sim.ball[1] - bot.y) - cc
+            if gap < 0.6:
+                near.add(me.id, c.get(me.id), sim.t)
+            new = list(sim.contacts)[dr["nc"]:]
+            dr["nc"] = len(sim.contacts)
+            for ct in new:
+                dr["touch"] += 1
+                if not dr["in"]:
+                    dr["in"], dr["poss"] = True, dr["poss"] + 1
+                if dr["defl"] and dr["defl"][-1][1] is None:
+                    dr["defl"][-1][1] = ct[0] - dr["defl"][-1][0]
+                dr["check"].append(ct[0] + 0.15)
+            if dr["in"] and gap > 0.6:
+                dr["in"] = False
+            if dr["in"]:
+                dr["gap"] += max(0.0, gap)
+                dr["ng"] += 1
+            while dr["check"] and sim.t >= dr["check"][0]:
+                t0c = dr["check"].pop(0) - 0.15
+                bvx, bvy = sim.ball[2], sim.ball[3]
+                if math.hypot(bvx, bvy) > 0.1 and abs(math.atan2(math.sin(math.atan2(bvy, bvx) - bot.yaw),
+                                                                math.cos(math.atan2(bvy, bvx) - bot.yaw))) > math.radians(30):
+                    dr["defl"].append([t0c, None])
         return bool(_goals(sim))
 
     t0 = sim.t
@@ -130,7 +161,10 @@ def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
     n = max(1, jit.n)
     stats = {"min": (sim.t - t0) / 60, "rev": jit.rev, "fast": jit.fast, "sq": jit.sq, "n": jit.n,
              "replans": brain.replans, "coast": st["coast"] / n, "speed": st["speed"] / n,
-             "touch": (sim.contacts[0][0] - t0) if sim.contacts else None}
+             "touch": (sim.contacts[0][0] - t0) if sim.contacts else None,
+             "dr_touch": dr["touch"], "dr_poss": dr["poss"], "dr_gap": dr["gap"], "dr_ng": dr["ng"],
+             "near_sq": near.sq, "near_n": near.n, "near_rev": near.rev,
+             "defl": len(dr["defl"]), "rec": [x[1] for x in dr["defl"] if x[1] is not None and x[1] <= 8.0]}
     return (ev["t"] - t0 if ev and ev["team"] == me.team else None), bool(ev and ev["team"] != me.team), stats
 
 
@@ -370,6 +404,8 @@ def evaluate(seeds: int, errors: bool, minutes: float, matches: int, overrides: 
     out, raw = {}, {}
     if "core" in scen:
         _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt)
+    elif "solo" in scen:
+        _core(out, raw, field, robots, params, seeds, minutes, matches, False, solo_only=True)
     if "human" in scen:
         _human(out, raw, field, robots, params, matches, minutes)
     if "return" in scen:
@@ -420,7 +456,7 @@ def _human(out, raw, field, robots, params, matches, minutes):
     out["human: fast wz rev /min"] = f"{raw['h_fastwz']:.1f}"
 
 
-def _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt):
+def _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt, solo_only=False):
     contacts = []
     for mode in ("push", "headbutt") if headbutt else ("push",):
         res = [solo(field, robots, params, s, mode, contacts=contacts if mode == "push" else None)
@@ -445,6 +481,20 @@ def _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt):
                                                                  f"{raw['solo_wzrms']:.2f}")
             out["solo jitter: replans /min, coast %"] = f"{raw['solo_replans']:.1f}, {100 * raw['solo_coast']:.0f}%"
             out["athletic: mean speed m/s, s to ball"] = f"{raw['solo_speed']:.2f}, {raw['solo_touch']:.1f}"
+            nn = sum(x["near_n"] for x in ss)
+            rec = [r for x in ss for r in x["rec"]]
+            nd = sum(x["defl"] for x in ss)
+            raw.update(dr_tpp=sum(x["dr_touch"] for x in ss) / max(1, sum(x["dr_poss"] for x in ss)),
+                       dr_gap=sum(x["dr_gap"] for x in ss) / max(1, sum(x["dr_ng"] for x in ss)),
+                       near_rms=math.sqrt(sum(x["near_sq"] for x in ss) / max(1, nn)),
+                       near_rev=sum(x["near_rev"] for x in ss) / max(1e-6, nn * DT / 60),
+                       defl=nd, rec_med=_med(rec), rec_ok=len(rec) / max(1, nd))
+            out["dribble: touches/possession, gap m"] = f"{raw['dr_tpp']:.1f}, {raw['dr_gap']:.2f}"
+            out["near ball (<0.6 m): wz rms, rev/min"] = f"{raw['near_rms']:.2f}, {raw['near_rev']:.1f}"
+            out["deflections: n, re-touch <=8 s, median s"] = (f"{nd}, {100 * raw['rec_ok']:.0f}%, "
+                                                               f"{raw['rec_med']:.1f}")
+    if solo_only:
+        return
     empty = seeds - sum(goalie(field, robots, params, 1000 + s, "sideways", empty=True) for s in range(seeds))
     for style in ("sideways", "facing"):
         saves = sum(goalie(field, robots, params, 1000 + s, style) for s in range(seeds))
@@ -506,6 +556,7 @@ def main() -> None:
     ap.add_argument("--scen", nargs="*", default=["core", "human", "return", "moving"],
                     help="row groups: core human return moving")
     ap.add_argument("--floor", action="store_true", help="add the Nov 24 floor errors (FLOOR) to the sim's")
+    ap.add_argument("--floor25", action="store_true", help="Nov 25 floor (FLOOR25: new ball, gait 0.88, cap 0.8)")
     ap.add_argument("--lag", nargs="*", type=float, default=[], metavar="S",
                     help="total lag(s) in s; one column per preset and lag")
     a = ap.parse_args()
@@ -519,6 +570,8 @@ def main() -> None:
     fover = {k: float(v) for k, _, v in (kv.partition("=") for kv in a.field)}
     if a.floor:
         over = {**FLOOR, **over}
+    if a.floor25:
+        over = {**FLOOR25, **over}
     if over:
         print("overrides:", over)
     if fover:
