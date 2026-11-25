@@ -2,7 +2,7 @@
   "_stack": {
     "speed_cap": 0.8
   },
-  "_note": "fast-play for the robot: same knobs as fast-play, plus the walker speed cap raised to 0.8 by Ready (--speed-cap 0.80). Cruise 0.75 cmd, ramp to contact_vx 0.4 near the ball, skip the 0.45-0.6 gait-switch band.",
+  "_note": "fast-light: fast gait (speed cap 0.8), cruise 0.75, push at 0.75 after contact, square-up 40 deg. Nov 25 floor: 3/3 goals 12.6-14.8 s, 1 reversal/run.",
   "max_vx": 0.75,
   "max_vy": 0.15,
   "max_wz": 2.0,
