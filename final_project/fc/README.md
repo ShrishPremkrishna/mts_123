@@ -53,7 +53,7 @@ The overhead view also draws the predicted ball path (the brain's rolling model,
 brain's committed plan (`plan` 1, athletic preset). A frozen camera feed (byte-identical frames) shows
 CAMERA PAUSED; observations go stale, so robots stop. STOP ends a match (end card with the score); Pause keeps it.
 Goals count only in the play phase; on camera a goal is the observed ball crossing a goal line (a ball lying in
-the goal scores once). Screenshots (Nov 23): [notes/play-screenshots/](notes/play-screenshots/).
+the goal scores once). Screenshots (Nov 24): [notes/play-screenshots/](notes/play-screenshots/); UI notes: [notes/ui-handoff.md](notes/ui-handoff.md).
 
 **Stop vs E-STOP** (both screens). STOP (space) = zero speed to every robot; it stands still with its legs on.
 E-STOP (Esc, the striped header button = all robots, the card/robot button = that robot) = `Link.estop`: a signed
