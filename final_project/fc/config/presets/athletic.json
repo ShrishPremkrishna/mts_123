@@ -28,6 +28,5 @@
   "plan_radius": 0.3,
   "plan_horizon_s": 2.5,
   "coast_s": 0.3,
-  "fast_yaw_bias_deg": -8.0,
-  "ball_decel": 0.18
+  "fast_yaw_bias_deg": -8.0
 }
