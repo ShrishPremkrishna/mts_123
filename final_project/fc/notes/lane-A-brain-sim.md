@@ -136,3 +136,60 @@ The scripted human is harsh (an action every 4–9 s from 1.5–2.3 m out). Inte
 5. `role_hold_s`, `role_hyst_s`, `role_tau_s`.
 6. `goalie_dist`, `clear_depth`.
 7. `pose_stale_s`, `field_margin`.
+
+## Athletic: planned approach, coast, fast-gait heading bias (2026-11-24)
+
+Preset `config/presets/athletic.json` = fast-light + `plan` 1, `coast_s` 0.3, `fast_yaw_bias_deg` -8, `ball_decel` 0.18.
+Each new knob at 0 gives fast-light's behaviour exactly (brain DEFAULTS document them).
+
+- **Plan** (`plan`): picks the fastest path to a stage `plan_stage_m` behind the predicted intercept point on the
+  ball→goal line: Dubins arcs at `plan_radius` or 0.6×, optionally after a spin on the spot, or turn–straight–turn,
+  directly or via a tangent point beside the ball. Each planned left/right switch costs `plan_flip_s`. It is followed
+  by pure pursuit (lookahead grows with speed, `plan_look_s`). Replans happen only when:
+  - the intercept moves more than `plan_replan_m` (shrinks to 30% over the last metre);
+  - the push direction turns more than `plan_replan_deg`;
+  - the robot is more than `plan_dev_m` off the path;
+  - the path is used up.
+
+  Behind the ball on the line, a pure-pursuit line follower takes over and slides off lateral error. If no path fits,
+  it falls back to the old approach. Planning costs ≤ 2 ms. The committed path (≤ 20 points) is in `dbg["plan"]` for
+  the UI.
+- **Coast** (`coast_s`): when the own pose is older than this but younger than `pose_stale_s`, the robot keeps the
+  last command and slows toward `coast_vx`. It does not steer on a stale pose.
+- **`fast_yaw_bias_deg`**: added to the heading while the executing command is fast. It should equal the step test's
+  `heading_bias_deg` at speed (travel − tag). In the sim, −8 beats 0 and +8.
+- **sim / sim_eval**: `sim_burst_s_max`, `sim_fast_dir_deg`; `--floor` = Nov 24 floor errors (0.1 s latency,
+  0.3–1.5 s dropouts, fast gait ×0.83 walking 8° right, walker lag 0.2, ball decel 0.18). New rows: solo jitter
+  (wz reversals, RMS, replans/min, coast share), athletic (mean speed, time to ball), and 1v1 wz RMS / replans.
+
+`--floor`, 100 seeds, 6 × 3 min, errors ON (`python -m fc.sim_eval --seeds 100 --matches 6 --floor --preset fast-light athletic`):
+
+| | fast-light | athletic |
+|---|---|---|
+| solo goals / median / p90 | 97% / 14.0 / 22.4 s | 98% / 14.5 / 28.0 s |
+| solo wz rev / fast rev /min | 12.7 / 1.1 | **9.8 / 0.6** (−23% / −45%) |
+| solo replans /min, time to ball | –, 5.1 s | 8.5, 4.9 s |
+| moving ball: hit ≤ 6 s / toward / goal | 72 / 88 / 59 | **84 / 94** / 58 |
+| human: right role on shots, saves | 43%, 34% | 91%, 39% (ball_decel 0.18) |
+| 1v1 goals/3 min; wz rev / fast rev; replans | 3.7; 14.6 / 1.4; – | 4.5; 15.9 / 2.2; 20.6 |
+
+Targets: goal rate held and jitter dropped. Wz reversals fell 23% at 100 seeds, against the ≥ 30% target; at 40 seeds
+the drop was 31%. The solo median did **not** drop: it rose 0.5 s, and the tail is worse. Time to ball improved, so
+the time is lost after first touch:
+- dribbling is capped by `contact_vx` 0.3 (47% of solo time);
+- corner and wall balls cost time.
+
+Against the old 0.45 ball model, athletic was 14.0 vs 14.3 s with −33% reversals. In 1v1 the opponent keeps moving
+the ball, which causes ~20 replans/min and more reversals.
+
+**`ball_decel` matters:** with the floor ball (0.18), fast-light (0.45) predicts shots stop short and defends only 43%
+of them. Set `ball_decel` from `ctl rollcal` in every preset.
+
+**Floor A/B to run:** `fast-light` vs `athletic`, ×5 each. Log goals, time, and wz reversals from the run logs.
+
+**Things that did not work:**
+- A square-up latch (slower).
+- Turning the line follower by the paced speed (35/40 goals).
+- `plan_near_lat` 0.25/0.3.
+- A shorter-stage push direction (own goals).
+- `plan_wz` 2.1, `plan_radius` 0.4, `plan_look_s` 0.3/0.8.

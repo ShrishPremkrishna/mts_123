@@ -90,8 +90,11 @@ Knobs (params.json; DEFAULTS below apply when a key is missing):
   plan_near_m, plan_near_lat  behind the ball within plan_near_m surface gap, within 2*push_lat_tol of the
                 line and facing within 45 deg of the push: pure pursuit along the shot line through the ball, sliding
                 off the lateral error (turns scaled by push_turn_scale inside push_lat_tol), until the gap exceeds
-                plan_near_m + 0.4, the offset plan_near_lat or the heading error 70 deg. Only for a ball crossing
+                plan_near_m + 0.4 (no limit while on the line and facing the push within 30 deg: a rolled-on ball is
+                chased along the line), the offset plan_near_lat or the heading error 70 deg. Only for a ball crossing
                 the line slower than 0.25 m/s (0.4 to stay): a crossing ball is intercepted by a plan
+  plan_flip_s   planning cost (s) of each left/right switch in a path (a spin the other way than the first arc
+                counts): paths that keep turning one way look deliberate and reverse wz less
   plan_look_s   pure-pursuit lookahead grows by this many seconds of the current speed (a short lookahead at
                 speed is a high heading gain: wobble and tag noise become turn reversals)
   plan_spin_deg pure-pursuit point further off the nose than this: turn in place
@@ -138,6 +141,7 @@ DEFAULTS = {
     "plan": 0, "plan_radius": 0.30, "plan_stage_m": 0.12, "plan_lookahead": 0.35, "plan_wz": 1.8,
     "plan_replan_m": 0.20, "plan_replan_deg": 20, "plan_dev_m": 0.30, "plan_min_s": 0.5, "plan_horizon_s": 2.5,
     "plan_eta_frac": 0.7, "plan_near_m": 0.50, "plan_near_lat": 0.35, "plan_spin_deg": 80, "plan_look_s": 0.5,
+    "plan_flip_s": 0.4,
     "coast_s": 0.0, "coast_vx": 0.25, "coast_tau_s": 0.5, "fast_yaw_bias_deg": 0.0, "fast_yaw_vx": 0.5,
 }
 
@@ -731,20 +735,31 @@ class Brain:
 
         vmax, wmax = p["max_vx"], p["plan_wz"]
 
-        def leg(a, b, r):  # fastest collision-free Dubins leg a -> b at radius r: (seconds, points)
-            va = min(vmax, wmax * r)
-            words = sorted(((sg[0] + sg[2]) * r / va + sg[1] * r / vmax, w, sg) for w, sg in dubins_words(a, b, r))
-            for sec, word, seg in words:
+        def turns(word, seg):  # signs of the real arcs, in order
+            return [1 if ch == "L" else -1 for ch, x in zip(word, seg) if ch != "S" and x > 0.1]
+
+        def flips(sg):
+            return sum(x != y for x, y in zip(sg, sg[1:]))
+
+        def leg(a, b, r, spin=0.0):  # fastest collision-free Dubins leg a -> b at radius r: (seconds, points);
+            va = min(vmax, wmax * r)  # each planned left/right switch (spin included) costs plan_flip_s
+            words = []
+            for w, sg in dubins_words(a, b, r):
+                tn = ([1 if spin > 0 else -1] if abs(spin) > 0.1 else []) + turns(w, sg)
+                words.append(((sg[0] + sg[2]) * r / va + sg[1] * r / vmax + p["plan_flip_s"] * flips(tn), w, sg))
+            for sec, word, seg in sorted(words):
                 pts = dubins_points(a, word, seg, r)
                 if math.hypot(pts[-1][0] - b[0], pts[-1][1] - b[1]) < 0.02 and ok(pts):
                     return sec, pts
             return None
 
-        def line(a, b):  # already facing b: walk straight, turn on the spot at the end (we are not a car)
+        def line(a, b, spin0):  # already facing b: walk straight, turn on the spot at the end (we are not a car)
             L = math.hypot(b[0] - a[0], b[1] - a[1])
             k = max(1, int(L / 0.05))
             pts = [(a[0] + (b[0] - a[0]) * j / k, a[1] + (b[1] - a[1]) * j / k) for j in range(k + 1)]
-            return (L / vmax + abs(wrap(b[2] - a[2])) / wmax, pts) if ok(pts) else None
+            end = wrap(b[2] - a[2])
+            flip = p["plan_flip_s"] if abs(end) > 0.1 and abs(spin0) > 0.1 and end * spin0 < 0 else 0.0
+            return (L / vmax + abs(end) / wmax + flip, pts) if ok(pts) else None
 
         rr = 1.15 * clear
         sd = math.copysign(1.0, (pose.x - P[0]) * n[0] + (pose.y - P[1]) * n[1])
@@ -764,9 +779,9 @@ class Brain:
                     spin = abs(wrap(yaw0 - pose.yaw)) / wmax
                     if best and spin >= best[0]:
                         continue
-                    a = leg((pose.x, pose.y, yaw0), first, r)
+                    a = leg((pose.x, pose.y, yaw0), first, r, wrap(yaw0 - pose.yaw))
                     if yaw0 == face and r == R:
-                        b2 = line((pose.x, pose.y, yaw0), first)
+                        b2 = line((pose.x, pose.y, yaw0), first, wrap(yaw0 - pose.yaw))
                         a = b2 if a is None or (b2 and b2[0] < a[0]) else a
                     if a is None or (best and spin + a[0] >= best[0]):
                         continue
@@ -800,8 +815,8 @@ class Brain:
         gap = math.hypot(pose.x - B[0], pose.y - B[1]) - c
         herr = abs(wrap(math.atan2(u[1], u[0]) - pose.yaw))
         side_v = abs(bv[1] * u[0] - bv[0] * u[1])  # ball speed across the shot line: the line itself is moving
-        if a < 0 and side_v < (0.4 if self.near else 0.25) and (gap < p["plan_near_m"] + 0.4 and abs(l) < p["plan_near_lat"] and herr < math.radians(70)
-                      if self.near else
+        if a < 0 and side_v < (0.4 if self.near else 0.25) and ((gap < p["plan_near_m"] + 0.4 or (abs(l) < 2 * p["push_lat_tol"] and herr < math.radians(30)))
+                       and abs(l) < p["plan_near_lat"] and herr < math.radians(70) if self.near else
                       gap < p["plan_near_m"] and abs(l) < 2 * p["push_lat_tol"] and herr < math.radians(45)):
             # behind the ball on the shot line: pure pursuit along the line through the ball (the target stays a
             # lookahead ahead, never inside the turning circle); the lateral error is mostly slid off
