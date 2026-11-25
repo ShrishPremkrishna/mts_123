@@ -158,9 +158,45 @@ def test_malformed_packet_containers_and_huge_numbers_are_admission_errors(key, 
 
 def test_combined_capture_uncertainty_includes_pair_wall_tolerance_and_drift():
     core = core_fixture()
-    core.sync = (-10.01, -9.992, 10.03)  # 18 ms RTT alone fits, full bound does not.
+    core.sync_samples.clear()
+    core.sync_samples.append((-10.01, -9.992, 10.03))  # RTT alone fits, full bound does not.
     with pytest.raises(ValueError, match="combined capture clock uncertainty"):
         core.normalize(state(), 10.04)
+
+
+def test_clock_intersects_fresh_bounds_and_each_sample_expires_independently():
+    core = core_fixture()
+    old_lower, old_upper = core._offset(10.)
+    probe = core.make_probe(11.)
+    core.accept_probe({**core.identity(), "protocol": REPLY_PROTOCOL, "nonce": probe["nonce"],
+                       "received_mono": 21.009, "sent_mono": 21.009}, 11.018)
+    tight = core._offset(11.02)
+    assert tight[0] > old_lower - .001 and tight[1] < old_upper + .001
+    # Beyond the first sample's TTL the broad second measurement stands alone.
+    broad = core._offset(12.)
+    assert broad[0] < tight[0] and broad[1] > tight[1]
+    with pytest.raises(ValueError, match="absent or expired"):
+        core._offset(13.019)
+
+
+def test_slow_reply_keeps_current_frame_until_its_original_expiry():
+    core = core_fixture()
+    core.normalize(state(), 10.04)
+    now = [10.05]
+    receiver = ingress.UDPIngress(core, source_host="127.0.0.1", bind="127.0.0.1", clock=lambda: now[0])
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sender:
+        sender.bind(("127.0.0.1", 0))
+        receiver.peer = sender.getsockname()
+        probe = core.make_probe(10.02)
+        reply = {**core.identity(), "protocol": REPLY_PROTOCOL, "nonce": probe["nonce"],
+                 "received_mono": 20.04, "sent_mono": 20.04}
+        sender.sendto(json.dumps(reply).encode(), receiver.sock.getsockname())
+        try:
+            assert not receiver.poll() and not core.held
+            now[0] = 10.5
+            assert receiver.poll()[0]["captured_at"] is None and core.held
+        finally:
+            receiver.close()
 
 
 @pytest.mark.parametrize("condition", ["wide", "expired", "nonce", "replay", "reverse", "jump"])

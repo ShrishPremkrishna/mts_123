@@ -3,9 +3,9 @@
   "objective": "Deliver responsive two-robot soccer with automatic role switching, overhead-guided approaches, Tej\u2019s leg kick as the sole demo strike, and front-camera obstacle stopping.",
   "worktree": "/Users/shrish/.codex/worktrees/fc-demo-staging/cs123",
   "branch": "main",
-  "mode": "overhead_field_setup",
-  "updated_utc": "2026-11-20T08:26:06.189299+00:00",
-  "current_report": "foundation/results/field-camera-live-20261120.json",
+  "mode": "field_offense_closed",
+  "updated_utc": "2026-11-20T09:01:47.341976+00:00",
+  "current_report": "foundation/results/field-offense-final-20261120.json",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
     "sha256": "4207125dc8a36adb4bda33728ed67e475a61506e592f3b5f33442be67b9be997",
@@ -59,7 +59,9 @@
     "combined_pi_qualification": "foundation/results/pi-combined-walk-kick-20261119.json",
     "untagged_curve_rehearsal": "foundation/results/untagged-curve-rehearsal-20261119.json",
     "guarded_body_arc": "foundation/results/guarded-body-arc-20261120.json",
-    "mounted_phone": "foundation/results/field-camera-live-20261120.json"
+    "mounted_phone": "foundation/results/field-camera-live-20261120.json",
+    "supported_field_start": "artifacts/pupper-fc/2026-11-20/field-74798bf0/stand-test.jsonl",
+    "field_floor_readiness": "artifacts/pupper-fc/2026-11-20/field-74798bf0/floor-start.json"
   },
   "environment": {
     "python": ".venv-api/bin/python",
@@ -68,7 +70,7 @@
     "frozen_hardware_inputs": "artifacts/hardware/2026-10-30/floor-stock-selected-inputs-v1.tar.gz",
     "frozen_hardware_sha256": "9baa7f2e3ee222e3ce80c7554c37343da0be48be6720c5f440f045ef51adeb2d"
   },
-  "authorization": "The owner confirmed exclusive access for Pi preparation. Supervised homing is complete. Coordinate the next supported walker and Stop check with the operator. Tej owns physical kick trials.",
+  "authorization": "Owner ended the final test and confirmed support for shutdown. No active physical test.",
   "compute_spend_policy": {
     "approval_threshold_usd": 5,
     "rule": "Ask before any experiment/batch expected above $5; do not split to evade it. Authenticated Claude account use authorized; report usage limits, not inferred billing from list-price metadata.",
@@ -99,7 +101,7 @@
     "automation": "No automation controls the physical session.",
     "compute": "The installed Pi controller and gateway passed target tests. Both selected feet completed walk, kick, walking recovery and acknowledged Stop on isolated memory joints.",
     "owners": {
-      "physical_robot": "Offline while batteries charge. No stand or floor test completed in this block.",
+      "physical_robot": "No active operator or session. Shrish supervised the final trial and confirmed support for shutdown.",
       "gameplay_integration": "Shrish, assisted by agents in the relevant task; next engineering work follows the current user request.",
       "movement": "Shrish and project lead own gait readiness, pose/heading, kick approach and defense.",
       "shooting": "Tej owns the leg kick. Shrish and project lead own the transition from field-guided gameplay.",
@@ -107,7 +109,7 @@
       "arena": "Shrish",
       "project_lead": "Root operates the isolated main worktree. Other agents own their own branches and worktrees."
     },
-    "goal_status": "The combined release is loaded on the physical Pi. The next movement check is walker activation and Stop on the stand. Tej qualifies physical kick contact and the first stable step afterward.",
+    "goal_status": "Final west-goal offense arm refused during intermittent front-camera expiry and clearance. Zero walking outputs and no kick clip in the complete robot recording.",
     "pending_archives": [],
     "processes": {
       "local_practice": {
@@ -119,15 +121,15 @@
         "verified_utc": "2026-11-17T17:28:10.451773+00:00"
       },
       "unowned_port_8765": "Historical November 17 observation: PID 95237 was reelrelay serve, left untouched. Not rechecked November 19.",
-      "completed": "Earlier coordinate-stage1 floor session closed after forward tape trials and a bounded heading experiment. The combined release later started in a separate recorded session."
+      "completed": "Field camera closed. Both Pi sessions closed and recordings were copied and SHA-256 verified. No live offense source or controller."
     },
     "software_verification": "All four MuJoCo trials completed walk, selected-paw contact and subsequent walking. Three scored. On the Pi, each native foot policy completed a walk\u2013kick\u2013walk cycle on memory joints. The runner then requested shared Stop, the gateway latched a new epoch, both leg controllers became inactive and the runner exited cleanly."
   },
   "hardware_session": {
-    "status": "Owner reported all robot batteries depleted. Both SSH routes returned system shutdown before the stand-test program could connect. A physical Options press was reported separately; its effect and final torque state were not observed. Recheck a new boot before physical trials.",
-    "observed_utc": "2026-11-20T07:39:00+00:00",
+    "status": "CLOSED after the last supervised test. The front-camera guard refused offense. Gateway Stop acknowledged at epoch 2, both leg controllers inactive before driver shutdown, all owned processes exited, recordings closed.",
+    "observed_utc": "2026-11-20T09:01:47.341976+00:00",
     "ssh": "mts",
-    "current_boot_id": "44082e42-c61c-49b3-9cbe-f74fcdd0ecac",
+    "current_boot_id": "74798bf0-4852-4a5a-b222-c44e967b210d",
     "source_checkout": "/home/pi/pupper-fc-source/shared-main-9dPewsiT",
     "selected_candidate": "/home/pi/pupper-fc-releases/fc-walk-kick-3bd1bc9f54db",
     "platform_environment": "/home/pi/pupper-fc-releases/fc-platform-3bd1bc9f54db/environment.sh",
@@ -135,17 +137,18 @@
     "selected_controller_sha256": "b393bf88376a718036f2ea0eb5cc4e5ba9f8936d418ae650461bf49b9d998c56",
     "active_run": null,
     "processes_at_observation": {
-      "camera": "running",
-      "launch": "running",
-      "manager": "running",
-      "recorder": "running"
+      "camera": "exited",
+      "child_22354_142110": "exited",
+      "child_22404_142237": "exited",
+      "child_22408_142237": "exited",
+      "child_22410_142237": "exited",
+      "child_22416_142238": "exited",
+      "child_23131_147128": "exited",
+      "launch": "exited",
+      "manager": "exited",
+      "recorder": "exited"
     },
-    "policies_at_observation": {
-      "gemini_walk": "inactive",
-      "imu_sensor_broadcaster": "active",
-      "trick_leg_kick": "inactive",
-      "joint_state_broadcaster": "active"
-    },
+    "policies_at_observation": {},
     "gateway_stop_latched_at_observation": true,
     "qualification_report": "foundation/results/pi-combined-walk-kick-20261119.json",
     "teammate_experiment": "/home/pi/kick preserved; do not modify or name-kill its processes",
@@ -155,9 +158,16 @@
       "closure": "artifacts/pupper-fc/2026-11-19/coordinate-stage1-VJBLdGpR/robot/closure.json"
     },
     "frozen_release_source_commit": "3bd1bc9f54db7f96f5706355cec5d57b9ac1bf71",
-    "verified_front_camera": "Live detection with viewer segmentation masks off. In one stationary minute all 286 guard checks had fresh camera data. Reapply masks off in a new detector and check freshness before motion.",
-    "thermal_log": "pi-thermal-56561-376178.jsonl in this run; CPU, firmware flags and fan, every ten seconds.",
-    "previous_run": "/home/pi/pupper-fc-runs/fc-walk-kick-3bd1bc9f54db-prepared"
+    "verified_front_camera": "38/38 clear checks on the stand. During the field trace 108/276 samples held on stale captures or clear-frame recovery. See final report.",
+    "thermal_log": "Final run pi-thermal-22406-142237.jsonl; peak CPU 84.8 C.",
+    "previous_run": "/home/pi/pupper-fc-runs/fc-field-74798bf0",
+    "last_closed_run": "/home/pi/pupper-fc-runs/fc-final-74798bf0-0051",
+    "policies_before_driver_shutdown": {
+      "gemini_walk": "inactive",
+      "imu_sensor_broadcaster": "active",
+      "trick_leg_kick": "inactive",
+      "joint_state_broadcaster": "active"
+    }
   },
   "preservation": {
     "movement_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-16/movement-offline/movement-20261116-v2.tar.gz",
@@ -182,16 +192,17 @@
     "strict_finite_gateway_stop": "artifacts/pupper-fc/2026-11-17/strict-stop-integration-20261117T154236Z/archive-verification.json",
     "guard_shutdown_followup": "artifacts/pupper-fc/2026-11-17/guard-shutdown-integration-20261117T160358Z/archive-verification.json",
     "viewer_and_recovery": "artifacts/pupper-fc/2026-11-17/executor-viewer-integration/archive-verification.json",
-    "delivery_preparation": "artifacts/pupper-fc/2026-11-17/deliverable-prep/archive-verification.json"
+    "delivery_preparation": "artifacts/pupper-fc/2026-11-17/deliverable-prep/archive-verification.json",
+    "final_offense_archive": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-20/final-offense-74798bf0/archive-verification.json"
   },
   "next": [
     {
-      "id": "field_setup",
-      "action": "Align virtual goal segments to real front-post centers and verify the field width with tape, then test a marked rolling ball. The live Mac config, printed tag scale and 0\u21921 tape comparison are in the mounted camera report."
+      "id": "field_trial",
+      "action": "Replay the saved front-camera capture ages and zero-command receipts. Reproduce the 350 ms expiry and three-frame clearance cycle under combined load without motors. Examine the prior stale IMU receipt separately before another owner-supervised field session."
     },
     {
-      "id": "stand_walker_stop",
-      "action": "With an operator beside the supported robot, recheck current run identity, Stop and live detector status. On the stand activate walking once, request Stop and verify the gateway latch and inactive controller inventory."
+      "id": "field_setup",
+      "action": "Align virtual goal segments to real front-post centers and verify the field width with tape, then test a marked rolling ball. The live Mac config, printed tag scale and 0\u21921 tape comparison are in the mounted camera report."
     },
     {
       "id": "kick_qualification",

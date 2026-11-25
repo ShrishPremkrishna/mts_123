@@ -1,0 +1,107 @@
+{
+  "recorded_utc": "2026-11-20T09:01:47.341976+00:00",
+  "trial": "One supervised right-foot offense attempt toward the owner-confirmed west goal, tags 0 and 3.",
+  "release": "/home/pi/pupper-fc-releases/fc-walk-kick-3bd1bc9f54db",
+  "boot_id": "74798bf0-4852-4a5a-b222-c44e967b210d",
+  "run": "fc-final-74798bf0-0051",
+  "preceding_run": "fc-field-74798bf0",
+  "recovery": "The board disabled motors after a stale IMU component receipt in the previous run. An attempted walker activation finalized. The owner supported Pupper. The prior session closed and the identical driver and policies homed on the stand in a new run. The owner observed normal standing and returned Pupper to the field.",
+  "field_source": {
+    "source_session": "ced28e73-8c29-4f71-b067-d93044997f83",
+    "calibration_revision": 1,
+    "epoch": "final-west",
+    "events": 1595,
+    "same_frame_attack_intents": 950,
+    "incomplete_pairs_or_goal": 605,
+    "revoked_or_expired": 40
+  },
+  "guard": {
+    "initial_stationary_check": {
+      "seconds": 8,
+      "clear": 38,
+      "samples": 38
+    },
+    "field_trace": {
+      "duration_s": 57.2,
+      "samples": 276,
+      "ready": 168,
+      "hold": 108,
+      "capture_expired": 46,
+      "waiting_for_clear_frames": 62,
+      "capture_age_ms": {
+        "median": 257,
+        "p95": 480,
+        "max": 667
+      },
+      "limit_ms": 350
+    },
+    "arm": "Refused. The guard required a fresh zero command after camera clearance."
+  },
+  "bag_over_full_run": {
+    "walk_requests": 4176,
+    "nonzero_walk_requests": 0,
+    "guard_output_envelopes": 12876,
+    "nonzero_guard_outputs": 0,
+    "kick_clip_messages": 0
+  },
+  "result": "No offensive walk, kick or goal. Physical chase and contact remain unqualified.",
+  "thermal": {
+    "peak_cpu_celsius": 84.8,
+    "firmware_reported_active_throttling": true,
+    "causation_established": false
+  },
+  "shutdown": {
+    "gateway_stop_epoch": 2,
+    "gateway_stop_latched": true,
+    "pre_shutdown_controllers": {
+      "gemini_walk": "inactive",
+      "imu_sensor_broadcaster": "active",
+      "trick_leg_kick": "inactive",
+      "joint_state_broadcaster": "active"
+    },
+    "owned_processes": {
+      "camera": "exited",
+      "child_22354_142110": "exited",
+      "child_22404_142237": "exited",
+      "child_22408_142237": "exited",
+      "child_22410_142237": "exited",
+      "child_22416_142238": "exited",
+      "child_23131_147128": "exited",
+      "launch": "exited",
+      "manager": "exited",
+      "recorder": "exited"
+    },
+    "driver_shutdown_succeeded": true,
+    "detector": "closed",
+    "overhead_camera_log_released": true,
+    "recordings_closed": true,
+    "power_off_observed": false
+  },
+  "archive": {
+    "root": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-20/final-offense-74798bf0",
+    "verification": "/Users/shrish/workspace/pupper-foundation-artifacts/2026-11-20/final-offense-74798bf0/archive-verification.json",
+    "complete_robot_runs": {
+      "fc-field-74798bf0": {
+        "files": 48,
+        "bytes": 191026127
+      },
+      "fc-final-74798bf0-0051": {
+        "files": 45,
+        "bytes": 81423518
+      }
+    },
+    "input_files": [
+      "west-field-896.json",
+      "live_field_attack.py",
+      "selected-session.json"
+    ],
+    "outputs": [
+      "attack-final-west.jsonl",
+      "final-runner.jsonl",
+      "final-stop-state.json",
+      "final-shutdown.json",
+      "telemetry/telemetry_0.mcap",
+      "robot.log"
+    ]
+  }
+}
