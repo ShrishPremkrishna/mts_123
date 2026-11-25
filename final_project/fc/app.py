@@ -33,7 +33,7 @@ from .link import CEIL, Link
 from .media import CamFeed, Recorder
 from . import ops as OPS
 from .play import (FLOW_DEFAULTS, FLOW_LIMITS, JOBS, RESTART_MODES, MatchFlow, Ticker, action_label, banners, down_failed,
-                   estop_view, health, safety_banners)
+                   estop_view, health, safety_banners, setup_step)
 from .runlog import RUNS, Metrics, RunLog, list_runs
 from .sim import Sim
 from .sim import SIM_DEFAULTS
@@ -619,6 +619,10 @@ class App:
     # ---- loop ------------------------------------------------------------------
     def start(self) -> None:
         threading.Thread(target=self._loop, daemon=True, name="fc-loop").start()
+        if self.source == "camera":   # Play: one read-only fcctl status per robot, so each card shows a real next step
+            for r in self.active:
+                if r.host:
+                    self.robot_op({"robot": r.id, "op": "status"})
 
     def _loop(self) -> None:
         nxt, last = time.monotonic(), time.monotonic()
@@ -1627,6 +1631,8 @@ class App:
         except OSError as e:
             state["out"], state["rc"] = str(e), -1
         state["running"] = False
+        if state["op"] in ("stop", "bridge_start", "bridge_stop") and not self.dry_run_ops:
+            self.robot_phase.pop(rid, None)        # changed on the Pi: unknown until the next status
         if state["op"] == "status":
             for line in reversed(state["out"].strip().splitlines()):
                 try:
@@ -1733,6 +1739,8 @@ class App:
                 "estop": estop_view(r.id, self.estops[r.id], now, self.link is not None, self.sim is not None,
                                     ESTOP_RESEND_S) if r.id in self.estops else None,
                 "phase": self.robot_phase.get(r.id), "playing": r.id in self.playing,
+                "setup": setup_step(self.source, r.host, self.dry_run_ops, self.robot_phase.get(r.id), self.ops.get(r.id),
+                                    r.id in self.estops, str((self.robot_status.get(r.id) or {}).get("detail") or "")),
                 "cam": self.cams[r.id].status() if r.id in self.cams else None,
             }
         cam = []

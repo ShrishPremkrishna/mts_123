@@ -105,9 +105,9 @@ export async function createOps(store, toast) {
       const o = ops.get(name), a = api.avail(name);
       if (!o) return;
       if (!a.enabled) { toast(a.reason || `${o.label} is not available now`, "bad"); return { ok: false }; }
-      if (o.ask && !opts.confirmed) {
-        const who = args.robot ? ` ${NAME(args.robot)}` : "";
-        if (!await ask({ title: `${a.label || o.label}${who}`, lines: o.ask.split(/(?<=[.?])\s+/), yes: `${a.label || o.label}${who}`,
+      if ((o.ask || opts.ask) && !opts.confirmed) {           // opts.ask: a more specific question from the caller
+        const who = args.robot ? ` ${NAME(args.robot)}` : "", label = opts.label || a.label || o.label;
+        if (!await ask({ title: `${label}${who}`, lines: (opts.ask || o.ask).split(/(?<=[.?:])\s+/), yes: `${label}${who}`,
                          team: (store.get().robots.find((r) => r.id === args.robot) || {}).team })) return { ok: false, cancelled: true };
         args = { ...args, confirm: true };
       }

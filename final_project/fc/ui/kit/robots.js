@@ -5,24 +5,27 @@ import { h, NAME, cap } from "/kit/kit.js";
 
 export function robotCard(s, r, ops, opt = {}) {
   const pr = s.play.robots[r.id] || {}, hl = pr.health || { level: "off", text: "" }, f = s.play.flow, job = f && f.roles[r.id];
-  const op = s.ops[r.id], running = op && op.running, es = s.estop[r.id];
-  const prog = running && op.op === "ready" ? Math.min(100, ((op.progress || {}).elapsed || 0) / 1.2) : null;
-  const real = s.source !== "sim" && !!(r.host || s.dry_run_ops);
+  const su = pr.setup || { step: "sim", label: "", op: null, done: 3 }, op = s.ops[r.id], es = s.estop[r.id];
+  const prog = su.busy && op && op.op === "ready" ? Math.min(100, ((op.progress || {}).elapsed || 0) / 1.2) : null;
+  const real = su.step !== "sim";
   const btn = (label, name, args, props = {}, run = {}) =>
     h("button", { class: "btn", type: "button", onclick: () => ops.run(name, args, run), ...props }, label);
   return h("div", { class: "card", "data-team": r.team },
     h("div", { class: "card-head" }, h("span", { class: "display" }, NAME(r.id)), r.host ? h("span", { class: "chip" }, r.host) : null,
       h("i", { class: "light", "data-level": hl.level, title: hl.text })),
-    h("div", { class: "st" }, cap(hl.text)),
+    real ? h("div", { class: "steps", title: "homed, standing, linked" },
+      [1, 2, 3].map((k) => h("i", { "data-done": su.done >= k || null, "data-now": su.busy && su.done === k - 1 || null }))) : null,
+    h("div", { class: "st" }, cap(real && su.step !== "ready" ? su.reason || hl.text : hl.text)),
     opt.jobs ? h("div", { class: "seg", "aria-disabled": String(!job) }, ["auto", "attack", "defend"].map((j) =>
       h("button", { type: "button", "aria-pressed": String(job === j), onclick: () => ops.run("match.job", { robot: r.id, job: j }) },
         j === "defend" ? "Goalie" : cap(j)))) : null,
     prog != null ? h("div", { class: "meter" }, h("i", { style: { width: prog + "%" } })) : null,
     h("div", { class: "acts" },
-      real ? btn(running && op.op === "ready" ? "Getting ready…" : es ? "Re-arm" : pr.ready ? "Ready ✓" : "Ready", "robot.ready", { robot: r.id },
-        { "data-tone": "go", "aria-disabled": String(!!running || !!pr.ready) }) : null,
-      real ? btn("Lie down", "robot.down", { robot: r.id }) : null,
-      es && s.source === "sim" ? btn("Clear e-stop", "estop.clear", { robot: r.id }, { "data-tone": "go" }) : null,
+      // the one setup button: the backend says what the next step is (play_state robots[id].setup)
+      real ? (su.op ? btn(su.label, su.op, { robot: r.id }, { "data-tone": "go" }, su.ask ? { ask: su.ask, label: su.label } : {})
+                    : h("button", { class: "btn", type: "button", "data-tone": "go", "aria-disabled": "true" }, su.step === "ready" ? "Ready ✓" : su.label)) : null,
+      real && su.done >= 1 && !su.busy ? btn("Lie down", "robot.down", { robot: r.id }) : null,
+      es && !real ? btn("Clear e-stop", "estop.clear", { robot: r.id }, { "data-tone": "go" }) : null,
       btn(`E-stop ${NAME(r.id)}`, "estop", { robot: r.id }, { "data-tone": "stop" }, { done: `E-stop sent to ${NAME(r.id)}`, level: "bad" })));
 }
 
