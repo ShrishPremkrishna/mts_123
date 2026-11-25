@@ -5,8 +5,9 @@
     python3 ~/fc-v1/robot/camstream.py --source picamera2  # no camera node running: open the sensor here
 
 Serves http://<pi>:8090/stream.mjpg (multipart MJPEG), /frame.jpg and /health. Put the URL in
-fc/config/robots.json as "cam_url". Low resolution (320 px wide) and capped at --fps (default 8) to
-keep Pi load and Wi-Fi small. Never in the control path: the laptop reads it on a side thread.
+fc/config/robots.json as "cam_url". Low resolution (--width, default 320) and capped at --fps (default 8)
+to keep Pi load and Wi-Fi small. Never in the control path: the laptop reads it on a side thread.
+Normally started by `fcctl.sh cam start` (defaults 160x120 @ 5 fps; measured cost in README.md).
 
 Read-only camera use:
 - `ros` (default) only subscribes (best effort, depth 1) to the topic camera_ros publishes; it never
@@ -91,7 +92,10 @@ def run_picamera2(latest: Latest, width: int, fps: float, from_bgr) -> None:
     if from_bgr is None:
         raise SystemExit("picamera2 source needs OpenCV")
     cam = Picamera2()
-    cam.configure(cam.create_preview_configuration(main={"format": "RGB888", "size": (width, width * 3 // 4)}))
+    # Sensor frame rate = the stream rate: the ISP and buffer handling then run fps times a second instead
+    # of the sensor's 60 (this session's own camera setting; nothing else has the sensor open).
+    cam.configure(cam.create_preview_configuration(main={"format": "RGB888", "size": (width, width * 3 // 4)},
+                                                   buffer_count=2, controls={"FrameRate": float(fps)}))
     cam.start()
     try:
         while True:

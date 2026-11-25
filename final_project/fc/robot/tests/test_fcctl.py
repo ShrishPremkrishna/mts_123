@@ -612,3 +612,58 @@ def test_ready_replaces_a_bridge_left_parked(fc):
     rc, out = fc.lines("ready")
     assert rc == 0 and out[phases(out).index("bridge")]["msg"] == "bridge up", out
     assert int((fc.root / "run" / "bridge.pid").read_text().split()[0]) != pid
+
+
+FAKE_CAMSTREAM = r'''
+import json, os, sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+open(os.path.join(os.environ["FC_ROOT"], "cam_argv.json"), "w").write(json.dumps(sys.argv[1:]))
+if os.environ.get("FAKE_CAM") == "busy":
+    sys.exit("Camera __init__ sequence did not complete")   # like picamera2 when the sensor is held
+class H(BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def do_GET(self):
+        body = b'{"frames":3,"age":0.1}'
+        self.send_response(200); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body)
+HTTPServer(("127.0.0.1", int(sys.argv[sys.argv.index("--port") + 1])), H).serve_forever()
+'''
+
+
+def _free_port():
+    import socket
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return str(s.getsockname()[1])
+
+
+def test_cam_start_status_stop_and_stop_ends_it(fc):
+    (fc.robot / "camstream.py").write_text(FAKE_CAMSTREAM)
+    env = {"FC_CAM_PORT": _free_port()}
+    r = fc("cam", "start", extra_env=env)
+    assert r["ok"] and r["source"] == "picamera2" and (r["width"], r["fps"]) == (160, 5), r
+    argv = json.loads((fc.root / "cam_argv.json").read_text())
+    assert argv[argv.index("--source") + 1] == "picamera2" and argv[argv.index("--width") + 1] == "160"
+    assert fc("cam", "start", extra_env=env)["error"].startswith("cam already running")
+    assert fc("status")["cam"] == {"pid": r["cam_pid"], "alive": True}
+    assert fc("cam", "stop") == {"ok": True, "cam": "stopped"}
+    assert fc("status")["cam"]["alive"] is False
+    # 'stop' (and so 'down') never leaves the feed running
+    assert fc("cam", "start", "--width", "320", "--fps", "10", extra_env=env)["ok"]
+    fc("stop")
+    assert not (fc.root / "run" / "cam.pid").exists()
+
+
+def test_cam_refuses_bad_options_and_reports_a_busy_sensor(fc):
+    (fc.robot / "camstream.py").write_text(FAKE_CAMSTREAM)
+    for args in (["--width", "4000"], ["--fps", "60"], ["--quality", "5"], ["--bogus"]):
+        assert fc("cam", "start", *args)["ok"] is False
+    r = fc("cam", "start", extra_env={"FC_CAM_PORT": _free_port(), "FAKE_CAM": "busy", "FC_CAM_WAIT_S": "2"})
+    assert r["ok"] is False and "no frame" in r["error"]
+    assert fc("status")["cam"]["alive"] is False
+
+
+def test_cam_uses_the_stack_camera_topic_when_the_node_runs(fc):
+    (fc.robot / "camstream.py").write_text(FAKE_CAMSTREAM)
+    assert fc("start", "fake", "--confirm")["ok"]   # fake profile: no lean option -> camera node unknown
+    r = fc("cam", "start", extra_env={"FC_CAM_PORT": _free_port()})
+    assert r["ok"] and r["source"] == "ros", r

@@ -9,7 +9,7 @@ gamepad `/teleop_cmd_vel` wins) → `/cmd_vel` → walker. Contract: [../SPEC.md
 | --- | --- |
 | `drive_bridge.py` | rclpy node. 50 Hz Twist while the newest packet is younger than its ttl (0.25 s default, 0.5 s cap), then one zero and silence. Accepts only HMAC-signed packets for its `--robot-id` (key `link.key`, 0600), rejects malformed/replayed packets (replay state survives restarts), clamps to \|vx\|≤0.5, \|vy\|≤0.3, \|wz\|≤2.0. Holds zero on a bad IMU or a missing/stalled mux (below). Signed ack (seq, `imu`, profile, `hold`, `imu_hold`, `mux_ok`, `estopped`, stats) to accepted packets only. vx ceiling = the stack's speed cap (`--max-vx`, at most 1.0). E-stop + fallen cutoff: [below](#e-stop-and-fallen-cutoff-spec-v11). |
 | `rosq.py` | fcctl's rclpy queries (no ros2 daemon): `probe` (velocity topology + controllers + host DDS participant count), `controllers`, `switch` (BEST_EFFORT, or `strict` for the lie-down handover). `probe` waits until the graph settles (2-8 s) and names the reason when the mux is missing (process running but undiscovered vs no process). |
-| `fcctl.sh` | Runs on the Pi from `~/fc-v1/robot/`: `status` (incl. `phase`/`light`, `mux_alive`, `mux_ok`, `ros.mux`), `ready [profile] [--confirm]`, `down [--keep-stack]`, `start <profile> --confirm`, `stop`, `bridge start\|stop`, `imu-test <seconds>`, plus `walk`/`rest` and `boot` (service only). |
+| `fcctl.sh` | Runs on the Pi from `~/fc-v1/robot/`: `status` (incl. `phase`/`light`, `mux_alive`, `mux_ok`, `ros.mux`), `ready [profile] [--confirm]`, `down [--keep-stack]`, `start <profile> --confirm`, `stop`, `bridge start\|stop`, `cam start\|stop` (POV feed), `imu-test <seconds>`, plus `walk`/`rest` and `boot` (service only). |
 | `readiness.py` | Pure: the `status` phase (`off/starting/homed/standing/ready/fault`) and the controller check `ready` uses. |
 | `boot/` | Power-on service, prepared and **not installed**: `fc-boot.service`, `install.sh` (install/uninstall/status/print). What it does, rollback and the homing-posture evidence: [boot/README.md](boot/README.md). |
 | `profiles/stock.sh` | Class platform: monorepo `ros2 launch neural_controller launch.py teleop:=False` + teleop→`/teleop_cmd_vel` + `cmd_vel_mux_node`. Domain 0. Default because it is the simplest stack known to walk (25 min on Nov 19, no driver fault), with the stock driver `01813d58` and the same policy as u6 (`ecf3a4ab`); the Pi's neural_controller has local changes, so it is "as installed", not pristine. `FC_IMU_FILTER=1` by default ([below](#imu-filter-driver-on-mts-2026-11-24-operator-approved)). |
@@ -19,7 +19,7 @@ gamepad `/teleop_cmd_vel` wins) → `/cmd_vel` → walker. Contract: [../SPEC.md
 | `sim/liedown_sim.py` | Laptop only (not staged): MuJoCo check of the gentle lie-down. [Gentle lie-down](#gentle-lie-down-stock-down-and-stop). |
 | `stage.sh <host>` | Laptop: rsync this dir (minus `vendor/`, `provision/`, `sim/`) to `<host>:~/fc-v1/robot/`, print changes; copy `fc/config/link.key` (0600) and write `robot_id` from the `robots.json` entry for `<host>` (or `FC_ROBOT_ID`). |
 | `provision/` | Laptop: `provision.sh [--check] <host> <id> <team> <tag>` takes a new Pi to game-ready (read-only probe + readiness report; stages via `stage.sh`; writes only `~/fc-v1/` unless `--fix-clone-identity`). Second-robot plan, clone vs class card, and per-robot calibration: [provision/PROVISION.md](provision/PROVISION.md). Not staged to the Pi. |
-| `camstream.py` | Optional, not run by any script yet: front camera as 320 px MJPEG on :8090 (`/stream.mjpg`, `/frame.jpg`, `/health`) for the laptop Play screen (`cam_url` in robots.json). Default source subscribes read-only to camera_ros `/camera/image_raw/compressed` (same ROS env/domain as the profile); `--source picamera2` opens the sensor only when no camera node runs. Not yet run on a Pi. |
+| `camstream.py` | Optional robot-POV feed: front camera as small MJPEG on :8090 (`/stream.mjpg`, `/frame.jpg`, `/health`) for the laptop Play screen (`cam_url` in robots.json; blue would be `http://10.5.6.112:8090/stream.mjpg`, not set yet: see below). Started by `fcctl.sh cam start`. `--source picamera2` opens the sensor at the stream rate (sensor `FrameRate` = `--fps`); `--source ros` subscribes read-only to camera_ros `/camera/image_raw/compressed`. Cost: [Robot-POV feed](#robot-pov-feed-cam-measured-on-mts-2026-11-25). |
 | `keygen.py` | Laptop, once: `python -m fc.robot.keygen` writes `fc/config/link.key` (0600, gitignored). |
 | `vendor/tej_u6/` | Text sources/configs/manifests of u6, the kit, its driver source and gateway source (3.5 MB). Full archive with binaries: `~/workspace/pupper-foundation-artifacts/tej_u6_20261120.tar.gz` (+ `.sha256`, `be1cd1e2…c38781`, 279 MB: u6 release, full kit, pinned dependency sources; driver/native .so match the kit's hashes). |
 
@@ -254,6 +254,37 @@ way (no overlay = stock defaults: cap 0.49, hold on).
   0.5 s (pct per core). `python -m fc.ctl pi <robot>` prints it as a second line.
 - `ready` on a running stack with different options fails at `profile` ("down first": a new start re-homes).
 - stock: src and installed launch/config/policies must be identical (the overlay is built from `src/`).
+
+## Robot-POV feed (`cam`, measured on mts 2026-11-25)
+
+Off unless started; a separate process, never in the control path. The lean stock stack has no camera node,
+so `cam start` opens the CSI camera (imx296) itself; if the running stack launched the camera node
+(`--lean off` / `--camera on`, or tej_u6) it subscribes to that topic instead. `start` with the camera node stops
+a running feed first (one sensor owner). `stop` (and `down`, when it stops the stack) ends it.
+
+    bash fcctl.sh cam start                          # 160x120 @ 5 fps (default)
+    bash fcctl.sh cam start --width 320 --fps 10     # sharper, ~6x the Wi-Fi
+    bash fcctl.sh cam stop                           # status: "cam": {"pid", "alive"}
+
+The laptop reads `cam_url` on a daemon thread (`fc/media.py` `CamFeed`); with the feed off the Play screen shows
+no signal and the thread retries every 2 s. `cam_url` is not in robots.json yet: `App` opens a feed for every
+robot with one, in sim mode and in the test server too (test_app expects `cam` None for blue). Set it once
+app.py opens feeds only for the real source. Measured (2 min each, Pi 5, fan on, laptop fetching the stream):
+
+| | streamer CPU (one core) | Pi busy (4 cores) | Wi-Fi | temp |
+| --- | --- | --- | --- | --- |
+| none, stack off | - | 0.1 % | - | drifting down 57.2 → 56.7 °C |
+| 320x240 @ 10, sensor 60 fps (old) | 7.3-7.8 % | +2 pts | 0.73 Mbit/s | no rise seen |
+| 160x120 @ 5, sensor 60 fps (old) | 6.2 % | +1.6 pts | 0.13 Mbit/s | no rise seen |
+| 320x240 @ 10, sensor 10 fps | 3.2 % | +2 pts | 0.75 Mbit/s | no rise seen |
+| **160x120 @ 5, sensor 5 fps (default)** | **1.3 %** | **≈ 0** | **0.13 Mbit/s** | **no rise seen** |
+
+The first 320x240 run was with the stock stack up (drive_bridge 27 %, ros2_control_node 19 % of one core,
+~59 °C); the rest after the stack had been stopped. Temperature resolution is ±0.3 °C against that drift.
+Laptop: 30 Hz loop lateness p99 5.1 ms with and without the feed, feed process CPU 0.3-0.5 %. Network:
+laptop→Pi TCP RTT p50 74-100 ms / p95 205-254 ms with and without the feed (the Wi-Fi was slow at the time
+with nothing streaming, so a cost below that noise is not excluded). Not yet measured during a live match: check
+link RTT (`lk.blue` in events) with the feed on before using it in play.
 
 ## E-stop and fallen cutoff (SPEC v1.1)
 

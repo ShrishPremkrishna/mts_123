@@ -28,6 +28,11 @@
 #                [--no-imu-stop] [--no-mux-guard] | bridge stop
 #                               (robot id defaults to ~/fc-v1/robot/robot_id, written by stage.sh;
 #                                key: ~/fc-v1/robot/link.key, 0600; replay state: run/bridge_state.json)
+#   cam start [--width W] [--fps F] [--quality Q] | cam stop
+#                               optional robot-POV feed: camstream.py, MJPEG on :8090 (robots.json cam_url).
+#                               Off unless started; default 160x120 @ 5 fps (~1.3% of one core, ~0.13 Mbit/s,
+#                               README). Running stack's camera node if launched (read-only ROS), else
+#                               picamera2 at the stream rate. stop (and down when it stops the stack) ends it
 #   imu-test <seconds>          delegates to imu_test.py (IMU lane) if present
 #   i2c-recover [--check] [--force]
 #                               free a hung I2C-1 bus (BNO "SDA stuck at low") without a power cycle:
@@ -354,6 +359,7 @@ cmd_status() {
   foreign_stack && foreign=true
   if $alive; then profile_env; q=$(rosq probe "$PROFILE_CMD_TOPIC" 2>/dev/null) || q='null'; [ -n "$q" ] || q='null'; fi
   bpid=$(fc_pid bridge || true)
+  local cpid; cpid=$(fc_pid cam || true)
   local temp thr batt='null'
   temp=$(vcgencmd measure_temp 2>/dev/null | sed -n "s/temp=\([0-9.]*\).*/\1/p")
   thr=$(vcgencmd get_throttled 2>/dev/null | sed -n 's/throttled=//p')
@@ -364,7 +370,7 @@ cmd_status() {
   fi
   local stale=false; active_stale && stale=true
   local heat; heat=$(timeout 5 python3 "$HERE/heat.py" 2>/dev/null | tail -1); [[ "$heat" == \{*\} ]] || heat='null'
-  FC_HEAT=$heat python3 - "$prof" "$run" "$alive" "$stack" "$foreign" "$bpid" "${temp:-}" "${thr:-}" "$q" "$batt" \
+  FC_HEAT=$heat FC_CAM_PID=$cpid python3 - "$prof" "$run" "$alive" "$stack" "$foreign" "$bpid" "${temp:-}" "${thr:-}" "$q" "$batt" \
     "$(cat /proc/loadavg)" "$(fc_pid starter || true)" "${PROFILE_HEADING_HOLD:-}" \
     "${PROFILE_WALKER:-}" "${PROFILE_LEG_CONTROLLERS:-}" "$stale" "$HERE" "$FC_RUN/boot.json" "$FC_RUN/estop.json" <<'PY'
 import json, os, sys, time
@@ -431,6 +437,8 @@ print(json.dumps({
     "dds": (ros or {}).get("dds"), "discovery": (ros or {}).get("discovery"),
     "ros": ros,
     "bridge": {"pid": int(bpid) if bpid else None, "alive": bool(bpid)},
+    "cam": {"pid": int(os.environ["FC_CAM_PID"]) if os.environ.get("FC_CAM_PID") else None,   # cam start (POV feed)
+            "alive": bool(os.environ.get("FC_CAM_PID"))},
     "temp_c": float(temp) if temp else None, "throttled": thr or None,
     "battery": json.loads(batt) if batt != "null" else None,
     "load": [float(x) for x in load.split()[:3]],
@@ -456,6 +464,9 @@ cmd_start() {
   lock
   load_profile "$name"
   apply_stack_opts || die "$STACK_ERR"
+  if _cam_effective && fc_alive cam; then   # the camera node needs the sensor 'cam start' (picamera2) holds
+    fc_log "stopping the POV feed (cam): this stack launches the camera node"; fc_signal_group cam INT 5
+  fi
   local prev; prev=$(active_profile || true)
   if [ -n "$prev" ]; then
     ( load_profile "$prev" && profile_alive "$(active_run)" ) && die "profile '$prev' is running; fcctl.sh stop first"
@@ -561,6 +572,60 @@ except Exception: print("")')
   esac
 }
 
+# cam: the optional robot-POV MJPEG feed (camstream.py). Never in the control path; measured cost in README.
+cmd_cam() {
+  local sub=${1:-} width=160 fps=5 quality=60 port=${FC_CAM_PORT:-8090}
+  shift || true
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --width) width=${2:-}; shift 2 || shift ;;
+      --fps) fps=${2:-}; shift 2 || shift ;;
+      --quality) quality=${2:-}; shift 2 || shift ;;
+      *) die "unknown cam option '$1' (cam start [--width W] [--fps F] [--quality Q] | cam stop)" ;;
+    esac
+  done
+  case "$sub" in
+    start)
+      [[ "$width" =~ ^[0-9]+$ ]] && [ "$width" -ge 64 ] && [ "$width" -le 640 ] || die "--width needs 64..640 (got '$width')"
+      [[ "$fps" =~ ^[0-9]+([.][0-9]+)?$ ]] && awk -v v="$fps" 'BEGIN { exit !(v >= 1 && v <= 15) }' || die "--fps needs 1..15 (got '$fps')"
+      [[ "$quality" =~ ^[0-9]+$ ]] && [ "$quality" -ge 20 ] && [ "$quality" -le 90 ] || die "--quality needs 20..90 (got '$quality')"
+      lock
+      fc_alive cam && die "cam already running (pid $(fc_pid cam)); 'cam stop' first"
+      # A running stack that launched the camera node owns the sensor: subscribe to its topic (read-only).
+      # Otherwise (lean stock = no camera node, or no stack) open the sensor here.
+      local src=picamera2 prof run cam_node
+      prof=$(active_profile || true); run=$(active_run || true)
+      if [ -n "$prof" ] && _profile_ok "$prof" && load_profile "$prof" && profile_alive "$run"; then
+        cam_node=$(_stack_field "$run/stack.json" camera 2>/dev/null)
+        if [ "$cam_node" != False ]; then src=ros; profile_env; fi
+      fi
+      fc_spawn cam "$FC_LOGS/cam.log" python3 -u "$HERE/camstream.py" --source "$src" --width "$width" --fps "$fps" \
+        --quality "$quality" --port "$port" || die "could not spawn camstream"
+      local i frames=0
+      for i in $(seq "$(( ${FC_CAM_WAIT_S:-10} * 2 ))"); do
+        sleep 0.5
+        fc_alive cam || break
+        frames=$(python3 -c 'import json,sys,urllib.request
+try: print(int(json.load(urllib.request.urlopen(sys.argv[1], timeout=1))["frames"]))
+except Exception: print(0)' "http://127.0.0.1:$port/health")
+        [ "$frames" -gt 0 ] && break
+      done
+      if [ "$frames" -le 0 ]; then
+        fc_signal_group cam INT 3
+        die "camstream ($src) gave no frame (sensor busy or no camera topic?); see $FC_LOGS/cam.log"
+      fi
+      local ip; ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+      printf '{"ok":true,"cam_pid":%s,"source":"%s","url":"http://%s:%s/stream.mjpg","width":%s,"fps":%s,"quality":%s}\n' \
+        "$(fc_pid cam)" "$src" "${ip:-127.0.0.1}" "$port" "$width" "$fps" "$quality"
+      ;;
+    stop)
+      fc_signal_group cam INT 5 || die "cam did not stop"
+      echo '{"ok":true,"cam":"stopped"}'
+      ;;
+    *) die "usage: cam start [--width W] [--fps F] [--quality Q] | cam stop" ;;
+  esac
+}
+
 cmd_walk() {  # walk | rest
   local prof; prof=$(active_profile || true); [ -n "$prof" ] || die "no running profile"
   load_profile "$prof"; profile_env
@@ -577,6 +642,7 @@ cmd_stop() {
   lock
   local rc=0 prof run deact='null' parked=0
   prof=$(active_profile || true); run=$(active_run || true)
+  fc_signal_group cam INT 5 || rc=1   # the optional POV feed (cam start) never outlives a stop
   # A READY stack with a bridge: park it (zero only, link E-STOP still armed) for the lie-down; else stop it now.
   if [ -n "$prof" ] && [ -f "$run/READY" ] && fc_bridge_park; then parked=1; fc_log "bridge parked (zero only; link E-STOP armed)"
   else fc_signal_group bridge INT 5 || rc=1; fi   # bridge publishes one zero Twist on exit
@@ -981,8 +1047,9 @@ case "${1:-}" in
   down) shift; cmd_down "$@" ;;
   boot) cmd_boot ;;
   bridge) shift; cmd_bridge "$@" ;;
+  cam) shift; cmd_cam "$@" ;;
   walk|rest) cmd_walk "$1" ;;
   imu-test) shift; cmd_imu_test "$@" ;;
   i2c-recover) shift; cmd_i2c_recover "$@" ;;
-  *) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,42p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac
