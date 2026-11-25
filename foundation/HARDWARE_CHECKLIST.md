@@ -13,83 +13,12 @@ Motor startup and motion require a supervising operator with the robot supported
 as appropriate and access to R3/power. Source installation, app activation,
 controller Stop and full motor-driver shutdown have different effects below.
 
-For the stock-only Pupper FC movement session, use the
-[build/test handoff](../final_project/ROBOT_BUILD_AND_TEST_HANDOFF.md) and
-[movement runbook](../final_project/behaviors/ROBOT_RUNBOOK.md). That separate,
-pinned launch does not start the Lab 6 API, voice or camera. The application
-packaging/session commands below remain the Lab 6 path; they do not select or
-build the new stock movement release.
-
-## Guarded walk candidate
-
-`hardware/assemble_guarded_release.py` copies a verified stock walk baseline into
-a **new** release directory and overlays the indexed guarded-command and gameplay
-bridge Python sources. By default it keeps
-the native controller, driver, gateway, mux, policy and gains unchanged. It adds
-the optional camera command path, preserves the old release for rollback, and
-removes copied sprint selection. This is file assembly only; it starts nothing.
-
-The separate direct FC deadline candidate additionally needs a target-built
-controller. Select it explicitly with `--deadline-controller` and
-`--deadline-controller-sha256`, together with the strict source index (including
-the deadline helper and updated stock-evidence module). Assembly pins the new
-controller, selects `fc_deadline_v1`, disables alternate command inputs and
-omits mux launch/continuity dependencies. Policy, gains, driver and gateway stay
-unchanged. Its record reports `native_unchanged=false`; inherited native source
-hashes remain baseline provenance, not proof of the new build. Retain the new
-target build receipt separately. Cached Ubuntu test binaries are not Pi builds.
-
-Use the frozen source kit linked by the current checkpoint. On the target
-filesystem, select the baseline manifest and its independently recorded digest,
-the kit's `guard-sources.json` and digest, and the existing ROS-capable Python.
-For the current strict 15-role kit, include the explicitly rebuilt controller:
-
-```sh
-python3 foundation/hardware/assemble_guarded_release.py \
-  --baseline-manifest "$BASELINE/walk-manifest.json" --baseline-sha256 "$BASELINE_SHA256" \
-  --source-root "$KIT" --source-index "$KIT/guard-sources.json" --source-sha256 "$SOURCE_SHA256" \
-  --destination "$NEW_RELEASE" --guard-python "$ROS_PYTHON" \
-  --deadline-controller "$TARGET_CONTROLLER" --deadline-controller-sha256 "$TARGET_CONTROLLER_SHA256"
-```
-
-For legacy guarded assembly, select its matching 13-role source index and omit
-both deadline-controller options. The indexes are not interchangeable.
-
-Default assembly pins the all-obstacle policy. `--arena-ball-contact` is an
-explicit candidate selection for soccer: only class `"32"` from the expected
-lab model and label map is exempt. Its generated policy file is hashed in the
-manifest and reflected in the verified process arguments. It does not establish
-recognition of the intended pink ball; collect ball/person coverage before any
-supervised contact trial. Never enable it as a remedy for missing camera data.
-
-No paths or hashes above are defaults. A failed assembly retains any partial
-destination; do not reuse it. The resulting `STAGING.json` identifies the new
-manifest. Source the new `environment.sh`, then use that release's existing
-`runtime_identity.py preflight` before any supervised launch. Preflight probes
-imports with the selected Python without initializing ROS or motors. It does not
-prove camera throughput or runtime behavior. The newer native software-Start
-service needs a separate Pi-compatible gateway build; this assembly does not add
-it, and the existing Options path remains available.
-The frozen kit includes a source-only `native-start/` companion and package-only
-build recipe. The cached Ubuntu gateway requires `GLIBCXX_3.4.32`, while the
-recorded Debian Pi provides through `3.4.30`; do not stage that binary or its
-CPython 3.12 service bindings. Build and verify against the actual target
-underlay during preparation, before requesting physical readiness.
-
-For camera-only coverage, support the body at measured normal walking camera
-height/pitch; keep motors inactive. Mark person/ball ranges and lateral offsets,
-record fixed model/projection settings and original frame identities, and retain
-a separate validation sequence. The November 17 floor recording did not measure
-camera posture; the normalized bottom threshold is angular, not a measured
-stopping distance.
-
-Before motion, check capture age **and spacing**, detector scene coverage, selected
-publisher routing, and clear/blocked/stale stopping with supported legs. Camera
-producer source selection is separate from this native release and must use the
-reviewed capture-stamped producer. A guard-only exit retains native standing;
-restart only as an explicit new selection. Existing required-native-process
-shutdown behavior remains unchanged. Physical stopping distance and heading
-accuracy still require a supervised floor trial.
+The pre-v1 Pupper FC movement session and guarded-walk release assembly
+(`assemble_guarded_release.py`, the build/test handoff and movement runbook) were
+removed on 2026-11-24; see git tag `archive/pre-fc-v1-cleanup`. Current FC robot
+procedures are in [fc/robot/README.md](../final_project/fc/robot/README.md) and the
+[fc RUNBOOK](../final_project/fc/RUNBOOK.md). The application packaging/session
+commands below remain the Lab 6 path.
 
 ## Maintained deployment commands
 

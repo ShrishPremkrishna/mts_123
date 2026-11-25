@@ -2,8 +2,8 @@
 
 One overhead iPhone camera becomes a shared field state for Pupper FC: where
 each Pupper is and which way it faces, where the ball is and how fast it is
-moving, the goals, and the geometry of a shot. [Project brief](../README.md) ·
-[perception notes](../handoffs/PERCEPTION.md).
+moving, the goals, and the geometry of a shot. [Project brief](../README.md). The Nov 19 perception
+workstream notes are at git tag `archive/pre-fc-v1-cleanup` (`final_project/handoffs/PERCEPTION.md`).
 
 ## Status — November 20, 2026
 

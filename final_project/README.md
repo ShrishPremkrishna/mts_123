@@ -3,7 +3,7 @@
 > **Current work (since Nov 23, 2026): [`fc/`](fc/README.md), a lean rebuild on branch `fc-v1`.** One laptop
 > process (overhead camera → brain → signed UDP) drives each robot's stock walker through a small Pi
 > bridge. Floor plan: [fc/RUNBOOK.md](fc/RUNBOOK.md); contract: [fc/SPEC.md](fc/SPEC.md). The previous FC
-> stack below is historical; the Codex Phase 2–4 rebuild and other superseded `codex/*` branches are archived
+> stack is historical (see below); the Codex Phase 2–4 rebuild and other superseded `codex/*` branches are archived
 > at `archive/*` tags. On Nov 24 the laptop drove `mts` on the floor (goto, push goals, fast gait); results and
 > limits are in [fc/STATUS.md](fc/STATUS.md). Demo UI: Play screen at `/` (tests at `/ops`), launched with `fc/run.sh`.
 
@@ -16,96 +16,8 @@
 
 ## Historical (pre-Nov 23)
 
-Everything below describes the earlier FC stack (leg-kick shot, Codex-era executor and evidence). It is kept for
-reference and does not describe `fc/` or assign current work.
-
-Pupper FC aims to have two autonomous Puppers play soccer in an approximately 8 × 12-foot arena. Overhead perception estimates robot and ball positions in a calibrated field with known goal locations. The immediate demo needs one to two minutes of responsive play, useful goal-directed shots and automatic offense/defense. The demo shot uses Tej’s leg-kick policy. The combined single-robot release steers using a measured field pose, hands the legs to the selected kick, and restores walking. Both feet have scored in simulation. The Pi completed walk–kick–walk for each foot on memory-backed joints, then latched Stop and deactivated both leg controllers. The physical robot homed on the stand with the verified build loaded. At standby both motion controllers were inactive and the gamepad, camera and IMU were live. The next supervised check is walker activation and Stop on the stand. Tej owns physical kick qualification, and mounted field tracking remains open. [Pi qualification](../foundation/results/pi-combined-walk-kick-20261119.json)
-
-### Current agreement and owner steering — November 19, 2026
-
-Shrish and the project lead own the single-robot software loop. Tej owns physical kick and recovery trials. Ryan’s mounted camera and the second robot are later blocks. The [current software rehearsal](pupper_fc/README.md#one-robot-software-rehearsal) exercises continuous metric position and heading targets, speed changes, slowing into either paw, single-shot handoff and resumption of walking. [Watch the simulated approach at three speeds](pupper_fc/media/three-speed-approach.mp4).
-
-The goals have arrived. The intended ball and second Pupper are still outstanding.
-On November 19 the stock walker completed four one-second forward pulses at
-0.2 m/s. Two from the same mark appeared to travel the same distance. The
-operator taped one at about 8 in (20 cm). Another looked normal and had no
-individual measurement. A two-second pulse toward 40 cm traveled an estimated
-15 in (38 cm). Lateral offsets were unmeasured, so endpoint spread remains
-unknown. The [straight-trial procedure](ROBOT_BUILD_AND_TEST_HANDOFF.md#first-camera-free-straight-trial)
-includes independent x/y and heading measurements for repeats.
-
-A relative +20° turn timed out after six seconds. The IMU reported +15.6°
-at cutoff. The turn briefly entered tolerance but did not hold it for the
-required 0.3 s. Combined turn-and-translate trials await a repeatable turn.
-Shrish supported the robot while the driver deactivated, and the recorder
-closed. [Physical trial receipts](../foundation/results/staged-field-session-20261119.json).
-
-Ryan’s overhead producer and the adapter that converts its capture times to the
-robot’s clock are integrated. On a direct local network, 9 of 16 clock probes
-met the 20 ms uncertainty limit and 148 of 229 synthetic frames met the capture
-clock budget. The earlier routed campus test admitted 2 of 16 probes. The
-mounted camera still needs a sustained timing check on the arena network.
-[Pi and network measurements](../foundation/results/staged-field-session-20261119.json).
-The [camera setup and tag check](ROBOT_BUILD_AND_TEST_HANDOFF.md#mounted-overhead-camera-motors-inactive)
-can proceed with a loose tag before a robot is available. The [tracked navigation test](PLAN.md#current-sprint--november-19)
-uses the same target with measured robot poses once the mounted camera, timing
-and field dimensions have been qualified.
-
-Tej’s `tej/gemini-ball-kick` branch advanced to `30b84a0`. The Pi logged u5 walk–kick–walk jobs of 5.76/5.63 s for left/right, then
-4.98/5.03 s with the shorter settings. Ball contact was unmeasured.
-The combined release uses the conservative transition timings. Tej owns qualifying the faster return, ball contact and a real step after each kick. The [shooting handoff](handoffs/SHOOTING.md) records the
-timings, evidence limits and the integration decision. Mounted tracking follows when the field is ready. [Testing order](PLAN.md#current-sprint--november-19).
-
-- Shrish currently owns movement, shot positioning, gameplay and integration. Tej iterates on the foot-kick policy. Ryan owns overhead perception, localization and proposed actions/shot targets; our harness translates those into responsive robot execution. Marcus’s existing gait exports remain available for comparison; the active ownership checkpoint governs robot access. Shrish builds the 8 × 12-foot arena with approximately 2-foot goals; no bumper is fitted yet.
-- The owner accepted manual ball replacement and one deliberate resume cue after goals for the first working game; robots reposition themselves with software still running. Physical self-righting gets a bounded feasibility investigation before a demo commitment. Fall stopping, ordinary standing and physical get-up remain distinct capabilities.
-- Two-robot soccer remains the target, with penalty shootout as fallback. The owner prioritized coordinate/heading navigation, explicit offense/defense selection, measured latency, gait qualification and onboard obstacle avoidance before further contact trials with the wrong ball. The intended ball is pink, size 5, with flower patterns. Front-camera stop/hold/resume is sufficient. Mounted-field tracking and supervised camera-stop trials remain open. Current process/access state is in the checkpoint.
-- Power-on should prepare the selected stack automatically with minimal setup. A supported startup pose and one deliberate start/arm action are accepted; their implementation needs verification. Other game-rule decisions can wait.
-- Keep a working prototype and improve it through measured experiments. Policy count, training methods, module boundaries and transport remain implementation choices.
-
-The [plan](PLAN.md) records outcomes, proposals, integration responsibilities and acceptance evidence. Working notes cover [movement](handoffs/MOVEMENT.md), [shooting](handoffs/SHOOTING.md) and [perception](handoffs/PERCEPTION.md).
-
-### Implementation and evidence — through November 19, 2026
-
-Active development follows the dedicated `main` worktree. Use `git worktree list` to locate it when other projects share the repository. The sibling `cs123-foundation` checkout preserves earlier engineering work and its November 4 checkpoint; it is not the current FC handoff.
-
-| Capability | What the evidence establishes | Remaining acceptance |
-| --- | --- | --- |
-| Overhead integration | Incoming source merged through `65f9f37`. Calibration faults latch; explicit measurement timestamps distinguish observation from coasting. A measured-clock UDP adapter emits normalized frames into the existing executor. Local rendered-image/UDP checks admitted frames and revoked after a camera bump. Two oblique tag cases failed in the earlier OpenCV 4.11 run. The full 70-test perception suite passed in the Mac camera environment with OpenCV 5.1. [Integration and kick review](../foundation/results/perception-harness-integration-20261119.json). | Sustained camera-to-Pi timing, mounted tag coverage, measured geometry and capture latency, and real coordinate arrival. Field/goal/ball placeholders currently differ across configs. |
-| Movement | In the November 17 floor session after removing per-step controller logging, three-second left/right tests at 0.15 m/s were stable and stopped cleanly; a marked 0.45 m/s, two-second forward repeat traveled roughly 30 inches. Earlier timed turn pulses produced an IMU yaw change in the commanded direction. [Trials and fall diagnosis](../foundation/results/gait-gate-20261116.json). | The original 1.32-second interruption's exact cause remains provisional. Long lateral endurance, repeatability, braking distance and exact-angle turns remain unaccepted. |
-| Shooting | The combined release selects one stock walker and Tej’s left/right leg-kick clips. MuJoCo measures which paw first touches the ball and how far the restored walker moves. A separate Linux ROS test checks command ownership through native deactivation and reactivation. [Physics results](../foundation/results/combined-walk-kick-physics-20261119.json) · [Native wire results](../foundation/results/combined-walk-kick-native-20261119.json). | Tej qualifies physical kicks with both feet, measures the real contact window, and checks the first step after each kick. The faster transitions from his branch remain a separate candidate. |
-| Gameplay | [Executor](pupper_fc/README.md) connects leased automatic offense/defense, ball-facing guard motion, retained goal events and explicit goal resume. A deterministic two-robot replay exercises tracking/lease/camera loss, goals, resume and Stop. A resident per-robot bridge exercises actual ROS routing, expiry and holds against fake native feedback; concurrent domain tests kept one robot moving when the other stopped, expired or lost its guard. Separate mirrored ROS rehearsals naturally scored in the simulator, returned home and resumed with one cue. They use idealized one-robot physics, not a shared-ball match. [Overnight evidence](../foundation/results/overnight-execution-20261117.json). | Run the bridge and measured-clock ingress together on the selected Pi runtime, qualify the mounted producer, then demonstrate physical defense and two-robot play. |
-| Defensive positioning | Ball-clear guard targets and transit correct reproduced goalward ball pushing, bumper contact during retreat, and sideline blocking. Independent replay verified 28 reachable cases without moving the ball; mirrored ROS rehearsals reached guard in about ten seconds using only recorded final velocity commands. Missing-ball and unreachable deep-ball cases hold. | This is an approximate-motion result. Physical defense, moving-ball interception and opponent clearance remain open. Some longer approaches exceed 15 seconds; the heuristic does not guarantee every reachable route. |
-| Shared tracking and command age | Required-participant mode preserves original captures and holds on missing/stale tracks. A reproduced 491 ms stale-command tail led to an explicit direct FC command mode that preserves original deadlines through the camera guard to the native controller. Real guard/controller failure tests enforce expiry despite relay failure and replay; ROS bridge checks cover startup, native source binding, tracking loss and Stop. | The legacy Twist release retains receipt-based expiry. The Pi loaded the verified direct-mode build. Physical braking and camera-stop response still need measurement. [Pi qualification](../foundation/results/pi-combined-walk-kick-20261119.json). Track freshness and software expiry do not establish opponent clearance or physical braking. |
-| Navigation and local vision | The stock walker accepted the updated IMU turn client on the Pi. Its first physical turn timed out. Capture-stamped camera guards have offline coverage. The optional pinned launch routes the mux through the camera guard; source/process checks and cancellation behavior distinguish camera holds from native faults. Isolated ROS tests reach the actual controller timeout with memory hardware. Raw camera review exposed a missed tower obstacle. A larger offline model recognized it better but exceeded the live deadline on all 245 frames and introduced carpet false holds at lower confidence. | The legacy guarded walk is assembled on the Pi and awaits runtime and physical acceptance. The combined direct-deadline release is loaded on the Pi. [Pi qualification](../foundation/results/pi-combined-walk-kick-20261119.json). Physical pose control, turn accuracy and camera-based stopping remain unaccepted. Detector coverage, frame timing, thresholds and braking geometry need independent validation. The larger model and a tested camera crop are not selected for live use. The combined release uses the model-bound ball-contact guard. Turning off preview masks kept camera data fresh for all 286 guard checks in a stationary minute. Pink-ball/person coverage and physical stopping distance remain open. |
-| Recovery/startup | The persistent client has explicit software Start with no homing or automatic retry. Fable 5.2 and independent review exposed a native-only Stop that left gateway Start uncancelled. Both clients now request the gateway's latch as well as native damping. Actual ROS tests verify old-ticket rejection and corrective deactivation after a delayed activation; backend lifecycle is synthetic. | The combined release verified both gateway latching and controller deactivation on Pi memory joints. The physical robot homed on its stand with Stop latched. A supervised walker and Stop check is next; physical self-righting and FC power-on-to-ready remain unproved. |
-
-The existing [finite trial client](behaviors/ROBOT_RUNBOOK.md#direct-deadline-qualification-candidate)
-now supports the direct-deadline path without field poses. A device-free rehearsal
-connected its real pulse, camera cancellation, fresh IMU turn and Stop to the actual
-native controller with stock policy and memory interfaces. The gameplay bridge
-also reached native execution and refused an old-source restart. These qualify
-software connections, not physical movement or a complete game.
-
-The [offline practice viewer](pupper_fc/README.md) now uses the real shared executor
-for offense/defense, expiring permission, camera interruptions and deliberate goal
-resume. Its importable rehearsal includes one naturally simulated goal and return;
-the display identifies the observation used by each decision. Run
-`.venv-api/bin/python -m final_project.pupper_fc` from the active repository.
-Its contact/motion model is not physical validation.
-
-The bounded [self-righting experiment](../artifacts/pupper-fc/2026-11-17/recovery-side-feasibility/experiment-summary.json)
-closed after five physics runs. Standing and belly-to-standing controls passed;
-both side attempts failed to establish the prescribed starting posture and did
-not recover. No side-to-stand capability or native recovery policy is available.
-
-The [build/test handoff](ROBOT_BUILD_AND_TEST_HANDOFF.md) covers Pi release selection, physical trial setup and the environment for camera calibration. [Policy comparison](../foundation/results/movement-readiness-20261116.json) and [Pi reconciliation](PI_RECONCILIATION.md) retain candidate/provenance details without assigning new work.
-
-Current processes, authorization, pending recording archives and next actions belong only in the [checkpoint](../foundation/results/interruption-recovery.json). The [delivery plan](PLAN.md) holds the course deadlines and accepted progression and acceptance targets. The [demo and recording script](DEMO.md) contains the 2:50 video cut, five-minute presentation, footage priorities and live fallback procedure. These are production drafts; filming and submission remain open.
-
-The mounted iPhone calibrated from the corner tags and simultaneously measured the striker tag and the intended pink ball. The real-time preview also exposed a focus failure that hid all six floor tags. Tape-referenced scale, goal placement, motion accuracy and capture latency remain open. [Mounted field observation](../foundation/results/field-camera-live-20261120.json)
-
-Reusable robot components live in [Gemini Pupper](../gemini_pupper/README.md), [native deployment](../pupper_gait_deploy/README.md), [training](../pupper-mjlab/README.md) and the [Lab 5 follower](../follow_me_pupper/README.md). The [repository map](../README.md) lists setup and resources.
-
-From the repository root, run `python3 foundation/scripts/session_status.py` for dated task, branch and access state in [the session checkpoint](../foundation/results/interruption-recovery.json). Verify current ownership and authorization before hardware work.
-
-The November 4 [planning](PLANNING_20261104.md), [gait handoff](GAIT_HANDOFF.md) and [perception handoff](PERCEPTION_HANDOFF.md) are historical and do not assign current project work. Tej's optional-lab branches remain separate; their last observed identities are in the [November 10 snapshot](https://github.com/ShrishPremkrishna/mts_123/blob/acd705d9207a024cdaf98c4dd368feba41a6ed4e/final_project/README.md).
+The earlier FC stack (laptop lobby and replay, leg-kick executor, behaviors runbooks, Pi build/test handoff,
+delivery plan, demo script, Nov 4 planning and workstream handoffs) was removed from the tree on 2026-11-24.
+Everything is preserved at git tag `archive/pre-fc-v1-cleanup` (`git show archive/pre-fc-v1-cleanup:final_project/README.md`).
+What remains: [overhead_perception](overhead_perception/README.md) (Ryan's camera pipeline, used by `fc/eye.py`) and the
+[pupper_fc](pupper_fc/README.md) / [behaviors](behaviors/README.md) library remnant still imported by `gemini_pupper`'s `fc_walk_kick` mode.

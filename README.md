@@ -15,7 +15,7 @@ The final project is **Pupper FC**, two autonomous soccer-playing Puppers using 
 | Early labs | [PD control](pd_control_lab/README.md), [forward kinematics](forward_kinematics_lab/README.md), [IK walking](ik_heuristic_walking_lab/README.md), and [implicit compliance](implicit_compliance/README.md). |
 | Platform and supporting tools | [pupperv3-monorepo](pupperv3-monorepo/README.md) and [pupper_rebase](pupper_rebase/README.md) hold robot platform sources. [UniMate](UniMate/README.md) generates motion references; [pupper-gait-tuner](pupper-gait-tuner/README.md) supports gait authoring. |
 | Final project (current) | [final_project/fc](final_project/fc/STATUS.md) on branch `fc-v1`: one laptop process (overhead camera → brain → signed UDP) drives the stock walker through a small Pi bridge. Status in [STATUS.md](final_project/fc/STATUS.md), plan in [DEMO.md](final_project/fc/DEMO.md), usage in [README.md](final_project/fc/README.md). |
-| Final project (historical) | Pre-Nov 23 FC stacks: [the earlier brief](final_project/README.md#historical-pre-nov-23), [offline approach-and-shot prototype](final_project/pupper_fc/README.md), [overhead perception](final_project/overhead_perception/README.md), `final_project/behaviors/`. Superseded agent branches are kept as `archive/*` tags. |
+| Final project (historical) | Pre-Nov 23 FC stacks were removed from the tree on 2026-11-24 and are preserved at tag `archive/pre-fc-v1-cleanup` (superseded agent branches at other `archive/*` tags). Still present: [overhead perception](final_project/overhead_perception/README.md) (camera pipeline used by `fc/eye.py`) and the [pupper_fc](final_project/pupper_fc/README.md) / [behaviors](final_project/behaviors/README.md) library remnant imported by `gemini_pupper`'s `fc_walk_kick` mode. |
 | Evidence, releases and lab submission | [foundation](foundation/README.md), including [the Lab 6 writer packet](foundation/submission/lab6/README.md) and [hardware procedures](foundation/HARDWARE_CHECKLIST.md). |
 
 The harness currently dispatches described tools through a server queue and ROS bridge. Native controllers execute policies on the robot. The person follower supplies velocity through its own ROS source. Training produces assets consumed by these controllers. Exact interfaces and units are in the relevant package sources and agent notes.
@@ -57,7 +57,7 @@ Run these from the repository root after the one-time setup linked above. Select
 | Browser | `npm --prefix gemini_pupper/web test` |
 | CPU motion/model contracts | `FORCE_CPU=1 .venv/bin/python -m pytest -q pupper-mjlab/tests/test_pupper_foundation.py` |
 | Native controller math/reference behavior | `bash pupper_gait_deploy/test/run_host_test.sh` — no ROS or robot |
-| Linux ROS tests | [Offline ROS runner](foundation/README.md#local-numerical-setup), using the test-only Docker image; [Pi deployment workflow](final_project/ROBOT_BUILD_AND_TEST_HANDOFF.md) |
+| Linux ROS tests | [Offline ROS runner](foundation/README.md#local-numerical-setup), using the test-only Docker image; Pi side of fc: [fc/robot/README.md](final_project/fc/robot/README.md) |
 
 These check different layers; passing them does not establish physical performance. Reuse the checkout-local environments. Reinstall or upgrade when a concrete dependency issue or chosen change requires it. For API/browser implementation, choose the specific tests nearest the changed behavior beyond the examples above.
 
