@@ -4,7 +4,7 @@ Contract: [SPEC.md](SPEC.md). Run everything from `final_project/`.
 
 ```bash
 # launcher: makes/repairs <repo>/.venv-fc from requirements.txt (Python 3.12), then runs fc.app
-fc/run.sh                                          # sim: Play screen http://127.0.0.1:8800/, tests at /ops
+fc/run.sh                                          # http://127.0.0.1:8800/: home (Play / Simulation / Test bench)
 fc/run.sh camera --robots blue --udp-host blue=<LAN IP>
 
 # sim: no camera, no robots (stdlib Python is enough)
@@ -17,6 +17,8 @@ python -m fc.app --source camera --video clip.mov  # or a folder of jpg/png
 
 # drive a running app from a shell or an agent: terse output, exit 0 ok / 1 failed / 3 health stop / 4 paused
 python -m fc.ctl status                            # one line per robot (--url, default http://127.0.0.1:8800)
+python -m fc.ctl ops                               # every operation the app accepts, enabled now or why not
+python -m fc.ctl op match.kickoff                  # run any one of them by name: op <name> k=v ... (JSON reply)
 python -m fc.ctl test step vx=0.2 --wait           # also ready/down/estop/pi/preset/set/drive/stop/last/check/sleep: --help
 python -m fc.ctl batch fc/sessions/S1.batch        # first floor session (RUNBOOK) as one batch; pauses wait for Enter
 python -m fc.ctl rollcal --apply                   # roll the ball a few times: fits ball_decel (brain prediction), sets it live
@@ -35,28 +37,41 @@ a value, put it in `config/params.json` (`ball_decel` is global there) or a pres
 The app imports the real `fc.brain` and `fc.sim`; if either fails to import, the app does not start
 (no fallback controller).
 
-## Play screen (`/`, for the projector)
+## Screens (`/` home, `/play` match, `/ops` test bench, `/play-old` the previous Play screen until the new one is floor-verified)
 
-Overhead view (camera frame with field lines, belief rings, target crosses and 4 s trails drawn through the
-calibrated camera's floor/tag-height homographies; a rendered field in sim, with solid = truth and dashed =
-what the brain sees), Blue vs Red score, match clock, per robot: health light, role chip, plain-words
-action, what it sees (own tag age, ball distance, target distance, speed), job (auto/attack/goalie), optional
-front camera, **Ready**. A ticker narrates real brain decisions (role flips with the travel-time reason,
-debounced phase changes); banners say in plain words why a playing robot is stopped or held (tag lost, IMU
-bad, mux lost, bridge hold, no link, ball not seen). Nothing is shown as ready without evidence: the light
-says "ready" only when fcctl reports phase `ready` (else "link ok", "not seen by camera", ...).
+One look and one set of building blocks: [ui/kit/](ui/kit/) (`tokens.css` every colour/size/motion value,
+`ui.css` one class per component, `kit.js` DOM helpers + the /state poller + the operations client,
+`pitch.js` overhead renderer, `robots.js` robot/camera cards, `feeds.js` robot cameras). No build step.
 
-Keys: **space stop** (always), **Esc E-STOP** (always), K kickoff, P play/pause (or start now), R walk back to
-kickoff spots, T / shift+T referee touch +1/-1, V cycle who plays (both, blue alone, red alone; no restart), 1/2
-cycle the first/second robot's job, C camera/field view, H hide the end card. `/ops` is the test page below.
-The overhead view also draws the predicted ball path (the brain's rolling model, `ball_decel`, 3 s) and the
-brain's committed plan (`plan` 1, athletic preset). A frozen camera feed (byte-identical frames) shows
-CAMERA PAUSED; observations go stale, so robots stop. STOP ends a match (end card with the score); Pause keeps it.
-Goals count only in the play phase; on camera a goal is the observed ball crossing a goal line (a ball lying in
-the goal scores once). Screenshots (Nov 24): [notes/play-screenshots/](notes/play-screenshots/); UI notes: [notes/ui-handoff.md](notes/ui-handoff.md).
+- **Home `/`**: arrow keys + Enter. **Play** shows the live field camera and a card per robot whose one button
+  does the next setup step (Check → Home legs → Stand up → Start link → Ready; Re-arm after an E-stop; Stop
+  stack on a fault). The button always runs `fcctl status` first and decides on that fresh phase; a `ready`
+  without link acks shows Check / No link, never Ready. **Simulation** shows the sim field; **Test bench** opens
+  `/ops`. The selection starts on the running mode; choosing the other one asks, then restarts the app in place
+  with the other `--source` and the loaded preset (`app.source confirm=true`; refused mid-match; live param
+  edits are lost).
+- **Play `/play`**: field camera with the overlays (C: drawn map), player tiles (robot camera on top when it
+  has one: `cam_url` on a robot, a rendered robot's-eye view in sim; 1/2 swap it into the big view), the
+  decision ticker, one banner per fact, a ready check before kickoff, and the Robots drawer (Tab: jobs, setup,
+  lie down, per-robot E-stop). Keys: **Space stop** and **Esc E-STOP** always (even over a dialog), K kickoff,
+  P play / start now / pause / resume (whichever applies), R back to kickoff spots, V who plays, T / shift+T
+  referee touch, C field view, 1/2 robot cameras, Tab robots, H hide the end card.
+
+Every button is an operation in [ops.py](ops.py): `GET /api/ops` lists them (label, key, safety, typed
+params), `POST /api/op {"op", "args"}` runs one (`{ok, op, ...}` or `{ok: false, code, error}`), and
+Safety rules: `stop` / `estop` with bad or missing args act on every robot (with a warning), never a 400;
+`robot.*` ops are unavailable in a sim without `--dry-run-ops`; `robot.ready` needs an fcctl phase at most
+15 s old and `home=true` to home from phase `off`. Space / Esc are bound inline to `/action stop` / `estop`, so
+they work even if `/api/ops` fails. `/state` carries `avail[op]` (enabled, reason, label, next args) and `play.robots[id].setup` (the robot's next
+step). The UI, `fc.ctl op` and agents use the same list, so a key never does something different from its
+button. `/state?lite=1` leaves out static config (`GET /api/config`). Nothing is shown as ready without
+evidence: `ready` needs a green light and, on a real robot, fcctl phase `ready`. The overhead view draws the
+predicted ball path (`ball_decel`, 3 s) and the brain's committed plan. A frozen camera feed shows CAMERA
+PAUSED; observations go stale, so robots stop. STOP ends a match (end card); Pause keeps it. Goals count only in
+the play phase. UI notes: [notes/ui-handoff.md](notes/ui-handoff.md).
 
 **Stop vs E-STOP** (both screens). STOP (space) = zero speed to every robot; it stands still with its legs on.
-E-STOP (Esc, the striped header button = all robots, the card/robot button = that robot) = `Link.estop`: a signed
+E-STOP (Esc or the striped key-bar prompt = all robots; the robot card button = that robot) = `Link.estop`: a signed
 burst of 5 `"estop": true` packets 20 ms apart (SPEC v1.1), then one e-stop packet per tick until an ack reports
 `estopped` (at most 3 s). The bridge does the R3 action (legs off, damped drop) and latches. The app latches too
 (`state.estop`): zero commands to that robot, its test ends `estop`/`estopped`, new tests are refused, the light

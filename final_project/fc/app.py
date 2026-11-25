@@ -14,6 +14,7 @@ import argparse
 import bisect
 import json
 import math
+import os
 import re
 import shlex
 import subprocess
@@ -30,8 +31,9 @@ from .brain import DEFAULTS as BRAIN_DEFAULTS
 from .core import CONFIG, Cmd, RobotCfg, World, load_field, load_params, wrap
 from .link import CEIL, Link
 from .media import CamFeed, Recorder
+from . import ops as OPS
 from .play import (FLOW_DEFAULTS, FLOW_LIMITS, JOBS, RESTART_MODES, MatchFlow, Ticker, action_label, banners, down_failed,
-                   estop_view, health, safety_banners)
+                   estop_view, health, safety_banners, setup_step)
 from .runlog import RUNS, Metrics, RunLog, list_runs
 from .sim import Sim
 from .sim import SIM_DEFAULTS
@@ -595,6 +597,8 @@ class App:
         self.last_match: dict | None = None
         self.ticker = Ticker()
         self.robot_phase: dict[str, str] = {}
+        self._op_seq = 0                            # robot op counter (ops[rid].seq)
+        self.robot_phase_t: dict[str, float] = {}   # monotonic time each phase was reported (setup needs a fresh one)
         self.cams = {r.id: CamFeed(r.cam_url) for r in self.all_robots if r.cam_url and CAM_URL_RE.fullmatch(r.cam_url)}
         self.recorder: Recorder | None = None
         self._stop = False
@@ -617,6 +621,10 @@ class App:
     # ---- loop ------------------------------------------------------------------
     def start(self) -> None:
         threading.Thread(target=self._loop, daemon=True, name="fc-loop").start()
+        if self.source == "camera":   # Play: one read-only fcctl status per robot, so each card shows a real next step
+            for r in self.active:
+                if r.host:
+                    self.robot_op({"robot": r.id, "op": "status"})
 
     def _loop(self) -> None:
         nxt, last = time.monotonic(), time.monotonic()
@@ -933,6 +941,8 @@ class App:
                 x, y = float(body["u"]) * frame.shape[1], float(body["v"]) * frame.shape[0]
             k = float(body.get("k", 3.0))
             res = self.eye.ball_calibrate(None if x is None else float(x), None if y is None else float(y), k)
+            if getattr(self.eye, "synthetic", False):   # never overwrite the floor calibration from a rendered ball
+                return {"ok": True, **res, "saved": None, "warnings": ["synthetic video: range not saved"]}
             from . import ballcal
             ballcal.save(self.ball_color_path, res["colors"], how=res["how"], u=res["u"], v=res["v"], k=k,
                          saved=time.strftime("%Y-%m-%d %H:%M:%S"))
@@ -1189,7 +1199,8 @@ class App:
                 return {"ok": True}
             if a == "test":
                 return self._start_test(body)
-            if a in ("kickoff", "play", "pause", "resume", "reposition", "touch", "variant", "job", "end"):
+            if a in ("kickoff", "play", "play_here", "start_now", "pause", "resume", "reposition", "touch", "variant",
+                     "job", "end"):
                 return self._play_action(a, body)
         return {"ok": False, "error": f"unknown action {a!r}"}
 
@@ -1225,7 +1236,7 @@ class App:
             f.touches = max(0, f.touches + d)
             self.say(f"referee touch {'+1' if d > 0 else '-1'} -> {f.touches}", touches=f.touches)
             return {"ok": True, "touches": f.touches}
-        if a == "kickoff" or (a == "play" and not f):
+        if a in ("kickoff", "play_here") or (a == "play" and not f):
             halted = [r for r in self.playing if self.halted(r)]
             if halted:
                 return {"ok": False, "error": f"{', '.join(halted)} halted by the bridge ({self.halted(halted[0])})"}
@@ -1238,16 +1249,18 @@ class App:
             return {"ok": True, "run": self.test["run_dir"]}
         if not f:
             return {"ok": False, "error": "no match running: press Kickoff"}
-        if a == "play":
+        if a == "play":               # legacy one-key play: resume, else start now
             ok = f.resume(now) or f.force_start(now)
             return {"ok": True, "phase": f.phase} if ok else {"ok": False, "error": f"already {f.phase}"}
-        if a == "pause":
+        if a == "start_now":
+            ok = f.force_start(now)
+            return {"ok": True, "phase": f.phase} if ok else {"ok": False, "error": f"not waiting (phase {f.phase})"}
+        if a == "pause":              # strict: pausing twice is refused (resume is its own action)
             if f.pause(now):
                 if self.link:
                     self.link.stop_all()      # zero now; the next tick holds it (hard stop per robot)
                 return {"ok": True, "phase": f.phase}
-            ok = f.resume(now)
-            return {"ok": ok, "phase": f.phase}
+            return {"ok": False, "error": f"cannot pause in phase {f.phase}"}
         if a == "resume":
             ok = f.resume(now)
             return {"ok": True, "phase": f.phase} if ok else {"ok": False, "error": "not paused"}
@@ -1464,6 +1477,18 @@ class App:
         return {"ok": False, "error": "op must be save, load or base"}
 
     # ---- robot ops over ssh ----------------------------------------------------------
+    def _set_phase(self, rid: str, phase: str | None) -> None:
+        """Record an fcctl phase with its time (None = unknown: changed on the Pi)."""
+        if phase is None:
+            self.robot_phase.pop(rid, None)
+            self.robot_phase_t.pop(rid, None)
+        else:
+            self.robot_phase[rid], self.robot_phase_t[rid] = phase, time.monotonic()
+
+    def phase_age(self, rid: str, now: float | None = None) -> float | None:
+        t = self.robot_phase_t.get(rid)
+        return None if t is None or rid not in self.robot_phase else (time.monotonic() if now is None else now) - t
+
     @staticmethod
     def profiles() -> list[str]:
         return sorted(p.stem for p in PROFILES_DIR.glob("*.sh"))
@@ -1527,13 +1552,14 @@ class App:
             cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "--", host, remote]
         if self.dry_run_ops:
             cmd = ["echo", "DRY-RUN:", *cmd]
+        self._op_seq += 1     # lets a client tell this op's result from an older one
         state = {"op": op, "cmd": " ".join(cmd), "running": True, "rc": None, "out": "", "t": time.strftime("%H:%M:%S"),
-                 "timeout_s": timeout, "t0": time.monotonic()}
+                 "timeout_s": timeout, "t0": time.monotonic(), "seq": self._op_seq}
         self.ops[rid] = state
         self.say(f"robot {rid}: {op}" + (" (dry run)" if self.dry_run_ops else ""), cmd=state["cmd"])
         target = self._run_stream if op in ("ready", "down") else self._run_op
         threading.Thread(target=target, args=(rid, state, cmd, timeout), daemon=True).start()
-        return {"ok": True, "cmd": state["cmd"]}
+        return {"ok": True, "cmd": state["cmd"], "seq": state["seq"]}
 
     def _run_stream(self, rid: str, state: dict, cmd: list[str], timeout: float) -> None:
         """Long op whose output is JSON progress lines (fcctl ready: phase, elapsed, ok, error):
@@ -1561,7 +1587,7 @@ class App:
                         obj = {**obj, "error": obj["msg"]}   # fcctl puts the reason in msg
                     state["progress"] = obj
                     if state["op"] == "ready" and isinstance(obj.get("phase"), str):
-                        self.robot_phase[rid] = obj["phase"]
+                        self._set_phase(rid, obj["phase"])
             state["rc"] = p.wait()
         finally:
             timer.cancel()
@@ -1575,7 +1601,7 @@ class App:
         ok = state["rc"] == 0 and not timed_out
         if state["op"] == "down":
             if ok:
-                self.robot_phase[rid] = "off"
+                self._set_phase(rid, "off")
             elif down_failed(state):
                 self.say(f"robot {rid}: DOWN REFUSED - still standing? use R3 or support the robot ({prog.get('error')})")
             return
@@ -1610,7 +1636,7 @@ class App:
             if isinstance(st, dict):
                 self.robot_status[rid] = st
                 if isinstance(st.get("phase"), str):
-                    self.robot_phase[rid] = st["phase"]
+                    self._set_phase(rid, st["phase"])
             break
 
     def _run_op(self, rid: str, state: dict, cmd: list[str], timeout: float) -> None:
@@ -1622,19 +1648,32 @@ class App:
         except OSError as e:
             state["out"], state["rc"] = str(e), -1
         state["running"] = False
+        if state["op"] in ("stop", "bridge_start", "bridge_stop") and not self.dry_run_ops:
+            self._set_phase(rid, None)        # changed on the Pi: unknown until the next status
         if state["op"] == "status":
             for line in reversed(state["out"].strip().splitlines()):
                 try:
                     self.robot_status[rid] = json.loads(line)
                     if isinstance(self.robot_status[rid].get("phase"), str):
-                        self.robot_phase[rid] = self.robot_status[rid]["phase"]
+                        self._set_phase(rid, self.robot_status[rid]["phase"])
                     break
                 except ValueError:
                     continue
         self.say(f"robot {rid}: {state['op']} -> rc {state['rc']}", out=state["out"][-1500:])
 
     # ---- state for the UI ----------------------------------------------------------------
-    def state(self) -> dict:
+    STATE_SCHEMA = 2
+    STATIC_KEYS = ("choices", "limits", "tests", "presets", "profiles", "events")   # left out of lite states
+    LITE_PARAMS = ("match_s", "ball_decel", "stale_stop_s", "kickoff_x_frac", "countdown_s")
+
+    def config(self) -> dict:
+        """What changes rarely: everything the lite /state leaves out (GET /api/config)."""
+        with self.lock:
+            return clean({"schema": self.STATE_SCHEMA, "params": self.params, "choices": CHOICES, "limits": LIMITS,
+                          "tests": TESTS, "presets": self.presets(), "profiles": self.profiles(),
+                          "events": list(self.events)[-30:]})
+
+    def state(self, lite: bool = False) -> dict:
         with self.lock:
             now = time.monotonic()
             test = None
@@ -1666,6 +1705,12 @@ class App:
             })
             # homographies need more than clean()'s 4 decimals (perspective terms are ~1e-4)
             out["play"]["overlay"] = self.eye.overlay() if self.eye else None
+            out["schema"] = self.STATE_SCHEMA
+            out["avail"] = OPS.availability(self)
+            if lite:
+                for k in self.STATIC_KEYS:
+                    out.pop(k, None)
+                out["params"] = {k: self.params[k] for k in self.LITE_PARAMS if k in self.params}
             return out
 
     def stack_info(self, rid: str) -> dict:
@@ -1699,15 +1744,22 @@ class App:
         robots = {}
         for r in self.all_robots:
             dbg = self.debug.get(r.id) or {}
+            hl = health(self.source, r.id in active, r.id in seen, (lstat or {}).get(r.id), self.link is not None,
+                        self.ops.get(r.id), self.robot_phase.get(r.id), r.id in self.imu_bad, r.id in self.mux_lost,
+                        estopped=r.id in self.estops)
             robots[r.id] = {
                 "action": action_label(dbg, getattr(self.cmds.get(r.id), "tag", "")),
                 "role": dbg.get("role"),
-                "health": health(self.source, r.id in active, r.id in seen, (lstat or {}).get(r.id),
-                                 self.link is not None, self.ops.get(r.id), self.robot_phase.get(r.id),
-                                 r.id in self.imu_bad, r.id in self.mux_lost, estopped=r.id in self.estops),
+                "health": hl,
+                # ready to play: green light AND (sim, or fcctl reported phase ready). "link ok" alone is not ready.
+                "ready": hl["level"] == "ok" and (self.sim is not None or self.robot_phase.get(r.id) == "ready"),
                 "estop": estop_view(r.id, self.estops[r.id], now, self.link is not None, self.sim is not None,
                                     ESTOP_RESEND_S) if r.id in self.estops else None,
                 "phase": self.robot_phase.get(r.id), "playing": r.id in self.playing,
+                "phase_age": None if self.phase_age(r.id, now) is None else round(self.phase_age(r.id, now), 1),
+                "setup": setup_step(self.source, r.host, self.dry_run_ops, self.robot_phase.get(r.id), self.ops.get(r.id),
+                                    r.id in self.estops, str((self.robot_status.get(r.id) or {}).get("detail") or ""),
+                                    age=self.phase_age(r.id), linked=bool(((lstat or {}).get(r.id) or {}).get("connected"))),
                 "cam": self.cams[r.id].status() if r.id in self.cams else None,
             }
         cam = []
@@ -1723,6 +1775,38 @@ class App:
                           self.mux_lost, lstat, self.link is not None),
                 "overlay": None,   # set by state() at full precision
                 "recording": bool(self.recorder)}
+
+    # ---- mode switch (home screen: Simulation / Play) ----------------------------------------
+    restart_hook = None   # main() sets it: callable(source, preset) that replaces this process with the other source
+
+    def busy_reason(self) -> str:
+        """Why the app should not restart now ("" = free). Caller holds the lock."""
+        if self.mode != "idle":
+            return f"{self.mode} is running: Stop (Space) first"
+        running = [f"{rid} {o.get('op')}" for rid, o in self.ops.items() if o.get("running")]
+        return f"wait for {', '.join(running)}" if running else ""
+
+    def switch_source(self, source: str) -> dict:
+        """Restart as the other source (same flags otherwise). Replies first; the restart zeroes every robot,
+        closes camera/link cleanly, then replaces the process. Robots on a running bridge also stop by the
+        dead-man while the laptop restarts."""
+        if source == self.source:
+            return {"ok": True, "source": source, "restarting": False}
+        if self.restart_hook is None:
+            return {"ok": False, "error": "this app was not started by fc.app main(): restart it with the other --source"}
+        with self.lock:
+            why = self.busy_reason()
+            preset = self.preset_name     # reloaded after the restart (unsaved live params are not kept)
+        if why:
+            return {"ok": False, "error": why}
+        self.say(f"switching to {source}: restarting the app" + (f" with preset {preset}" if preset else ""))
+        threading.Thread(target=self._restart, args=(source, preset), daemon=True, name="fc-restart").start()
+        return {"ok": True, "source": source, "restarting": True, "preset": preset}
+
+    def _restart(self, source: str, preset: str | None = None) -> None:
+        time.sleep(0.25)          # let the HTTP reply leave first
+        self.close()
+        self.restart_hook(source, preset)
 
     def close(self) -> None:
         self.stop()
@@ -1757,10 +1841,18 @@ def make_handler(app: App):
 
         def do_GET(self):  # noqa: N802
             path = self.path.split("?")[0]
-            if path in ("/", "/play"):
+            if path in ("/", "/home"):
+                return self._send(200, (UI / "home.html").read_bytes(), "text/html; charset=utf-8")
+            if path == "/play":
                 return self._send(200, (UI / "play.html").read_bytes(), "text/html; charset=utf-8")
+            if path == "/play-old":     # the fc-v1 Play screen (legacy routes), kept until the new one is floor-verified
+                return self._send(200, (UI / "play_old.html").read_bytes(), "text/html; charset=utf-8")
             if path in ("/ops", "/index.html"):
                 return self._send(200, (UI / "index.html").read_bytes(), "text/html; charset=utf-8")
+            m = re.fullmatch(r"/kit/([\w\-]+)\.(css|js)", path)
+            if m and (UI / "kit" / f"{m[1]}.{m[2]}").is_file():     # the UI kit (fc/ui/kit): tokens, primitives
+                ctype = "text/css; charset=utf-8" if m[2] == "css" else "text/javascript; charset=utf-8"
+                return self._send(200, (UI / "kit" / f"{m[1]}.{m[2]}").read_bytes(), ctype)
             if path == "/view.jpg":     # clean camera frame for the Play screen (encoded here, not in the loop)
                 jpg = app.eye.view_jpeg() if app.eye else None
                 return self._send(200, jpg, "image/jpeg") if jpg else self._send(404, b"no frame", "text/plain")
@@ -1770,7 +1862,11 @@ def make_handler(app: App):
                 jpg = feed.latest() if feed else None
                 return self._send(200, jpg, "image/jpeg") if jpg else self._send(404, b"no feed", "text/plain")
             if path == "/state":
-                return self._json(app.state())
+                return self._json(app.state(lite="lite=1" in self.path))
+            if path == "/api/ops":
+                return self._json(OPS.manifest(app))
+            if path == "/api/config":
+                return self._json(app.config())
             if path == "/runs":
                 return self._json(list_runs(app.runs_root))
             if path == "/ball_track":
@@ -1807,6 +1903,10 @@ def make_handler(app: App):
                     raise ValueError("body must be a JSON object")
             except ValueError as e:
                 return self._json({"ok": False, "error": f"bad JSON: {e}"}, 400)
+            if self.path == "/api/op":
+                res = OPS.call(app, body.get("op"), body.get("args", {}))
+                code = 200 if res.get("ok") else {"unknown_op": 404, "bad_args": 400}.get(res.get("code"), 409)
+                return self._json(res, code)
             route = {"/action": app.action, "/params": app.set_params, "/robot": app.robot_op,
                      "/preset": app.preset, "/ballcal": app.ballcal}.get(self.path)
             if route is None:
@@ -1834,6 +1934,24 @@ def _udp_arg(s: str) -> tuple[str, str]:
     return rid, addr
 
 
+def _without_source(argv: list[str], flags: tuple[str, ...] = ("--source",)) -> list[str]:
+    """argv minus --source X / --source=X (a mode switch keeps every other flag); flags: which options to drop."""
+    out, skip = [], False
+    for x in argv:
+        if skip:
+            skip = False
+        elif x in flags:
+            skip = True
+        elif not any(x.startswith(f + "=") for f in flags):
+            out.append(x)
+    return out
+
+
+def restart_argv(source: str, preset: str | None, argv: list[str]) -> list[str]:
+    """fc.app arguments for a mode switch: the other source, the same flags, the loaded preset."""
+    return ["--source", source, *_without_source(argv, ("--source", "--preset")), *(["--preset", preset] if preset else [])]
+
+
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--source", choices=["sim", "camera"], default="sim")
@@ -1847,9 +1965,17 @@ def main(argv=None) -> None:
     ap.add_argument("--udp-host", action="append", type=_udp_arg, default=[], metavar="ID=ADDR",
                     help="control packets to this address instead of the ssh host (overrides robots.json udp_host)")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--preset", default=None, help="load this preset at start (a mode switch passes the loaded one on)")
+    argv = list(sys.argv[1:] if argv is None else argv)
     a = ap.parse_args(argv)
     app = App(a.source, a.robots.split(",") if a.robots else None, video=a.video, camera=a.camera,
               dry_run_ops=a.dry_run_ops, seed=a.seed, no_link=a.no_link, udp_hosts=dict(a.udp_host))
+    if a.preset:
+        res = app.preset({"op": "load", "name": a.preset})
+        if not res.get("ok") or res.get("errors"):
+            print(f"preset {a.preset}: {res.get('error') or '; '.join(res.get('errors') or [])}", flush=True)
+    app.restart_hook = lambda src, preset=None: os.execv(sys.executable, [sys.executable, "-m", "fc.app",
+                                                                         *restart_argv(src, preset, argv)])
     app.start()
     srv = serve(app, a.host, a.port)
     print(f"Pupper FC v1: http://{a.host}:{a.port}/   Ctrl-C to quit", flush=True)

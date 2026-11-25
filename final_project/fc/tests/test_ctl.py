@@ -467,6 +467,41 @@ def test_ready_refuses_to_home_without_flag(capsys):
     assert "homed [speed_cap 0.49] [heading_hold on]" in out and out.rstrip().endswith("READY blue · cap 0.49 hh on")
 
 
+def test_ready_waits_for_the_startup_status_in_flight(monkeypatch, capsys):
+    """The camera app runs one fcctl status per robot at start (2-8 s); an immediate `ctl ready` waits for it
+    instead of failing on "status still running". Any other running op still refuses."""
+    monkeypatch.setattr(ctl.time, "sleep", lambda s: None)
+
+    class Busy(RealOpsClient):
+        def __init__(self, busy_op, polls):
+            super().__init__("homed", READY_LINES, connected=False)
+            self.ops["blue"] = {"op": busy_op, "cmd": "ssh mts startup", "running": True, "out": ""}
+            self.polls = polls
+
+        def state(self):
+            st = super().state()
+            if self.ops["blue"]["cmd"] == "ssh mts startup":
+                self.polls -= 1
+                self.ops["blue"]["running"] = self.polls > 0
+            return st
+
+        def post(self, path, body):
+            cur = self.ops["blue"]
+            if path == "/robot" and cur.get("running"):
+                self.posts.append((path, body))
+                return {"ok": False, "error": f"{cur['op']} still running on blue"}
+            return super().post(path, body)
+
+    ap = ctl.build_parser()
+    c = Busy("status", polls=5)
+    ctl.cmd_ready(c, ap.parse_args(["ready", "blue"]))
+    assert [b["op"] for p, b in c.posts if p == "/robot"] == ["status", "status", "ready"]
+    assert "READY blue" in capsys.readouterr().out
+    c = Busy("ready", polls=5)                                   # a running ready is not waited for
+    with pytest.raises(ctl.Fail, match="still running"):
+        ctl.cmd_ready(c, ap.parse_args(["ready", "blue"]))
+
+
 def test_down_aborted_by_estop_is_a_health_stop(capsys):
     ap = ctl.build_parser()
     c = RealOpsClient("ready", [])
@@ -600,3 +635,19 @@ def test_rollcal_live_against_sim_app(live, capsys, monkeypatch):
     fitted = float(out.split("ROLLCAL ball_decel ")[1].split()[0])
     assert abs(fitted - app.params["sim_ball_decel"]) < 0.08, out
     th.join(5)
+
+
+def test_live_ops_listing_and_generic_op(live, capsys):
+    app, url = live
+    run = lambda *a: ctl.main(["--url", url, *a])  # noqa: E731
+    assert run("ops") == 0
+    lines = {ln.split()[0]: ln for ln in capsys.readouterr().out.splitlines()}
+    assert "Space" in lines["stop"] and "no match running" in lines["match.end"] and "confirm=true" in lines["robot.ready"]
+    assert run("ops", "--json") == 0
+    m = json.loads(capsys.readouterr().out)
+    assert {o["name"] for o in m["ops"]} == set(m["avail"])
+    assert run("op", "match.kickoff") == 0 and json.loads(capsys.readouterr().out)["ok"]
+    assert run("op", "match.players", 'robots=["blue"]') == 0 and app.playing == ["blue"]
+    capsys.readouterr()
+    assert run("op", "match.touch", "delta=3") == 1
+    assert '"code":"bad_args"' in capsys.readouterr().out

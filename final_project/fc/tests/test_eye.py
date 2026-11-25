@@ -227,3 +227,15 @@ def _wait(cond, timeout):
             return True
         time.sleep(0.05)
     return False
+
+
+@needs_cv2
+def test_synthetic_ignores_a_floor_ball_colour(tmp_path):
+    """The synthetic renderer paints the default pink ball; a floor-calibrated ball_color.json (purple,
+    Nov 25: hue 150-162 vs pink ~164) made the synthetic ball invisible. A real camera still loads it."""
+    from fc import ballcal
+    path = tmp_path / "ball_color.json"
+    ballcal.save(path, [{"lo": [150, 145, 198], "hi": [162, 255, 255]}], how="auto", u=1.0, v=1.0, k=3.0, saved="x")
+    eye = Eye(load_field(), [BLUE], {}, source="synthetic", ball_color_path=path)
+    assert eye.ball_color_source.startswith("fieldcam default")
+    assert eye.cfg["ball"]["colors"] != ballcal.load(path)
