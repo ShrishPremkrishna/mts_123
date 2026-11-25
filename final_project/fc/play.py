@@ -346,10 +346,15 @@ def safety_banners(cfg: dict[str, RobotCfg], active, estops: dict, ops: dict, no
                    resend_s: float) -> list[dict]:
     """Banners that outrank play: latched e-stops and a refused down, for every active robot."""
     out = []
+    views = {rid: estop_view(rid, estops[rid], now, has_link, sim, resend_s) for rid in active if rid in estops}
+    # every robot latched and confirmed the same way: one banner instead of one per robot
+    same = len(views) > 1 and len(views) == len(active) and all(v["confirmed"] and v["by"] != "robot" for v in views.values())
+    if same:
+        out.append({"robot": None, "team": None, "level": "bad", "kind": "estop",
+                    "text": f"ALL ROBOTS E-STOPPED: legs off, latched{' (sim)' if sim else ''}. Re-arm = Ready"})
     for rid in active:
-        if rid in estops:
-            v = estop_view(rid, estops[rid], now, has_link, sim, resend_s)
-            out.append({"robot": rid, "team": cfg[rid].team, "level": "bad", "kind": "estop", "text": v["text"]})
+        if rid in views and not same:
+            out.append({"robot": rid, "team": cfg[rid].team, "level": "bad", "kind": "estop", "text": views[rid]["text"]})
         if down_failed(ops.get(rid)):
             out.append({"robot": rid, "team": cfg[rid].team, "level": "bad", "kind": "down",
                         "text": f"{name(rid)}: {DOWN_FAIL_TEXT}"})

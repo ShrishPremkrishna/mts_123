@@ -1,0 +1,156 @@
+/* Pupper FC primitives. One class per component; state goes in data-* / aria-* attributes. Values come only
+   from tokens.css. Screens add layout (grid placement), never new looks. */
+* { box-sizing:border-box; }
+html { font-size:var(--root); }
+body { margin:0; background:var(--c-bg); color:var(--c-ink); font:500 var(--t-2)/1.3 var(--f-text); -webkit-font-smoothing:antialiased; }
+button { font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer; }
+:focus-visible { outline:.15rem solid var(--c-volt); outline-offset:.15rem; }
+.num { font-variant-numeric:tabular-nums; }
+.display { font-family:var(--f-display); font-weight:700; letter-spacing:.04em; line-height:1; padding-top:.12em; /* DIN sits high */ }
+
+/* plate: the signature skewed slab. Content stays upright. */
+.plate { display:inline-flex; align-items:center; gap:var(--s-2); transform:skewX(var(--skew)); background:var(--c-glass);
+  border-radius:var(--r-key); box-shadow:inset 0 0 0 1px var(--c-stroke); }
+.plate > * { transform:skewX(calc(-1 * var(--skew))); }
+.plate[data-fill="team"] { background:linear-gradient(100deg, var(--team-deep), var(--team)); box-shadow:none; }
+.plate[data-fill="team-r"] { background:linear-gradient(260deg, var(--team-deep), var(--team)); box-shadow:none; }
+.plate[data-fill="outline"] { background:transparent; box-shadow:inset 0 0 0 .1rem var(--team-soft); color:var(--team-soft); }
+.plate[data-fill="stop"] { background:var(--c-stop); box-shadow:none; color:#fff; }
+.plate[data-dim] { filter:saturate(.25) brightness(.55); }
+
+/* key: a keyboard keycap */
+.key { display:inline-grid; place-items:center; min-width:1.9em; height:1.9em; padding:0 .45em; border-radius:var(--r-key);
+  font:700 var(--t-1)/1 var(--f-text); color:var(--c-ink); background:linear-gradient(var(--c-raise), var(--c-bg-2));
+  box-shadow:inset 0 0 0 1px var(--c-stroke-2), 0 .12em 0 rgb(0 0 0 / .6); }
+
+/* prompt: a key plus what it does. The only button shape on the play screen. */
+.prompt { display:inline-flex; align-items:center; gap:var(--s-2); padding:var(--s-2) var(--s-3); border-radius:var(--r-panel);
+  font-weight:600; color:var(--c-ink-2); transition:background var(--d-fast), color var(--d-fast); white-space:nowrap; }
+.prompt:hover { background:rgb(243 246 239 / .06); color:var(--c-ink); }
+.prompt:active .key { transform:translateY(.1em); box-shadow:inset 0 0 0 1px var(--c-stroke-2); }
+.prompt[data-state="on"] { color:var(--c-ink); }
+.prompt[data-state="on"] .key { background:var(--c-volt); color:var(--c-bg); box-shadow:0 .12em 0 #8a6d00; }
+.prompt[aria-disabled="true"] { opacity:.35; }
+.prompt[data-tone="stop"] { color:#fff; background:var(--c-stop); opacity:1; }
+.prompt[data-tone="stop"] .key { background:#fff; color:var(--c-stop); box-shadow:0 .12em 0 #7a1d17; }
+.prompt[data-tone="estop"] { color:#fff; opacity:1; padding-left:calc(var(--s-3) + .55em);
+  background:repeating-linear-gradient(-45deg, var(--c-volt) 0 .45em, #111 .45em .9em) left/.55em 100% no-repeat, #b8140c; }
+.prompt[data-tone="estop"] .key { background:#fff; color:#b8140c; box-shadow:0 .12em 0 #5c0d08; }
+.prompt .count { font:700 var(--t-4)/1 var(--f-display); color:var(--c-ink); padding-top:.12em; }
+
+/* light: one status dot. Level comes from data-level. */
+.light { display:inline-block; width:.7em; height:.7em; border-radius:50%; flex:none; background:var(--level, var(--c-off)); }
+.light[data-level="ok"], .light[data-level="warn"] { box-shadow:var(--glow) var(--level); }
+.light[data-level="bad"] { box-shadow:var(--glow) var(--level); animation:blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity:.3; } }
+
+/* stat: icon + value. The icon is the label; the value is the content. */
+.stat { display:flex; align-items:center; gap:var(--s-2); color:var(--c-ink); font-weight:600; }
+.stat svg { width:1.1em; height:1.1em; flex:none; stroke:var(--c-ink-3); fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.stat[data-level="warn"] { color:var(--c-warn); } .stat[data-level="warn"] svg { stroke:var(--c-warn); }
+.stat small { color:var(--c-ink-3); font-weight:500; }
+
+/* tile: a player's HUD block (team stripe on top; red frame when e-stopped) */
+.tile { display:flex; flex-direction:column; gap:var(--s-3); padding:var(--s-4); border-radius:var(--r-panel); background:var(--c-glass);
+  box-shadow:inset 0 .25rem 0 var(--team), inset 0 0 0 1px var(--c-stroke); overflow:hidden; }
+.tile[data-level="bad"] { box-shadow:inset 0 .25rem 0 var(--c-stop), inset 0 0 0 .15rem var(--c-stop); }
+.tile[data-benched] { opacity:.45; }
+.tile-head { display:flex; align-items:center; justify-content:space-between; gap:var(--s-2); }
+.tile-name { font-size:var(--t-6); color:var(--team-soft); }
+.role { font-size:var(--t-5); padding:.1em .45em 0; }
+.role[data-flip] { animation:flip var(--d-med) var(--ease-in); }
+@keyframes flip { from { transform:skewX(var(--skew)) rotateX(90deg); opacity:.2; } }
+.action { font-size:var(--t-3); font-weight:600; min-height:2.6em; line-height:1.25; }
+.stats { display:grid; gap:var(--s-2); }
+
+/* ticker: the robots' decisions, newest on top, older ones fade */
+.ticker { display:flex; flex-direction:column; gap:var(--s-1); pointer-events:none; }
+.tick { display:flex; align-items:center; gap:var(--s-2); align-self:flex-start; padding:var(--s-1) var(--s-3) var(--s-1) 0;
+  background:var(--c-glass); border-radius:var(--r-key); font-weight:600; overflow:hidden; animation:slide var(--d-med) var(--ease-in); }
+.tick::before { content:""; align-self:stretch; width:.3rem; background:var(--team, var(--c-ink-3)); }
+.tick:nth-child(1) { font-size:var(--t-3); } .tick:nth-child(2) { opacity:.7; } .tick:nth-child(3) { opacity:.45; }
+.tick[data-kind="goal"]::before { background:var(--c-volt); }
+@keyframes slide { from { opacity:0; transform:translateX(-.6rem); } }
+
+/* banner: one line saying why something is stopped. One banner per fact. */
+.banner { display:flex; align-items:center; gap:var(--s-3); padding:var(--s-2) var(--s-4) var(--s-2) 0; border-radius:var(--r-key);
+  background:rgb(61 9 6 / .94); color:#ffe1dd; font-weight:700; font-size:var(--t-3); box-shadow:var(--shadow); overflow:hidden; animation:drop var(--d-med) var(--ease-in); }
+.banner::before { content:""; align-self:stretch; width:.8rem; background:repeating-linear-gradient(-45deg, var(--c-volt) 0 .35em, #111 .35em .7em); }
+.banner[data-level="warn"] { background:rgb(58 40 6 / .94); color:#fff1cf; }
+.banner[data-level="warn"]::before { background:var(--c-warn); width:.35rem; }
+@keyframes drop { from { opacity:0; transform:translateY(-.5rem); } }
+
+/* seg: a segmented choice (exactly one on) */
+.seg { display:flex; padding:.15rem; gap:.15rem; border-radius:var(--r-panel); background:var(--c-bg); box-shadow:inset 0 0 0 1px var(--c-stroke); }
+.seg button { flex:1; padding:var(--s-2) var(--s-3); border-radius:var(--r-key); color:var(--c-ink-2); font-weight:600; }
+.seg button[aria-pressed="true"] { background:var(--team, var(--c-ink)); color:#fff; }
+.seg[aria-disabled="true"] { opacity:.4; pointer-events:none; }
+
+/* btn: buttons outside the key bar. Tone says what kind of effect it has. */
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:var(--s-2); padding:var(--s-2) var(--s-4); border-radius:var(--r-panel);
+  font-weight:700; background:var(--c-raise); box-shadow:inset 0 0 0 1px var(--c-stroke-2); color:inherit; text-decoration:none; white-space:nowrap; }
+.btn:hover { box-shadow:inset 0 0 0 1px var(--c-ink-2); }
+.btn[data-tone="go"] { background:var(--team, var(--c-ok)); box-shadow:none; color:#fff; }
+.btn[data-tone="stop"] { background:transparent; color:var(--c-red-soft); box-shadow:inset 0 0 0 1px var(--c-red-deep); }
+.btn[aria-disabled="true"] { opacity:.4; pointer-events:none; }
+
+/* meter: progress of a long operation (homing takes ~25 s) */
+.meter { height:.3rem; border-radius:var(--r-pill); background:var(--c-bg); overflow:hidden; }
+.meter i { display:block; height:100%; background:var(--team, var(--c-ok)); transition:width var(--d-med); }
+
+/* steps: where a robot is on its way to ready (off, homed, standing, ready) */
+.steps { display:flex; gap:.2rem; }
+.steps i { flex:1; height:.3rem; border-radius:var(--r-pill); background:var(--c-off); }
+.steps i[data-done] { background:var(--team, var(--c-ok)); }
+.steps i[data-now] { background:var(--c-warn); animation:blink 1s infinite; }
+
+/* feedbox: a live picture (field or robot camera). Chips say whose it is and how fresh; a stale feed shows
+   NO SIGNAL instead of a frozen frame. */
+.feedbox { position:relative; aspect-ratio:4/3; border-radius:var(--r-panel); overflow:hidden; background:#05090e; box-shadow:inset 0 0 0 1px var(--c-stroke); }
+.feedbox > canvas, .feedbox > img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; }
+.feedbox[data-click] { cursor:pointer; } .feedbox[data-click]:hover { box-shadow:inset 0 0 0 .12rem var(--team, var(--c-ink-2)); }
+.feedbox .chips { position:absolute; left:var(--s-2); top:var(--s-2); right:var(--s-2); display:flex; align-items:center; gap:var(--s-2); pointer-events:none; }
+.feedbox .chips .key { margin-left:auto; }
+.feedbox[data-signal="none"] > canvas, .feedbox[data-signal="none"] > img { visibility:hidden; }
+.feedbox[data-signal="none"]::after { content:"NO SIGNAL"; position:absolute; inset:0; display:grid; place-items:center; font:700 var(--t-4)/1 var(--f-display);
+  letter-spacing:.1em; color:var(--c-ink-3); background:repeating-linear-gradient(0deg, #ffffff06 0 2px, transparent 2px 4px); }
+
+/* chip: a small rounded label on a picture (LIVE, FIELD CAM) */
+.chip { display:inline-flex; align-items:center; gap:var(--s-1); padding:.15em .55em; border-radius:var(--r-pill); background:rgb(0 0 0 / .6);
+  font-size:var(--t-1); font-weight:700; color:var(--c-ink); white-space:nowrap; }
+.chip[data-live]::before { content:""; width:.5em; height:.5em; border-radius:50%; background:var(--c-stop); }
+
+/* drawer: the operator's pause menu. Slides up over the HUD; the pitch keeps running behind it. */
+.drawer { position:fixed; left:0; right:0; bottom:0; z-index:var(--z-drawer); background:rgb(8 19 31 / .96); backdrop-filter:blur(10px);
+  box-shadow:0 -1rem 3rem rgb(0 0 0 / .6), inset 0 1px 0 var(--c-stroke-2); transform:translateY(105%); transition:transform var(--d-med) var(--ease-out); }
+.drawer[data-open] { transform:none; }
+
+/* card: a robot or camera in the setup lists (home screen, robots drawer) */
+.card { display:grid; gap:var(--s-3); align-content:start; padding:var(--s-4); border-radius:var(--r-panel); background:var(--c-glass);
+  box-shadow:inset 0 .25rem 0 var(--team, var(--c-ink-3)), inset 0 0 0 1px var(--c-stroke); }
+.card-head { display:flex; align-items:center; gap:var(--s-3); }
+.card-head .display { font-size:var(--t-5); color:var(--team-soft, var(--c-ink)); }
+.card-head .light { margin-left:auto; }
+.card .st { color:var(--c-ink-2); font-weight:600; min-height:1.3em; }
+.card .acts { display:flex; gap:var(--s-2); flex-wrap:wrap; }
+.card .acts .btn[data-tone="go"] { flex:1; }
+
+/* dialog: one question, two answers. Cancel is focused; Esc never closes it (Esc is E-stop). */
+.dialog { border:0; padding:var(--s-6); max-width:32rem; border-radius:var(--r-panel); background:var(--c-raise); color:var(--c-ink);
+  box-shadow:0 1.5rem 4rem rgb(0 0 0 / .7), inset 0 .25rem 0 var(--team, var(--c-volt)), inset 0 0 0 1px var(--c-stroke-2); }
+.dialog::backdrop { background:rgb(0 0 0 / .65); backdrop-filter:blur(3px); }
+.dialog h3 { margin:0 0 var(--s-3); font:700 var(--t-6)/1 var(--f-display); letter-spacing:.03em; padding-top:.12em; }
+.dialog ul { margin:0 0 var(--s-5); padding:0; list-style:none; display:grid; gap:var(--s-2); color:var(--c-ink-2); font-weight:600; }
+.dialog li { display:flex; gap:var(--s-2); }
+.dialog li::before { content:""; flex:none; width:.4em; height:.4em; margin-top:.45em; border-radius:50%; background:var(--team, var(--c-volt)); }
+.dialog .acts { display:flex; justify-content:flex-end; gap:var(--s-2); }
+
+.toast { position:fixed; left:50%; bottom:calc(var(--s-7) + var(--s-6)); transform:translateX(-50%); z-index:var(--z-toast); padding:var(--s-2) var(--s-4);
+  border-radius:var(--r-panel); background:var(--c-raise); font-weight:600; box-shadow:var(--shadow); opacity:0; transition:opacity var(--d-med); pointer-events:none; }
+.toast[data-show] { opacity:1; } .toast[data-level="bad"] { background:var(--c-red-deep); }
+
+/* offline: the app stopped answering. Robots stop by themselves (dead-man), so say exactly that. */
+.offline { position:fixed; inset:0; z-index:var(--z-dialog); display:none; place-content:center; text-align:center; gap:var(--s-2); background:rgb(0 0 0 / .85); }
+.offline[data-on] { display:grid; }
+.offline b { font:700 var(--t-7)/1 var(--f-display); letter-spacing:.04em; padding-top:.12em; }
+.offline span { color:var(--c-ink-2); font-weight:600; }

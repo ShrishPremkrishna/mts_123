@@ -547,6 +547,14 @@ def test_play_and_ops_pages(server):
     with pytest.raises(urllib.error.HTTPError) as e:
         get(base, "/view.jpg")                                   # sim: no camera frame
     assert e.value.code == 404
+    for f in ("tokens.css", "ui.css", "kit.js", "pitch.js"):     # the UI kit is served, nothing else under /kit
+        code, body = get(base, "/kit/" + f)
+        assert code == 200 and body
+    assert p["robots"]["blue"]["ready"] is True                 # sim robots on the field are ready
+    for bad in ("/kit/../app.py", "/kit/nope.js", "/kit/kit.py"):
+        with pytest.raises(urllib.error.HTTPError) as e:
+            get(base, bad)
+        assert e.value.code == 404
 
 
 def test_flow_match_kickoff_pause_touch_variant(server):

@@ -1,0 +1,39 @@
+/* Pupper FC design tokens. Every colour, size, space, radius, motion and layer value in the UI comes from here.
+   Components never hard-code a value; teams are a scope ([data-team]) that rebinds --team*, so every
+   component is team-agnostic. */
+:root {
+  /* surface */
+  --c-bg:#08131f; --c-bg-2:#0c1b2c; --c-glass:rgb(8 19 31 / .78); --c-raise:#12263b; --c-stroke:rgb(243 246 239 / .10);
+  --c-stroke-2:rgb(243 246 239 / .22);
+  /* ink */
+  --c-ink:#f3f6ef; --c-ink-2:#a9b8c9; --c-ink-3:#62788f;
+  /* kits */
+  --c-blue:#2f80ff; --c-blue-soft:#a6cbff; --c-blue-deep:#123a7a;
+  --c-red:#ff4a3d;  --c-red-soft:#ffb4ab;  --c-red-deep:#7a1d17;
+  /* meaning */
+  --c-volt:#ffd43b; --c-ok:#34d27b; --c-warn:#ffb020; --c-stop:#ff3b30; --c-off:#3d4e62;
+
+  /* type: one display face (stadium signage), one text face (system UI). Scale ratio 1.25 on a fluid root. */
+  --f-display:"DIN Condensed", "Avenir Next Condensed", "Arial Narrow", sans-serif;
+  --f-text:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --root:clamp(12px, 0.9vw, 20px);
+  --t-1:.8rem; --t-2:1rem; --t-3:1.25rem; --t-4:1.563rem; --t-5:1.953rem; --t-6:2.441rem; --t-7:3.815rem; --t-8:7.451rem;
+
+  /* space: 4-step base */
+  --s-1:.25rem; --s-2:.5rem; --s-3:.75rem; --s-4:1rem; --s-5:1.5rem; --s-6:2rem; --s-7:3rem;
+  /* shape: the signature skew, and three radii by role */
+  --skew:-12deg; --r-key:.3rem; --r-panel:.5rem; --r-pill:99rem;
+  /* depth */
+  --shadow:0 .4rem 1.4rem rgb(0 0 0 / .45); --glow:0 0 .8rem;
+  /* motion: one curve for arrivals, one for state flips */
+  --ease-in:cubic-bezier(.2,1.3,.4,1); --ease-out:cubic-bezier(.4,0,.2,1); --d-fast:.15s; --d-med:.35s; --d-slow:.8s;
+  /* layers */
+  --z-canvas:0; --z-hud:2; --z-banner:3; --z-drawer:5; --z-dialog:8; --z-toast:9;
+}
+[data-team="blue"] { --team:var(--c-blue); --team-soft:var(--c-blue-soft); --team-deep:var(--c-blue-deep); }
+[data-team="red"]  { --team:var(--c-red);  --team-soft:var(--c-red-soft);  --team-deep:var(--c-red-deep); }
+[data-level="ok"]   { --level:var(--c-ok); }
+[data-level="warn"] { --level:var(--c-warn); }
+[data-level="bad"]  { --level:var(--c-stop); }
+[data-level="off"]  { --level:var(--c-off); }
+@media (prefers-reduced-motion: reduce) { :root { --d-fast:0s; --d-med:0s; --d-slow:0s; } }

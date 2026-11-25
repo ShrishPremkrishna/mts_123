@@ -1720,12 +1720,15 @@ class App:
         robots = {}
         for r in self.all_robots:
             dbg = self.debug.get(r.id) or {}
+            hl = health(self.source, r.id in active, r.id in seen, (lstat or {}).get(r.id), self.link is not None,
+                        self.ops.get(r.id), self.robot_phase.get(r.id), r.id in self.imu_bad, r.id in self.mux_lost,
+                        estopped=r.id in self.estops)
             robots[r.id] = {
                 "action": action_label(dbg, getattr(self.cmds.get(r.id), "tag", "")),
                 "role": dbg.get("role"),
-                "health": health(self.source, r.id in active, r.id in seen, (lstat or {}).get(r.id),
-                                 self.link is not None, self.ops.get(r.id), self.robot_phase.get(r.id),
-                                 r.id in self.imu_bad, r.id in self.mux_lost, estopped=r.id in self.estops),
+                "health": hl,
+                # ready to play: green light AND (sim, or fcctl reported phase ready). "link ok" alone is not ready.
+                "ready": hl["level"] == "ok" and (self.sim is not None or self.robot_phase.get(r.id) == "ready"),
                 "estop": estop_view(r.id, self.estops[r.id], now, self.link is not None, self.sim is not None,
                                     ESTOP_RESEND_S) if r.id in self.estops else None,
                 "phase": self.robot_phase.get(r.id), "playing": r.id in self.playing,
@@ -1782,6 +1785,10 @@ def make_handler(app: App):
                 return self._send(200, (UI / "play.html").read_bytes(), "text/html; charset=utf-8")
             if path in ("/ops", "/index.html"):
                 return self._send(200, (UI / "index.html").read_bytes(), "text/html; charset=utf-8")
+            m = re.fullmatch(r"/kit/([\w\-]+)\.(css|js)", path)
+            if m and (UI / "kit" / f"{m[1]}.{m[2]}").is_file():     # the UI kit (fc/ui/kit): tokens, primitives
+                ctype = "text/css; charset=utf-8" if m[2] == "css" else "text/javascript; charset=utf-8"
+                return self._send(200, (UI / "kit" / f"{m[1]}.{m[2]}").read_bytes(), ctype)
             if path == "/view.jpg":     # clean camera frame for the Play screen (encoded here, not in the loop)
                 jpg = app.eye.view_jpeg() if app.eye else None
                 return self._send(200, jpg, "image/jpeg") if jpg else self._send(404, b"no frame", "text/plain")

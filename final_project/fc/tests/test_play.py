@@ -166,3 +166,16 @@ def test_camstream_serves_what_camfeed_reads():
         stop.set()
         feed.close()
         srv.shutdown()
+
+
+def test_safety_banners_merge_when_every_robot_is_estopped():
+    from fc.core import RobotCfg
+    from fc.play import safety_banners
+    cfg = {r: RobotCfg(id=r, team=r, tag=t, host="", profile="stock") for r, t in (("blue", 10), ("red", 11))}
+    one = {"blue": {"t": 0.0, "confirmed": True, "by": "operator"}}
+    both = {**one, "red": {"t": 0.0, "confirmed": True, "by": "operator"}}
+    assert [b["robot"] for b in safety_banners(cfg, ["blue", "red"], one, {}, 1.0, True, False, 3.0)] == ["blue"]
+    merged = safety_banners(cfg, ["blue", "red"], both, {}, 1.0, True, False, 3.0)
+    assert len(merged) == 1 and merged[0]["text"].startswith("ALL ROBOTS E-STOPPED")
+    unconfirmed = {**one, "red": {"t": 0.9, "confirmed": False, "by": "operator"}}   # safety text must stay per robot
+    assert len(safety_banners(cfg, ["blue", "red"], unconfirmed, {}, 1.0, True, False, 3.0)) == 2
