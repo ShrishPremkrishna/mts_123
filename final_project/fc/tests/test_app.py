@@ -538,6 +538,8 @@ def test_step_edge_abort_reports(server):
 def test_play_and_ops_pages(server):
     app, base = server
     code, html = get(base, "/")
+    assert code == 200 and b"Pupper FC" in html and b"SIMULATION" in html            # home: pick a mode
+    code, html = get(base, "/play")
     assert code == 200 and b"Pupper FC" in html and b"kickoff" in html.lower()
     code, html = get(base, "/ops")
     assert code == 200 and b"Pupper FC v1" in html
@@ -547,6 +549,14 @@ def test_play_and_ops_pages(server):
     with pytest.raises(urllib.error.HTTPError) as e:
         get(base, "/view.jpg")                                   # sim: no camera frame
     assert e.value.code == 404
+    for f in ("tokens.css", "ui.css", "kit.js", "pitch.js", "robots.js", "feeds.js"):     # the UI kit is served, nothing else under /kit
+        code, body = get(base, "/kit/" + f)
+        assert code == 200 and body
+    assert p["robots"]["blue"]["ready"] is True                 # sim robots on the field are ready
+    for bad in ("/kit/../app.py", "/kit/nope.js", "/kit/kit.py"):
+        with pytest.raises(urllib.error.HTTPError) as e:
+            get(base, bad)
+        assert e.value.code == 404
 
 
 def test_flow_match_kickoff_pause_touch_variant(server):
@@ -566,7 +576,8 @@ def test_flow_match_kickoff_pause_touch_variant(server):
     assert post(base, "/action", {"action": "touch", "delta": 5})[0] == 400
     assert post(base, "/action", {"action": "job", "robot": "red", "job": "defend"})[0] == 200
     assert post(base, "/action", {"action": "job", "robot": "red", "job": "fly"})[0] == 400
-    assert post(base, "/action", {"action": "pause"})[1]["phase"] == "countdown"   # pause toggles back
+    assert post(base, "/action", {"action": "pause"})[0] == 400                    # strict: no toggle
+    assert post(base, "/action", {"action": "resume"})[1]["phase"] == "countdown"
     assert state(base)["play"]["ticker"]                                           # decisions narrated
     code, r = post(base, "/action", {"action": "variant"})
     assert code == 200 and r["playing"] == ["blue"]

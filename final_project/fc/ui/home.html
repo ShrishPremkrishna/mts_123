@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pupper FC</title>
+<link rel="stylesheet" href="/kit/tokens.css">
+<link rel="stylesheet" href="/kit/ui.css">
+<style>
+  /* layout only: every look comes from the kit */
+  html, body { height:100%; overflow:hidden; }
+  body { background:radial-gradient(90% 70% at 70% 30%, #16324f 0%, var(--c-bg) 65%) fixed; }
+  #home { display:grid; grid-template-columns:minmax(18rem, 28rem) 1fr; grid-template-rows:1fr auto; height:100vh; gap:0 var(--s-7);
+    padding:var(--s-6) var(--s-7) var(--s-3); }
+  .left { display:flex; flex-direction:column; justify-content:center; gap:var(--s-7); }
+  .word { font-size:calc(var(--t-8) * .95); line-height:.85; }
+  .menu { display:flex; flex-direction:column; gap:var(--s-2); }
+  .item { display:flex; align-items:center; gap:var(--s-4); padding:var(--s-3) var(--s-4); border-radius:var(--r-panel); text-align:left;
+    font:700 var(--t-6)/1 var(--f-display); letter-spacing:.06em; color:var(--c-ink-3); transition:color var(--d-fast), background var(--d-fast); }
+  .item > span:first-child { padding-top:.12em; }
+  .item .key { margin-left:auto; display:none; font-size:var(--t-1); }
+  .item .light { margin-left:auto; font-size:var(--t-2); }
+  .item[aria-current="true"] { color:var(--c-ink); background:linear-gradient(90deg, rgb(243 246 239 / .08), transparent); box-shadow:inset .3rem 0 0 var(--c-volt); }
+  .item[aria-current="true"] .key { display:inline-grid; }
+  .item[aria-current="true"] .light { display:none; }
+  .right { display:flex; flex-direction:column; justify-content:center; gap:var(--s-5); min-width:0; }
+  .preview { position:relative; aspect-ratio:16/9; border-radius:var(--r-panel); overflow:hidden; background:#05090e;
+    box-shadow:var(--shadow), inset 0 0 0 1px var(--c-stroke-2); }
+  .preview > canvas { position:absolute; inset:0; width:100%; height:100%; display:block; }
+  .preview .chips { position:absolute; left:var(--s-3); top:var(--s-3); display:flex; gap:var(--s-2); z-index:1; }
+  .slate { position:absolute; inset:0; display:grid; place-items:center; background:repeating-linear-gradient(0deg, #ffffff05 0 2px, transparent 2px 4px); }
+  .slate .press { display:inline-flex; align-items:center; gap:var(--s-3); font:700 var(--t-5)/1 var(--f-display); letter-spacing:.06em;
+    padding:var(--s-3) var(--s-5); background:var(--c-glass); border-radius:var(--r-panel); }
+  .slate .press .key { font-size:var(--t-3); }
+  .cards { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:var(--s-4); }
+  footer { grid-column:1 / -1; display:flex; gap:var(--s-2); align-items:center; }
+  footer .grow { flex:1; }
+  .switching { position:fixed; inset:0; z-index:var(--z-dialog); display:none; place-items:center; background:rgb(5 9 14 / .9); }
+  .switching[data-on] { display:grid; }
+  .switching .plate { font-size:var(--t-7); padding:.15em .6em 0; animation:breathe 1.6s ease-in-out infinite; }
+  @keyframes breathe { 50% { opacity:.55; } }
+</style>
+</head>
+<body>
+<div id="home">
+  <div class="left">
+    <div class="word display">PUPPER FC</div>
+    <nav class="menu" id="menu" aria-label="Modes"></nav>
+  </div>
+  <div class="right"><div class="preview" id="preview"><canvas id="cv"></canvas><div class="chips" id="chips"></div><div class="slate" id="slate"></div></div>
+    <div class="cards" id="cards"></div></div>
+  <footer id="foot"></footer>
+</div>
+<div class="switching" id="switching"><div class="plate display"><span id="switchingT"></span></div></div>
+<div class="offline" id="offline"><b>App not reachable</b><span>Robots stop by themselves within 0.25 s. Restart fc/run.sh.</span></div>
+<script type="module">
+import { h, patch, keyOf, NAME, createStore, createOps, createToast } from "/kit/kit.js";
+import { createPitch } from "/kit/pitch.js";
+import { robotCard, cameraCard } from "/kit/robots.js";
+const $ = (id) => document.getElementById(id);
+const store = createStore(), toast = createToast();
+const ops = await createOps(store, toast);
+const ITEMS = [
+  { id: "play", label: "PLAY", source: "camera" },
+  { id: "sim", label: "SIMULATION", source: "sim" },
+  { id: "bench", label: "TEST BENCH", href: "/ops" },
+];
+let cur = Math.max(0, ITEMS.findIndex((i) => i.id === new URLSearchParams(location.search).get("item")));
+let switching = null;
+const item = () => ITEMS[cur];
+const live = (s) => s && item().source === s.source;          // the selected mode is the one running
+createPitch($("cv"), { state: store.get, view: () => item().id === "play" ? "camera" : "map" });
+
+async function start() {
+  const it = item(), s = store.get();
+  if (it.href) { location.href = it.href; return; }
+  if (!s) return;
+  if (s.source === it.source) { location.href = "/play"; return; }
+  const r = await ops.run("app.source", { source: it.source });
+  if (r && r.ok) { switching = it.source; $("switchingT").textContent = `STARTING ${it.label}`; $("switching").dataset.on = ""; }
+}
+ops.local({ name: "menu.down", label: "Choose", key: "ArrowDown", run: () => { cur = (cur + 1) % ITEMS.length; render(store.get()); } })
+   .local({ name: "menu.up", label: "Choose", key: "ArrowUp", run: () => { cur = (cur + ITEMS.length - 1) % ITEMS.length; render(store.get()); } })
+   .local({ name: "menu.start", label: "Start", key: "Enter", run: start,
+            avail: (s) => !s || item().href || s.source === item().source ? {} : (s.avail["app.source"] || {}).enabled ? {} : { reason: s.avail["app.source"].reason } });
+
+function render(s) {
+  patch($("menu"), `${cur}|${s && s.source}`, () => ITEMS.map((it, i) => h("button", { class: "item", type: "button", "aria-current": String(i === cur),
+      onmouseenter: () => { if (cur !== i) { cur = i; render(store.get()); } }, onclick: () => { cur = i; start(); } },
+    h("span", null, it.label), s && it.source === s.source ? h("i", { class: "light", "data-level": "ok", title: "running" }) : null, h("span", { class: "key" }, "Enter"))));
+  if (!s) return;
+  const it = item(), on = live(s);
+  $("cv").style.visibility = on ? "visible" : "hidden";
+  patch($("chips"), `${it.id}${on}`, () => on ? (it.id === "play" ? [h("span", { class: "chip", "data-live": true }, "LIVE"), h("span", { class: "chip" }, "FIELD CAM")]
+    : [h("span", { class: "chip" }, "SIM")]) : []);
+  patch($("slate"), `${it.id}${on}`, () => on ? [] : h("div", { class: "press" }, h("span", { class: "key" }, "Enter"),
+    it.id === "play" ? "START FIELD CAMERA" : it.id === "sim" ? "START SIMULATION" : "OPEN TEST BENCH"));
+  $("slate").style.display = on ? "none" : "";
+  let cards = [];
+  if (it.id === "play") cards = on ? [...s.robots.map((r) => robotCard(s, r, ops)), cameraCard(s)]
+    : [...s.robots.map((r) => h("div", { class: "card", "data-team": r.team }, h("div", { class: "card-head" }, h("span", { class: "display" }, NAME(r.id)),
+        r.host ? h("span", { class: "chip" }, r.host) : null, h("i", { class: "light", "data-level": "off" })), h("div", { class: "st" }, r.host ? "Connects in Play" : "No host in robots.json"))), cameraCard({})];
+  else if (it.id === "sim") cards = [...s.robots.map((r) => h("div", { class: "card", "data-team": r.team }, h("div", { class: "card-head" }, h("span", { class: "display" }, NAME(r.id)),
+      h("i", { class: "light", "data-level": on ? "ok" : "off" })), h("div", { class: "st" }, "Simulated"))),
+    h("div", { class: "card" }, h("div", { class: "card-head" }, h("span", { class: "display" }, "FIELD"), h("i", { class: "light", "data-level": on ? "ok" : "off" })),
+      h("div", { class: "st" }, `${s.field.length.toFixed(2)} x ${s.field.width.toFixed(2)} m`))];
+  else cards = ops.get("test.run").params.test.choices.slice(0, 3).map((t) => h("div", { class: "card" }, h("div", { class: "card-head" }, h("span", { class: "display" }, t.replace("_", " ").toUpperCase()))));
+  patch($("cards"), keyOf(cards), () => cards);
+}
+
+const prompts = [ops.prompt("ArrowUp"), ops.prompt("Enter"), h("i", { class: "grow" }), ops.prompt("Space"), ops.prompt("Esc")];
+prompts[0].querySelector(".key").textContent = "↑↓";
+$("foot").replaceChildren(...prompts);
+ops.bindKeys({ opts: { stop: { done: "Stopped" }, estop: { done: "E-stop sent", level: "bad" } } });
+
+store.subscribe((s, online) => {
+  if (switching) {                                   // restarting: wait for the other source, then play
+    if (online && s && s.source === switching) location.href = s.source === "camera" ? "/?item=play" : "/play";
+    return;
+  }
+  $("offline").toggleAttribute("data-on", !online);
+  render(s);
+  for (const p of prompts) if (p.refresh) p.refresh();
+});
+</script>
+</body>
+</html>

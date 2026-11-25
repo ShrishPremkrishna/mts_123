@@ -36,6 +36,7 @@ tilt; it seized once while standing ([RCA](notes/rca-20261124-shaking.md), [filt
 | Bridge auto lie-down + latch on a sustained bad IMU | **device-free** + ROS in Docker; fired on mts Nov 25 (I2C bus hang, `frozen`) |
 | IMU driver v3 stall guard (marker + re-init) and bridge short-stall hold (≤ 1 s: stand, resume; longer: lie down); `fcctl.sh i2c-recover` for a hung bus ([v3](notes/imu-filter.md#v3-bno-stall-guard-2026-11-25-built-not-installed)) | **device-free** (unit tests; .so `a64606d8…` built on mts, not installed; i2c-recover untested on a hung bus) |
 | Play screen, `/ops` tests, match flow, run logs, presets with `_stack`, `fc.ctl` | **device-free** + **sim**, used on the **robot** |
+| New UI (Nov 24 night, not on the robot or projector yet): home `/` (Play / Simulation / Test bench, mode switch restarts in place), `/play` on the [ui/kit](ui/kit/) primitives, robot setup as one next-step button, robot camera slot (sim view; real feed needs `cam_url`), one operation registry (`/api/ops`, `/api/op`, `fc.ctl ops` / `op`) | **device-free** (201 tests) + **sim** + synthetic camera, visual QA in a browser |
 | Goalie, solo role switching vs a human, interception | **sim** only |
 
 ## New since the floor session (none run on the robot yet)

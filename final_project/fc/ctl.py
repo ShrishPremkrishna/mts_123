@@ -3,6 +3,11 @@
     cd final_project && python -m fc.ctl [--url http://127.0.0.1:8800] <command> ...
 
     status                                  one header line + one line per active robot
+    ops [--json]                            every operation the app accepts (the same list the UI is built
+                                            from): name, key, enabled now or why not, parameters
+    op <name> [k=v ...]                     run one operation by name (POST /api/op); values are JSON when
+                                            they parse (robots='["blue"]', confirm=true), else strings.
+                                            Prints the JSON reply; exit 0 ok / 1 refused
     check <robot> [--ball] [--yaw DEG]      RUNBOOK gates (seen, eye fps/calib, auth, RTT, loss, not halted)
     ready <robot> [--preset NAME] [--home]  fcctl ready (stands; re-arms an e-stop). --home: allowed to HOME the legs
     down <robot> [--keep-stack]             fcctl down (lie down; --keep-stack keeps it homed)
@@ -559,6 +564,26 @@ def cmd_set(c: Client, a) -> None:
         raise Fail("some params were rejected")
 
 
+def cmd_ops(c: Client, a) -> None:
+    m, avail = c.get("/api/ops"), (c.get("/state?lite=1") or {}).get("avail", {})
+    if a.json:
+        print(json.dumps({"version": m.get("version"), "ops": m.get("ops"), "avail": avail}, indent=1))
+        return
+    for o in m.get("ops", []):
+        av = avail.get(o["name"], {"enabled": True})
+        ps = " ".join(("" if p["required"] else "[") + k + "=" + ("|".join(x if isinstance(x, str) else json.dumps(x) for x in p["choices"]) if "choices" in p
+                      else p["type"]) + ("" if p["required"] else "]") for k, p in o["params"].items())
+        why = "" if av.get("enabled") else f"  ({av.get('reason')})"
+        print(f"{o['name']:<17} {o['key'] or '':<6} {'on ' if av.get('enabled') else 'off'} {ps}{why}")
+
+
+def cmd_op(c: Client, a) -> None:
+    res = c.post("/api/op", {"op": a.name, "args": parse_kv(a.pairs)})
+    print(json.dumps(res, separators=(",", ":")))
+    if not res.get("ok"):
+        raise Fail(f"{a.name}: {res.get('code')}: {res.get('error')}")
+
+
 def cmd_stop(c: Client, a) -> None:
     need_ok(c.post("/action", {"action": "stop"}), "stop")
     say("STOP sent: zero speed to every robot")
@@ -966,6 +991,13 @@ def build_parser() -> Parser:
     ap.add_argument("--url", default=os.environ.get("FC_URL", DEFAULT_URL))
     sub = ap.add_subparsers(dest="cmd", parser_class=Parser)
     sub.add_parser("status").set_defaults(fn=cmd_status)
+    p = sub.add_parser("ops")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(fn=cmd_ops)
+    p = sub.add_parser("op")
+    p.add_argument("name")
+    p.add_argument("pairs", nargs="*")
+    p.set_defaults(fn=cmd_op)
     p = sub.add_parser("check")
     p.add_argument("robot")
     p.add_argument("--ball", action="store_true", help="also require the ball seen")

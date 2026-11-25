@@ -348,14 +348,61 @@ def safety_banners(cfg: dict[str, RobotCfg], active, estops: dict, ops: dict, no
                    resend_s: float) -> list[dict]:
     """Banners that outrank play: latched e-stops and a refused down, for every active robot."""
     out = []
+    views = {rid: estop_view(rid, estops[rid], now, has_link, sim, resend_s) for rid in active if rid in estops}
+    # every robot latched and confirmed the same way: one banner instead of one per robot
+    same = len(views) > 1 and len(views) == len(active) and all(v["confirmed"] and v["by"] != "robot" for v in views.values())
+    if same:
+        out.append({"robot": None, "team": None, "level": "bad", "kind": "estop",
+                    "text": f"ALL ROBOTS E-STOPPED: legs off, latched{' (sim)' if sim else ''}. Re-arm = Ready"})
     for rid in active:
-        if rid in estops:
-            v = estop_view(rid, estops[rid], now, has_link, sim, resend_s)
-            out.append({"robot": rid, "team": cfg[rid].team, "level": "bad", "kind": "estop", "text": v["text"]})
+        if rid in views and not same:
+            out.append({"robot": rid, "team": cfg[rid].team, "level": "bad", "kind": "estop", "text": views[rid]["text"]})
         if down_failed(ops.get(rid)):
             out.append({"robot": rid, "team": cfg[rid].team, "level": "bad", "kind": "down",
                         "text": f"{name(rid)}: {DOWN_FAIL_TEXT}"})
     return out
+
+
+SETUP_STEPS = ("off", "homed", "standing", "ready")      # power-on order of fcctl phases
+
+
+def setup_step(source: str, host: str, dry_run: bool, phase: str | None, op: dict | None, estopped: bool,
+               detail: str = "") -> dict:
+    """The robot's next setup step, for the one setup button and for agents:
+    {step, label, op (registry name or None), ask (confirm question or None), reason, busy, done (0-3 of off ->
+    homed -> standing -> ready)}. A robot whose phase is unknown is checked first, never homed blind."""
+    done = SETUP_STEPS.index(phase) if phase in SETUP_STEPS else 0
+    out = {"done": done, "busy": False, "ask": None, "reason": ""}
+    if source == "sim":
+        return {**out, "step": "sim", "label": "Simulated", "op": None, "done": 3}
+    if not host and not dry_run:
+        return {**out, "step": "none", "label": "No host", "op": None, "reason": "no host in robots.json"}
+    if op and op.get("running"):
+        label = {"ready": {"homed": "Standing up…", "standing": "Starting link…"}.get(phase, "Homing…"),
+                 "down": "Lying down…", "status": "Checking…", "stop": "Stopping…"}.get(op.get("op"), f"{op.get('op')}…")
+        return {**out, "step": "busy", "label": label, "op": None, "busy": True}
+    if op and op.get("op") == "status" and op.get("rc") not in (0, None):
+        return {**out, "step": "unreachable", "label": "Retry", "op": "robot.status", "reason": "not reachable over ssh"}
+    if estopped:
+        return {**out, "step": "rearm", "label": "Re-arm", "op": "robot.ready", "reason": "E-stopped: legs off",
+                "ask": "Re-arm: stands it up again and clears the E-stop. Area clear, R3 in reach?"}
+    if phase is None:
+        return {**out, "step": "check", "label": "Check", "op": "robot.status", "reason": "not checked yet"}
+    if phase == "off":
+        return {**out, "step": "home", "label": "Home legs", "op": "robot.ready", "reason": "Put it on the stand",
+                "ask": "Homes the legs: the robot must be on the stand. Then it stops, ready to stand."}
+    if phase == "starting":
+        return {**out, "step": "check", "label": "Check", "op": "robot.status", "reason": "homing, loading controllers"}
+    if phase == "homed":
+        return {**out, "step": "stand", "label": "Stand up", "op": "robot.ready", "reason": "Put it on the floor",
+                "ask": "Stands it up and starts the link. Robot on the floor, area clear, R3 in reach?"}
+    if phase == "standing":
+        return {**out, "step": "link", "label": "Start link", "op": "robot.ready", "reason": "Standing, link off",
+                "ask": "Starts the link so the laptop can drive it. Area clear, R3 in reach?"}
+    if phase == "ready":
+        return {**out, "step": "ready", "label": "Ready", "op": None, "reason": "Standing, linked"}
+    return {**out, "step": "fault", "label": "Stop stack", "op": "robot.stop_stack", "reason": detail or "robot fault",
+            "ask": "Stops the robot stack: legs go limp. Support the robot first."}
 
 
 def health(source: str, active: bool, seen: bool, L: dict | None, has_link: bool, op: dict | None,

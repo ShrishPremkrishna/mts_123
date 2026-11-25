@@ -166,3 +166,32 @@ def test_camstream_serves_what_camfeed_reads():
         stop.set()
         feed.close()
         srv.shutdown()
+
+
+def test_safety_banners_merge_when_every_robot_is_estopped():
+    from fc.core import RobotCfg
+    from fc.play import safety_banners
+    cfg = {r: RobotCfg(id=r, team=r, tag=t, host="", profile="stock") for r, t in (("blue", 10), ("red", 11))}
+    one = {"blue": {"t": 0.0, "confirmed": True, "by": "operator"}}
+    both = {**one, "red": {"t": 0.0, "confirmed": True, "by": "operator"}}
+    assert [b["robot"] for b in safety_banners(cfg, ["blue", "red"], one, {}, 1.0, True, False, 3.0)] == ["blue"]
+    merged = safety_banners(cfg, ["blue", "red"], both, {}, 1.0, True, False, 3.0)
+    assert len(merged) == 1 and merged[0]["text"].startswith("ALL ROBOTS E-STOPPED")
+    unconfirmed = {**one, "red": {"t": 0.9, "confirmed": False, "by": "operator"}}   # safety text must stay per robot
+    assert len(safety_banners(cfg, ["blue", "red"], unconfirmed, {}, 1.0, True, False, 3.0)) == 2
+
+
+def test_setup_step_walks_the_power_on_order_and_never_homes_blind():
+    from fc.play import setup_step
+    st = lambda phase, op=None, es=False, host="mts": setup_step("camera", host, False, phase, op, es)  # noqa: E731
+    assert setup_step("sim", "", False, None, None, False)["step"] == "sim"
+    assert st(None, host="")["step"] == "none" and st(None, host="")["op"] is None
+    assert st(None)["op"] == "robot.status"                       # unknown: check first, never Ready
+    assert [st(p)["label"] for p in ("off", "homed", "standing", "ready")] == ["Home legs", "Stand up", "Start link", "Ready"]
+    assert [st(p)["done"] for p in ("off", "homed", "standing", "ready")] == [0, 1, 2, 3]
+    assert st("off")["op"] == "robot.ready" and "stand" in st("off")["ask"]
+    assert st("ready")["op"] is None
+    assert st("homed", {"op": "ready", "running": True})["busy"] and st("homed", {"op": "ready", "running": True})["op"] is None
+    assert st(None, {"op": "status", "running": False, "rc": 255})["step"] == "unreachable"
+    assert st("ready", es=True)["step"] == "rearm"
+    assert st("fault")["op"] == "robot.stop_stack"
