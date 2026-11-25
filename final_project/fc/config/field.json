@@ -3,6 +3,6 @@
   "width": 2.19,
   "goal_width": 1.22,
   "goal_depth": 0.3,
-  "ball_radius": 0.09,
+  "ball_radius": 0.089,
   "robot_radius": 0.18
 }
