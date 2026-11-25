@@ -566,7 +566,8 @@ def test_flow_match_kickoff_pause_touch_variant(server):
     assert post(base, "/action", {"action": "touch", "delta": 5})[0] == 400
     assert post(base, "/action", {"action": "job", "robot": "red", "job": "defend"})[0] == 200
     assert post(base, "/action", {"action": "job", "robot": "red", "job": "fly"})[0] == 400
-    assert post(base, "/action", {"action": "pause"})[1]["phase"] == "countdown"   # pause toggles back
+    assert post(base, "/action", {"action": "pause"})[0] == 400                    # strict: no toggle
+    assert post(base, "/action", {"action": "resume"})[1]["phase"] == "countdown"
     assert state(base)["play"]["ticker"]                                           # decisions narrated
     code, r = post(base, "/action", {"action": "variant"})
     assert code == 200 and r["playing"] == ["blue"]

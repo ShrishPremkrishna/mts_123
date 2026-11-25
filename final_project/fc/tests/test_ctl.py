@@ -600,3 +600,19 @@ def test_rollcal_live_against_sim_app(live, capsys, monkeypatch):
     fitted = float(out.split("ROLLCAL ball_decel ")[1].split()[0])
     assert abs(fitted - app.params["sim_ball_decel"]) < 0.08, out
     th.join(5)
+
+
+def test_live_ops_listing_and_generic_op(live, capsys):
+    app, url = live
+    run = lambda *a: ctl.main(["--url", url, *a])  # noqa: E731
+    assert run("ops") == 0
+    lines = {ln.split()[0]: ln for ln in capsys.readouterr().out.splitlines()}
+    assert "Space" in lines["stop"] and "no match running" in lines["match.end"] and "confirm=true" in lines["robot.ready"]
+    assert run("ops", "--json") == 0
+    m = json.loads(capsys.readouterr().out)
+    assert {o["name"] for o in m["ops"]} == set(m["avail"])
+    assert run("op", "match.kickoff") == 0 and json.loads(capsys.readouterr().out)["ok"]
+    assert run("op", "match.players", 'robots=["blue"]') == 0 and app.playing == ["blue"]
+    capsys.readouterr()
+    assert run("op", "match.touch", "delta=3") == 1
+    assert '"code":"bad_args"' in capsys.readouterr().out

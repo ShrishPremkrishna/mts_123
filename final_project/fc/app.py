@@ -30,6 +30,7 @@ from .brain import DEFAULTS as BRAIN_DEFAULTS
 from .core import CONFIG, Cmd, RobotCfg, World, load_field, load_params, wrap
 from .link import CEIL, Link
 from .media import CamFeed, Recorder
+from . import ops as OPS
 from .play import (FLOW_DEFAULTS, FLOW_LIMITS, JOBS, RESTART_MODES, MatchFlow, Ticker, action_label, banners, down_failed,
                    estop_view, health, safety_banners)
 from .runlog import RUNS, Metrics, RunLog, list_runs
@@ -1189,7 +1190,8 @@ class App:
                 return {"ok": True}
             if a == "test":
                 return self._start_test(body)
-            if a in ("kickoff", "play", "pause", "resume", "reposition", "touch", "variant", "job", "end"):
+            if a in ("kickoff", "play", "play_here", "start_now", "pause", "resume", "reposition", "touch", "variant",
+                     "job", "end"):
                 return self._play_action(a, body)
         return {"ok": False, "error": f"unknown action {a!r}"}
 
@@ -1225,7 +1227,7 @@ class App:
             f.touches = max(0, f.touches + d)
             self.say(f"referee touch {'+1' if d > 0 else '-1'} -> {f.touches}", touches=f.touches)
             return {"ok": True, "touches": f.touches}
-        if a == "kickoff" or (a == "play" and not f):
+        if a in ("kickoff", "play_here") or (a == "play" and not f):
             halted = [r for r in self.playing if self.halted(r)]
             if halted:
                 return {"ok": False, "error": f"{', '.join(halted)} halted by the bridge ({self.halted(halted[0])})"}
@@ -1238,16 +1240,18 @@ class App:
             return {"ok": True, "run": self.test["run_dir"]}
         if not f:
             return {"ok": False, "error": "no match running: press Kickoff"}
-        if a == "play":
+        if a == "play":               # legacy one-key play: resume, else start now
             ok = f.resume(now) or f.force_start(now)
             return {"ok": True, "phase": f.phase} if ok else {"ok": False, "error": f"already {f.phase}"}
-        if a == "pause":
+        if a == "start_now":
+            ok = f.force_start(now)
+            return {"ok": True, "phase": f.phase} if ok else {"ok": False, "error": f"not waiting (phase {f.phase})"}
+        if a == "pause":              # strict: pausing twice is refused (resume is its own action)
             if f.pause(now):
                 if self.link:
                     self.link.stop_all()      # zero now; the next tick holds it (hard stop per robot)
                 return {"ok": True, "phase": f.phase}
-            ok = f.resume(now)
-            return {"ok": ok, "phase": f.phase}
+            return {"ok": False, "error": f"cannot pause in phase {f.phase}"}
         if a == "resume":
             ok = f.resume(now)
             return {"ok": True, "phase": f.phase} if ok else {"ok": False, "error": "not paused"}
@@ -1634,7 +1638,18 @@ class App:
         self.say(f"robot {rid}: {state['op']} -> rc {state['rc']}", out=state["out"][-1500:])
 
     # ---- state for the UI ----------------------------------------------------------------
-    def state(self) -> dict:
+    STATE_SCHEMA = 2
+    STATIC_KEYS = ("choices", "limits", "tests", "presets", "profiles", "events")   # left out of lite states
+    LITE_PARAMS = ("match_s", "ball_decel", "stale_stop_s", "kickoff_x_frac", "countdown_s")
+
+    def config(self) -> dict:
+        """What changes rarely: everything the lite /state leaves out (GET /api/config)."""
+        with self.lock:
+            return clean({"schema": self.STATE_SCHEMA, "params": self.params, "choices": CHOICES, "limits": LIMITS,
+                          "tests": TESTS, "presets": self.presets(), "profiles": self.profiles(),
+                          "events": list(self.events)[-30:]})
+
+    def state(self, lite: bool = False) -> dict:
         with self.lock:
             now = time.monotonic()
             test = None
@@ -1666,6 +1681,12 @@ class App:
             })
             # homographies need more than clean()'s 4 decimals (perspective terms are ~1e-4)
             out["play"]["overlay"] = self.eye.overlay() if self.eye else None
+            out["schema"] = self.STATE_SCHEMA
+            out["avail"] = OPS.availability(self)
+            if lite:
+                for k in self.STATIC_KEYS:
+                    out.pop(k, None)
+                out["params"] = {k: self.params[k] for k in self.LITE_PARAMS if k in self.params}
             return out
 
     def stack_info(self, rid: str) -> dict:
@@ -1770,7 +1791,11 @@ def make_handler(app: App):
                 jpg = feed.latest() if feed else None
                 return self._send(200, jpg, "image/jpeg") if jpg else self._send(404, b"no feed", "text/plain")
             if path == "/state":
-                return self._json(app.state())
+                return self._json(app.state(lite="lite=1" in self.path))
+            if path == "/api/ops":
+                return self._json(OPS.manifest(app))
+            if path == "/api/config":
+                return self._json(app.config())
             if path == "/runs":
                 return self._json(list_runs(app.runs_root))
             if path == "/ball_track":
@@ -1807,6 +1832,10 @@ def make_handler(app: App):
                     raise ValueError("body must be a JSON object")
             except ValueError as e:
                 return self._json({"ok": False, "error": f"bad JSON: {e}"}, 400)
+            if self.path == "/api/op":
+                res = OPS.call(app, body.get("op"), body.get("args", {}))
+                code = 200 if res.get("ok") else {"unknown_op": 404, "bad_args": 400}.get(res.get("code"), 409)
+                return self._json(res, code)
             route = {"/action": app.action, "/params": app.set_params, "/robot": app.robot_op,
                      "/preset": app.preset, "/ballcal": app.ballcal}.get(self.path)
             if route is None:

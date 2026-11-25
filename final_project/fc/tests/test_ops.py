@@ -1,0 +1,142 @@
+"""The operation registry: manifest shape, validation, availability, and /api/op over HTTP."""
+import json
+import time
+import urllib.error
+import urllib.request
+
+import pytest
+
+from fc import ops
+from fc.app import App, serve
+
+
+@pytest.fixture
+def app(tmp_path):
+    a = App("sim", dry_run_ops=True, runs_root=tmp_path / "runs", presets_dir=tmp_path / "presets")
+    yield a
+    a.close()
+
+
+@pytest.fixture
+def server(tmp_path):
+    a = App("sim", dry_run_ops=True, runs_root=tmp_path / "runs", presets_dir=tmp_path / "presets")
+    a.start()
+    srv = serve(a, "127.0.0.1", 0)
+    t0 = time.monotonic()
+    while (a.world is None or len(a.world.robots) < 2) and time.monotonic() - t0 < 3:
+        time.sleep(0.02)
+    yield a, f"http://127.0.0.1:{srv.server_address[1]}"
+    a.close()
+    srv.shutdown()
+
+
+def http(base, path, body=None):
+    req = urllib.request.Request(base + path, json.dumps(body).encode() if body is not None else None,
+                                 {"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return r.status, json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read())
+
+
+def test_manifest_is_complete_and_json(app):
+    m = ops.manifest(app)
+    assert m["version"] == ops.VERSION and json.loads(json.dumps(m)) == m
+    names = [o["name"] for o in m["ops"]]
+    assert len(names) == len(set(names))
+    for o in m["ops"]:
+        assert o["label"] and o["doc"] and o["group"] and o["safety"] in ops.SAFETY
+        for p in o["params"].values():
+            assert p["type"] in ("str", "num", "int", "bool", "robot", "robots", "dict")
+    by = {o["name"]: o for o in m["ops"]}
+    assert by["stop"]["key"] == "Space" and by["estop"]["key"] == "Esc"
+    assert by["match.job"]["params"]["robot"]["choices"] == ["blue", "red"]
+    assert by["robot.ready"]["ask"]
+
+
+def test_keys_are_unique_except_mutually_exclusive_groups(app):
+    keys = {}
+    for o in ops.REGISTRY.values():
+        if o.key:
+            keys.setdefault(o.key, []).append(o.name)
+    shared = {k: v for k, v in keys.items() if len(v) > 1}
+    assert set(shared) == {"P"}, shared            # anything else sharing a key is a bug
+
+
+def test_one_p_op_enabled_in_every_flow_phase(app):
+    p_ops = [o.name for o in ops.REGISTRY.values() if o.key == "P"]
+
+    def enabled():
+        with app.lock:
+            av = ops.availability(app)
+        return [n for n in p_ops if av[n]["enabled"]]
+
+    assert enabled() == ["match.play_here"]            # no match
+    assert ops.call(app, "match.kickoff")["ok"]
+    for phase, want in (("kickoff", "match.start_now"), ("restart", "match.start_now"), ("countdown", "match.pause"),
+                        ("play", "match.pause"), ("goal", "match.pause"), ("paused", "match.resume")):
+        app.flow.phase = phase
+        assert enabled() == [want], phase
+
+
+def test_validation_and_error_codes(app):
+    r = ops.call(app, "nope")
+    assert not r["ok"] and r["code"] == "unknown_op"
+    r = ops.call(app, "match.job", {"robot": "blue"})
+    assert r["code"] == "bad_args" and "missing job" in r["error"]
+    r = ops.call(app, "match.job", {"robot": "blue", "job": "fly", "extra": 1})
+    assert r["code"] == "bad_args" and "job must be one of" in r["error"] and "unknown argument" in r["error"]
+    assert ops.call(app, "match.touch", {"delta": True})["code"] == "bad_args"
+    assert ops.call(app, "match.pause")["code"] == "unavailable"            # availability is enforced
+    assert ops.call(app, "robot.ready", {"robot": "blue"})["code"] == "bad_args"     # confirm required
+    assert ops.call(app, "robot.ready", {"robot": "blue", "confirm": False})["code"] == "bad_args"
+    assert ops.call(app, "params.set", {"values": {"max_vx": 9}})["code"] == "refused"
+
+
+def test_explicit_match_ops_are_deterministic(app):
+    assert ops.call(app, "match.kickoff")["ok"]
+    app.flow.phase = "play"
+    assert ops.call(app, "match.pause")["ok"] and app.flow.phase == "paused"
+    assert ops.call(app, "match.pause")["code"] == "unavailable"             # never a toggle
+    assert ops.call(app, "match.resume")["ok"] and app.flow.phase == "countdown"
+    with app.lock:
+        nxt = ops.availability(app)["match.players"]
+    assert nxt["label"] == "2 players" and nxt["args"] == {"robots": ["blue"]}
+    assert ops.call(app, "match.players", nxt["args"])["playing"] == ["blue"]
+    with app.lock:
+        assert ops.availability(app)["match.players"]["label"] == "BLUE solo"
+    assert ops.call(app, "match.end")["ok"] and app.flow is None
+
+
+def test_estop_unknown_robot_stops_everyone_and_says_so(app):
+    r = ops.call(app, "estop", {"robot": "zzz"})
+    assert r["ok"] and r["robots"] == ["blue", "red"] and "unknown robot" in r["warnings"][0]
+    assert set(app.estops) == {"blue", "red"}
+    assert ops.call(app, "estop.clear")["ok"] and not app.estops
+
+
+def test_api_ops_and_op_over_http(server):
+    app, base = server
+    code, m = http(base, "/api/ops")
+    assert code == 200 and any(o["name"] == "match.kickoff" for o in m["ops"])
+    code, r = http(base, "/api/op", {"op": "match.kickoff", "args": {}})
+    assert code == 200 and r["ok"] and r["op"] == "match.kickoff"
+    assert http(base, "/api/op", {"op": "match.touch", "args": {"delta": 7}})[0] == 400
+    assert http(base, "/api/op", {"op": "nope"})[0] == 404
+    code, r = http(base, "/api/op", {"op": "match.resume"})
+    assert code == 409 and r["code"] == "unavailable"
+    code, r = http(base, "/api/op", {"op": "robot.status", "args": {"robot": "blue"}})
+    assert code == 200 and r["cmd"].startswith("echo DRY-RUN")
+
+
+def test_lite_state_and_config(server):
+    app, base = server
+    code, full = http(base, "/state")
+    code, lite = http(base, "/state?lite=1")
+    assert full["schema"] == lite["schema"] == App.STATE_SCHEMA
+    assert "limits" in full and "limits" not in lite and set(lite["params"]) <= set(App.LITE_PARAMS)
+    assert lite["avail"]["stop"]["enabled"] is True
+    assert len(json.dumps(lite)) < len(json.dumps(full)) * 0.6
+    code, cfg = http(base, "/api/config")
+    assert code == 200 and cfg["params"]["max_vx"] == app.params["max_vx"] and cfg["presets"] == [] and "step_s" in cfg["params"]
