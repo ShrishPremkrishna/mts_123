@@ -261,6 +261,28 @@ class FakeClient:
         return {"ok": True, "applied": body, "errors": []}
 
 
+def test_wait_summary_polls_through_404_until_written(monkeypatch):
+    """summary.json is written on a side thread: a 404 right after the run ends is 'not yet', not a
+    failure (seen as a flaky `drive` exit 1 under CPU load). Other errors still raise."""
+    monkeypatch.setattr(ctl.time, "sleep", lambda s: None)
+
+    class C:
+        def __init__(self, err):
+            self.err, self.gets = err, 0
+
+        def get(self, path):
+            self.gets += 1
+            if self.gets == 1:
+                raise ctl.Fail(self.err)
+            return {"result": "stopped"}
+
+        def state(self):
+            return {}
+    assert ctl.wait_summary(C("HTTP 404 from http://x/runs/r/summary.json"), "r") == {"run": "r", "result": "stopped"}
+    with pytest.raises(ctl.Fail):
+        ctl.wait_summary(C("HTTP 500 from http://x/runs/r/summary.json"), "r")
+
+
 def _batch(tmp_path, text, *flags):
     f = tmp_path / "b.batch"
     f.write_text(text)
@@ -332,9 +354,10 @@ def live(tmp_path):
     srv = serve(app, "127.0.0.1", 0)
     url = f"http://127.0.0.1:{srv.server_address[1]}"
     import time
-    end = time.monotonic() + 3
+    end = time.monotonic() + 30
     while not (app.world and len(app.world.robots) == 2) and time.monotonic() < end:
         time.sleep(0.05)
+    assert app.world and len(app.world.robots) == 2, "sim never delivered both robots"
     yield app, url
     app.close()
     srv.shutdown()
@@ -379,7 +402,14 @@ def test_live_health_stop_and_sim_skips_robot_ops(live, capsys, tmp_path):
     run = lambda *a: ctl.main(["--url", url, *a])  # noqa: E731
     import threading
     import time
-    threading.Timer(0.8, app.stop).start()                          # operator presses space mid-test
+
+    def press_space_mid_test():   # operator presses space once the test is really running (not a fixed delay)
+        end = time.monotonic() + 30
+        while not ((app.test or {}).get("name") == "push_ball") and time.monotonic() < end:
+            time.sleep(0.02)
+        time.sleep(0.3)
+        app.stop()
+    threading.Thread(target=press_space_mid_test, daemon=True).start()
     assert run("test", "push_ball", "--wait") == 3
     assert "HEALTH STOP" in capsys.readouterr().out
     app.dry_run_ops = False                                         # plain sim: ops would ssh the robot
@@ -523,21 +553,50 @@ def test_rollcal_without_rolls_fails(capsys, monkeypatch):
 
 
 def test_rollcal_live_against_sim_app(live, capsys, monkeypatch):
-    """The sim's rolling_ball scenario through the real /ball_track: the fit lands near sim_ball_decel."""
+    """The sim's rolling_ball scenario through the real /ball_track: the fit lands near sim_ball_decel.
+
+    Synchronised on sim state, not wall-clock sleeps: each roll starts once rollcal is polling or the
+    previous ball has stopped, and rollcal ends after 3 rolls (generous --secs as a deadline). The sim
+    stamps sightings with its own capture time (+ a fixed offset): the app's default re-stamps them
+    with the wall clock at each tick, whose jitter under CPU load biased the fit by > 0.15 m/s^2."""
     app, url = live
     monkeypatch.setattr(ctl, "ROLLCAL_POLL_S", 0.2)
     import threading
     import time
+    sim = app.sim
+    with app.lock:
+        off0 = time.monotonic() - sim.t
+        observe = sim.observe
+        monkeypatch.setattr(sim, "observe", lambda now=None: observe(sim.t + off0))
+    polling, done = threading.Event(), threading.Event()
+    ball_track = app.ball_track
+
+    def tracked(since=-math.inf):
+        polling.set()
+        return ball_track(since)
+    monkeypatch.setattr(app, "ball_track", tracked)
+
+    def wait_sim(cond):
+        while not cond() and not done.is_set():
+            time.sleep(0.02)
 
     def roll_some():
-        for _ in range(3):
+        polling.wait(60)
+        while not done.is_set():
             with app.lock:
                 app._reset_sim("rolling_ball")
-            time.sleep(1.6)
+            wait_sim(lambda: math.hypot(*sim.ball[2:]) == 0.0)   # rolled to a stop
+            t_stop = sim.t
+            wait_sim(lambda: sim.t > t_stop + 0.5)              # at rest long enough to end the roll
     th = threading.Thread(target=roll_some, daemon=True)
     th.start()
-    rc = ctl.main(["--url", url, "rollcal", "--secs", "5"])
+    try:
+        rc = ctl.main(["--url", url, "rollcal", "--secs", "120", "--rolls", "3", "--stop-after"])
+    finally:
+        done.set()
     out = capsys.readouterr().out
-    assert rc == 0, out
+    seen = [int(x.split()[0]) for x in out.splitlines() if x.endswith("roll(s) seen")]
+    assert rc == 0 and max(seen, default=0) >= 3, out
     fitted = float(out.split("ROLLCAL ball_decel ")[1].split()[0])
-    assert abs(fitted - app.params["sim_ball_decel"]) < 0.12, out
+    assert abs(fitted - app.params["sim_ball_decel"]) < 0.08, out
+    th.join(5)

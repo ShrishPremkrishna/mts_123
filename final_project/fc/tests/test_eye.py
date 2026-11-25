@@ -6,6 +6,7 @@ second robot is configured but never rendered."""
 import importlib.util
 import math
 import random
+import threading
 import time
 
 import pytest
@@ -180,9 +181,13 @@ def test_frozen_picture_marks_camera_paused():
 
 @needs_cv2
 def test_eye_stops_refreshing_a_frozen_feed():
+    """Frames keep coming but the picture is frozen: the eye itself marks CAMERA PAUSED and its
+    World stops refreshing. Synchronised on events, not wall-clock: the freeze starts once the robot
+    is tracked, and "stops refreshing" is checked over a count of frozen frames the eye consumed
+    (status()["paused"] alone can also flag a merely slow frame on a loaded machine)."""
     field = load_field()
     eye = Eye(field, [BLUE], {}, source="synthetic")
-    src = {}
+    freeze, frozen_reads = threading.Event(), [0]
 
     def freezing():
         s = SyntheticSource(eye.cfg, field, [BLUE], 1920, 1080)
@@ -190,20 +195,25 @@ def test_eye_stops_refreshing_a_frozen_feed():
 
         def frozen_read():
             frame, t = read()
-            if time.monotonic() - s.t0 > 3.0:   # the picture freezes after 3 s, frames keep coming
+            if freeze.is_set():   # the picture freezes on cue, frames keep coming
                 held.setdefault("f", frame)
+                frozen_reads[0] += 1
                 return held["f"].copy(), t
             return frame, t
         s.read = frozen_read
-        src["s"] = s
         return s
     eye._open_source = freezing
     eye.start()
     try:
-        assert _wait(lambda: eye.latest() is not None and eye.latest().robots, 6)
-        assert _wait(lambda: eye.status()["paused"], 6)
-        t_obs = eye.latest().robots["blue"].t
-        time.sleep(0.6)
+        assert _wait(lambda: eye.latest() is not None and eye.latest().robots, 60)
+        freeze.set()
+        assert _wait(lambda: eye.paused, 60)   # the eye thread saw only identical pictures for > FROZEN_S
+        assert eye.status()["paused"]
+        w = eye.latest()
+        t_obs = w.robots["blue"].t if "blue" in w.robots else None
+        n = frozen_reads[0]
+        assert _wait(lambda: frozen_reads[0] >= n + 5, 60)   # 4+ more frozen frames fully handled by the eye...
+        assert eye.latest() is w                               # ...and none of them refreshed the World
         assert eye.latest().robots.get("blue") is None or eye.latest().robots["blue"].t == t_obs
         assert eye.status()["picture_age"] > 0.5 and eye.pauses == 1
     finally:

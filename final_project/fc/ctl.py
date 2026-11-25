@@ -737,7 +737,12 @@ def wait_summary(c: Client, run: str, st: dict | None = None, wait_s: float = 4.
         ls = (st or {}).get("last_summary") or {}
         if ls.get("run") == run:
             return ls
-        s = c.get(f"/runs/{run}/summary.json")
+        try:
+            s = c.get(f"/runs/{run}/summary.json")
+        except Fail as e:   # 404 until the side thread has written it: keep polling
+            if not str(e).startswith("HTTP 404"):
+                raise
+            s = None
         if isinstance(s, dict) and s.get("result"):
             return {"run": run, **s}
         if time.monotonic() > end:
