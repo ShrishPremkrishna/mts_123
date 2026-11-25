@@ -39,7 +39,8 @@ Physics knobs (always on): sim_ball_decel (m/s^2), sim_ball_e_robot, sim_ball_e_
 Scripted human (for one-robot play): `kick(x, y, vx, vy)` places the ball and rolls it now;
 `shoot(tx, ty, v_end, x=None, y=None)` rolls it from (x, y) (default: where it is) so it reaches
 (tx, ty) still moving at v_end; `schedule(t, **shoot_kwargs)` does that at sim time t (with
-`spot=(x, y)`: from the ball if no robot is within 0.45 m of it, else from the spot). Each logs a
+`spot=(x, y)`: from the ball if no robot is within 0.45 m of it, else from the spot). `hide[id or "ball"] = t_until` makes the
+camera miss a robot or the ball until then (a human body in the way; sim_eval vs_human). Each logs a
 "kick" event. Scenarios "return" (first robot upfield, ball at rest in its attack half, a shot at our
 goal at a random 1-4 s) and "rolling_ball" (first robot in its own half, ball rolled across the field
 from a sideline) use them.
@@ -124,6 +125,7 @@ class Sim:
         self.contacts: deque = deque(maxlen=5000)
         self.bumps: deque = deque(maxlen=5000)  # robot-robot first touches: (t, a, b, closing speed)
         self.score = {"blue": 0, "red": 0}
+        self.hide: dict[str, float] = {}  # occlusion: robot id or "ball" -> sim time until which the camera misses it
         self.keep_ball = False  # after a goal: no kickoff reset; the ball rests in the net or bounces back out (autoplay)
         self.reset("kickoff")
 
@@ -420,14 +422,14 @@ class Sim:
                 b.burst_until = self.t + (r.uniform(lo, hi) if hi > lo else lo)
             far = min(1.0, max(0.0, (f.width / 2 - b.y) / f.width))
             pdrop = p["sim_drop_near"] + (p["sim_drop_far"] - p["sim_drop_near"]) * far
-            if self.t < b.burst_until or r.random() < pdrop:
+            if self.t < b.burst_until or self.t < self.hide.get(k, -1.0) or r.random() < pdrop:
                 continue
             bias = math.radians(p["sim_yaw_bias_c_deg"] + p["sim_yaw_bias_a_deg"] * math.cos(b.yaw)
                                 + p["sim_yaw_bias_b_deg"] * math.sin(b.yaw))
             frame_r[k] = Pose(b.x + r.gauss(0, p["sim_pos_noise"]), b.y + r.gauss(0, p["sim_pos_noise"]),
                               wrap(b.yaw + bias + r.gauss(0, math.radians(p["sim_yaw_noise_deg"]))))
         ball = None
-        if r.random() >= p["sim_ball_drop"]:
+        if r.random() >= p["sim_ball_drop"] and self.t >= self.hide.get("ball", -1.0):
             bx, by, vx, vy = self.ball
             n, vn = p["sim_ball_noise"], p["sim_ball_vel_noise"]
             ball = (bx + r.gauss(0, n), by + r.gauss(0, n), vx + r.gauss(0, vn), vy + r.gauss(0, vn))

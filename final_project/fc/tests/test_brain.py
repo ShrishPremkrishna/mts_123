@@ -631,3 +631,93 @@ def test_solo_reach_attacks_a_shot_it_can_meet_first():
     w = mworld(0.0, (0.9, 0.0, 0.0), (0.3, 0.0), (-0.8, 0.0))  # upfield of the ball: cannot get there first
     _, d = Brain(BLUE, F).decide(w, {**q, "solo_reach": 1})
     assert d["role"] == "defend"
+
+
+VH = {**P, "contest": 1, "hard_roles": 1, "ball_decel": 0.149}
+
+
+def feed(b, q, t0, n, B0, v0, me, decel=0.149, dt=1 / 30):
+    """Ball rolling from B0 at v0 under the rolling model, n frames from t0 -> (last (cmd, dbg), t, B, v)."""
+    (x, y), (vx, vy), out = B0, v0, None
+    for i in range(n):
+        out = b.decide(mworld(t0 + i * dt, me, (x, y), (vx, vy)), q)
+        sp = math.hypot(vx, vy)
+        if sp > 0:
+            ns = max(0.0, sp - decel * dt)
+            x, y, vx, vy = x + vx * dt, y + vy * dt, vx * ns / sp, vy * ns / sp
+    return out, t0 + n * dt, (x, y), (vx, vy)
+
+
+def test_contest_knobs_off_by_default():
+    for k in ("contest", "hard_roles", "occl_pose_s", "occl_ball_s", "guard_line_m"):
+        assert DEFAULTS[k] == 0, k
+
+
+def test_contest_flags_touches_the_rolling_model_cannot_explain():
+    b, me = Brain(BLUE, F), (1.0, 0.6, math.pi)
+    (_c, d), t, B, _v = feed(b, VH, 0.0, 30, (-0.3, 0.0), (0.4, 0.0), me)
+    assert d["ball_state"] == "free" and b.touches == 0  # decelerating as modelled: trusted
+    (_c, d), t, B, _v = feed(b, VH, t, 8, B, (-0.2, 0.45), me)  # someone touches it
+    assert d["ball_state"] == "contested" and b.touches == 1
+    (_c, d), t, B, _v = feed(b, VH, t, 45, B, _v, me)  # rolls on untouched
+    assert d["ball_state"] == "free" and b.touches == 1
+
+
+def test_contest_ignores_our_own_push_but_not_a_sideways_kick():
+    b, me = Brain(BLUE, F), (-0.28, 0.0, 0.0)  # right behind the ball
+    q = {**VH, "role_mode": "attack"}
+    (_c, d), t, B, _v = feed(b, q, 0.0, 10, (0.0, 0.0), (0.0, 0.0), me)
+    (_c, d), t, B, _v = feed(b, q, t, 8, B, (0.5, 0.0), me)  # pushed away from us: our touch
+    assert b.touches == 0 and d["ball_state"] == "free"
+    (_c, d), t, B, _v = feed(b, q, t, 8, B, (0.1, 0.5), me)  # kicked sideways: someone else
+    assert b.touches == 1 and d["ball_state"] == "contested"
+
+
+def test_hard_roles_commit_to_defending_until_the_ball_is_clearly_away():
+    b, me = Brain(BLUE, F), (0.8, 0.0, math.pi)  # upfield
+    q = {**VH, "solo_reach": 0}
+    t, B = 0.0, (-0.2, 0.3)
+    for v in ((-0.3, -0.3), (-0.3, 0.3), (-0.3, -0.3)):  # someone dribbles it in our half
+        (_c, d), t, B, _v = feed(b, q, t, 12, B, v, me)
+    assert d["role"] == "defend" and d["ball_state"] == "contested" and "rule" in d
+    t_def = b.role_t
+    (_c, d), t, B, _v = feed(b, q, t, 30, B, (0.0, 0.0), me)  # stops in our half, free: still defending
+    assert d["role"] == "defend" and b.role_t == t_def
+    (_c, d), t, B, _v = feed(b, q, t, 60, (0.7, 0.0), (0.0, 0.0), me)  # ball in the opponent half
+    assert d["role"] == "attack" and t - b.role_t < 2.0 and b.role_t - t_def >= q["hr_hold_s"]
+    b2 = Brain(BLUE, F)  # no contest model: no pressure, the v3 solo rule (no "rule" key)
+    (_c, d), *_ = feed(b2, {**q, "contest": 0}, 0.0, 12, (-0.2, 0.3), (-0.3, -0.3), me)
+    assert "rule" not in d
+
+
+def test_occluded_pose_dead_reckons_slower_then_stops():
+    q = {**DR3, "occl_pose_s": 1.5, "pose_stale_s": 0.6}
+    b, me = Brain(BLUE, F), (-0.8, 0.0, 0.0)
+    for i in range(30):
+        c, d = b.decide(world(i / 30, me=me, ball=(0.0, 0.0)), q)
+    v_seen = c.vx
+    for i in range(30):  # tag hidden from t = 1.0
+        c, d = b.decide(world(1.0 + i / 30, me=me, ball=(0.0, 0.0), me_t=29 / 30), q)
+    assert d["occluded"] == "pose" and 0 < c.vx < v_seen
+    c, d = b.decide(world(2.6, me=me, ball=(0.0, 0.0), me_t=29 / 30), q)
+    assert d["phase"] == "pose_stale" and c.vx == 0.0
+    c, d = Brain(BLUE, F).decide(world(2.0, me=me, ball=(0.0, 0.0), me_t=1.0), {**q, "occl_pose_s": 0.0})
+    assert d["phase"] == "pose_stale"
+
+
+def test_hidden_ball_keeps_the_estimate_then_guards_the_goal_centre():
+    q = {**P, "occl_ball_s": 2.0, "ball_decel": 0.149}
+    me = (-0.5, 0.3, 0.0)
+
+    def w(t, tb):
+        return World(t, Ball(0.2, 0.0, 0.3, 0.0, tb), {"blue": RobotObs("blue", Pose(*me), t)})
+    b = Brain(BLUE, F)
+    for i in range(10):
+        b.decide(w(i / 30, i / 30), q)
+    tl = 9 / 30
+    _c, d = b.decide(w(tl + 1.5, tl), q)
+    assert d["ball_state"] == "occluded" and d["occluded"] == "ball" and d["ball"][0] > 0.4  # rolled on
+    _c, d = b.decide(w(tl + 2.5, tl), q)
+    assert d["phase"] == "hold_goal" and d["role"] == "defend" and abs(d["target"][1]) < 1e-9
+    _c, d = Brain(BLUE, F).decide(w(1.5, 0.0), {**q, "occl_ball_s": 0.0})
+    assert d["phase"].startswith("ball_lost")

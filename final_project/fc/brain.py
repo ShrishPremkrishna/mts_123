@@ -149,6 +149,45 @@ touches worked; clunky turning near the ball and slow recovery after a sideways 
                     way in solo_reach_s (0 once attacking) before it gets there and >= 0.5 s before our goal line
 In dribble mode these are not used: k_turn (except turn in place), push_vx, push_turn_scale, push_lat_tol,
 push_max_heading_deg, k_curve, push_ahead, contact_vx, contact_slow_m (_pace), intercept_*, plan_*.
+
+Contested play (preset vs-human; every knob 0 = off, the brain is then unchanged; rule table in notes/brain.md):
+  contest           1 = classify the ball. Free: it rolls as the ball_decel model says (raw estimate, predictions
+                    trusted, unchanged behaviour). Contested: someone else is touching it, i.e. over ~0.2 s its
+                    velocity changed by more than contest_dv (or it moved 0.25 m off the prediction) on two frames in
+                    a row, not a wall bounce (within contest_wall_m, change along the wall normal), not explained by our own touch (within 0.4 s of being
+                    within contest_self_m of the ball, and the change points away from us). A ball back from > 0.3 s
+                    hidden 0.3 m or contest_dv off the model's prediction also counts.
+                    Contested lasts contest_hold_s after the last such touch. Then: an alpha-beta smoothed ball
+                    (contest_tau_p position, contest_tau_s velocity), prediction horizons capped at
+                    contest_horizon_s, and the target point is committed while we are more than contest_near_m
+                    from the ball: it moves only when the smoothed ball is contest_replan_frac x our gap
+                    (0.05 .. contest_replan_m) away and contest_commit_s passed, or twice that at once. "Pressure" = a foreign touch within press_s
+  hard_roles        1 = solo roles under pressure follow fixed ball-only rules with commitment (see _hard_role):
+                    defend when a shot is predicted at our mouth, or the ball is in our zone (hr_zone x length from
+                    our goal line) and contested or moving at us (> hr_vin); stay defending for >= hr_hold_s and
+                    until the ball is in the opponent half, or free, slower than hr_exit_v and reachable within
+                    hr_exit_eta. A contested ball we are fighting for (gap < hr_stick_m, not beaten) is not left.
+                    Without pressure the v3 solo rule applies unchanged
+  guard_line_m      0 = off. Wide-mouth goalie: a defender within this of its guard line (x) and inside the mouth guards
+                    (slides along the line) however far the guard point is along it, instead of turning to walk there;
+                    the guard heading has a 15 deg deadband and keeps its chosen way round (+-90 deg, hysteresis);
+                    walking back from > 0.4 m it aims at the mouth centre
+                    first, blending to the tracked y over the last 0.8 m (a sliding target swung the heading); a switch
+                    between clearing and guarding holds >= 0.8 s (they want opposite headings); guard / return turns
+                    use the dribble_commit_s turn commitment
+                    Under hard_roles pressure a contested ball in the clear zone is cleared only from goal-side.
+  gk_out            0 = off. The guard point narrows the angle: on the line from our goal centre to the ball, at
+                    gk_out_frac x the ball's distance (between goalie_dist and gk_out, short of the ball); a ball
+                    coming at goal faster than solo_def_vmin is still met where it crosses the guard line
+  occl_pose_s       own tag missing: keep playing on the dead-reckoned pose (commands x occl_gain, the walker's
+                    measured gain) at occl_speed x the command, up to occl_pose_s; then stop. The slow-down starts at
+                    occl_slow_s under pressure, else at pose_stale_s (before that the v3 full-speed prediction runs,
+                    so solo play is unchanged). dbg occluded "pose" from occl_slow_s.
+                    (The app's stale_stop_s must be >= occl_pose_s or it stops the robot first)
+  occl_ball_s       ball missing longer than ball_lead_max_s: keep the last estimate (frozen if contested, rolled
+                    on by the decel model if free) up to occl_ball_s; a defender holds the goal centre meanwhile.
+                    Beyond it the robot holds the goal centre (role defend) instead of standing still (auto/defend
+                    only). dbg["occluded"] = "", "pose", "ball" or "pose+ball"; dbg["ball_state"]
 """
 from __future__ import annotations
 
@@ -195,6 +234,12 @@ DEFAULTS = {
     "dribble_near_m": 0.0, "dribble_line_m": 0.0, "dribble_line_lat": 0.15, "dribble_line_deg": 35, "dribble_line_look": 0.8,
     "dribble_db_deg": 4.0, "dribble_k_vy": 1.5, "dribble_k_head": 2.0, "dribble_commit_s": 0.0, "dribble_commit_wz": 0.8,
     "dribble_shot_m": 0.0, "dribble_shot_close": 1.0, "dribble_shot_deg": 15,
+    "contest": 0, "contest_dv": 0.3, "contest_hold_s": 1.0, "contest_self_m": 0.15, "contest_wall_m": 0.12,
+    "contest_tau_p": 0.05, "contest_near_m": 0.4, "contest_tau_s": 0.4, "contest_horizon_s": 0.5, "contest_commit_s": 0.6,
+    "contest_replan_m": 0.3, "contest_replan_frac": 0.3, "press_s": 8.0,
+    "hard_roles": 0, "hr_zone": 0.5, "hr_vin": 0.1, "hr_hold_s": 2.5, "hr_exit_v": 0.3, "hr_exit_eta": 2.0,
+    "hr_stick_m": 0.35, "guard_line_m": 0.0, "gk_out": 0.0, "gk_out_frac": 0.45,
+    "occl_pose_s": 0.0, "occl_slow_s": 0.3, "occl_speed": 0.6, "occl_gain": 0.9, "occl_ball_s": 0.0,
 }
 
 
@@ -358,6 +403,21 @@ class Brain:
         self.dr_line = False      # dribble: line mode (heading on the push direction, lateral error by vy)
         self.dr_shot = False      # dribble: committed shot
         self.dr_sg, self.dr_flip_t = 0.0, None  # dribble: committed turn direction, start of a pending reversal
+        self.bs: list | None = None  # contest: smoothed ball (x, y, vx, vy) at observation time bs_tobs
+        self.bs_tobs = -1e9
+        self.bs_hist: list = []      # contest: recent raw observations (t, x, y, vx, vy)
+        self.bs_odd = 0              # contest: consecutive frames the rolling model could not explain
+        self.bs_touch_t = -1e9       # contest: last foreign touch (brain time)
+        self.bs_self_t = -1e9        # contest: last time our robot was at the ball ...
+        self.bs_self_u = (1.0, 0.0)  # ... and the direction from it to the ball then
+        self.touches = 0             # contest: foreign touches seen since reset (sim_eval)
+        self.bc: tuple | None = None  # contest: committed target point, set at bc_t
+        self.bc_t = -1e9
+        self.b_state, self.b_press = "free", False  # this tick's ball state, opponent pressure
+        self.hold_goal = False       # defend at the goal centre (ball not visible)
+        self.b_raw: tuple | None = None  # contested: the raw (B, bv), for the goalie
+        self.guard_yaw = 0.0         # wide-mouth goalie: the sideways heading chosen (+-pi/2)
+        self.clear_sw_t = -1e9       # wide-mouth goalie: last clear <-> guard switch
 
     # ------------------------------------------------------------------ entry
     def decide(self, world: World, params: dict) -> tuple[Cmd, dict]:
@@ -366,10 +426,18 @@ class Brain:
         dt = 1.0 / p["loop_hz"] if self.last_t is None else clamp(t - self.last_t, 0.0, 0.25)
         self.last_t = t
         me = world.robots.get(self.cfg.id)
-        if me is None or t - me.t > p["pose_stale_s"]:
+        dr_s = p["occl_pose_s"]
+        if me is None or t - me.t > (max(p["pose_stale_s"], dr_s) if dr_s > 0 else p["pose_stale_s"]):
             self.out, self.hb, self.pushing, self.push_side = Cmd.stop("pose_stale"), None, False, 0.0
             self.hist.clear()
-            return self.out, {"role": "idle", "phase": "pose_stale", "target": None}
+            dbg = {"role": "idle", "phase": "pose_stale", "target": None}
+            if dr_s > 0:
+                dbg["occluded"] = "pose"
+            return self.out, dbg
+        # own tag hidden: under pressure (a human next to us) slow down from occl_slow_s; otherwise v3 keeps its
+        # full-speed prediction up to pose_stale_s (where it used to stop) and slows only after that
+        pose_hid = dr_s > 0 and t - me.t > p["occl_slow_s"] and p["role_mode"] != "goto"
+        pose_occ = pose_hid and (self.b_press or t - me.t > p["pose_stale_s"])
         if 0 < p["coast_s"] < t - me.t and p["role_mode"] != "goto" and (self.out.vx or self.out.vy or self.out.wz):
             # pose too old to steer on: keep going the way we were, slowing down (dead reckoning)
             k = math.exp(-dt / max(1e-3, p["coast_tau_s"]))
@@ -377,7 +445,7 @@ class Brain:
             cmd = self._smooth(Cmd(vx, k * self.out.vy, k * self.out.wz, "coast"), dt, p, t)
             return cmd, {"role": self.role or "idle", "phase": "coast", "target": None,
                          "pose_age": round(t - me.t, 2)}
-        pose = self._predict(self._unbias(me.pose, me.t, p), me.t, t, p)
+        pose = self._predict(self._unbias(me.pose, me.t, p), me.t, t, p, p["occl_gain"] if pose_occ else 1.0)
         others = [o.pose for k, o in world.robots.items()
                   if k != self.cfg.id and t - o.t < p["other_stale_s"]]
         ball = world.ball
@@ -390,17 +458,37 @@ class Brain:
             cmd = self._smooth(want, dt, p, t)
             dbg.update(role="goto", pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)])
             return cmd, dbg
-        if ball is None or t - ball.t > p["ball_stale_s"]:
+        est = self._ball_est(ball, pose, t, p)
+        occ_on = dr_s > 0 or p["occl_ball_s"] > 0
+        occ = "+".join(k for k, v in (("pose", pose_hid), ("ball", self.b_state in ("occluded", "lost"))) if v)
+        self.hold_goal = False
+        if est is None and p["occl_ball_s"] > 0 and p["role_mode"] in ("auto", "defend") and self.bs is not None:
+            # ball unseen too long (under the human?): never stand still, guard the goal centre
+            if self.role != "defend":
+                self.role_t = t
+            self.role, self.hold_goal, self.plan = "defend", True, None
+            want, dbg = self._defend(pose, (self.bs[0], self.bs[1]), (0.0, 0.0), others, p, t)
+            want = self._occ_scale(want, pose_occ, p)
+            cmd = self._smooth(want, dt, p, t)
+            dbg.update(role="defend", phase="hold_goal", occluded=occ, ball_state="lost",
+                       pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)])
+            return cmd, dbg
+        if est is None:
             self.hb, self.pushing, self.push_side = None, False, 0.0
             want = Cmd(0.0, 0.0, p["search_wz"] if p["ball_lost"] == "search" else 0.0, "ball_lost")
             cmd = self._smooth(want, dt, p, t)
-            return cmd, {"role": self.role or "idle", "phase": "ball_lost_" + p["ball_lost"], "target": None}
-        h = clamp(t - ball.t, 0.0, p["ball_lead_max_s"])
-        B = (clamp(ball.x + ball.vx * h, -f.length / 2, f.length / 2),
-             clamp(ball.y + ball.vy * h, -f.width / 2, f.width / 2))
+            dbg = {"role": self.role or "idle", "phase": "ball_lost_" + p["ball_lost"], "target": None}
+            if occ_on:
+                dbg["occluded"] = occ
+            return cmd, dbg
+        B, bv = est
+        if self.b_state == "contested":  # someone else is playing it: short predictions, no deflection snaps
+            hz = p["contest_horizon_s"]
+            p = {**p, "dribble_horizon_s": min(p["dribble_horizon_s"], hz), "intercept_max_s": min(p["intercept_max_s"], hz),
+                 "plan_horizon_s": min(p["plan_horizon_s"], hz), "dribble_cone_deg": 180}
         self.clean = self.clean and math.hypot(pose.x - B[0], pose.y - B[1]) > near_r
-        bv = (ball.vx, ball.vy)
         role, costs = self._role(pose, B, others, t, p, bv)
+        self.hold_goal = role == "defend" and self.b_state == "occluded"
         if role != "attack":
             self.plan = None
             if not self.clearing:
@@ -418,13 +506,21 @@ class Brain:
             if Bi is not B:
                 dbg["intercept"] = [round(Bi[0], 3), round(Bi[1], 3)]
         else:
-            want, dbg = self._defend(pose, B, bv, others, p, t)
+            Bd, bvd = self.b_raw or (B, bv)
+            want, dbg = self._defend(pose, Bd, bvd, others, p, t)
+            if p["guard_line_m"] > 0 and not dbg["phase"].startswith("clear"):  # the dribble turn commitment, also
+                want = Cmd(want.vx, want.vy, self._turn_commit(want.wz, False, t, p), want.tag)  # for the goalie
         want, dbg = self._unstick(pose, want, dbg, t, p)
         if not (p["return_detour"] and dbg["phase"] == "return") and not dbg["phase"].startswith("dr_"):
             want = self._pace(pose, B, want, p)
+        want = self._occ_scale(want, pose_occ, p)
         cmd = self._smooth(want, dt, p, t, accel_vx=p["hb_accel"] if dbg["phase"] in ("charge", "backoff") else None)
         dbg.update(role=role, pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)],
                    ball=[round(B[0], 3), round(B[1], 3)], **costs)
+        if occ_on:
+            dbg["occluded"] = occ
+        if p["contest"] or occ_on:
+            dbg["ball_state"] = self.b_state
         if p["yaw_learn"]:
             dbg["yaw_corr_deg"] = round(math.degrees(self._bias_at(pose.yaw, math.radians(p["yaw_learn_max_deg"]))), 1)
         return cmd, dbg
@@ -494,8 +590,9 @@ class Brain:
                             self.yaw_bias[j] = clamp(self.yaw_bias[j] + r * wj * resid, -lim, lim)
         return Pose(pose.x, pose.y, wrap(pose.yaw + self._bias_at(pose.yaw, lim)))
 
-    def _predict(self, pose: Pose, t_obs: float, t: float, p: dict) -> Pose:
-        """Roll the observed pose forward by commands executed after the camera saw it."""
+    def _predict(self, pose: Pose, t_obs: float, t: float, p: dict, gain: float = 1.0) -> Pose:
+        """Roll the observed pose forward by commands executed after the camera saw it (translation x gain:
+        dead reckoning through a long tag dropout uses the walker's measured gain)."""
         lag = p["act_lag_s"]
         self.hist = [hc for hc in self.hist if hc[0] > t - 2.0]
         fb, fv = math.radians(p["fast_yaw_bias_deg"]), p["fast_yaw_vx"]
@@ -517,10 +614,132 @@ class Brain:
                 continue
             ym = yaw + 0.5 * wz * seg + bias(vx)
             c, s = math.cos(ym), math.sin(ym)
-            x += (c * vx - s * vy) * seg
-            y += (s * vx + c * vy) * seg
+            x += (c * vx - s * vy) * seg * gain
+            y += (s * vx + c * vy) * seg * gain
             yaw += wz * seg
         return Pose(x, y, wrap(yaw + bias(v_now)))
+
+    # ------------------------------------------------------------------ contested ball, occlusion
+    def _ball_est(self, ball, pose: Pose, t: float, p: dict):
+        """(B, bv) for this tick, or None when the ball is lost; sets self.b_state (free / contested / occluded /
+        lost) and self.b_press. With contest and occl_ball_s off this is the plain estimate: the last
+        observation led linearly by its velocity for up to ball_lead_max_s."""
+        f = self.f
+        self.b_raw = None
+        if ball is None:
+            self.b_state = "lost"
+            return None
+        age = t - ball.t
+        soft = p["ball_lead_max_s"]
+        h = clamp(age, 0.0, soft)
+        plain = ((clamp(ball.x + ball.vx * h, -f.length / 2, f.length / 2),
+                  clamp(ball.y + ball.vy * h, -f.width / 2, f.width / 2)), (ball.vx, ball.vy))
+        if not (p["contest"] or p["occl_ball_s"] > 0):
+            self.b_state = "free" if age <= p["ball_stale_s"] else "lost"
+            return plain if age <= p["ball_stale_s"] else None
+        if math.hypot(pose.x - ball.x, pose.y - ball.y) - f.ball_radius - f.robot_radius < p["contest_self_m"]:
+            self.bs_self_t = t  # our own touches are not the opponent's: they push the ball away from us
+            self.bs_self_u = unit(ball.x - pose.x, ball.y - pose.y)
+        if self.bs is None or ball.t > self.bs_tobs + 1e-9:
+            self._ball_obs(ball, t, p)
+        # state as of the last observation (frozen while the ball is hidden)
+        t_ref = min(t, ball.t + soft + 0.2)
+        contested = bool(p["contest"]) and t_ref - self.bs_touch_t < p["contest_hold_s"]
+        self.b_press = bool(p["contest"]) and t_ref - self.bs_touch_t < p["press_s"]
+        x, y, vx, vy = self.bs
+        if age <= soft:
+            if not contested:
+                self.b_state = "free"
+                return plain
+            self.b_state = "contested"
+            self.b_raw = plain  # the goalie tracks the raw ball: lag costs saves, jitter on the line costs nothing
+            return self._commit(self._ball_at((x, y), (vx, vy), h, p), pose, t, p), (vx, vy)
+        lim = p["occl_ball_s"] if p["occl_ball_s"] > 0 else p["ball_stale_s"]
+        if age > lim:
+            self.b_state = "lost"
+            return None
+        if p["occl_ball_s"] <= 0:
+            self.b_state = "free"
+            return plain
+        self.b_state = "occluded"
+        if contested:  # hidden while someone plays it: keep the committed point, no velocity
+            return (self.bc or (x, y)), (0.0, 0.0)
+        sp = math.hypot(vx, vy)  # free: it keeps rolling as the model says
+        ns = max(0.0, sp - p["ball_decel"] * age)
+        return self._ball_at((x, y), (vx, vy), age, p), ((vx * ns / sp, vy * ns / sp) if sp > 1e-6 else (0.0, 0.0))
+
+    def _ball_obs(self, ball, t: float, p: dict) -> None:
+        """New ball observation: alpha-beta smoothing and the foreign-touch test (velocity change over ~0.2 s that
+        the rolling model can't explain, two frames in a row, away from walls and our own touches)."""
+        f = self.f
+        m = (ball.t, ball.x, ball.y, ball.vx, ball.vy)
+        if self.bs is None or ball.t - self.bs_tobs > 1.0:
+            self.bs, self.bs_tobs, self.bs_hist, self.bs_odd = [ball.x, ball.y, ball.vx, ball.vy], ball.t, [m], 0
+            return
+        dt = max(1e-3, ball.t - self.bs_tobs)
+        x, y, vx, vy = self.bs
+        px, py = self._ball_at((x, y), (vx, vy), dt, p)
+        sp = math.hypot(vx, vy)
+        k = max(0.0, sp - p["ball_decel"] * dt) / sp if sp > 1e-6 else 0.0
+        kp, kv = dt / (p["contest_tau_p"] + dt), dt / (p["contest_tau_s"] + dt)
+        self.bs = [px + kp * (ball.x - px), py + kp * (ball.y - py),
+                   k * vx + kv * (ball.vx - k * vx), k * vy + kv * (ball.vy - k * vy)]
+        self.bs_tobs = ball.t
+        self.bs_hist = [o for o in self.bs_hist if o[0] > ball.t - 0.5] + [m]
+        if not p["contest"]:
+            return
+        if dt > 0.3:  # back after a gap (hidden): somewhere the rolling model can't explain -> it was played
+            if (math.hypot(ball.x - px, ball.y - py) > 0.3 or math.hypot(ball.vx - k * vx, ball.vy - k * vy) > p["contest_dv"]) \
+                    and min(f.length / 2 - abs(ball.x), f.width / 2 - abs(ball.y)) > f.ball_radius + p["contest_wall_m"]:
+                self.touches += 1
+                self.bs_touch_t, self.bs_odd = t, 2
+            return
+        old = None
+        for o in self.bs_hist:
+            if o[0] <= ball.t - 0.15:
+                old = o
+        if old is None:
+            return
+        to, ox, oy, ovx, ovy = old
+        d = ball.t - to
+        osp = math.hypot(ovx, ovy)
+        ko = max(0.0, osp - p["ball_decel"] * d) / osp if osp > 1e-6 else 0.0
+        res = math.hypot(ball.vx - ko * ovx, ball.vy - ko * ovy)
+        ex, ey = self._ball_at((ox, oy), (ovx, ovy), d, p)
+        pres = math.hypot(ball.x - ex, ball.y - ey)
+        wm = f.ball_radius + p["contest_wall_m"]
+        dvx, dvy = ball.vx - ko * ovx, ball.vy - ko * ovy
+        wall = False  # a bounce: near a wall, and the change is along that wall's normal
+        for o in self.bs_hist:
+            if o[0] >= to:
+                if f.length / 2 - abs(o[1]) < wm and abs(dvx) > 0.8 * res:
+                    wall = True
+                if f.width / 2 - abs(o[2]) < wm and abs(dvy) > 0.8 * res:
+                    wall = True
+        mine = t - self.bs_self_t <= 0.4 and dvx * self.bs_self_u[0] + dvy * self.bs_self_u[1] > 0.5 * res
+        odd = (res > p["contest_dv"] or pres > 0.25) and not wall and not mine
+        self.bs_odd = self.bs_odd + 1 if odd else 0
+        if self.bs_odd >= 2:
+            self.touches += self.bs_odd == 2
+            self.bs_touch_t = t
+
+    def _commit(self, Bs, pose: Pose, t: float, p: dict):
+        """Contested target point: moves only on a large change (scaled by our distance), at most every
+        contest_commit_s unless the change is twice the threshold."""
+        gap = math.hypot(pose.x - Bs[0], pose.y - Bs[1]) - self.f.ball_radius - self.f.robot_radius
+        thr = clamp(p["contest_replan_frac"] * gap, 0.05, p["contest_replan_m"])
+        jump = math.inf if self.bc is None else math.hypot(Bs[0] - self.bc[0], Bs[1] - self.bc[1])
+        if (gap < p["contest_near_m"] or jump > 2 * thr or (jump > thr and t - self.bc_t >= p["contest_commit_s"])
+                or t - self.bc_t > 3.0):  # at the ball: play it live
+            self.bc, self.bc_t = Bs, t
+        return self.bc
+
+    def _occ_scale(self, want: Cmd, pose_occ: bool, p: dict) -> Cmd:
+        """Own tag missing: carry on with the dead-reckoned plan at occl_speed."""
+        if not pose_occ:
+            return want
+        k = p["occl_speed"]
+        return Cmd(want.vx * k, want.vy * k, want.wz * k, want.tag)
 
     # ------------------------------------------------------------------ roles
     def _cost(self, pose: Pose, B, goal_x: float, p: dict) -> float:
@@ -611,12 +830,54 @@ class Brain:
             return "defend"  # keeper first: leave the goal only for a ball inside the home zone
         return "attack"
 
+    def _hard_role(self, pose: Pose, B, bv, t: float, p: dict) -> tuple[str, str]:
+        """Solo roles under opponent pressure, ball-only signals, with commitment (table in notes/brain.md).
+        Returns (role, reason)."""
+        f = self.f
+        s = 1.0 if self.own_x > 0 else -1.0
+        gl = abs(self.own_x)
+        depth, rdepth = gl - s * B[0], gl - s * pose.x  # ball / robot distance from our goal line
+        approach, sp = s * bv[0], math.hypot(bv[0], bv[1])
+        contested = self.b_state == "contested" or (self.b_state == "occluded" and t - self.bs_touch_t < p["contest_hold_s"] + 1.0)
+        T, y = self._arrival(B, bv, self.own_x, p)
+        shot = (approach > p["solo_def_vmin"] and y is not None and abs(y) < f.goal_width / 2 + p["solo_def_margin"]
+                and T <= p["solo_def_horizon_s"])
+        if self.role == "defend":
+            if t - self.role_t < p["hr_hold_s"]:
+                return "defend", "def_hold"
+            if depth > f.length / 2 + 0.1 and not shot:
+                return "attack", "opp_half"
+            if (not contested and sp < p["hr_exit_v"] and approach < 0.5 * p["solo_def_vmin"]
+                    and self._dr_eta(pose, B, self._dr_dir(B, p), p) <= p["hr_exit_eta"]):
+                return "attack", "free_reach"
+            return "defend", "def_stay"
+        if shot:
+            if not contested and self._reach_first(pose, B, bv, T, p):
+                return "attack", "meet_shot"
+            return "defend", "shot"
+        if depth < p["hr_zone"] * f.length and (contested or approach > p["hr_vin"]):
+            gap = math.hypot(pose.x - B[0], pose.y - B[1]) - f.ball_radius - f.robot_radius
+            if self.role == "attack" and gap < p["hr_stick_m"] and rdepth < depth + 0.1:
+                return "attack", "stick"  # on the ball and goal-side of it: keep fighting for it
+            if not contested and (self._reach_first(pose, B, bv, T, p) or (
+                    rdepth < depth - 0.1 and self._dr_eta(pose, B, self._dr_dir(B, p), p) <= p["hr_exit_eta"])):
+                return "attack", "reach"  # a free ball we get to first (or meet head-on from goal-side)
+            if self.role == "attack" and t - self.role_t < p["solo_hold_s"]:
+                return "attack", "att_hold"
+            return "defend", "zone"
+        return "attack", "attack"
+
     def _role(self, pose: Pose, B, others, t: float, p: dict, bv=(0.0, 0.0)):
         mode = p["role_mode"]
         if mode in ("attack", "defend"):
             self.role = mode
             return mode, {}
         hold = p["role_hold_s"]
+        if not others and p["solo_roles"] and p["hard_roles"] and self.b_press:
+            want, why = self._hard_role(pose, B, bv, t, p)
+            if want != self.role:
+                self.role, self.role_t = want, t
+            return self.role, {"solo": 1, "rule": why}
         if not others:
             want, costs = (self._solo_role(B, bv, p, pose), {"solo": 1}) if p["solo_roles"] else ("attack", {})
             hold = p["solo_hold_s"] if p["solo_roles"] else 0.0
@@ -1178,20 +1439,7 @@ class Brain:
         else:  # curvature times speed, bounded by the lateral-acceleration limit
             wz = kap * max(v, 0.2)
             wz = clamp(wz, -alat / max(v, 0.2), alat / max(v, 0.2))
-        cs = p["dribble_commit_s"]
-        if cs > 0:  # minimum commitment: a turn the other way waits cs (unless it is big, or a turn on the spot)
-            sg = 1.0 if wz > 0 else -1.0
-            if abs(wz) > 0.2 and self.dr_sg and sg != self.dr_sg and not spin:
-                if self.dr_flip_t is None:
-                    self.dr_flip_t = t
-                if t - self.dr_flip_t < cs and abs(wz) < p["dribble_commit_wz"]:
-                    wz = sg * 0.2
-                else:
-                    self.dr_sg, self.dr_flip_t = sg, None
-            else:
-                self.dr_flip_t = None
-                if abs(wz) > 0.2:
-                    self.dr_sg = sg
+        wz = self._turn_commit(wz, spin, t, p)
         vy = 0.0
         if self.dr_line:  # world lateral correction along -n, expressed in the body frame
             vy = clamp(-p["dribble_k_vy"] * le * (-math.sin(pose.yaw) * n[0] + math.cos(pose.yaw) * n[1]),
@@ -1206,6 +1454,25 @@ class Brain:
         if deflect:
             dbg["deflect"] = 1
         return Cmd(v, vy, wz, phase), dbg
+
+    def _turn_commit(self, wz: float, spin: bool, t: float, p: dict) -> float:
+        """Minimum turn commitment (dribble_commit_s): a turn the other way waits that long unless it is big
+        (dribble_commit_wz) or a turn on the spot."""
+        cs = p["dribble_commit_s"]
+        if cs <= 0:
+            return wz
+        sg = 1.0 if wz > 0 else -1.0
+        if abs(wz) > 0.2 and self.dr_sg and sg != self.dr_sg and not spin:
+            if self.dr_flip_t is None:
+                self.dr_flip_t = t
+            if t - self.dr_flip_t < cs and abs(wz) < p["dribble_commit_wz"]:
+                return sg * 0.2
+            self.dr_sg, self.dr_flip_t = sg, None
+        else:
+            self.dr_flip_t = None
+            if abs(wz) > 0.2:
+                self.dr_sg = sg
+        return wz
 
     def _pursuit_point(self, pose: Pose, pl: dict, p: dict):
         """(lookahead point, distance off the path, progress index). Progress only moves forward."""
@@ -1307,25 +1574,51 @@ class Brain:
         depth = gl - s * B[0]  # ball distance in front of own goal line
         hyst = 0.12 if self.clearing else 0.0
         approach = s * bv[0]
-        if (depth < p["clear_depth"] + hyst and abs(B[1]) < f.goal_width / 2 + p["clear_width_extra"] + hyst
-                and approach < p["clear_max_speed"]):
+        # under pressure a contested ball is cleared only from goal-side: walking round it opens the goal
+        side_ok = not (p["hard_roles"] and self.b_press and self.b_state == "contested") or \
+            gl - s * pose.x < depth - (0.0 if self.clearing else 0.05)
+        clear = (not self.hold_goal and side_ok and depth < p["clear_depth"] + hyst
+                 and abs(B[1]) < f.goal_width / 2 + p["clear_width_extra"] + hyst and approach < p["clear_max_speed"])
+        if p["guard_line_m"] > 0 and not self.hold_goal and clear != self.clearing:
+            if t - self.clear_sw_t < 0.8:  # wide-mouth goalie: clear <-> guard flips want opposite headings
+                clear = self.clearing
+            else:
+                self.clear_sw_t = t
+        if clear:
             self.clearing, self.returning = True, False
             cmd, dbg = self._attack(pose, B, others, p, t)
             dbg["phase"] = "clear_" + dbg["phase"]
             return cmd, dbg
         self.clearing, self.pushing, self.hb = False, False, None
         x_line = self.own_x - s * p["goalie_dist"]
-        y_t = B[1]
-        if approach > 0.05:
+        y_t = 0.0 if self.hold_goal else B[1]  # ball not visible: hold the goal centre
+        if approach > 0.05 and not self.hold_goal:
             ty = (x_line - B[0]) / bv[0]
             if 0.0 < ty < 3.0:
                 y_t = B[1] + bv[1] * ty
         lim = f.goal_width / 2 + p["goalie_margin"]
         G = (x_line, clamp(y_t, -lim, lim))
+        go = p["gk_out"]
+        if go > 0 and not self.hold_goal and depth > p["goalie_dist"] + 0.15 and approach < p["solo_def_vmin"]:
+            # narrow the angle: stand on the line from the goal centre to the ball, further out for a further ball
+            cx = self.own_x
+            dB = math.hypot(B[0] - cx, B[1])
+            dg = clamp(p["gk_out_frac"] * dB, p["goalie_dist"], min(go, dB - (f.ball_radius + f.robot_radius + 0.05)))
+            ux, uy = (B[0] - cx) / max(1e-6, dB), B[1] / max(1e-6, dB)
+            G = (cx + ux * dg, clamp(uy * dg, -lim, lim))
+            x_line = G[0]
         dx, dy = G[0] - pose.x, G[1] - pose.y
         dist = math.hypot(dx, dy)
         self.returning = dist > (0.12 if self.returning else p["goalie_reach"])
+        gm = p["guard_line_m"]
+        if gm > 0 and abs(pose.x - x_line) < (gm if self.returning else 1.5 * gm) and abs(pose.y) < lim + 0.1:
+            self.returning = False  # on the line already: slide along it (guard), don't turn and walk
         tgt = [round(G[0], 3), round(G[1], 3)]
+        if self.returning and gm > 0:  # from afar aim at the mouth centre first: a target sliding along a wide mouth
+            w = clamp(1.0 - (dist - 0.4) / 0.8, 0.0, 1.0)  # swings the heading (turn reversals)
+            G = (G[0], G[1] * w)
+            dx, dy = G[0] - pose.x, G[1] - pose.y
+            tgt = [round(G[0], 3), round(G[1], 3)]
         if self.returning:
             dbg = {"phase": "return", "target": tgt}
             K = self._block(pose, B, bv, p) if p["return_block"] and approach > p["solo_def_vmin"] else None
@@ -1344,9 +1637,16 @@ class Brain:
             yaw_des = math.atan2(B[1] - pose.y, B[0] - pose.x)
         else:  # body parallel to the goal line: forward/back walking slides along it
             yaw_des = math.pi / 2 if abs(wrap(pose.yaw - math.pi / 2)) <= math.pi / 2 else -math.pi / 2
+            if gm > 0:  # wide mouth: keep the chosen way round unless clearly the other (no flip-flop at the tie)
+                if self.guard_yaw and abs(wrap(pose.yaw - self.guard_yaw)) < math.pi / 2 + 0.5:
+                    yaw_des = self.guard_yaw
+                self.guard_yaw = yaw_des
         bx, by = to_body(pose, p["k_goalie"] * dx, p["k_goalie"] * dy)
         bx = clamp(bx, -p["goalie_vmax"], p["goalie_vmax"])
-        return Cmd(bx, by, p["k_turn"] * wrap(yaw_des - pose.yaw), "guard"), {"phase": "guard", "target": tgt}
+        herr = wrap(yaw_des - pose.yaw)
+        if gm > 0:  # wide mouth: a heading deadband (15 deg) so gait wobble is not chased with turn reversals
+            herr = math.copysign(max(0.0, abs(herr) - math.radians(15)), herr)
+        return Cmd(bx, by, p["k_turn"] * herr, "guard"), {"phase": "guard", "target": tgt}
 
     def _block(self, pose: Pose, B, bv, p: dict):
         """Earliest point on the ball's path to our goal that we reach before the ball, if the guard line

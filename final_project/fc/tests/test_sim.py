@@ -250,3 +250,18 @@ def test_sim_eval_solo_reports_jitter_and_floor_knobs_exist():
     assert {"rev", "fast", "sq", "n", "replans", "coast", "speed", "touch", "min", "align", "talign", "near_vy",
             "shot"} <= set(st)
     assert st["replans"] >= 1 and st["n"] > 0
+
+
+def test_hide_blinds_the_camera_and_vs_human_smoke():
+    s = Sim(F, ROBOTS, OFF, 0)
+    s.reset("kickoff")
+    s.hide["blue"], s.hide["ball"] = s.t + 0.5, s.t + 0.5
+    t0 = s.t
+    drive(s, {}, 0.3)
+    w = s.observe()
+    assert w.robots["blue"].t <= t0 + 1e-9 and w.ball.t <= t0 + 1e-9 and w.robots["red"].t > t0
+    from fc import sim_eval as se
+    p = {**OFF, "max_vx": 0.75, "contest": 1, "hard_roles": 1, "occl_pose_s": 1.5, "occl_ball_s": 2.0}
+    h = se.vs_human(F, ROBOTS, p, 1, minutes=0.25)
+    assert {"scored", "conceded", "flips_pm", "rev_pm", "exposed", "occ_stall", "rec", "touch_pm"} <= set(h)
+    assert h["touch_pm"] > 0

@@ -247,3 +247,68 @@ Soft touches (close 0.15) under the same curve model: median 11.8 s, moving medi
 | 1v1: goals/3 min, traps | 5.3, 10 | 7.4, 16 | 8.5, 18 |
 
 Alignment is the heading at the first touch of each possession against the direction from the ball to the goal centre. One in ten arrivals is a touch from the wrong side (~145°), and chase arrivals are 12–18° off. Medians at 100 seeds move about ±0.4 s between nearby settings. At 200 seeds the ranking holds: v3 98%, 8.2 s, 12.2 reversals/min; v2 94%, 8.7 s, 22.2.
+
+## Contested play vs a human (2026-11-25, sim only)
+
+Floor game vs a human, dribble v3: 0–3 in 3 min, 30.7 m walked, 66 wz reversals (22 fast), own tag lost 33 times (human
+body over the robot). Preset `config/presets/vs-human.json` = dribble v3 + the knobs below (all default 0 = off; knob
+docs in the brain.py module doc). Without opponent pressure (no foreign touch for `press_s` 8 s) solo play is v3.
+
+- **Ball model** (`contest`): a ball whose velocity changed over ~0.2 s by more than `contest_dv` 0.3 m/s (or 0.25 m off
+  the rolling prediction) on two frames, not a wall bounce (change along the wall normal) and not our push (change
+  pointing away from us within 0.4 s of being at the ball), was touched by someone else: **contested** for 1 s. A ball
+  back from > 0.3 s hidden far from the model's prediction also counts. Contested: alpha-beta smoothed ball, 0.5 s
+  prediction horizon, no deflection snaps, and the target is committed while we are > 0.4 m from the ball. The goalie
+  always tracks the raw ball (smoothing lag cost ~1 goal/3 min). Detection: about 2/3 of the human touches made while the ball is visible;
+  1 false touch in 60 solo runs.
+- **Occlusion:** own tag hidden → dead reckoning on the commands (×0.9 gain) at 0.6× speed up to 1.5 s, then stop (under
+  pressure from 0.3 s; otherwise after `pose_stale_s`, so solo is v3). The preset sets the app's `stale_stop_s` 1.6, or
+  the app stops the robot first (**a robot can walk blind for 1.6 s at reduced speed: watch this on the floor**). Ball
+  hidden → frozen (contested) or rolled on (free) for up to 2 s; a defender holds the goal centre; beyond 2 s the robot
+  guards the goal centre instead of standing still. `dbg.occluded`, `dbg.ball_state`.
+- **Wide-mouth goalie** (`guard_line_m` 0.2; the real mouth is 1.22 m): on the line it slides instead of turning to walk
+  to a guard point that moves along the mouth; 15° heading deadband with a latched sideways heading; returns aim at the
+  mouth centre first; clear ↔ guard holds 0.8 s; defender turns use the 0.3 s turn commitment. These removed the extra
+  fast reversals that defending added (guard/return/clear flip-flops were 2/3 of them).
+- `gk_out` (narrow the angle by coming out on the ball–goal line): no gain (10.2 vs 10.4 against). Off.
+
+**Hard role rules** (`hard_roles`, solo, under pressure; ball-only, no human tag; `dbg.rule`):
+
+| state | condition (checked in order) | → |
+|---|---|---|
+| defending | less than `hr_hold_s` 2.5 s since the switch | defend (`def_hold`) |
+| defending | ball in the opponent half (+0.1 m), no shot coming | attack (`opp_half`) |
+| defending | ball free, < `hr_exit_v` 0.3 m/s, not coming at us, our ETA ≤ `hr_exit_eta` 2 s | attack (`free_reach`) |
+| defending | otherwise | defend (`def_stay`) |
+| attacking | shot predicted at the mouth (+`solo_def_margin`) within 3 s | defend (`shot`), or attack if free and we can stand behind it first (`meet_shot`, solo_reach) |
+| attacking | ball within `hr_zone` 0.5 × length of our goal line and (contested or moving at us > `hr_vin` 0.1) | attack if within `hr_stick_m` 0.35 m of it and goal-side (`stick`), or free and reachable first / met head-on from goal-side (`reach`), or < `solo_hold_s` since the last switch (`att_hold`); else defend (`zone`) |
+| attacking | otherwise | attack |
+
+Defending clears a contested ball near goal only from goal-side (walking round it opened the goal).
+
+**Results** (`--floor25`, errors ON, 80 × 3 min per column, ± = standard error; `sim_eval --scen vshuman` prints both
+profiles; the human model is `sim_eval.HUMAN`, ball-only, with its body hiding the robot/ball for 0.5–2 s while close):
+
+| | dribble v3 | vs-human | vs-human, hard_roles 0 |
+|---|---|---|---|
+| *dominant human* (not put off by robot touches): goals for / against | 0.9 / 17.0 ±0.3 | 0.7 / **15.8** ±0.2 | 0.8 / 17.9 |
+| role switches /min | 21.8 | **18.3** | 23.0 |
+| wz rev / fast rev /min | 16.0 / 2.4 | 19.0 / 3.9 | 16.6 / 2.6 |
+| goal open s/3 min; stalled while hidden; app stale-stop s/3 min | 34; 37%; 17 | **30; 24%; 5** | 36; 34%; 6 |
+| *dribbler human* (robot can win the ball): goals for / against | **6.2** ±0.4 / **9.2** ±0.2 | 3.7 / 10.4 | 5.4 / 9.8 |
+| role switches /min; fast rev /min | 15.3; 2.4 | 15.1; 3.2 | 16.7; 2.6 |
+| solo push ≤40 s / median / p90 (100 seeds) | 98%, 7.7, 17.9 s | 99%, 7.6, 20.7 s | |
+| moving ball hit / goal; goalie saves sideways | 96 / 83; 94% | 96 / 81; 100% | |
+
+What this says:
+- **The commitment pays only against a human who wins the ball anyway** (like the floor game): −1.2 goals against
+  (−7%), −16% role switches, less goal-open time. Against a human the robot can contest, pressing beats keeping:
+  the rules cost 1.7–2.5 goals for and concede ~1 more. In the sim the human dribbles in and scores from close range
+  past a keeper on a 1.22 m mouth (saving more needs a narrower goal, not a role rule). Floor A/B: vs-human vs
+  vs-human with `hard_roles: 0`.
+- **Item 1 (retargeting jank) is not shown by the sim:** the sim gives dribble v3 16–17 reversals/min, 2.4 fast;
+  the floor game had 22 / 7. The contested model did not lower reversals in the sim (the sim human's ball rolls freely
+  between touches, so predictions stay good). The remaining fast reversals sit in the defending phases, which the
+  robot uses much more under the rules. Check on the floor with the run logs (`dbg.ball_state`, `dbg.rule`).
+- **Occlusion:** no stalls from a lost ball (v3: ~8 s per match of `ball_lost_hold`), stale stops 17 → 5 s per 3 min,
+  recovery median 0.17 → 0 s.

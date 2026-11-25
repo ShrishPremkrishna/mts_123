@@ -41,6 +41,12 @@ Rows:
   human's spot if the robot is on the ball). auto: saves. forced (attack until the shot, then defend:
   the return run alone): reached the guard line (+-0.1 m, inside the mouth) within 8 s, median time
   from the shot, and the ball's median time to our goal line for comparison.
+- vshuman (one robot in auto vs the modelled human HUMAN, each profile in HUMANS, `--matches` x `--minutes`; the app's stale stop at
+  stale_stop_s is emulated): goals for / against per 3 min, human shots and touches (touches the brain flagged as
+  foreign), role switches, wz reversals, metres walked, goal open = s per 3 min with the ball in our half and the
+  robot neither on its guard line nor within 0.4 m of the ball; defend off line = role defend but not on the line;
+  stalled while hidden = share of hidden ticks (robot or ball) with the robot standing off its line; recovery =
+  s from the end of a hiding burst until the robot moves (> 0.1 m/s) or is on its line.
 - moving: ball rolled across the field (0.5-1.1 m/s), robot role attack from its own half: first
   touch within 6 s, that touch sends the ball toward the attack goal, goal within 15 s (median s).
 """
@@ -337,6 +343,133 @@ def human_solo(field, robots, params, seed, minutes=3.0):
             "ev": st["ev"], "flips_pm": st["flips"] / minutes, "d2a_pm": st["d2a"] / minutes, "fastwz_pm": st.get("fastwz", 0) / minutes}
 
 
+# Modelled human opponent (ball-only, no body physics): walks to a spot behind the ball (re-aimed every react_s), and
+# when within reach touches it every touch_s: inside shot range of our goal it shoots at the mouth (shot_p per touch),
+# else it dribbles toward our goal (+-35 deg, dodging a robot in the way), sometimes traps it (12%) or boots it (12%).
+# After a robot touch it hesitates after_robot_s. Its body hides the robot / ball from the camera in bursts while
+# close. Profiles: "dribbler" (frequent small touches; the robot can win the ball) and "dominant" (not put off by robot
+# touches: the robot hardly scores, like the Nov 25 floor game, 0-3).
+HUMAN = {"speed": 0.4, "reach": 0.25, "react_s": 0.3, "touch_s": (0.25, 0.5), "after_robot_s": 1.2,
+         "dribble_v": (0.2, 0.45), "boot_v": (0.9, 1.3), "shot_range": (0.6, 1.2), "shot_p": 0.08, "shot_vend": (0.2, 0.6),
+         "hide_robot_r": 0.5, "hide_robot_per_s": 0.3, "hide_ball_r": 0.35, "hide_ball_per_s": 0.3, "hide_s": (0.5, 2.0)}
+HUMANS = {"dribbler": {}, "dominant": {"after_robot_s": 0.3}}
+
+
+def vs_human(field, robots, params, seed, minutes=3.0, human=None):
+    """One robot in auto vs the modelled human (HUMAN). The app's stale stop is emulated: own tag older than
+    stale_stop_s -> stop, the brain is not asked (as in app.py)."""
+    from .core import Cmd
+    hm = {**HUMAN, **(human or {})}
+    p = {"role_mode": "auto", **params}
+    me = robots[0]
+    sim = Sim(field, robots, p, seed)
+    sim.reset("kickoff", robots=[me.id])
+    brain = Brain(me, field)
+    r = random.Random(seed + 11)  # the human's own dice
+    s, xl = _guard_line(field, me.team, p)  # s: side of our goal
+    hl, gw, br = field.length / 2, field.goal_width / 2, field.ball_radius
+    cc = br + field.robot_radius
+    stale = p.get("stale_stop_s", 1.0)
+    H = {"x": -s * 0.7, "y": 0.0, "tx": 0.0, "ty": 0.0, "react": 0.0, "next": 0.0, "robot_t": -9.0,
+         "range": r.uniform(*hm["shot_range"])}
+    st = {"flips": 0, "d2a": 0, "role": None, "dist": 0.0, "exposed": 0, "def_off": 0, "occ": 0, "occ_stall": 0,
+          "stale": 0, "touch": 0, "shots": 0, "hid_r": 0, "hid_b": 0, "rec": [], "occ_end": None, "was_hid": False,
+          "nc": 0}
+    jit = Jitter()
+    for _ in range(int(minutes * 60 / DT)):
+        t = sim.t
+        w = sim.observe()
+        o = w.robots.get(me.id)
+        if o is None or w.t - o.t > stale:
+            c = Cmd.stop("stale")
+            brain.sent(c)
+            st["stale"] += 1
+        else:
+            c, _d = brain.decide(w, p)
+        bot = sim.bots[me.id]
+        bx, by, bvx, bvy = sim.ball
+        paused = sim.pause_until > 0
+        if len(sim.contacts) != st["nc"]:
+            st["nc"] = len(sim.contacts)
+            H["robot_t"] = t
+        # --- the human
+        if paused:
+            H["x"], H["y"], H["next"] = -s * 0.7, 0.0, t + 0.5
+        else:
+            if t >= H["react"]:
+                ux, uy = s * hl - bx, -by
+                d = max(1e-6, math.hypot(ux, uy))
+                H["tx"], H["ty"] = bx - 0.15 * ux / d + 0.3 * bvx, by - 0.15 * uy / d + 0.3 * bvy
+                H["react"] = t + hm["react_s"]
+            dx, dy = H["tx"] - H["x"], H["ty"] - H["y"]
+            d = math.hypot(dx, dy)
+            step = min(d, hm["speed"] * DT)
+            if d > 1e-6:
+                H["x"], H["y"] = H["x"] + dx / d * step, H["y"] + dy / d * step
+            dhb = math.hypot(H["x"] - bx, H["y"] - by)
+            if dhb < hm["reach"] and t >= H["next"] and t - H["robot_t"] >= hm["after_robot_s"]:
+                if hl - s * bx < H["range"] and r.random() < hm["shot_p"]:  # in range: shoot at the mouth
+                    vx, vy = sim.aim(bx, by, s * (hl + br + 0.03), r.uniform(-(gw - br), gw - br), r.uniform(*hm["shot_vend"]))
+                    H["range"] = r.uniform(*hm["shot_range"])
+                    st["shots"] += 1
+                else:
+                    q = r.random()
+                    ang = math.atan2(-by, s * hl - bx) + r.uniform(-0.6, 0.6)
+                    rx, ry = bot.x - bx, bot.y - by
+                    if math.hypot(rx, ry) < 0.7:  # robot in the way: go round it
+                        rel = math.atan2(math.sin(math.atan2(ry, rx) - ang), math.cos(math.atan2(ry, rx) - ang))
+                        if abs(rel) < 0.8:
+                            ang -= math.copysign(1.1, rel)
+                    v = r.uniform(*hm["dribble_v"]) if q < 0.76 else r.uniform(*hm["boot_v"])
+                    vx, vy = (0.1 * bvx, 0.1 * bvy) if q > 0.88 else (v * math.cos(ang), v * math.sin(ang))
+                if sim.kick(bx, by, vx, vy):
+                    st["touch"] += 1
+                H["next"] = t + r.uniform(*hm["touch_s"])
+            # its body hides the robot / the ball
+            if math.hypot(H["x"] - bot.x, H["y"] - bot.y) < hm["hide_robot_r"] and t > sim.hide.get(me.id, -9) + 0.3 \
+                    and r.random() < hm["hide_robot_per_s"] * DT:
+                sim.hide[me.id] = t + r.uniform(*hm["hide_s"])
+                st["hid_r"] += 1
+            if dhb < hm["hide_ball_r"] and t > sim.hide.get("ball", -9) + 0.3 and r.random() < hm["hide_ball_per_s"] * DT:
+                sim.hide["ball"] = t + r.uniform(*hm["hide_s"])
+                st["hid_b"] += 1
+        sim.step({me.id: c}, DT)
+        # --- metrics
+        role = brain.role
+        if st["role"] not in (None, role):
+            st["flips"] += 1
+            st["d2a"] += role == "attack"
+        st["role"] = role
+        jit.add(me.id, c, t)
+        spd = math.hypot(bot.vx, bot.vy)
+        st["dist"] += spd * DT
+        if paused:
+            continue
+        on_line = abs(bot.x - xl) < 0.2 and abs(bot.y) < gw + 0.05
+        gap = math.hypot(bx - bot.x, by - bot.y) - cc
+        st["exposed"] += hl - s * bx < hl and not on_line and gap > 0.4
+        st["def_off"] += role == "defend" and not on_line
+        hid = t < sim.hide.get(me.id, -9) or t < sim.hide.get("ball", -9)
+        busy = spd > 0.1 or on_line
+        if hid:
+            st["occ"] += 1
+            st["occ_stall"] += not busy
+        elif st["was_hid"]:
+            st["occ_end"] = t
+        if st["occ_end"] is not None and not hid and (busy or t - st["occ_end"] > 5.0):
+            st["rec"].append(t - st["occ_end"])
+            st["occ_end"] = None
+        st["was_hid"] = hid
+    goals = [g for g in sim.events if g["type"] == "goal"]
+    k = 3.0 / minutes
+    return {"scored": sum(g["team"] == me.team for g in goals) * k, "conceded": sum(g["team"] != me.team for g in goals) * k,
+            "flips_pm": st["flips"] / minutes, "d2a_pm": st["d2a"] / minutes, "rev_pm": jit.rev / minutes,
+            "fastrev_pm": jit.fast / minutes, "dist": st["dist"] * k, "exposed": st["exposed"] * DT * k,
+            "def_off": st["def_off"] * DT * k, "occ_stall": st["occ_stall"] / max(1, st["occ"]), "rec": st["rec"],
+            "stale": st["stale"] * DT * k, "touch_pm": st["touch"] / minutes, "seen_pm": brain.touches / minutes,
+            "hid_pm": (st["hid_r"] + st["hid_b"]) / minutes, "shots": st["shots"] * k}
+
+
 def return_test(field, robots, params, seed, window=8.0, forced=False):
     """Robot upfield in auto; a human shot at its goal comes at a random 1-4 s. forced: attack until
     the shot, defend from the shot on (the return itself, without the role rule)."""
@@ -427,6 +560,8 @@ def evaluate(seeds: int, errors: bool, minutes: float, matches: int, overrides: 
         _team(out, raw, field, robots, params, seeds, minutes, matches, [])
     if "human" in scen:
         _human(out, raw, field, robots, params, matches, minutes)
+    if "vshuman" in scen:
+        _vshuman(out, raw, field, robots, params, matches, minutes)
     if "return" in scen:
         res = [x for x in (return_test(field, robots, params, 3000 + s) for s in range(seeds)) if x]
         n = max(1, len(res))
@@ -474,6 +609,26 @@ def _human(out, raw, field, robots, params, matches, minutes):
     out["human: right role, shots / rolls"] = (f"{100 * raw['h_right_shot']:.0f}% / "
                                                f"{100 * raw['h_right_roll']:.0f}%")
     out["human: fast wz rev /min"] = f"{raw['h_fastwz']:.1f}"
+
+
+def _vshuman(out, raw, field, robots, params, matches, minutes):
+    for hn, hv in HUMANS.items():
+        ms = [vs_human(field, robots, params, 6000 + s, minutes, human=hv) for s in range(matches)]
+
+        def m(k):
+            return statistics.mean(x[k] for x in ms)
+        rec = [v for x in ms for v in x["rec"]]
+        raw.update({f"vh_{hn}_{k}": v for k, v in (("for", m("scored")), ("against", m("conceded")), ("flips", m("flips_pm")),
+                                                   ("rev", m("rev_pm")), ("fastrev", m("fastrev_pm")), ("exposed", m("exposed")),
+                                                   ("stall", m("occ_stall")), ("rec", _med(rec)))})
+        h = f"vsH {hn[:5]}"
+        out[f"{h} ({matches}x{minutes:g}): goals for/against /3min"] = f"{m('scored'):.1f} / {m('conceded'):.1f}"
+        out[f"{h}: shots /3min, touches /min (seen)"] = f"{m('shots'):.1f}, {m('touch_pm'):.0f} ({m('seen_pm'):.0f})"
+        out[f"{h}: role sw /min, def->att; walked m"] = f"{m('flips_pm'):.1f}, {m('d2a_pm'):.1f}; {m('dist'):.0f}"
+        out[f"{h}: wz rev / fast rev /min"] = f"{m('rev_pm'):.1f} / {m('fastrev_pm'):.1f}"
+        out[f"{h}: goal open s, defend off line s"] = f"{m('exposed'):.0f}, {m('def_off'):.0f}"
+        out[f"{h}: hidden /min, stalled, stale-stop s"] = f"{m('hid_pm'):.0f}, {100 * m('occ_stall'):.0f}%, {m('stale'):.0f}"
+        out[f"{h}: recovery after hidden med/p90 s"] = f"{_med(rec):.2f} / {_pct(rec, 0.9):.1f}"
 
 
 def _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt, solo_only=False):
@@ -586,7 +741,7 @@ def main() -> None:
     ap.add_argument("--set", nargs="*", default=[], metavar="KEY=VALUE", help="override params.json (JSON values)")
     ap.add_argument("--field", nargs="*", default=[], metavar="KEY=VALUE", help="override field.json (numbers)")
     ap.add_argument("--scen", nargs="*", default=["core", "human", "return", "moving"],
-                    help="row groups: core human return moving")
+                    help="row groups: core human return moving solo goalie vshuman")
     ap.add_argument("--floor", action="store_true", help="add the Nov 24 floor errors (FLOOR) to the sim's")
     ap.add_argument("--floor25", action="store_true", help="Nov 25 floor (FLOOR25: new ball, gait 0.88, cap 0.8)")
     ap.add_argument("--lag", nargs="*", type=float, default=[], metavar="S",
