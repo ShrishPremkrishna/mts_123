@@ -4,6 +4,7 @@ import json
 import pytest
 
 from fc.app import App
+from fc.brain import merged
 from fc.core import Ball, World
 
 
@@ -25,7 +26,7 @@ def test_camera_field_size_reaches_brain_referee_flow_and_run_log(tmp_path):
         assert (f.length, f.width, app.field_source) == (3.5, 2.8, "camera")
         for b in app.brains.values():                 # brain geometry reads the same object
             assert b.f is f and abs(b.own_x) == 1.75 and b.att_x == -b.own_x
-            assert b._clamp_field((9, 9), {"field_margin": 0.12}) == pytest.approx((1.63, 1.28))
+            assert b._clamp_field((9, 9), merged({})) == pytest.approx((1.75 - 0.28, 1.40 - 0.28))   # fence margin
         # referee: goal line at the calibrated x, mouth from field.json
         w = lambda x, y: World(t=0.0, ball=Ball(x, y, 0, 0, 0.0))   # noqa: E731
         assert app._goal_events(w(1.60, 0.0), 0.0) == []           # old line (1.34) no longer scores

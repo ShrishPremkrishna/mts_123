@@ -1,13 +1,15 @@
 """Brain unit tests: geometry, roles, safety, shaping. Run from final_project/: pytest fc/tests -q"""
 import math
 
-from fc.brain import Brain, DEFAULTS, dubins_points, dubins_words, seg_dist, shape, to_body, unit
+from fc.brain import DEFAULTS, TUNE, Brain, Coach, merged, seg_dist, shape, to_body, unit
 from fc.core import Ball, Cmd, Field, Pose, RobotCfg, RobotObs, World
 
 F = Field(length=2.63, width=1.93, goal_width=0.61, goal_depth=0.30, ball_radius=0.09, robot_radius=0.18)
+WF = Field(length=3.36, width=2.70, goal_width=1.22, goal_depth=0.30, ball_radius=0.089, robot_radius=0.18)
 BLUE = RobotCfg("blue", "blue", 10, "", "stock")
 RED = RobotCfg("red", "red", 11, "", "stock")
-P = {**DEFAULTS, "yaw_learn": 0, "predict_self": 0}
+P = merged({"fast_yaw_bias_deg": 0.0})   # base speeds; no fast-gait heading correction (geometry tests)
+TASK = {"coach_task": "attack"}         # a Coach task: the vs-human features are off
 
 
 def world(t, me=None, ball=(0.0, 0.0), other=None, me_t=None):
@@ -25,6 +27,11 @@ def run(brain, w_fn, n, params=P, dt=1 / 30):
     for i in range(n):
         out.append(brain.decide(w_fn(i * dt), params))
     return out
+
+
+def test_settings_are_few_and_everything_else_is_fixed_tuning():
+    assert len(DEFAULTS) <= 15 and not set(DEFAULTS) & set(TUNE)
+    assert merged({"max_vx": 0.9})["max_vx"] == 0.9 and merged({})["dribble_close"] == 0.55
 
 
 def test_geometry_helpers():
@@ -53,110 +60,58 @@ def test_wall_ball_push_direction_keeps_stage_inside_field():
     assert B[1] - u[1] * c >= -F.width / 2 + P["field_margin"] - 1e-6
 
 
-def test_push_from_behind_walks_through_ball_and_never_stops():
+def test_clear_push_walks_through_ball():
     b = Brain(BLUE, F)
-    res = run(b, lambda t: world(t, (-0.30, 0.0, 0.0), (0.0, 0.0)), 40)
-    cmd, dbg = res[-1]
-    assert dbg["role"] == "attack" and dbg["phase"] == "push"
-    assert cmd.vx > 0.25 and abs(cmd.wz) < 0.1
+    for i in range(10):
+        cmd, dbg = b._attack(Pose(-0.30, 0.0, 0.0), (0.0, 0.0), [], P, i / 30)
+    assert dbg["phase"] == "push" and cmd.vx > 0.25 and abs(cmd.wz) < 0.1
     assert dbg["target"][0] > 0.0  # aim point is beyond the ball, toward the east goal
 
 
-def test_push_max_heading_off_by_default_pushes_sideways_as_before():
-    assert DEFAULTS["push_max_heading_deg"] == 0
-    cmd, dbg = run(Brain(BLUE, F), lambda t: world(t, (-0.30, 0.0, math.pi / 2), (0.0, 0.0)), 10)[-1]
-    assert dbg["phase"] == "push"
-
-
-def test_push_max_heading_squares_up_and_backs_off_before_pushing():
-    q = {**P, "push_max_heading_deg": 45}
-    cmd, dbg = run(Brain(BLUE, F), lambda t: world(t, (-0.40, 0.0, math.pi / 2), (0.0, 0.0)), 10, q)[-1]
+def test_clear_push_squares_up_and_backs_off_before_pushing():
+    b = Brain(BLUE, F)
+    cmd, dbg = b._attack(Pose(-0.40, 0.0, math.pi / 2), (0.0, 0.0), [], P, 0.0)
     assert dbg["phase"] == "square" and cmd.vx == 0.0 and cmd.wz < -0.3  # turn right toward +x, no walking
     # body within clearance and the ball ahead of it: step back while turning
-    cmd, dbg = run(Brain(BLUE, F), lambda t: world(t, (-0.26, 0.0, math.radians(60)), (0.0, 0.0)), 10, q)[-1]
+    cmd, dbg = Brain(BLUE, F)._attack(Pose(-0.26, 0.0, math.radians(60)), (0.0, 0.0), [], P, 0.0)
     assert dbg["phase"] == "square" and cmd.vx < 0.0 and cmd.wz < 0.0
-    # within the limit: push as before
-    cmd, dbg = run(Brain(BLUE, F), lambda t: world(t, (-0.30, 0.0, math.radians(30)), (0.0, 0.0)), 10, q)[-1]
+    # within push_max_heading_deg: push
+    cmd, dbg = Brain(BLUE, F)._attack(Pose(-0.30, 0.0, math.radians(30)), (0.0, 0.0), [], P, 0.0)
     assert dbg["phase"] == "push"
-
-
-def test_push_side_off_by_default_is_centre_line():
-    assert DEFAULTS["push_side_m"] == 0
-    b = Brain(BLUE, F)
-    cmd, dbg = run(b, lambda t: world(t, (-0.30, 0.05, 0.0), (0.0, 0.0)), 10)[-1]
-    assert "side" not in dbg and b.push_side == 0.0 and abs(dbg["lat"] - 0.05) < 1e-6
-
-
-def test_push_side_auto_picks_current_side_offsets_target_and_latches():
-    q = {**P, "push_side_m": 0.06, "push_side": "auto"}
-    b = Brain(BLUE, F)  # attacks +x: n = +y, robot at y=+0.03 is left of the shot line (ball on its right)
-    cmd, dbg = run(b, lambda t: world(t, (-0.30, 0.03, 0.0), (0.0, 0.0)), 10, q)[-1]
-    assert b.push_side == 1.0 and dbg["side"] == 0.06
-    assert abs(dbg["lat"] - (0.03 - 0.06)) < 1e-6  # lateral error measured from the offset line
-    assert abs(dbg["target"][1] - 0.06) < 1e-6 and dbg["phase"] == "push"
-    # sitting exactly on the offset line: no lateral slide, keeps pushing
-    cmd, dbg = run(b, lambda t: world(t, (-0.25, 0.06, 0.0), (0.0, 0.0)), 5, q)[-1]
-    assert dbg["phase"] == "push" and abs(dbg["lat"]) < 1e-6 and abs(cmd.vy) < 1e-6
-    # hysteresis: drifting across the centre line mid-push (still within 2*tol of the offset line) keeps the side
-    cmd, dbg = run(b, lambda t: world(t, (-0.25, -0.05, 0.0), (0.0, 0.0)), 5, q)[-1]
-    assert b.push_side == 1.0 and dbg["phase"] == "push"
-    # ball lost resets; the next approach from the other side picks the other side
-    b.decide(world(10.0, (-0.3, -0.05, 0.0), None), q)
-    assert b.push_side == 0.0
-    cmd, dbg = run(b, lambda t: world(20 + t, (-0.30, -0.03, 0.0), (0.0, 0.0)), 5, q)[-1]
-    assert b.push_side == -1.0 and abs(dbg["target"][1] + 0.06) < 1e-6
-
-
-def test_push_side_auto_on_line_uses_heading_and_fixed_sides():
-    q = {**P, "push_side_m": 0.06}
-    b = Brain(BLUE, F)
-    b.decide(world(0.0, (-0.30, 0.0, 0.2), (0.0, 0.0)), q)  # facing left of +x: drifts to +y
-    assert b.push_side == 1.0
-    b = Brain(BLUE, F)
-    b.decide(world(0.0, (-0.30, 0.0, -0.2), (0.0, 0.0)), q)
-    assert b.push_side == -1.0
-    for side, want in (("left", -1.0), ("right", 1.0)):
-        b = Brain(BLUE, F)
-        b.decide(world(0.0, (-0.30, 0.04, 0.0), (0.0, 0.0)), {**q, "push_side": side})
-        assert b.push_side == want
-
-
-def test_push_side_route_phase_unlatches():
-    q = {**P, "push_side_m": 0.06}
-    b = Brain(BLUE, F)
-    b.decide(world(0.0, (-0.30, 0.03, 0.0), (0.0, 0.0)), q)
-    assert b.push_side == 1.0
-    cmd, dbg = run(b, lambda t: world(1 + t, (0.4, 0.0, math.pi), (0.0, 0.0)), 3, q)[-1]
-    assert dbg["phase"] == "route" and b.push_side == 0.0
 
 
 def test_wrong_side_routes_around_with_clearance():
     b = Brain(BLUE, F)
-    cmd, dbg = run(b, lambda t: world(t, (0.40, 0.0, math.pi), (0.0, 0.0)), 5)[-1]
+    cmd, dbg = b._attack(Pose(0.40, 0.0, math.pi), (0.0, 0.0), [], P, 0.0)
     assert dbg["phase"] == "route"
     tx, ty = dbg["target"]
     clear = F.ball_radius + F.robot_radius + P["clear_margin"]
     assert math.hypot(tx, ty) >= clear  # waypoint is outside the ball clearance circle
     assert seg_dist((0.40, 0.0), (tx, ty), (0.0, 0.0)) > F.robot_radius
+    _, dbg = Brain(BLUE, F).decide(world(0.0, (0.40, 0.0, math.pi), (0.0, 0.0)), P)
+    assert dbg["role"] == "attack" and dbg["phase"] == "dr_route"   # the dribble attack orbits the same way
 
 
-def test_stale_pose_stops_immediately():
+def test_stale_pose_stops():
     b = Brain(BLUE, F)
     run(b, lambda t: world(t, (-0.3, 0.0, 0.0)), 30)
-    cmd, dbg = b.decide(world(2.0, (-0.3, 0.0, 0.0), me_t=2.0 - P["pose_stale_s"] - 0.05), P)
+    # vs a human the robot keeps going on its dead-reckoned pose up to occl_pose_s; with a Coach task to pose_stale_s
+    cmd, dbg = b.decide(world(2.0, (-0.3, 0.0, 0.0), me_t=2.0 - P["occl_pose_s"] - 0.05), P)
     assert cmd == Cmd.stop("pose_stale") and dbg["role"] == "idle"
+    cmd, dbg = Brain(BLUE, F).decide(world(2.0, (-0.3, 0.0, 0.0), me_t=2.0 - P["pose_stale_s"] - 0.05), {**P, **TASK})
+    assert cmd == Cmd.stop("pose_stale")
     cmd, dbg = b.decide(World(2.1, Ball(0, 0, t=2.1), {}), P)  # robot missing entirely
     assert (cmd.vx, cmd.vy, cmd.wz) == (0.0, 0.0, 0.0)
 
 
-def test_ball_lost_hold_and_search():
-    b = Brain(BLUE, F)
-    run(b, lambda t: world(t, (-0.6, 0.0, 0.0)), 30)
-    res = run(b, lambda t: world(1.0 + t, (-0.6, 0.0, 0.0), ball=None), 60)
+def test_ball_lost_holds_still():
+    s = Brain(BLUE, F)   # never seen a ball: stand still
+    res = run(s, lambda t: world(t, (-0.6, 0.0, 0.0), ball=None), 30)
     assert res[-1][1]["phase"] == "ball_lost_hold" and abs(res[-1][0].vx) < 1e-9
-    s = Brain(BLUE, F)
-    res = run(s, lambda t: world(t, (-0.6, 0.0, 0.0), ball=None), 60, {**P, "ball_lost": "search"})
-    assert abs(res[-1][0].wz - P["search_wz"]) < 1e-9
+    b = Brain(BLUE, F)   # with a Coach task a lost ball is a stop (vs a human: guard the goal centre, below)
+    run(b, lambda t: world(t, (-0.6, 0.0, 0.0)), 30, {**P, **TASK})
+    res = run(b, lambda t: world(1.0 + t, (-0.6, 0.0, 0.0), ball=None), 60, {**P, **TASK})
+    assert res[-1][1]["phase"] == "ball_lost_hold" and abs(res[-1][0].vx) < 1e-9
 
 
 def test_clamps_and_rate_limits():
@@ -177,35 +132,14 @@ def test_auto_one_robot_means_attack():
     assert dbg["role"] == "attack"
 
 
-def test_role_hysteresis_and_hold():
-    q = {**P, "role_tau_s": 0.01, "role_hold_s": 2.0, "role_hyst_s": 1.0}
-    b = Brain(BLUE, F)
-    ball = (0.3, 0.0)
-    # I am right behind the ball; the opponent is far and facing away -> attack
-    _, d = b.decide(world(0.0, (0.0, 0.0, 0.0), ball, other=(1.2, 0.8, 0.0)), q)
-    assert d["role"] == "attack"
-    # opponent now right behind the ball for its own attack, I am far away facing the wrong way,
-    # but the hold time has not passed -> still attack
-    far = (-1.0, 0.8, math.pi)
-    _, d = b.decide(world(0.5, far, ball, other=(0.62, 0.0, math.pi)), q)
-    assert d["role"] == "attack"
-    _, d = b.decide(world(2.6, far, ball, other=(0.62, 0.0, math.pi)), q)
-    assert d["role"] == "defend"
-    # inside the hysteresis band a defender returns to attack only when it is not slower
-    my, opp = b._cost(Pose(*far), ball, b.att_x, q), b._cost(Pose(0.62, 0.0, math.pi), ball, b.own_x, q)
-    assert my > opp
-
-
-def test_defend_goalie_line_and_clamp():
+def test_defend_goalie_line_and_mouth_clamp():
     b = Brain(BLUE, F)
     q = {**P, "role_mode": "defend"}
     gx = -F.length / 2 + q["goalie_dist"]
-    res = run(b, lambda t: world(t, (gx, 0.2, math.pi / 2), (0.3, 0.9)), 10, q)
-    cmd, d = res[-1]
-    assert d["role"] == "defend" and d["phase"] == "guard"
-    assert abs(d["target"][0] - gx) < 1e-6
-    assert abs(d["target"][1] - (F.goal_width / 2 + q["goalie_margin"])) < 1e-6  # clamped to the mouth
-    assert cmd.vx > 0  # sideways style: body faces north, so moving north is forward walking
+    for cmd, d in run(b, lambda t: world(t, (gx, 0.0, math.pi / 2), (gx + 0.5, 0.9)), 10, q):
+        assert d["role"] == "defend" and d["phase"] == "guard"
+        assert abs(d["target"][0] - gx) < 1e-6 and abs(d["target"][1]) <= F.goal_width / 2 - q["gk_edge_m"] + 1e-6
+    assert cmd.vx > 0  # sideways body faces north: moving north toward the ball's side is forward walking
 
 
 def test_defend_clears_ball_in_front_of_goal():
@@ -213,14 +147,6 @@ def test_defend_clears_ball_in_front_of_goal():
     q = {**P, "role_mode": "defend"}
     _, d = b.decide(world(0.0, (-1.0, 0.0, 0.0), (-0.95, 0.1)), q)
     assert d["phase"].startswith("clear_")
-
-
-def test_headbutt_lines_up_then_charges():
-    b = Brain(BLUE, F)
-    q = {**P, "contact_mode": "headbutt"}
-    sd = F.ball_radius + F.robot_radius + q["hb_standoff"]
-    phases = [d["phase"] for _, d in run(b, lambda t: world(t, (-sd - 0.02, 0.0, 0.0), (0.0, 0.0)), 5, q)]
-    assert "charge" in phases
 
 
 def test_opponent_repulsion_steers_away():
@@ -259,12 +185,12 @@ def test_orbit_side_is_held_near_wall():
     assert len(sides) == 1
 
 
-def test_route_waypoint_clamped_inside_field():
+def test_route_waypoint_clamped_inside_the_fence_margin():
     b = Brain(BLUE, F)
     B = (0.2, F.width / 2 - 0.12)
     _, d = b.decide(world(0.0, (0.5, F.width / 2 - 0.2, math.pi), B), P)
-    assert d["phase"] == "route"
-    assert abs(d["target"][1]) <= F.width / 2 - P["field_margin"] + 1e-6
+    assert d["phase"] == "dr_route"
+    assert abs(d["target"][1]) <= F.width / 2 - P["wall_margin_m"] + 1e-6
 
 
 def test_goto_mode_reaches_then_turns_then_stops():
@@ -280,31 +206,7 @@ def test_goto_mode_reaches_then_turns_then_stops():
     assert d["done"]  # no heading requested
 
 
-def test_yaw_learn_off_by_default_and_bounded():
-    assert DEFAULTS["yaw_learn"] == 0 and DEFAULTS["yaw_learn_rate"] == 0.02
-    b = Brain(BLUE, F)
-    b.yaw_off, b.yaw_bias = math.radians(30), [math.radians(30)] * 8
-    assert abs(b._bias_at(0.3, math.radians(DEFAULTS["yaw_learn_max_deg"]))) <= math.radians(20) + 1e-9
-    b.reset(forget_yaw=True)
-    assert b.yaw_off == 0.0 and not any(b.yaw_bias)
-
-
-def test_yaw_learn_skips_push_and_learns_clean_walk():
-    q = {**P, "yaw_learn": 1, "yaw_learn_rate": 0.05, "predict_self": 0}
-    bias = math.radians(10)
-    # pushing the ball: never learns
-    b = Brain(BLUE, F)
-    run(b, lambda t: world(t, (-0.3 + 0.27 * t, 0.0, bias), (0.0 + 0.27 * t, 0.0)), 90, q)
-    assert b.yaw_off == 0.0 and not any(b.yaw_bias)
-    # clean straight walk east (ball far away, nobody close), tag reads 10 deg left: learns toward -10
-    c = Brain(BLUE, F)
-    q2 = {**q, "role_mode": "goto", "goto_x": 1.2, "goto_y": 2.2 * math.tan(bias)}  # straight ahead by the tag
-    run(c, lambda t: world(t, (-1.0 + 0.25 * t, 0.0, bias), (0.9, 0.8)), 90, q2)
-    assert -math.radians(20) <= c._bias_at(bias) < -math.radians(1)
-
-
-FAST = {**P, "max_vx": 0.75, "max_wz": 2.0, "accel_vx": 1.2, "decel_vx": 2.0, "push_vx": 0.75,
-        "contact_vx": 0.4, "contact_slow_m": 0.35}
+FAST = {**P, "max_vx": 0.75, "max_wz": 2.0, "accel_vx": 1.2, "decel_vx": 2.0}
 
 
 def test_fast_mode_skips_the_gait_band_and_cruises():
@@ -325,13 +227,11 @@ def test_fast_mode_skips_the_gait_band_and_cruises():
     assert c._gait(Cmd(0.7, 0, 0), 0.7, FAST).vx == 0.7
 
 
-def test_fast_mode_slows_to_contact_speed_near_the_ball():
+def test_pace_caps_the_closing_speed_near_the_ball():
     b = Brain(BLUE, F)
     c = F.ball_radius + F.robot_radius
-    res = run(b, lambda t: world(t, (-c - 0.02, 0.0, 0.0), (0.0, 0.0)), 60, FAST)
-    cmd, dbg = res[-1]
-    assert dbg["phase"] == "push" and 0.3 < cmd.vx <= FAST["contact_vx"] + 0.02 * 0.35 / 0.35 + 1e-6
-    assert b._pace(Pose(-c - 0.5, 0, 0), (0.0, 0.0), Cmd(0.75, 0, 0), FAST).vx == 0.75  # outside the zone
+    assert b._pace(Pose(-c - 0.01, 0, 0), (0.0, 0.0), Cmd(0.75, 0, 0), FAST).vx < FAST["contact_vx"] + 0.02
+    assert b._pace(Pose(-c - 0.6, 0, 0), (0.0, 0.0), Cmd(0.75, 0, 0), FAST).vx == 0.75  # outside the zone
     assert b._pace(Pose(-c - 0.1, 0, math.pi), (0.0, 0.0), Cmd(0.75, 0, 0), FAST).vx == 0.75  # ball behind
 
 
@@ -344,12 +244,12 @@ def test_decel_brakes_faster_than_accel():
 
 
 def test_goalie_speed_cap():
-    b = Brain(BLUE, F)
-    q = {**FAST, "role_mode": "defend", "k_goalie": 6.0, "goalie_vmax": 0.45}
-    gx = -F.length / 2 + q["goalie_dist"]
-    for cmd, d in run(b, lambda t: world(t, (gx, 0.1, math.pi / 2), (0.3, 0.9)), 30, q):
+    b = Brain(BLUE, WF)
+    q = {**FAST, "role_mode": "defend", "goalie_vmax": 0.45}
+    gx = -WF.length / 2 + q["goalie_dist"]
+    for cmd, d in run(b, lambda t: world(t, (gx, -0.15, math.pi / 2), (gx + 0.6, 0.5)), 30, q):
         assert d["phase"] == "guard" and cmd.vx <= 0.45 + 1e-9
-    assert cmd.vx > 0.44  # k_goalie * 0.255 m wants 1.5 m/s
+    assert cmd.vx > 0.44  # k_goalie * 0.6 m wants 3.6 m/s
 
 
 def mworld(t, me, ball, bv=(0.0, 0.0)):
@@ -358,17 +258,17 @@ def mworld(t, me, ball, bv=(0.0, 0.0)):
 
 
 def test_solo_defends_a_ball_rolling_at_goal_and_attacks_otherwise():
-    q = {**P, "solo_hold_s": 1.0}
+    q = {**P, "solo_hold_s": 2.0}   # (observations > 1 s apart: the contested-ball model restarts, no "touches")
     b = Brain(BLUE, F)
     me = (0.6, 0.0, 0.0)  # upfield, facing the attack goal
     _, d = b.decide(mworld(0.0, me, (0.3, 0.0)), q)
     assert d["role"] == "attack"  # resting ball in midfield
-    _, d = b.decide(mworld(1.1, me, (0.3, 0.0), (-1.5, 0.05)), q)
+    _, d = b.decide(mworld(2.1, me, (0.3, 0.0), (-1.5, 0.05)), q)
     assert d["role"] == "defend"  # reaches our goal line well inside the horizon
-    _, d = b.decide(mworld(1.5, me, (-0.2, 0.0)), q)
+    _, d = b.decide(mworld(3.2, me, (-0.2, 0.0)), q)
     assert d["role"] == "defend"  # ball stopped, but the hold has not passed
-    _, d = b.decide(mworld(2.2, me, (-0.2, 0.0)), q)
-    assert d["role"] == "attack"
+    _, d = b.decide(mworld(4.3, me, (-0.2, 0.0)), q)
+    assert d["role"] == "attack" and "rule" not in d   # no pressure: the plain solo rule
     for bv in ((0.8, 0.0), (-0.6, 0.9)):  # rolling away; rolling toward our end but well wide of the mouth
         b = Brain(BLUE, F)
         _, d = b.decide(mworld(0.0, me, (0.3, 0.0), bv), q)
@@ -376,12 +276,6 @@ def test_solo_defends_a_ball_rolling_at_goal_and_attacks_otherwise():
     b = Brain(BLUE, F)  # slow but moving inside our third: defend
     _, d = b.decide(mworld(0.0, me, (-0.9, 0.3), (-0.2, 0.0)), q)
     assert d["role"] == "defend"
-
-
-def test_solo_roles_off_always_attacks():
-    b = Brain(BLUE, F)
-    _, d = b.decide(mworld(0.0, (0.6, 0.0, 0.0), (0.3, 0.0), (-1.5, 0.0)), {**P, "solo_roles": 0})
-    assert d["role"] == "attack"
 
 
 def test_ball_prediction_decelerates_and_stops():
@@ -392,23 +286,6 @@ def test_ball_prediction_decelerates_and_stops():
     T, y = b._arrival((0.0, 0.0), (-1.0, 0.0), -0.75, q)
     assert abs(T - 1.0) < 1e-9 and y == 0.0
     assert b._arrival((0.0, 0.0), (-1.0, 0.0), -1.2, q)[0] == math.inf  # stops 1 m out
-
-
-def test_attacker_aims_where_a_moving_ball_will_be():
-    q = {**P, "intercept_max_s": 2.0}
-    b = Brain(BLUE, F)
-    _, d = b.decide(mworld(0.0, (-0.8, -0.3, 0.0), (0.0, -0.6), (0.0, 0.7)), q)
-    assert d["role"] == "attack" and d["intercept"][1] > -0.6 + 0.3  # well ahead of the ball, capped by its stop
-    assert d["intercept"][1] <= -0.6 + 0.7 ** 2 / (2 * q["ball_decel"]) + 1e-6
-    b = Brain(BLUE, F)
-    _, d = b.decide(mworld(0.0, (-0.8, -0.3, 0.0), (0.0, -0.6), (0.0, 0.05)), q)
-    assert "intercept" not in d  # slow ball: aim at the ball
-    b = Brain(BLUE, F)
-    _, d = b.decide(mworld(0.0, (-0.35, 0.0, 0.0), (0.0, 0.0), (0.5, 0.0)), q)
-    assert "intercept" not in d  # at the ball (dribbling): play the ball itself
-    b = Brain(BLUE, F)
-    _, d = b.decide(mworld(0.0, (-0.8, -0.3, 0.0), (0.0, -0.6), (0.0, 0.7)), {**q, "intercept_max_s": 0})
-    assert "intercept" not in d
 
 
 def test_return_goes_round_a_slow_ball_and_backs_while_turning():
@@ -433,104 +310,22 @@ def test_block_steps_into_the_ball_path_when_the_line_is_too_far():
     assert b._block(Pose(-1.0, 0.0, math.pi / 2), (0.8, 0.0), (-1.6, 0.0), q) is None  # line is reachable
 
 
-# ---------------------------------------------------------------- plan mode, coast, fast-gait heading bias
-PL = {**P, "plan": 1, "max_vx": 0.75, "push_vx": 0.75, "contact_vx": 0.3, "contact_slow_m": 0.5, "max_wz": 2.0}
-
-
-def test_dubins_paths_reach_the_goal_pose():
-    q0, q1 = (0.1, -0.2, 2.5), (-0.6, 0.4, -0.3)
-    words = dubins_words(q0, q1, 0.3)
-    assert words and sum(words[0][1]) <= sum(words[-1][1])
-    for word, seg in words:
-        pts = dubins_points(q0, word, seg, 0.3)
-        assert math.hypot(pts[-1][0] - q1[0], pts[-1][1] - q1[1]) < 0.01
-        hx, hy = pts[-1][0] - pts[-2][0], pts[-1][1] - pts[-2][1]
-        assert abs(math.atan2(math.sin(math.atan2(hy, hx) - q1[2]), math.cos(math.atan2(hy, hx) - q1[2]))) < 0.2
-
-
-def test_plan_off_by_default():
-    assert DEFAULTS["plan"] == 0 and DEFAULTS["coast_s"] == 0 and DEFAULTS["fast_yaw_bias_deg"] == 0
-    _, d = Brain(BLUE, F).decide(mworld(0.0, (0.6, 0.3, 0.0), (0.0, 0.0)), P)
-    assert d["phase"] == "route" and "plan" not in d
-
-
-def test_plan_from_the_wrong_side_goes_round_and_ends_on_the_shot_line():
-    b = Brain(BLUE, F)
-    _, d = b.decide(mworld(0.0, (0.6, 0.1, math.pi), (0.0, 0.0)), PL)
-    assert d["phase"] in ("plan", "plan_turn") and b.replans == 1
-    pts = b.plan["pts"]
-    c = F.ball_radius + F.robot_radius
-    clear = c + PL["clear_margin"]
-    for x, y in pts:  # off the shot line (the run-up and the push), clear of the ball
-        assert math.hypot(x, y) >= clear - 1e-6 or x < -0.5 * c or abs(y) < 0.01
-    stage = [q for q in pts if abs(q[1]) < 0.01 and q[0] < -c]
-    assert stage and min(q[0] for q in stage) <= -(c + PL["plan_stage_m"]) + 0.01  # run-up along the shot line
-    assert pts[-1][0] > 0.2 and abs(pts[-1][1]) < 0.01  # and on through the ball toward the east goal
-
-
-def test_plan_commits_through_noise_and_replans_when_the_ball_moves():
-    b = Brain(BLUE, F)
-    for i in range(45):  # 1.5 s of tag noise (+-2 cm, +-3 deg) and a jittering ball (+-1 cm)
-        n = (-1) ** i
-        b.decide(mworld(i / 30, (-0.9 + 0.02 * n, 0.5, -0.4 + 0.05 * n), (0.0, 0.01 * n)), PL)
-    assert b.replans == 1
-    for i in range(45, 70):  # the ball is moved 0.4 m
-        b.decide(mworld(i / 30, (-0.9, 0.5, -0.4), (0.0, -0.4)), PL)
-    assert b.replans == 2 and abs(b.plan["P"][1] + 0.4) < 0.02
-
-
-def test_plan_runs_to_where_a_rolling_ball_will_be():
-    b = Brain(BLUE, F)
-    _, d = b.decide(mworld(0.0, (-0.9, -0.5, 0.5), (-0.2, 0.6), (0.0, -0.6)), PL)
-    P = d["intercept"]
-    assert P[1] < 0.6 - 0.2 and abs(P[0] + 0.2) < 0.02  # well ahead of the ball along its path
-    assert 0.6 - P[1] <= 0.6 ** 2 / (2 * PL["ball_decel"]) + 1e-6  # no further than where it stops rolling
-
-
-def test_plan_line_zone_slides_off_a_small_lateral_error():
-    b = Brain(BLUE, F)
-    cmd, d = run(b, lambda t: mworld(t, (-0.45, 0.06, 0.0), (0.0, 0.0)), 10, PL)[-1]
-    assert d["phase"] in ("line", "push") and cmd.vy < -0.05 and abs(cmd.wz) < 0.3 and cmd.vx > 0.1
-
-
-def test_coast_keeps_going_slower_on_a_stale_pose_then_stops():
-    q = {**P, "coast_s": 0.3, "coast_vx": 0.25, "pose_stale_s": 1.0, "max_vx": 0.75, "gait_band": 0}
-    b = Brain(BLUE, F)
-    b.out = Cmd(0.6, 0.0, 0.8)
-    outs = [b.decide(world(0.4 + i / 30, (-0.8, 0.0, 0.0), me_t=0.0), q) for i in range(12)]
-    assert all(d["phase"] == "coast" for _, d in outs)
-    vx = [c.vx for c, _ in outs]
-    wz = [c.wz for c, _ in outs]
-    assert vx[0] < 0.6 and vx[-1] < vx[0] and vx[-1] > 0.25 and wz[-1] < wz[0] < 0.8
-    cmd, d = b.decide(world(1.1, (-0.8, 0.0, 0.0), me_t=0.0), q)
-    assert d["phase"] == "pose_stale" and cmd.vx == 0.0
-    b = Brain(BLUE, F)  # coast off: steers on the old pose as before
-    _, d = b.decide(world(0.4, (-0.8, 0.0, 0.0), me_t=0.0), {**q, "coast_s": 0})
-    assert d["phase"] != "coast"
-
-
 def test_fast_yaw_bias_applies_only_in_the_fast_gait():
-    q = {**P, "predict_self": 1, "act_lag_s": 0.0, "fast_yaw_bias_deg": -8.0}
+    q = {**P, "act_lag_s": 0.0, "fast_yaw_bias_deg": -8.0}
     b = Brain(BLUE, F)
     for vx, want in ((0.3, 0.0), (0.75, -8.0)):
-        b.hist = [(0.0, vx, 0.0, 0.0, True)]
+        b.hist = [(0.0, vx, 0.0, 0.0)]
         b.out = Cmd(vx, 0.0, 0.0)
         pose = b._predict(Pose(0.0, 0.0, 0.0), 0.0, 0.0, q)
         assert abs(math.degrees(pose.yaw) - want) < 1e-6
-    b.hist = [(0.0, 0.75, 0.0, 0.0, True)]  # dead reckoning walks along the corrected heading
+    b.hist = [(0.0, 0.75, 0.0, 0.0)]  # dead reckoning walks along the corrected heading
     pose = b._predict(Pose(0.0, 0.0, 0.0), 0.0, 1.0, q)
     assert pose.y < -0.09 and abs(math.degrees(pose.yaw) + 8.0) < 1e-6
+    assert DEFAULTS["fast_yaw_bias_deg"] == -8.0   # the floor step test: the fast gait walks ~8 deg right
 
 
-def test_plan_debug_carries_the_committed_path_for_the_ui():
-    b = Brain(BLUE, F)
-    _, d = b.decide(mworld(0.0, (-0.9, 0.5, -0.4), (0.0, 0.0)), PL)
-    pts = d["plan"]
-    assert 2 <= len(pts) <= 20 and all(len(q) == 2 for q in pts)
-    assert pts[-1] == [round(b.plan["pts"][-1][0], 3), round(b.plan["pts"][-1][1], 3)]
-
-
-DR = {**P, "dribble": 1, "max_vx": 0.75, "max_wz": 2.0, "accel_vx": 1.2, "decel_vx": 2.0, "role_mode": "attack"}
+DR = {**P, "max_vx": 0.75, "max_wz": 2.0, "accel_vx": 1.2, "decel_vx": 2.0, "max_vy": 0.3, "role_mode": "attack"}
+DR3 = DR
 
 
 def test_sim_ball_curve_bends_slow_balls_more_than_fast_ones():
@@ -547,12 +342,6 @@ def test_sim_ball_curve_bends_slow_balls_more_than_fast_ones():
     assert turn[0.3] > 2.5 * turn[1.0] > 0
 
 
-def test_dribble_off_by_default_and_never_touches_other_presets():
-    b = Brain(BLUE, F)
-    _, d = b.decide(world(0.0, (-0.6, 0.0, 0.0), (0.0, 0.0)), P)
-    assert not d["phase"].startswith("dr_")
-
-
 def test_dribble_meets_a_rolling_ball_ahead_and_carries_it_near_centre():
     b = Brain(BLUE, F)
     w = World(0.0, Ball(0.0, -0.4, 0.0, 0.4, 0.0), {"blue": RobotObs("blue", Pose(-0.9, -0.4, 0.0), 0.0)})
@@ -561,10 +350,8 @@ def test_dribble_meets_a_rolling_ball_ahead_and_carries_it_near_centre():
     b = Brain(BLUE, F)  # behind the ball on the line: carry dead centre, firm hit, gentle turning
     res = run(b, lambda t: world(t, (-0.29, 0.0, 0.0), (0.0, 0.0)), 30, DR)
     cmd, d = res[-1]
-    assert d["phase"] == "dr_carry" and "side" not in d and cmd.vx >= 0.45 and abs(cmd.wz) < 0.5
-    b = Brain(BLUE, F)  # optional bias still works
-    cmd, d = run(b, lambda t: world(t, (-0.29, 0.0, 0.0), (0.0, 0.0)), 30, {**DR, "push_side_m": 0.03})[-1]
-    assert abs(d["side"]) == 0.03
+    assert d["phase"] in ("dr_carry", "dr_chase", "dr_shot") and cmd.vx >= 0.45 and abs(cmd.wz) < 0.5
+    assert abs(d["lat"]) < 0.01
 
 
 def test_dribble_turning_is_bounded_by_lateral_acceleration():
@@ -573,7 +360,7 @@ def test_dribble_turning_is_bounded_by_lateral_acceleration():
     for i in range(10):
         cmd, _ = b.decide(world(i / 30, (-1.0, 0.5, -0.6), (0.3, 0.0)), DR)
         v = max(cmd.vx, 0.2)
-        assert abs(cmd.wz) <= DR.get("dribble_alat", DEFAULTS["dribble_alat"]) / v + 0.15 or cmd.vx < 0.05
+        assert abs(cmd.wz) <= TUNE["dribble_alat"] / v + 0.15 or cmd.vx < 0.05
 
 
 def test_dribble_snaps_to_a_deflected_ball():
@@ -583,15 +370,6 @@ def test_dribble_snaps_to_a_deflected_ball():
         b.decide(mk(i / 30, 0.4, 0.0), DR)
     _, d = b.decide(mk(6 / 30, 0.0, 0.5), DR)  # knocked sideways
     assert d.get("deflect") == 1 and b.deflects == 1 and d["intercept"][1] > 0.1
-
-
-DR3 = {**DR, "max_vy": 0.3, "dribble_line_m": 0.9, "dribble_line_lat": 0.3, "dribble_line_deg": 70, "dribble_db_deg": 7,
-       "dribble_k_vy": 3.0, "dribble_near_m": 0.15, "dribble_commit_s": 0.3, "dribble_shot_m": 1.0}
-
-
-def test_dribble_v3_knobs_off_by_default():
-    for k in ("dribble_near_m", "dribble_line_m", "dribble_commit_s", "dribble_shot_m", "solo_reach"):
-        assert DEFAULTS[k] == 0, k
 
 
 def test_dribble_line_mode_slides_off_lateral_error_without_turning():
@@ -622,18 +400,16 @@ def test_dribble_shoots_when_centred_and_in_range():
 
 
 def test_solo_reach_attacks_a_shot_it_can_meet_first():
-    q = {**DR3, "role_mode": "auto", "ball_decel": 0.149}
+    q = {**DR3, "role_mode": "auto"}
     w = mworld(0.0, (-0.8, 0.0, 0.0), (0.3, 0.0), (-0.8, 0.0))  # between the ball and our goal, facing it
     _, d = Brain(BLUE, F).decide(w, q)
-    assert d["role"] == "defend"
-    _, d = Brain(BLUE, F).decide(w, {**q, "solo_reach": 1})
     assert d["role"] == "attack"
     w = mworld(0.0, (0.9, 0.0, 0.0), (0.3, 0.0), (-0.8, 0.0))  # upfield of the ball: cannot get there first
-    _, d = Brain(BLUE, F).decide(w, {**q, "solo_reach": 1})
+    _, d = Brain(BLUE, F).decide(w, q)
     assert d["role"] == "defend"
 
 
-VH = {**P, "contest": 1, "hard_roles": 1, "ball_decel": 0.149}
+VH = P
 
 
 def feed(b, q, t0, n, B0, v0, me, decel=0.149, dt=1 / 30):
@@ -646,11 +422,6 @@ def feed(b, q, t0, n, B0, v0, me, decel=0.149, dt=1 / 30):
             ns = max(0.0, sp - decel * dt)
             x, y, vx, vy = x + vx * dt, y + vy * dt, vx * ns / sp, vy * ns / sp
     return out, t0 + n * dt, (x, y), (vx, vy)
-
-
-def test_contest_knobs_off_by_default():
-    for k in ("contest", "hard_roles", "occl_pose_s", "occl_ball_s", "guard_line_m"):
-        assert DEFAULTS[k] == 0, k
 
 
 def test_contest_flags_touches_the_rolling_model_cannot_explain():
@@ -675,7 +446,7 @@ def test_contest_ignores_our_own_push_but_not_a_sideways_kick():
 
 def test_hard_roles_commit_to_defending_until_the_ball_is_clearly_away():
     b, me = Brain(BLUE, F), (0.8, 0.0, math.pi)  # upfield
-    q = {**VH, "solo_reach": 0}
+    q = VH
     t, B = 0.0, (-0.2, 0.3)
     for v in ((-0.3, -0.3), (-0.3, 0.3), (-0.3, -0.3)):  # someone dribbles it in our half
         (_c, d), t, B, _v = feed(b, q, t, 12, B, v, me)
@@ -685,13 +456,19 @@ def test_hard_roles_commit_to_defending_until_the_ball_is_clearly_away():
     assert d["role"] == "defend" and b.role_t == t_def
     (_c, d), t, B, _v = feed(b, q, t, 60, (0.7, 0.0), (0.0, 0.0), me)  # ball in the opponent half
     assert d["role"] == "attack" and t - b.role_t < 2.0 and b.role_t - t_def >= q["hr_hold_s"]
-    b2 = Brain(BLUE, F)  # no contest model: no pressure, the v3 solo rule (no "rule" key)
-    (_c, d), *_ = feed(b2, {**q, "contest": 0}, 0.0, 12, (-0.2, 0.3), (-0.3, -0.3), me)
-    assert "rule" not in d
+
+
+def test_a_coach_task_turns_the_vs_human_features_off():
+    b, me = Brain(BLUE, F), (0.8, 0.0, math.pi)
+    q = {**VH, "coach_task": "jockey"}
+    t, B = 0.0, (-0.2, 0.3)
+    for v in ((-0.3, -0.3), (-0.3, 0.3), (-0.3, -0.3)):
+        (_c, d), t, B, _v = feed(b, q, t, 12, B, v, me)
+    assert not b.solo and "rule" not in d and "ball_state" not in d and b.touches == 0 and d["task"] == "jockey"
 
 
 def test_occluded_pose_dead_reckons_slower_then_stops():
-    q = {**DR3, "occl_pose_s": 1.5, "pose_stale_s": 0.6}
+    q = {**DR3, "pose_stale_s": 0.6}
     b, me = Brain(BLUE, F), (-0.8, 0.0, 0.0)
     for i in range(30):
         c, d = b.decide(world(i / 30, me=me, ball=(0.0, 0.0)), q)
@@ -701,12 +478,12 @@ def test_occluded_pose_dead_reckons_slower_then_stops():
     assert d["occluded"] == "pose" and 0 < c.vx < v_seen
     c, d = b.decide(world(2.6, me=me, ball=(0.0, 0.0), me_t=29 / 30), q)
     assert d["phase"] == "pose_stale" and c.vx == 0.0
-    c, d = Brain(BLUE, F).decide(world(2.0, me=me, ball=(0.0, 0.0), me_t=1.0), {**q, "occl_pose_s": 0.0})
+    c, d = Brain(BLUE, F).decide(world(2.0, me=me, ball=(0.0, 0.0), me_t=1.0), {**q, **TASK})
     assert d["phase"] == "pose_stale"
 
 
 def test_hidden_ball_keeps_the_estimate_then_guards_the_goal_centre():
-    q = {**P, "occl_ball_s": 2.0, "ball_decel": 0.149}
+    q = P
     me = (-0.5, 0.3, 0.0)
 
     def w(t, tb):
@@ -718,21 +495,17 @@ def test_hidden_ball_keeps_the_estimate_then_guards_the_goal_centre():
     _c, d = b.decide(w(tl + 1.5, tl), q)
     assert d["ball_state"] == "occluded" and d["occluded"] == "ball" and d["ball"][0] > 0.4  # rolled on
     _c, d = b.decide(w(tl + 2.5, tl), q)
-    assert d["phase"] == "hold_goal" and d["role"] == "defend" and abs(d["target"][1]) < 1e-9
-    _c, d = Brain(BLUE, F).decide(w(1.5, 0.0), {**q, "occl_ball_s": 0.0})
+    assert d["phase"] == "hold_goal" and d["role"] == "defend" and abs(d["target"][1]) <= q["gk_shuffle_m"] + 1e-9
+    _c, d = Brain(BLUE, F).decide(w(1.5, 0.0), {**q, **TASK})
     assert d["phase"].startswith("ball_lost")
 
 
-def test_fence_knobs_off_by_default_and_clamp_with_mouth_exception():
-    assert DEFAULTS["wall_margin_m"] == 0 and DEFAULTS["wall_ball_m"] == 0
+def test_fence_clamp_with_mouth_exception():
     b = Brain(BLUE, F)
-    q = (F.length / 2 + 1, F.width / 2 + 1)
-    assert b._clamp_field(q, P) == (F.length / 2 - P["field_margin"], F.width / 2 - P["field_margin"])
-    pw = {**P, "wall_margin_m": 0.28}
-    x, y = b._clamp_field(q, pw)
+    x, y = b._clamp_field((F.length / 2 + 1, F.width / 2 + 1), P)
     assert abs(x - (F.length / 2 - 0.28)) < 1e-9 and abs(y - (F.width / 2 - 0.28)) < 1e-9
-    x, y = b._clamp_field((F.length, 0.0), pw)  # in the goal mouth: up to wall_mouth_m short of the line
-    assert abs(x - (F.length / 2 - pw["wall_mouth_m"])) < 1e-9
+    x, y = b._clamp_field((F.length, 0.0), P)  # in the goal mouth: up to wall_mouth_m short of the line
+    assert abs(x - (F.length / 2 - P["wall_mouth_m"])) < 1e-9
 
 
 def test_fence_guard_stops_walking_into_a_fence_and_pushes_away():
@@ -770,14 +543,6 @@ def test_fence_guard_in_decide_with_dribble_preset_near_wall():
     assert res[-1][1].get("fence") == 1
 
 
-WF = Field(length=3.36, width=2.70, goal_width=1.22, goal_depth=0.30, ball_radius=0.089, robot_radius=0.18)
-
-
-def test_demo_knobs_off_by_default():
-    for k in ("gk_track", "cruise_v", "shot_follow_s", "gait_down_v", "wall_post"):
-        assert DEFAULTS[k] == 0, k
-
-
 def test_gk_track_shuffles_in_the_middle_and_aligns_with_a_near_ball():
     q = {**P, "role_mode": "defend", "gk_track": 1, "guard_line_m": 0.2, "gk_near_m": 1.0, "gk_far_m": 2.2}
     gx = -WF.length / 2 + q["goalie_dist"]
@@ -812,8 +577,7 @@ def test_gk_track_follows_a_shot_to_its_crossing_point():
 
 
 def test_long_shot_releases_the_ball_then_half_turns():
-    q = {**P, "dribble": 1, "dribble_line_m": 0.9, "dribble_line_lat": 0.3, "dribble_line_deg": 70, "dribble_shot_m": 1.0,
-         "shot_follow_s": 1.8, "max_vx": 0.75, "accel_vx": 1.2}
+    q = {**P, "max_vx": 0.75, "accel_vx": 1.2}
     b = Brain(BLUE, WF)
     c = WF.ball_radius + WF.robot_radius
     bx = WF.length / 2 - 0.8
@@ -828,27 +592,18 @@ def test_long_shot_releases_the_ball_then_half_turns():
         wz.append(cmd.wz)
     assert phases[:20].count("dr_follow") == 20  # drives through, then turns (toward the field centre: right)
     assert abs(wz[2]) < 0.3 and min(wz[10:20]) < -0.5
-    q0 = {**q, "shot_follow_s": 0.0}
-    b = Brain(BLUE, WF)
-    b.out, b.dr_line = Cmd(0.7, 0.0, 0.0), True
-    _, d = b.decide(world(0.0, (bx - c + 0.01, 0.1, 0.0), (bx, 0.1)), q0)
-    assert d["phase"] != "dr_follow"
 
 
-def test_wall_post_stops_sliding_into_the_end_fence_beside_the_post():
+def test_post_wall_stops_sliding_into_the_end_fence_beside_the_post():
     b = Brain(BLUE, WF)
-    pw = {**P, "wall_margin_m": 0.28, "max_vx": 0.75, "max_vy": 0.3}
+    pw = {**P, "max_vx": 0.75, "max_vy": 0.3}
     deep = Pose(-WF.length / 2 + 0.1, 0.5, math.pi / 2)  # deep in the own mouth, walking toward the post
-    cmd, _ = b._fence_guard(deep, Cmd(0.6, 0.0, 0.0, "x"), pw)
-    assert cmd.vx > 0.3  # without wall_post the end fence beside the post is not seen
-    cmd, hit = b._fence_guard(deep, Cmd(0.6, 0.0, 0.0, "x"), {**pw, "wall_post": 1})
+    cmd, hit = b._fence_guard(deep, Cmd(0.6, 0.0, 0.0, "x"), pw)
     assert hit and cmd.vx < 0.2
 
 
 # ---------------------------------------------------------------- 1v1 Coach
-from fc.brain import Coach  # noqa: E402
-
-COACH = {**P, "dribble": 1, "coach": 1, "wall_margin_m": 0.28}
+COACH = P
 
 
 def world2(t, blue, red, ball=(0.0, 0.0), bv=(0.0, 0.0)):
@@ -856,14 +611,13 @@ def world2(t, blue, red, ball=(0.0, 0.0), bv=(0.0, 0.0)):
                  {"blue": RobotObs("blue", Pose(*blue), t), "red": RobotObs("red", Pose(*red), t)})
 
 
-def test_coach_knobs_off_and_brain_unchanged_without_a_task():
-    assert DEFAULTS["coach"] == 0
-    a, b = Brain(BLUE, WF), Brain(BLUE, WF)
-    q = {**P, "dribble": 1, "wall_margin_m": 0.28}
-    for i in range(60):
-        w = world(i / 30, (-0.8, 0.3, 0.2), (0.1, -0.2), other=(0.9, 0.1, math.pi))
-        assert a.decide(w, q)[0] == b.decide(w, {**q, "coach": 1, "aggression": 1.0, "opp_stop_m": 0.45})[0]
-    assert Coach({"blue": a, "red": b}, WF).update(w, q) == {}  # coach 0: nothing to pass
+def test_coach_needs_two_tracked_robots_and_a_ball():
+    a, b = Brain(BLUE, WF), Brain(RED, WF)
+    c = Coach({"blue": a, "red": b}, WF)
+    assert c.update(world(0.0, (-0.8, 0.3, 0.2), (0.1, -0.2)), P) == {}                       # one robot: no coach
+    assert c.update(world(0.0, (-0.8, 0.3, 0.2), None, other=(0.9, 0.1, math.pi)), P) == {}   # no ball
+    out = c.update(world(0.0, (-0.8, 0.3, 0.2), (0.1, -0.2), other=(0.9, 0.1, math.pi)), P)
+    assert set(out) == {"blue", "red"} and all("coach_task" in o for o in out.values())
 
 
 def test_coach_possession_needs_dwell_and_goes_through_loose():

@@ -1,9 +1,6 @@
 {
-  "_note": "first floor minutes (review floor_safe)",
+  "_note": "slow: the play brain at walking speed (stock walker cap), for the first motion after a change.",
   "max_vx": 0.15,
   "max_vy": 0.08,
-  "max_wz": 0.6,
-  "push_vx": 0.15,
-  "accel_wz": 2.0,
-  "yaw_learn": 0
+  "max_wz": 0.6
 }

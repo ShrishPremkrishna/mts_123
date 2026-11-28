@@ -245,11 +245,10 @@ def test_fast_gait_walks_off_its_heading_and_bursts_have_a_length_range():
 def test_sim_eval_solo_reports_jitter_and_floor_knobs_exist():
     from fc import sim_eval as se
     assert set(se.FLOOR) <= set(SIM_DEFAULTS)
-    p = {**OFF, "max_vx": 0.75, "push_vx": 0.75, "plan": 1}
-    t, own, st = se.solo(F, ROBOTS, p, 3, "push", limit=10.0)
-    assert {"rev", "fast", "sq", "n", "replans", "coast", "speed", "touch", "min", "align", "talign", "near_vy",
-            "shot"} <= set(st)
-    assert st["replans"] >= 1 and st["n"] > 0
+    p = {**OFF, "max_vx": 0.75}
+    t, own, st = se.solo(F, ROBOTS, p, 3, limit=10.0)
+    assert {"rev", "fast", "sq", "n", "speed", "touch", "min", "align", "talign", "near_vy", "shot"} <= set(st)
+    assert st["n"] > 0
 
 
 def test_hide_blinds_the_camera_and_vs_human_smoke():
@@ -261,7 +260,7 @@ def test_hide_blinds_the_camera_and_vs_human_smoke():
     w = s.observe()
     assert w.robots["blue"].t <= t0 + 1e-9 and w.ball.t <= t0 + 1e-9 and w.robots["red"].t > t0
     from fc import sim_eval as se
-    p = {**OFF, "max_vx": 0.75, "contest": 1, "hard_roles": 1, "occl_pose_s": 1.5, "occl_ball_s": 2.0}
+    p = {**OFF, "max_vx": 0.75}
     h = se.vs_human(F, ROBOTS, p, 1, minutes=0.25)
     assert {"scored", "conceded", "flips_pm", "rev_pm", "exposed", "occ_stall", "rec", "touch_pm"} <= set(h)
     assert h["touch_pm"] > 0
@@ -292,7 +291,7 @@ def test_fence_contacts_and_tips_and_wall_balls_scenario():
 
 def test_sim_eval_wall_rows_smoke():
     from fc.sim_eval import evaluate
-    out = evaluate(2, True, 1.0, 1, {"dribble": 1, "wall_margin_m": 0.28, "wall_ball_m": 0.32}, scen=("wall",))
+    out = evaluate(2, True, 1.0, 1, {}, scen=("wall",))
     assert "wall_balls: fence contacts / tips / traps" in out
 
 
@@ -302,6 +301,6 @@ def test_sim_eval_coached_match_smoke():
     from fc import sim_eval
     from fc.core import load_field, load_params, load_robots
     field = dataclasses.replace(load_field(), length=3.36, width=2.70)
-    p = {**load_params(), **sim_eval.load_preset("match"), "sim_errors": 0}
+    p = {**load_params(), **sim_eval.load_preset("play"), "sim_errors": 0}
     m = sim_eval.match(field, load_robots(), p, 1, minutes=0.5)
     assert 0.0 <= m["both"] <= 1.0 and m["tasksw_pm"] > 0 and "poss_pm" in m

@@ -91,6 +91,19 @@ def test_state_ui_and_params(server):
     assert post(base, "/preset", {"op": "save", "name": "../x"})[0] == 400
 
 
+def test_go_runs_the_coach_for_two_playing_robots(server):
+    app, base = server
+    assert post(base, "/action", {"action": "go"})[0] == 200        # free play, role_mode auto, both robots playing
+    assert wait(lambda: all(d.get("task") for d in state(base)["debug"].values()), 3)
+    assert {app.tasks[k]["coach_task"] for k in app.tasks} & {"attack", "challenge"}   # one of them plays the ball
+    post(base, "/action", {"action": "stop"})
+    app.playing = ["blue"]                                            # one robot (vs a human): no coach, solo rules
+    assert post(base, "/action", {"action": "go"})[0] == 200
+    assert wait(lambda: state(base)["debug"].get("blue", {}).get("solo") == 1, 3)
+    assert app.tasks == {} and "task" not in state(base)["debug"]["blue"]
+    post(base, "/action", {"action": "stop"})
+
+
 def test_go_stop_and_push_ball_run(server):
     app, base = server
     assert post(base, "/action", {"action": "go"})[0] == 200
@@ -405,7 +418,7 @@ def test_shipped_presets_validate():
     from fc.core import load_params
     base = {**fcapp.PARAM_FALLBACKS, **DEFAULTS, **load_params()}
     names = sorted(p.stem for p in fcapp.PRESETS.glob("*.json"))
-    assert {"slow", "fast", "stock-hh-on", "stock-hh-off", "u6-hh-on", "push", "headbutt"} <= set(names)
+    assert names == ["play", "slow"]
     for n in names:
         data = json.loads((fcapp.PRESETS / f"{n}.json").read_text())
         ok, err = fcapp.validate_params(base, {k: v for k, v in data.items() if not k.startswith("_")})
@@ -716,9 +729,9 @@ def test_cam_url_config_and_feed_endpoint(server, tmp_path):
 # ---- v1.1: e-stop, fast-play limits, stack options (2026-11-23) -------------------------
 def test_fast_play_limits_follow_link_ceiling():
     from fc.link import CEIL
-    assert fcapp.LIMITS["max_vx"] == (0.0, CEIL["vx"]) == fcapp.LIMITS["push_vx"] == (0.0, 1.5)
+    assert fcapp.LIMITS["max_vx"] == (0.0, CEIL["vx"]) == (0.0, 1.5)
     assert fcapp.LIMITS["max_wz"] == (0.0, 2.0)
-    ok, err = validate_params({"max_vx": 0.3, "push_vx": 0.3}, {"max_vx": 1.2, "push_vx": 1.6})
+    ok, err = validate_params({"max_vx": 0.3, "max_wz": 1.0}, {"max_vx": 1.2, "max_wz": 2.5})
     assert ok == {"max_vx": 1.2} and len(err) == 1
 
 
@@ -859,11 +872,10 @@ def test_stack_info_warns_when_max_vx_exceeds_robot_cap(live_ops):
 
 
 def test_shipped_stack_presets():
-    data = {n: json.loads((fcapp.PRESETS / f"{n}.json").read_text()) for n in ("fast-play-robot", "stock-hh-off", "u6-hh-off")}
-    assert data["fast-play-robot"]["_stack"] == {"speed_cap": 0.8} and data["fast-play-robot"]["max_vx"] == 0.75
-    for n in ("stock-hh-off", "u6-hh-off"):
-        stack, err = fcapp.validate_stack(data[n].get("_stack"))
-        assert not err and stack.get("heading_hold") == "off", n
+    data = {n: json.loads((fcapp.PRESETS / f"{n}.json").read_text()) for n in ("play", "slow")}
+    stack, err = fcapp.validate_stack(data["play"].get("_stack"))
+    assert not err and stack == {"speed_cap": 1.5}        # the speed ladder runs live under the walker cap
+    assert 0.75 <= data["play"]["max_vx"] <= 0.9 and "_stack" not in data["slow"] and data["slow"]["max_vx"] <= 0.15
 
 
 # ---- camera goalie: shot counting, ball track, camera paused ---------------------------------
@@ -1072,28 +1084,22 @@ def test_ready_starts_the_pov_feed(server):
     assert post(base, "/robot", {"robot": "blue", "op": "ready", "confirm": True, "pov": "yes"})[0] == 400
 
 
-def test_preset_base_inherits_one_level(server):
+def test_presets_never_stack(server):
     app, base = server
     app.presets_dir.mkdir(parents=True, exist_ok=True)
-    (app.presets_dir / "brainy.json").write_text(json.dumps({"_note": "b", "_stack": {"speed_cap": 0.8}, "max_vx": 0.6,
-                                                             "match_s": 300}))
-    (app.presets_dir / "showx.json").write_text(json.dumps({"_base": "brainy", "_note": "s", "match_s": 90}))
-    (app.presets_dir / "loop.json").write_text(json.dumps({"_base": "showx", "match_s": 60}))
-    (app.presets_dir / "orphan.json").write_text(json.dumps({"_base": "nope", "match_s": 60}))
-    code, r = post(base, "/preset", {"op": "load", "name": "showx"})
-    assert code == 200 and r["stack"] == {"speed_cap": 0.8}
-    assert app.params["max_vx"] == 0.6 and app.params["match_s"] == 90 and app.preset_note == "s"
-    assert state(base)["preset"]["modified"] == []
-    for bad in ("loop", "orphan"):
-        code, r = post(base, "/preset", {"op": "load", "name": bad})
-        assert code == 400 and "_base" in r["error"]
+    (app.presets_dir / "brainy.json").write_text(json.dumps({"_note": "b", "_stack": {"speed_cap": 0.8}, "max_vx": 0.6}))
+    (app.presets_dir / "other.json").write_text(json.dumps({"_base": "brainy", "max_wz": 0.5}))   # _base: ignored
+    assert post(base, "/preset", {"op": "load", "name": "brainy"})[0] == 200
+    code, r = post(base, "/preset", {"op": "load", "name": "other"})
+    assert code == 200 and r["stack"] == {} and app.params["max_wz"] == 0.5
+    assert app.params["max_vx"] == app.base_params["max_vx"]                    # back to base + its own keys
 
 
-def test_shipped_show_preset_loads_on_its_base():
-    data = json.loads((fcapp.PRESETS / "show.json").read_text())
-    assert (fcapp.PRESETS / f"{data['_base']}.json").exists()
-    assert {k for k in data if not k.startswith("_")} <= set(fcapp.FLOW_DEFAULTS) | {"match_s", "restart_mode"}
-    assert data["match_s"] == 90 and data["celebrate_style"] != "none" and data["restart_mode"] == "kickoff"
+def test_show_settings_are_plain_params():
+    from fc.core import load_params
+    p = load_params()       # the show runs with whatever brain preset is loaded (play)
+    assert p["match_s"] == 90 and p["celebrate_style"] != "none" and p["restart_mode"] == "kickoff"
+    assert {"kickoff_x_frac", "countdown_s", "celebrate_s", "celebrate_other"} <= set(p)
 
 
 def test_warmup_runs_in_sim_and_any_stop_ends_it(server):

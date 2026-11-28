@@ -4,26 +4,26 @@
 
 Prints one table per error setting (errors ON = measured model, OFF = ideal), one column per
 preset: `base` is params.json, any other name is params.json + fc/config/presets/NAME.json
-(e.g. `--preset base fast-play` compares them side by side). `--set` overrides on top of every
+(e.g. `--preset slow play` compares them side by side). `--set` overrides on top of every
 column (to try a value before committing it). `--field` overrides field.json geometry the same way
 (e.g. `--field goal_width=0.8` to try a wider marked goal). `--lag L ...` repeats every column at
 a total lag L (camera latency L/2 + walker lag L/2; the brain's act_lag_s set to L/2, as if measured).
 `--scen` picks row groups (default all): core (rows below), human, return, moving; solo = the solo push
-rows only (fast); goalie = the goalie and 1v1 rows of core (no headbutt). `--floor25` = FLOOR updated with the Nov 25 measurements (FLOOR25 below, cap 0.8, or the preset's `_stack.speed_cap`). `--floor` adds the
+rows only (fast); goalie = the goalie and 1v1 rows of core. `--floor25` = FLOOR updated with the Nov 25 measurements (FLOOR25 below, cap 0.8, or the preset's `_stack.speed_cap`). `--floor` adds the
 Nov 24 floor errors on top of the sim's (FLOOR below: 0.1 s camera latency, tag dropouts of 0.3-1.5 s,
 fast gait at ~0.83 of the command and walking 8 deg right of its heading, slower walker onset, a ball
 rolling at 0.18 m/s^2 deceleration: hand rolls of the old ball fit 0.12-0.29, median 0.15).
 
 Rows:
-- solo push/headbutt: goals within 40 s from a random start, median time to goal (s).
+- solo push: goals within 40 s from a random start, median time to goal (s).
 - solo jitter (push runs, per robot-minute of play): wz reversals / reversals < 1 s apart, RMS of the
-  commanded wz (rad/s), replans (plan mode: paths planned), coast share (ticks steering blind).
-- athletic (push runs): mean true speed (m/s), median time to the first touch of the ball (s).
+  commanded wz (rad/s).
+- solo pace (push runs): mean true speed (m/s), median time to the first touch of the ball (s).
 - alignment (push runs): |robot heading - direction ball -> attack goal centre| at the first touch of each
   possession (arrival). near ball: share of ticks within 0.6 m commanding |vy| > 0.03; shot = ball speed
   as it crosses the goal line (median).
 - goalie: saves of the same shots that score on an empty net.
-- 1v1 (auto roles, kickoff): goals per 3 min each side; deadlocks = the ball stayed within 10 cm
+- 1v1 (the Coach assigns both robots' tasks, kickoff): goals per 3 min each side; deadlocks = the ball stayed within 10 cm
   for 10 s; traps = the sim referee nudged a wall ball.
 - smoothness per robot-minute: wz reversals (|wz| > 0.25 one way, then the other); fast wz rev =
   reversals less than 1 s apart; side flips = changes of the way round the ball while orbiting.
@@ -62,7 +62,7 @@ import random
 import statistics
 import time
 
-from .brain import DEFAULTS, Brain, Coach
+from .brain import Brain, Coach, merged
 from .core import CONFIG, Pose, load_field, load_params, load_robots
 from .sim import Sim
 
@@ -116,7 +116,7 @@ def preset_cap(name: str) -> dict:
 
 
 def _loop(sim: Sim, brains: dict, params: dict, seconds: float, on_tick=None) -> None:
-    coach = Coach(brains, sim.f) if params.get("coach") and len(brains) > 1 else None  # 1v1 coach (preset match)
+    coach = Coach(brains, sim.f) if len(brains) > 1 else None  # 1v1: the Coach assigns both robots' tasks
     for _ in range(int(seconds / DT)):
         w = sim.observe()
         cmds, dbgs = {}, {}
@@ -133,14 +133,14 @@ def _goals(sim):
     return [e for e in sim.events if e["type"] == "goal"]
 
 
-def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
+def solo(field, robots, params, seed, limit=40.0, contacts=None):
     """One robot attacks a resting ball from a random start. Returns (goal time or None, own goal, stats)."""
-    p = {**params, "contact_mode": mode, "role_mode": "auto"}
+    p = {**params, "role_mode": "auto"}
     sim = Sim(field, robots, p, seed)
     sim.reset("attack_solo")
     me = robots[0]
     brain = Brain(me, field)
-    jit, near, st = Jitter(), Jitter(), {"speed": 0.0, "coast": 0, "stop": 0}
+    jit, near, st = Jitter(), Jitter(), {"speed": 0.0, "stop": 0}
     cc = field.ball_radius + field.robot_radius
     dr = {"poss": 0, "touch": 0, "in": False, "gap": 0.0, "ng": 0, "nc": 0, "check": [], "defl": [], "rec": [],
           "align": [], "talign": [], "prev": None, "vy": 0, "shot": None, "bsp": 0.0}
@@ -153,7 +153,6 @@ def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
         bot = sim.bots.get(me.id)
         st["speed"] += math.hypot(bot.vx, bot.vy) if bot else 0.0
         st["stop"] += bool(bot) and math.hypot(bot.vx, bot.vy) < 0.05
-        st["coast"] += d.get(me.id, {}).get("phase") == "coast"
         if bot:
             gap = math.hypot(sim.ball[0] - bot.x, sim.ball[1] - bot.y) - cc
             if gap < 0.6:
@@ -194,7 +193,7 @@ def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
     ev = _goals(sim)[0] if _goals(sim) else None
     n = max(1, jit.n)
     stats = {"min": (sim.t - t0) / 60, "rev": jit.rev, "fast": jit.fast, "sq": jit.sq, "n": jit.n,
-             "replans": brain.replans, "coast": st["coast"] / n, "speed": st["speed"] / n,
+             "speed": st["speed"] / n,
              "touch": (sim.contacts[0][0] - t0) if sim.contacts else None,
              "dr_touch": dr["touch"], "dr_poss": dr["poss"], "dr_gap": dr["gap"], "dr_ng": dr["ng"],
              "near_sq": near.sq, "near_n": near.n, "near_rev": near.rev,
@@ -222,10 +221,10 @@ def wall_solo(field, robots, params, seed, limit=40.0):
             "own": bool(ev and ev["team"] != me.team), "wall": n("wall"), "tip": n("tip"), "trap": n("trapped")}
 
 
-def goalie(field, robots, params, seed, style, empty=False, detail=False):
+def goalie(field, robots, params, seed, empty=False, detail=False):
     """Shot on goal vs a keeper (role defend). detail: (saved, lateral error) where the error is |robot y - ball y|
     when the ball reaches the robot's x (or first touches it): how well the keeper was lined up at the shot."""
-    p = {**params, "role_mode": "defend", "goalie_style": style}
+    p = {**params, "role_mode": "defend"}
     sim = Sim(field, robots, p, seed)
     sim.reset("shot_on_goal", **({"robots": [], "team": robots[0].team} if empty else {}))
     me = robots[0]
@@ -251,8 +250,8 @@ def match(field, robots, params, seed, minutes=3.0):
           "stall": 0, "anchor": (0.0, 0.0, 0.0), "side": {}, "sideflip": 0, "band": 0, "ticks": 0,
           "speed": [], "switch": 0, "bots": {}, "both": 0, "owned": 0, "gside": 0, "task": {}, "tasksw": 0}
     jit = Jitter()
-    meter = Coach(brains, field)  # possession from sim truth (the coach's rule), with or without a coach playing
-    pp = {**DEFAULTS, **p}
+    meter = Coach(brains, field)  # possession from sim truth (the coach's rule)
+    pp = merged(p)
 
     def tick(cmds, dbgs):
         for k, b in brains.items():
@@ -319,7 +318,6 @@ def match(field, robots, params, seed, minutes=3.0):
             "speed": statistics.mean(st["speed"]) if st["speed"] else 0.0,
             "switch_pm": sum(st["bots"].values()) / minutes / n,
             "band": st["band"] / max(1, st["ticks"]), "wzrms": math.sqrt(jit.sq / max(1, jit.n)),
-            "replans_pm": sum(b.replans for b in brains.values()) / minutes / n,
             "both": st["both"] / max(1, st["ticks"] / n), "poss_pm": meter.changes / minutes,
             "gside": st["gside"] / max(1, st["owned"]), "tasksw_pm": st["tasksw"] / minutes / n}
 
@@ -616,7 +614,7 @@ def _pct(xs, q):
 
 
 def evaluate(seeds: int, errors: bool, minutes: float, matches: int, overrides: dict | None = None,
-             headbutt: bool = True, field_over: dict | None = None, scen=("core",)) -> dict:
+             field_over: dict | None = None, scen=("core",)) -> dict:
     """Metrics for one parameter set: {row label: formatted value} plus raw numbers under '_raw'."""
     field, robots, params = load_field(), load_robots(), load_params()
     if field_over:
@@ -624,9 +622,9 @@ def evaluate(seeds: int, errors: bool, minutes: float, matches: int, overrides: 
     params = {**params, **(overrides or {}), "sim_errors": int(errors)}
     out, raw = {}, {}
     if "core" in scen:
-        _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt)
+        _core(out, raw, field, robots, params, seeds, minutes, matches)
     elif "solo" in scen:
-        _core(out, raw, field, robots, params, seeds, minutes, matches, False, solo_only=True)
+        _core(out, raw, field, robots, params, seeds, minutes, matches, solo_only=True)
     if "goalie" in scen and "core" not in scen:
         _team(out, raw, field, robots, params, seeds, minutes, matches, [])
     if "human" in scen:
@@ -717,69 +715,62 @@ def _vshuman(out, raw, field, robots, params, matches, minutes):
         out[f"{h}: recovery after hidden med/p90 s"] = f"{_med(rec):.2f} / {_pct(rec, 0.9):.1f}"
 
 
-def _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt, solo_only=False):
+def _core(out, raw, field, robots, params, seeds, minutes, matches, solo_only=False):
     contacts = []
-    for mode in ("push", "headbutt") if headbutt else ("push",):
-        res = [solo(field, robots, params, s, mode, contacts=contacts if mode == "push" else None)
-               for s in range(seeds)]
-        times = [t for t, _, _ in res if t is not None]
-        med = statistics.median(times) if times else float("nan")
-        raw[f"solo_{mode}_rate"], raw[f"solo_{mode}_med"] = len(times) / seeds, med
-        out[f"solo {mode}: goals (<=40 s)"] = f"{len(times)}/{seeds} ({100 * len(times) / seeds:.0f}%)"
-        out[f"solo {mode}: median s / own goals"] = f"{med:.1f} / {sum(o for _, o, _ in res)}"
-        if mode == "push":
-            ss = [x for _, _, x in res]
-            mins = sum(x["min"] for x in ss) or 1.0
-            raw.update(solo_rev=sum(x["rev"] for x in ss) / mins, solo_fastrev=sum(x["fast"] for x in ss) / mins,
-                       solo_wzrms=math.sqrt(sum(x["sq"] for x in ss) / max(1, sum(x["n"] for x in ss))),
-                       solo_replans=sum(x["replans"] for x in ss) / mins,
-                       solo_coast=statistics.mean(x["coast"] for x in ss),
-                       solo_speed=statistics.mean(x["speed"] for x in ss),
-                       solo_touch=_med([x["touch"] for x in ss if x["touch"] is not None]),
-                       solo_p90=_pct(times, 0.9))
-            out["solo push: p90 s"] = f"{raw['solo_p90']:.1f}"
-            out["solo jitter: wz rev / fast rev /min, wz rms"] = (f"{raw['solo_rev']:.1f} / {raw['solo_fastrev']:.1f}, "
-                                                                 f"{raw['solo_wzrms']:.2f}")
-            out["solo jitter: replans /min, coast %"] = f"{raw['solo_replans']:.1f}, {100 * raw['solo_coast']:.0f}%"
-            out["athletic: mean speed m/s, s to ball"] = f"{raw['solo_speed']:.2f}, {raw['solo_touch']:.1f}"
-            raw.update(solo_stop=statistics.mean(x["stop"] for x in ss), solo_switch=sum(x["switches"] for x in ss) / mins)
-            out["motion: stopped % (<0.05 m/s), gait switches /min"] = (f"{100 * raw['solo_stop']:.0f}%, "
-                                                                       f"{raw['solo_switch']:.1f}")
-            out["solo: fence contacts / tips"] = f"{sum(x['fence'] for x in ss)} / {sum(x['tip'] for x in ss)}"
-            nn = sum(x["near_n"] for x in ss)
-            rec = [r for x in ss for r in x["rec"]]
-            nd = sum(x["defl"] for x in ss)
-            raw.update(dr_tpp=sum(x["dr_touch"] for x in ss) / max(1, sum(x["dr_poss"] for x in ss)),
-                       dr_gap=sum(x["dr_gap"] for x in ss) / max(1, sum(x["dr_ng"] for x in ss)),
-                       near_rms=math.sqrt(sum(x["near_sq"] for x in ss) / max(1, nn)),
-                       near_rev=sum(x["near_rev"] for x in ss) / max(1e-6, nn * DT / 60),
-                       defl=nd, rec_med=_med(rec), rec_ok=len(rec) / max(1, nd))
-            out["dribble: touches/possession, gap m"] = f"{raw['dr_tpp']:.1f}, {raw['dr_gap']:.2f}"
-            out["near ball (<0.6 m): wz rms, rev/min"] = f"{raw['near_rms']:.2f}, {raw['near_rev']:.1f}"
-            out["deflections: n, re-touch <=8 s, median s"] = (f"{nd}, {100 * raw['rec_ok']:.0f}%, "
-                                                               f"{raw['rec_med']:.1f}")
-            al = [a for x in ss for a in x["align"]]
-            sh = [x["shot"] for x in ss if x["shot"] is not None]
-            ta = [a for x in ss for a in x["talign"]]
-            raw.update(align_med=_med(al), align_p90=_pct(al, 0.9), talign_med=_med(ta),
-                       near_vy=sum(x["near_vy"] for x in ss) / max(1, nn), shot_med=_med(sh))
-            out["align at arrival deg: heading med/p90, travel med"] = (f"{raw['align_med']:.0f} / {raw['align_p90']:.0f}, "
-                                                                     f"{raw['talign_med']:.0f}")
-            out["near ball: vy in use %, shot m/s at goal"] = f"{100 * raw['near_vy']:.0f}%, {raw['shot_med']:.2f}"
+    res = [solo(field, robots, params, s, contacts=contacts) for s in range(seeds)]
+    times = [t for t, _, _ in res if t is not None]
+    med = statistics.median(times) if times else float("nan")
+    raw["solo_push_rate"], raw["solo_push_med"] = len(times) / seeds, med
+    out["solo push: goals (<=40 s)"] = f"{len(times)}/{seeds} ({100 * len(times) / seeds:.0f}%)"
+    out["solo push: median s / own goals"] = f"{med:.1f} / {sum(o for _, o, _ in res)}"
+    ss = [x for _, _, x in res]
+    mins = sum(x["min"] for x in ss) or 1.0
+    raw.update(solo_rev=sum(x["rev"] for x in ss) / mins, solo_fastrev=sum(x["fast"] for x in ss) / mins,
+               solo_wzrms=math.sqrt(sum(x["sq"] for x in ss) / max(1, sum(x["n"] for x in ss))),
+               solo_speed=statistics.mean(x["speed"] for x in ss),
+               solo_touch=_med([x["touch"] for x in ss if x["touch"] is not None]),
+               solo_p90=_pct(times, 0.9))
+    out["solo push: p90 s"] = f"{raw['solo_p90']:.1f}"
+    out["solo jitter: wz rev / fast rev /min, wz rms"] = (f"{raw['solo_rev']:.1f} / {raw['solo_fastrev']:.1f}, "
+                                                         f"{raw['solo_wzrms']:.2f}")
+    out["solo pace: mean speed m/s, s to ball"] = f"{raw['solo_speed']:.2f}, {raw['solo_touch']:.1f}"
+    raw.update(solo_stop=statistics.mean(x["stop"] for x in ss), solo_switch=sum(x["switches"] for x in ss) / mins)
+    out["motion: stopped % (<0.05 m/s), gait switches /min"] = (f"{100 * raw['solo_stop']:.0f}%, "
+                                                               f"{raw['solo_switch']:.1f}")
+    out["solo: fence contacts / tips"] = f"{sum(x['fence'] for x in ss)} / {sum(x['tip'] for x in ss)}"
+    nn = sum(x["near_n"] for x in ss)
+    rec = [r for x in ss for r in x["rec"]]
+    nd = sum(x["defl"] for x in ss)
+    raw.update(dr_tpp=sum(x["dr_touch"] for x in ss) / max(1, sum(x["dr_poss"] for x in ss)),
+               dr_gap=sum(x["dr_gap"] for x in ss) / max(1, sum(x["dr_ng"] for x in ss)),
+               near_rms=math.sqrt(sum(x["near_sq"] for x in ss) / max(1, nn)),
+               near_rev=sum(x["near_rev"] for x in ss) / max(1e-6, nn * DT / 60),
+               defl=nd, rec_med=_med(rec), rec_ok=len(rec) / max(1, nd))
+    out["dribble: touches/possession, gap m"] = f"{raw['dr_tpp']:.1f}, {raw['dr_gap']:.2f}"
+    out["near ball (<0.6 m): wz rms, rev/min"] = f"{raw['near_rms']:.2f}, {raw['near_rev']:.1f}"
+    out["deflections: n, re-touch <=8 s, median s"] = (f"{nd}, {100 * raw['rec_ok']:.0f}%, "
+                                                       f"{raw['rec_med']:.1f}")
+    al = [a for x in ss for a in x["align"]]
+    sh = [x["shot"] for x in ss if x["shot"] is not None]
+    ta = [a for x in ss for a in x["talign"]]
+    raw.update(align_med=_med(al), align_p90=_pct(al, 0.9), talign_med=_med(ta),
+               near_vy=sum(x["near_vy"] for x in ss) / max(1, nn), shot_med=_med(sh))
+    out["align at arrival deg: heading med/p90, travel med"] = (f"{raw['align_med']:.0f} / {raw['align_p90']:.0f}, "
+                                                             f"{raw['talign_med']:.0f}")
+    out["near ball: vy in use %, shot m/s at goal"] = f"{100 * raw['near_vy']:.0f}%, {raw['shot_med']:.2f}"
     if not solo_only:
         _team(out, raw, field, robots, params, seeds, minutes, matches, contacts)
 
 
 def _team(out, raw, field, robots, params, seeds, minutes, matches, contacts):
     """Goalie saves and 1v1 rows."""
-    empty = seeds - sum(goalie(field, robots, params, 1000 + s, "sideways", empty=True) for s in range(seeds))
-    for style in ("sideways", "facing"):
-        res = [goalie(field, robots, params, 1000 + s, style, detail=True) for s in range(seeds)]
-        saves = sum(r[0] for r in res)
-        errs = [r[1] for r in res if r[1] is not None]
-        raw[f"saves_{style}"], raw[f"gk_err_{style}"] = saves / seeds, _med(errs)
-        out[f"goalie {style}: saves, lateral err med/p90 m"] = (f"{saves}/{seeds} ({100 * saves / seeds:.0f}%), "
-                                                               f"{_med(errs):.2f}/{_pct(errs, 0.9):.2f}")
+    empty = seeds - sum(goalie(field, robots, params, 1000 + s, empty=True) for s in range(seeds))
+    res = [goalie(field, robots, params, 1000 + s, detail=True) for s in range(seeds)]
+    saves = sum(r[0] for r in res)
+    errs = [r[1] for r in res if r[1] is not None]
+    raw["saves"], raw["gk_err"] = saves / seeds, _med(errs)
+    out["goalie: saves, lateral err med/p90 m"] = (f"{saves}/{seeds} ({100 * saves / seeds:.0f}%), "
+                                                  f"{_med(errs):.2f}/{_pct(errs, 0.9):.2f}")
     out["goalie: empty net scores"] = f"{empty}/{seeds}"
     ms = [match(field, robots, params, 2000 + s, minutes) for s in range(matches)]
     k = 3 / minutes / matches
@@ -792,8 +783,7 @@ def _team(out, raw, field, robots, params, seeds, minutes, matches, contacts):
     out["smooth: wz rev / fast wz rev /min"] = (f"{statistics.mean(m['wzflip_pm'] for m in ms):.1f} / "
                                                f"{raw['fastwz']:.1f}")
     out["smooth: side flips /min, jerk"] = f"{raw['side']:.1f}, {statistics.mean(m['jerk'] for m in ms):.2f}"
-    out["smooth: 1v1 wz rms, replans /min"] = (f"{statistics.mean(m['wzrms'] for m in ms):.2f}, "
-                                              f"{statistics.mean(m['replans_pm'] for m in ms):.1f}")
+    out["smooth: 1v1 wz rms"] = f"{statistics.mean(m['wzrms'] for m in ms):.2f}"
     contacts += [c for m in ms for c in m["contacts"]]
     bumps = [b for m in ms for b in m["bumps"]]
     raw["contact_mean"] = statistics.mean(contacts) if contacts else 0.0

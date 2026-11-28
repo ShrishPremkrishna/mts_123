@@ -1,0 +1,14 @@
+{
+  "_stack": {
+    "speed_cap": 1.5
+  },
+  "_note": "play = the demo brain (brain.py doc). Alone vs a human: contested-ball model, hard roles, dead reckoning through tag dropouts, wide-mouth keeper; two robots tracked: the Coach assigns tasks. Walker cap 1.5 (Ready passes --speed-cap 1.5) so the speed ladder runs live: `ctl set max_vx=0.9 wall_brake=0.5` (= the old dribble-fast; sim solo 92% / 7.5 s vs 96% / 8.1 s at 0.75, not floor-tested), then 1.0. max_vx 0.75 = the value the floor tests (dribble v3, fast gait ~0.66 m/s) ran at. stale_stop_s 1.6: the app lets a robot walk blind that long (slowed by the brain); watch it on the floor.",
+  "max_vx": 0.75,
+  "max_vy": 0.3,
+  "max_wz": 2.0,
+  "accel_vx": 1.2,
+  "decel_vx": 2.0,
+  "accel_wz": 4.0,
+  "decel_wz": 2.0,
+  "stale_stop_s": 1.6
+}

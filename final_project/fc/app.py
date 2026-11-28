@@ -3,7 +3,7 @@
     cd final_project && python -m fc.app --source sim
     python -m fc.app --source camera [--video FILE|DIR|synthetic] [--robots blue] [--port 8800]
 
-World (Sim or Eye) -> Brain.decide per active robot -> Cmd -> brain.shape -> Sim.step or Link.send
+World (Sim or Eye) -> Coach (1v1 tasks) -> Brain.decide per active robot -> Cmd -> brain.shape -> Sim.step or Link.send
 -> run log. Every test is a named mode with its own run folder (see runlog.py). Stop is always
 immediate. Core (this file, link.py, runlog.py) is stdlib only; the camera source needs OpenCV.
 A broken fc.brain / fc.sim import stops the app: there is no fallback controller.
@@ -26,7 +26,7 @@ from dataclasses import asdict, fields, is_dataclass, replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from .brain import Brain, shape
+from .brain import Brain, Coach, shape
 from .brain import DEFAULTS as BRAIN_DEFAULTS
 from .core import CONFIG, Cmd, RobotCfg, World, load_field, load_params, wrap
 from .link import CEIL, Link
@@ -82,18 +82,13 @@ LIMITS = {
     "deadman_vx": (0.03, 0.2), "deadman_drive_s": (0.5, 5.0), "deadman_mute_s": (0.5, 5.0),
     "eye_floor_size": (0.03, 0.5), "eye_tag_height": (0.0, 0.5),
     "eye_tag_offset_x": (-0.3, 0.3), "eye_yaw_offset_deg": (-360, 360), "eye_latency_s": (0.0, 1.0),
-    "k_turn": (0.0, 6.0), "k_vy": (0.0, 5.0), "search_wz": (0.0, 2.0), "predict_self": (0, 1),
-    "yaw_learn": (0, 1), "yaw_learn_rate": (0.0, 0.2), "act_lag_s": (0.0, 1.0),
+    "act_lag_s": (0.0, 1.0), "decel_vx": (0.0, 5.0), "decel_wz": (0.0, 20.0), "fast_yaw_bias_deg": (-30.0, 30.0),
+    "wall_margin_m": (0.18, 0.6), "wall_brake": (0.2, 3.0), "aggression": (0.0, 1.0),
 }
-LIMITS.update({k: (0.0, CEIL["vx"]) for k in ("push_vx", "contact_vx", "goalie_vmax")})
-LIMITS.update({k: (0.0, 0.5) for k in ("hb_charge_vx", "hb_backoff_vx")})
-LIMITS.update(return_vx=(0.0, 2.0), decel_vx=(0.0, 5.0), decel_wz=(0.0, 20.0))   # return_vx > max_vx = no extra cap
 LIMITS.update(FLOW_LIMITS, record=(0, 1), rec_fps=(2, 30))
 LIMITS.update(shot_vmin=(0.05, 3.0), shot_horizon_s=(0.5, 10.0), shot_mouth_margin=(0.0, 0.5), shot_end_s=(0.1, 2.0),
               ball_decel=(0.0, 3.0))
-CHOICES = {"role_mode": ["auto", "attack", "defend"], "contact_mode": ["push", "headbutt"],
-           "ball_lost": ["hold", "search"], "goalie_style": ["sideways", "facing"], "restart_mode": RESTART_MODES,
-           **FLOW_CHOICES}
+CHOICES = {"role_mode": ["auto", "attack", "defend"], "restart_mode": RESTART_MODES, **FLOW_CHOICES}
 TESTS = ["drive", "goto", "step", "deadman", "push_ball", "goalie", "match", "sim_eval", "autoplay"]
 ONE_ROBOT_TESTS = {"drive", "goto", "step", "deadman", "push_ball", "goalie", "autoplay"}
 BRAIN_MODES = {"play", "goto", "push_ball", "goalie", "match", "autoplay", "warmup"}
@@ -579,6 +574,8 @@ class App:
         self.preset_note = ""
         self.preset_stack: dict = {}            # "_stack": speed_cap / heading_hold passed to fcctl ready/start
         self.brains = {r.id: Brain(r, self.field) for r in self.active}
+        self.coach = Coach(self.brains, self.field)   # 1v1: one decision per tick for the playing robots
+        self.tasks: dict[str, dict] = {}              # this tick's Coach tasks (per-robot params)
         self.sim = self.eye = self.link = None
         if source == "sim":
             self.sim = Sim(self.field, self.all_robots, self.params, seed=seed)
@@ -719,6 +716,7 @@ class App:
             lstat = self._lstat = self.link_status()
             self._health_watch(lstat)
             cmds, debug = {}, {}
+            self.tasks = self._coach_tasks(world)
             for r in self.active:
                 want, dbg, src = self._decide(r, world, now)
                 if src == "brain":
@@ -920,6 +918,8 @@ class App:
             params = {**params, "role_mode": "defend"}
         elif mode == "match":
             params = {**params, "role_mode": "auto"}
+        if params.get("role_mode") == "auto" and r.id in self.tasks:   # 1v1: the Coach's task for this robot
+            params = {**params, **self.tasks[r.id]}
         try:
             cmd, dbg = self._brain(r.id).decide(world, params)
         except Exception as e:  # noqa: BLE001 - a brain bug must not move the robot
@@ -929,6 +929,14 @@ class App:
         if mode == "goto":
             test["done_since"] = (test.get("done_since") or now) if dbg.get("done") else None
         return cmd, dbg, "brain"
+
+    def _coach_tasks(self, world: World | None) -> dict[str, dict]:
+        """Play / match: the Coach over the playing robots. It assigns tasks only while both are tracked and the
+        ball is seen ({} otherwise: each brain plays alone, vs a human)."""
+        if world is None or self.mode not in ("play", "match"):
+            return {}
+        seen = {k: o for k, o in world.robots.items() if k in self.playing and k in self.brains}
+        return self.coach.update(replace(world, robots=seen), self.params)
 
     def _brain(self, rid: str) -> Brain:
         """The brain driving this robot now: autoplay's own (its team = the goal it attacks), else the robot's."""
@@ -1175,6 +1183,7 @@ class App:
             elif ev == "play":
                 for b in self.brains.values():
                     b.reset()
+                self.coach.reset()
                 self.ticker.clear()
             elif ev == "full_time":
                 self.ticker.add(None, None, f"Full time  {f.score['blue']}-{f.score['red']}", "goal")
@@ -1208,6 +1217,7 @@ class App:
         for rid, b in self.brains.items():
             b.reset()
             b.out = self.prev.get(rid, Cmd())
+        self.coach.reset()
 
     def _warm_tick(self, t: dict, world: World | None, now: float) -> None:
         w = self.warm
@@ -1298,6 +1308,7 @@ class App:
         self.mode = name
         for b in self.brains.values():  # fresh role/latch memory for every run
             b.reset()
+        self.coach.reset()
         lstat = self.link_status()
         meta = {"test": name, "robot": robot, "source": self.source, "impl": self.impl_note,
                 "field": asdict(self.field), "field_source": self.field_source,
@@ -1638,10 +1649,9 @@ class App:
         return {"ok": not errors, "applied": ok, "errors": errors}
 
     def preset(self, body: dict) -> dict:
-        """op load: base params + the preset's keys (presets never stack; a preset may name one `_base` preset
-        whose keys it starts from). op save: only the keys that differ from base (plus the preset's robot
-        profile). op base: back to base params.
-        Keys starting with "_" are metadata: _profile (robot profile for start), _note, _stack, _base."""
+        """op load: base params + the preset's keys (presets never stack). op save: only the keys that differ
+        from base (plus the preset's robot profile). op base: back to base params.
+        Keys starting with "_" are metadata: _profile (robot profile for start), _note, _stack."""
         op = body.get("op")
         if op == "base":
             with self.lock:
@@ -1673,15 +1683,6 @@ class App:
                 data = json.loads(path.read_text())
                 if not isinstance(data, dict):
                     raise ValueError("not a JSON object")
-                base = data.get("_base")
-                if base is not None:   # one level: the base preset's keys (and _profile/_stack), then this one's
-                    bpath = self.presets_dir / f"{base}.json"
-                    if not (isinstance(base, str) and PRESET_NAME_RE.fullmatch(base) and base != name and bpath.exists()):
-                        raise ValueError(f"_base {base!r} is not another preset")
-                    bdata = json.loads(bpath.read_text())
-                    if not isinstance(bdata, dict) or "_base" in bdata:
-                        raise ValueError(f"_base {base!r} must be a plain preset (one level)")
-                    data = {**{k: v for k, v in bdata.items() if k != "_note"}, **data}
             except ValueError as e:
                 return {"ok": False, "error": f"preset {name}: {e}"}
             vals = {k: v for k, v in data.items() if not k.startswith("_")}
@@ -1700,7 +1701,7 @@ class App:
                 self.preset_profile = prof if isinstance(prof, str) else None
                 self.preset_stack = stack
                 self.preset_note = str(data.get("_note", ""))
-                self.say(f"preset loaded: {name} ({len(ok)} keys" + (f" on base {data['_base']}" if data.get("_base") else "")
+                self.say(f"preset loaded: {name} ({len(ok)} keys"
                          + (f", profile {self.preset_profile}" if self.preset_profile else "")
                          + (f", stack {' '.join(stack_args(stack))}" if stack else "")
                          + (f"; {len(errors)} rejected: {'; '.join(errors)}" if errors else "") + ")",
