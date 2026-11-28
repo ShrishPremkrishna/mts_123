@@ -198,7 +198,13 @@ def test_setup_step_walks_the_power_on_order_and_never_homes_blind():
     assert st("ready", linked=True)["op"] is None
     assert st("homed", {"op": "ready", "running": True})["busy"] and st("homed", {"op": "ready", "running": True})["op"] is None
     assert st(None, {"op": "status", "running": False, "rc": 255})["step"] == "unreachable"
-    assert st("ready", es=True, linked=True)["step"] == "rearm"
+    getup = st("ready", es=True, linked=True)                                # fall recovery: one button, no homing
+    assert getup["step"] == "getup" and getup["op"] == "robot.getup" and getup["label"] == "Get up"
+    assert "belly or feet" in getup["ask"] and "WITHOUT homing" in getup["ask"]
+    assert st("homed", {"op": "getup", "running": True})["label"] == "Getting up…"
+    imu = setup_step("camera", "mts", False, "homed", None, True, age=1.0, estop_reason="imu_frozen")
+    assert imu["step"] == "rearm" and imu["op"] == "robot.ready" and "IMU fault" in imu["reason"]   # stays down
+    assert st("off", es=True)["op"] == "robot.ready" and st("off", es=True)["args"] == {"home": True}   # dead stack: home
     assert st("fault")["op"] == "robot.stop_stack"
 
 

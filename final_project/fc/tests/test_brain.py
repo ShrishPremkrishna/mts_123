@@ -722,3 +722,39 @@ def test_opp_guard_runs_without_a_coach_task_and_sees_closing_speed():
     poses, _ = m._movers(World(2.5, None, {"red": RobotObs("red", Pose(0.05, 0.0, 0.0), 0.1)}), 2.5, P)
     assert len(poses) == 1 and poses[0].x > 0.05      # lost for 2.4 s (> other_stale_s): still guarded
     assert m._movers(World(5.0, None, {"red": RobotObs("red", Pose(0.05, 0.0, 0.0), 0.1)}), 5.0, P)[0] == []
+
+
+# ---- tilt throttle (ack IMU tilt held high -> zero translation) ---------------------------------------------
+def _feed(thr, series, dt=1 / 30, age=0.02):
+    """series: tilt per 30 Hz ack; returns the active flag after each."""
+    out, t = [], 100.0
+    for v in series:
+        t += dt
+        out.append(thr.update(t, v, age))
+    return out
+
+
+def test_tilt_throttle_ignores_normal_play_spikes():
+    from fc.brain import TiltThrottle
+    # worst normal-play events in the physics sim at max_vx 1.0: 51 deg peak, > 25 deg for 0.35 s, recovered
+    assert not any(_feed(TiltThrottle(), [5] * 30 + [30, 40, 51, 45, 38, 33, 30, 28, 27, 26, 26] + [8] * 30))
+    # repeated sub-hold spikes with short dips do not add up
+    assert not any(_feed(TiltThrottle(), ([28] * 12 + [10] * 2) * 6))
+    # stale acks (Wi-Fi gap) are no evidence: never start it
+    assert not any(_feed(TiltThrottle(), [60] * 40, age=1.0))
+    assert not any(_feed(TiltThrottle(), [None, float("nan"), "x", True] * 10))
+
+
+def test_tilt_throttle_catches_a_robot_going_over_and_releases_when_upright():
+    from fc.brain import TILT_STOP_HOLD_S, Cmd, TiltThrottle
+    thr = TiltThrottle()
+    # 20261128T065952Z-step: 39 deg at t=2.66, 78 at 3.19 while vx kept ramping to 1.4
+    act = _feed(thr, [3] * 10 + [39, 45, 52, 60, 66, 70, 74, 78, 78, 78, 78, 78, 78, 78, 78, 78, 78])
+    first = act.index(True)
+    assert abs(first - 10 - TILT_STOP_HOLD_S * 30) <= 1                                 # ~0.5 s of acks above 25
+    assert thr.apply(Cmd(1.2, 0.1, 0.4, "carry")) == Cmd(0.0, 0.0, 0.4, "tilt")         # translation zero, wz kept
+    assert thr.apply(Cmd(0.0, 0.0, 0.3, "x")).tag == "x"
+    assert _feed(thr, [70] * 5, age=2.0)[-1] is True                                      # stale: stays on
+    rec = _feed(thr, [10] * 20)
+    assert rec[:14] == [True] * 14 and rec[-1] is False                                   # 0.5 s upright -> off
+    assert thr.apply(Cmd(1.2, 0.0, 0.0, "carry")).vx == 1.2

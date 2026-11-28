@@ -60,7 +60,8 @@ STOP_ACTION = {
     "stale": "can't see itself", "imu_bad": "stopped: IMU", "mux_lost": "stopped: motion link",
     "brain_error": "stopped: error", "benched": "benched", "countdown": "get ready", "goal": "goal!",
     "wait_ball": "waiting for ball", "paused": "paused", "full_time": "full time", "idle": "idle",
-    "celebrate": "celebrating", "warmup": "warming up",
+    "celebrate": "celebrating", "warmup": "warming up", "rejoining": "back up: rejoining",
+    "tilt": "tilted: holding speed",
 }
 # brain phase -> ticker sentence (what it decided, in plain words)
 TICKER = {
@@ -939,13 +940,18 @@ def down_failed(op: dict | None) -> bool:
 DOWN_FAIL_TEXT = "STILL STANDING? down refused: use R3 or support the robot"
 
 
+def rearm_word(reason: str | None) -> str:
+    """What re-arms this latch: Get up (no homing), except an IMU fault (imu_*), which stays down until Ready."""
+    return "Ready (IMU fault: check the IMU first)" if str(reason or "").startswith("imu_") else "Get up"
+
+
 def estop_view(rid: str, e: dict, now: float, has_link: bool, sim: bool, resend_s: float) -> dict:
     """E-stop latch -> {level, text, confirmed, by, wall} for the UI. Never clears itself."""
     n, why = name(rid), e.get("reason") or ""
     if e.get("by") == "robot":
-        text, lvl = f"{n} E-STOPPED by the robot ({why}): legs off. Re-arm = Ready", "bad"
+        text, lvl = f"{n} E-STOPPED by the robot ({why}): legs off. Re-arm = {rearm_word(why)}", "bad"
     elif e.get("confirmed"):
-        text, lvl = f"{n} E-STOPPED: legs off, latched{' (sim)' if sim else ''}. Re-arm = Ready", "bad"
+        text, lvl = f"{n} E-STOPPED: legs off, latched{' (sim)' if sim else ''}. Re-arm = Get up", "bad"
     elif not has_link:
         text, lvl = f"{n} E-STOP: link off, nothing was sent. Use R3", "bad"
     elif now - e["t"] < resend_s:
@@ -964,7 +970,7 @@ def safety_banners(cfg: dict[str, RobotCfg], active, estops: dict, ops: dict, no
     same = len(views) > 1 and len(views) == len(active) and all(v["confirmed"] and v["by"] != "robot" for v in views.values())
     if same:
         out.append({"robot": None, "team": None, "level": "bad", "kind": "estop",
-                    "text": f"ALL ROBOTS E-STOPPED: legs off, latched{' (sim)' if sim else ''}. Re-arm = Ready"})
+                    "text": f"ALL ROBOTS E-STOPPED: legs off, latched{' (sim)' if sim else ''}. Re-arm = Get up"})
     for rid in active:
         if rid in views and not same:
             out.append({"robot": rid, "team": cfg[rid].team, "level": "bad", "kind": "estop", "text": views[rid]["text"]})
@@ -977,6 +983,8 @@ def safety_banners(cfg: dict[str, RobotCfg], active, estops: dict, ops: dict, no
 SETUP_STEPS = ("off", "homed", "standing", "ready")      # power-on order of fcctl phases
 READY_PHASES = ("homed", "standing", "ready")             # stack running: fcctl ready stands / links / re-arms, never homes
 PHASE_FRESH_S = 15.0     # a robot.ready decision needs an fcctl phase at most this old (Pi reboot / battery swap)
+GETUP_ASK = ("Robot on its belly or feet (not on its side)? Get up stands it up WITHOUT homing, clears the E-stop "
+             "and rejoins play. Area clear, R3 in reach?")
 HOME_ASK = ("Is the robot ON THE STAND? The stack is off, so this HOMES the legs (they move to their zero pose). "
             "Then it stops, ready to stand.")
 
@@ -1002,7 +1010,7 @@ def ready_refusal(phase: str | None, age: float | None, home: bool) -> str | Non
 
 
 def setup_step(source: str, host: str, dry_run: bool, phase: str | None, op: dict | None, estopped: bool,
-               detail: str = "", age: float | None = None, linked: bool = False) -> dict:
+               detail: str = "", age: float | None = None, linked: bool = False, estop_reason: str = "") -> dict:
     """The robot's next setup step, for the one setup button and for agents:
     {step, label, op (registry name or None), args (extra op args), ask (confirm question or None), reason, busy,
     done (0-3 of off -> homed -> standing -> ready)}. Never trusts an old phase: a robot.ready step needs an fcctl
@@ -1017,6 +1025,7 @@ def setup_step(source: str, host: str, dry_run: bool, phase: str | None, op: dic
         return {**out, "step": "none", "label": "No host", "op": None, "reason": "no host in robots.json"}
     if op and op.get("running"):
         label = {"ready": {"homed": "Standing up…", "standing": "Starting link…"}.get(phase, "Homing…"),
+                 "getup": "Getting up…",
                  "down": "Lying down…", "status": "Checking…", "stop": "Stopping…"}.get(op.get("op"), f"{op.get('op')}…")
         return {**out, "step": "busy", "label": label, "op": None, "busy": True}
     if op and op.get("op") == "status" and op.get("rc") not in (0, None):
@@ -1040,9 +1049,14 @@ def setup_step(source: str, host: str, dry_run: bool, phase: str | None, op: dic
                 "reason": "Put it on the stand", "ask": HOME_ASK}
     if phase == "starting":
         return {**out, "step": "check", "label": "Check", "op": "robot.status", "reason": "homing, loading controllers"}
+    if estopped and str(estop_reason or "").startswith("imu_"):   # an IMU fault stays down: no one-button get up
+        return {**out, "step": "rearm", "label": "Re-arm", "op": "robot.ready",
+                "reason": f"IMU fault ({estop_reason}): check the IMU first",
+                "ask": "IMU fault latch: check the IMU (status, i2c-recover / imu-level) first. Re-arm stands it up "
+                       "again and clears the E-stop. Area clear, R3 in reach?"}
     if estopped:
-        return {**out, "step": "rearm", "label": "Re-arm", "op": "robot.ready", "reason": "E-stopped: legs off",
-                "ask": "Re-arm: stands it up again and clears the E-stop. Area clear, R3 in reach?"}
+        return {**out, "step": "getup", "label": "Get up", "op": "robot.getup", "reason": "E-stopped: legs off",
+                "ask": GETUP_ASK}
     if phase == "homed":
         return {**out, "step": "stand", "label": "Stand up", "op": "robot.ready", "reason": "Put it on the floor",
                 "ask": "Stands it up and starts the link. Robot on the floor, area clear, R3 in reach?"}
@@ -1069,14 +1083,14 @@ def health(source: str, active: bool, seen: bool, L: dict | None, has_link: bool
     if not active:
         return {"level": "off", "text": "not in this session"}
     if estopped:
-        return {"level": "bad", "text": "E-STOPPED · re-arm = Ready"}
+        return {"level": "bad", "text": "E-STOPPED · re-arm = Get up"}
     if down_failed(op):
         return {"level": "bad", "text": "still standing? use R3"}
     if imu_bad:
         return {"level": "bad", "text": "IMU bad"}
     if mux_lost:
         return {"level": "bad", "text": "motion link lost"}
-    if op and op.get("op") == "ready":
+    if op and op.get("op") in ("ready", "getup"):
         prog = op.get("progress") or {}
         if op.get("running"):
             el = prog.get("elapsed")

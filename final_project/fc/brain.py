@@ -153,6 +153,57 @@ def shape(cmd: Cmd, prev: Cmd, dt: float, params: dict) -> Cmd:
                prev.wz + clamp(wz - prev.wz, -aw, aw), cmd.tag)
 
 
+# ---- tilt throttle (laptop side, from the bridge acks' IMU tilt) ----------------------------------------------
+# Run 20261128T065952Z-step kept ramping vx to 1.4 for 0.7 s after the ack tilt read 39 deg. Physics sim (MuJoCo
+# harness, stock policy, 714 normal-play replicas at max_vx 1.0 incl. starts, stops, reversals, arcs, harsh
+# friction/gyro): recovered spikes reach 40-51 deg and stay above 25 deg up to 0.35 s, so 25 deg held 0.5 s never
+# fired (0/714); floor acks (2 Hz log, 82 robot-runs) never held > 20 deg across two samples outside a fall.
+# Sim falls pitch over in 0.1-0.4 s, so this is a late catch (slow falls, rearing on the ball, a robot already
+# going over), not a fall preventer: the bridge's fallen cutoff (45 deg / 0.5 s) still does the e-stop.
+TILT_STOP_DEG = 25.0      # ack IMU tilt above this ...
+TILT_STOP_HOLD_S = 0.5    # ... held this long (by ack time) -> zero translation
+TILT_CLEAR_S = 0.5        # back below TILT_STOP_DEG this long -> commands pass again
+TILT_ACK_MAX_AGE_S = 0.5  # older acks are no evidence either way
+
+
+class TiltThrottle:
+    """Per robot. update() with each tick's newest ack tilt; apply() zeroes vx/vy (wz kept) while active.
+    No fresh tilt never starts it, and an active throttle stays until fresh readings are low again."""
+
+    def __init__(self, deg: float = TILT_STOP_DEG, hold_s: float = TILT_STOP_HOLD_S, clear_s: float = TILT_CLEAR_S,
+                 max_age_s: float = TILT_ACK_MAX_AGE_S):
+        self.deg, self.hold_s, self.clear_s, self.max_age_s = deg, hold_s, clear_s, max_age_s
+        self.active = False
+        self.tilt: float | None = None
+        self._above: float | None = None
+        self._below: float | None = None
+
+    def update(self, now: float, tilt_deg, ack_age=None) -> bool:
+        ok = isinstance(tilt_deg, (int, float)) and not isinstance(tilt_deg, bool) and math.isfinite(tilt_deg)
+        age = ack_age if isinstance(ack_age, (int, float)) and not isinstance(ack_age, bool) else None
+        if not ok or (age is not None and age > self.max_age_s):
+            self._above = self._below = None
+            return self.active
+        t = now - (age or 0.0)              # the ack's own time: the same ack seen on several ticks counts once
+        self.tilt = float(tilt_deg)
+        if tilt_deg > self.deg:
+            self._below = None
+            self._above = t if self._above is None else self._above
+            if t - self._above >= self.hold_s:
+                self.active = True
+        else:
+            self._above = None
+            self._below = t if self._below is None else self._below
+            if self.active and t - self._below >= self.clear_s:
+                self.active = False
+        return self.active
+
+    def apply(self, cmd: Cmd) -> Cmd:
+        if not self.active or (cmd.vx == 0.0 and cmd.vy == 0.0):
+            return cmd
+        return Cmd(0.0, 0.0, cmd.wz, "tilt")
+
+
 class Brain:
     def __init__(self, cfg: RobotCfg, field: Field):
         self.cfg, self.f = cfg, field

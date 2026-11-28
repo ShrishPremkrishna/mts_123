@@ -233,3 +233,11 @@ def test_show_warmup_toggles_and_refuses_during_a_match(app):
     assert ops.call(app, "match.kickoff")["ok"] and app.warm is None and app.flow is not None   # K replaces it
     r = ops.call(app, "show.warmup")
     assert r["code"] == "unavailable" and "match" in r["error"]
+
+
+def test_robot_getup_needs_confirm_and_runs_fcctl_getup_without_a_fresh_phase(app):
+    by = {o["name"]: o for o in ops.manifest(app)["ops"]}
+    assert by["robot.getup"]["safety"] == "confirm" and "belly or feet" in by["robot.getup"]["ask"]
+    assert ops.call(app, "robot.getup", {"robot": "blue"})["code"] == "bad_args"            # confirm required
+    r = ops.call(app, "robot.getup", {"robot": "blue", "confirm": True})   # no phase known: getup never homes
+    assert r["ok"] and r["cmd"].endswith("fcctl.sh getup") and app.ops["blue"]["op"] == "getup"

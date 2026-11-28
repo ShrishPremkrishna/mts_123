@@ -183,51 +183,126 @@ def test_ssh_has_keepalives_and_reader_errors_end_the_op(tmp_path, monkeypatch):
 
 
 # ---- 7: a re-arm mid-match pauses the match ----------------------------------------------------------
-def test_ready_rearm_mid_match_pauses_the_flow(tmp_path, monkeypatch):
+def _fake_rearm_proc(monkeypatch, gate, lines=('{"phase":"ready","elapsed":9.0,"ok":true,"done":true}\n',), rc=0):
     monkeypatch.setattr(fcapp.subprocess, "run",
                         lambda cmd, **kw: fcapp.subprocess.CompletedProcess(cmd, 0, "{}\n", ""))
-    gate = threading.Event()
 
-    class ReadyProc:
+    class Proc:
         def __init__(self, cmd, **kw):
             self.stdout = self._lines()
 
         def _lines(self):
             gate.wait(2)
-            yield '{"phase":"ready","elapsed":9.0,"ok":true,"done":true}\n'
+            yield from lines
 
         def wait(self):
-            return 0
+            return rc
 
         def kill(self):
             pass
 
-    monkeypatch.setattr(fcapp.subprocess, "Popen", ReadyProc)
+    monkeypatch.setattr(fcapp.subprocess, "Popen", Proc)
+
+
+@pytest.mark.parametrize("op", ["ready", "getup"])
+def test_rearm_mid_match_holds_that_robot_briefly_and_the_match_goes_on(tmp_path, monkeypatch, op):
+    """Fall recovery (Dec 3: manual Get up): the re-armed robot holds zero for REJOIN_HOLD_S, out of the Coach, then
+    plays from a fresh brain; the match is never paused for it (the other robot kept playing all along)."""
+    gate = threading.Event()
+    _fake_rearm_proc(monkeypatch, gate)
+    monkeypatch.setattr(fcapp, "REJOIN_HOLD_S", 0.3)
     app = App("sim", runs_root=tmp_path / "runs", presets_dir=tmp_path / "presets")
     try:
         with app.lock:
             assert app._play_action("play_here", {})["ok"]
-            assert app.flow.force_start(time.monotonic()) or app.flow.phase == "countdown"
             app.flow._set("play", time.monotonic())
         app.estop("blue")
         assert app.flow.phase == "play"                       # the e-stop alone does not pause (the other plays on)
-        assert app.robot_op({"robot": "blue", "op": "ready", "confirm": True})["ok"]
+        assert app.robot_op({"robot": "blue", "op": op, "confirm": True})["ok"]
         gate.set()
         assert wait(lambda: "blue" not in app.estops, 2)
-        assert app.flow.phase == "paused" and app.flow.paused_from == "play"
-        assert any("re-armed mid-match" in e["msg"] for e in app.events)
+        with app.lock:
+            assert app.flow.phase == "play" and app.halted("blue") == "rejoining" and app.halted("red") is None
+            assert app.out_of_play("blue") == "rejoining"     # the Coach and the kickoff leave it out meanwhile
+            cmd, dbg, src = app._decide(app.cfg["blue"], app.world, time.monotonic())
+            assert src == "hard" and (cmd.vx, cmd.vy, cmd.wz) == (0, 0, 0) and cmd.tag == "rejoining"
+        assert any("rejoins in" in e["msg"] and "match goes on" in e["msg"] for e in app.events)
+        assert wait(lambda: app.halted("blue") is None, 2)
+        assert app.flow.phase == "play"
     finally:
         app.close()
 
 
-def test_sim_estop_clear_mid_match_pauses_the_flow(idle):
+def test_rearm_while_idle_has_no_hold(idle):
+    app = idle
+    with app.lock:
+        app.estop("red")
+        assert app._estop_clear_sim("red")["cleared"] == ["red"]
+        assert app.halted("red") is None                     # nothing drives it at once: no hold to wait out
+
+
+def test_sim_estop_clear_mid_match_rejoins_without_pausing(idle):
     app = idle
     with app.lock:
         assert app._play_action("play_here", {})["ok"]
         app.flow._set("play", time.monotonic())
         app.estop("red")
         assert app._estop_clear_sim("red")["cleared"] == ["red"]
-        assert app.flow.phase == "paused"
+        assert app.flow.phase == "play" and app.halted("red") == "rejoining"
+        app.estop("red")                                      # an e-stop during the hold wins at once
+        assert app.halted("red") == "estopped" and "red" not in app.rejoin
+
+
+def test_estop_pressed_during_getup_is_kept_and_resent_to_the_new_bridge(tmp_path, monkeypatch):
+    """A fallen robot is latched by the robot. An operator E-STOP pressed while Get up runs must not be absorbed by that
+    old latch (the op's success would clear it): it becomes a fresh operator latch, kept after the op, and resent
+    while the op restarts the bridge (and ESTOP_RESEND_S after) so the new bridge trips on it."""
+    gate = threading.Event()
+    _fake_rearm_proc(monkeypatch, gate)
+    app = App("sim", runs_root=tmp_path / "runs", presets_dir=tmp_path / "presets")
+    try:
+        with app.lock:
+            app._latch("blue", "robot", confirmed=True, reason="fallen")
+        assert app.robot_op({"robot": "blue", "op": "getup", "confirm": True})["ok"]
+        t0 = app.ops["blue"]["t0"]
+        app.estop("blue")
+        e = app.estops["blue"]
+        assert e["by"] == "operator" and e["t"] >= t0 and "getup" in e["reason"]
+        gate.set()
+        assert wait(lambda: not app.ops["blue"]["running"], 2)
+        assert "blue" in app.estops and app.halted("blue") == "estopped"      # still latched after a "successful" op
+        assert any("pressed during Get up" in ev["msg"] for ev in app.events)
+        # resend rule (link path): unconfirmed operator press, op running or just ended -> e-stop packets
+        now = time.monotonic()
+        with app.lock:
+            app.estops["blue"].update(confirmed=False, t=now - 60)           # long ago: only the re-arm keeps it
+            assert app._estop_pending(now) == {"blue"}
+            app.ops["blue"]["t_end"] = now - fcapp.ESTOP_RESEND_S - 1
+            assert app._estop_pending(now) == set()
+            app.ops["blue"]["running"] = True
+            assert app._estop_pending(now) == {"blue"}
+    finally:
+        app.close()
+
+
+def test_getup_failure_keeps_the_latch(tmp_path, monkeypatch):
+    gate = threading.Event()
+    gate.set()
+    _fake_rearm_proc(monkeypatch, gate, lines=(
+        '{"phase":"begin","ok":true,"elapsed":0.1,"msg":"profile stock (get up: no homing)","getup":true}\n',
+        '{"phase":"error","ok":false,"elapsed":3.2,"msg":"robot not upright (tilt 76.0 deg, limit 25): set it on its '
+        'belly or feet, then Get up","at":"upright","upright":false,"tilt_deg":76.0,"exit":6,"done":true}\n'), rc=6)
+    app = App("sim", runs_root=tmp_path / "runs", presets_dir=tmp_path / "presets")
+    try:
+        with app.lock:
+            app._latch("blue", "robot", confirmed=True, reason="fallen")
+        assert app.robot_op({"robot": "blue", "op": "getup", "confirm": True})["ok"]
+        assert wait(lambda: not app.ops["blue"]["running"], 2)
+        op = app.ops["blue"]
+        assert op["rc"] == 6 and "belly" in op["progress"]["error"] and "blue" in app.estops
+        assert app.robot_op({"robot": "blue", "op": "getup"})["error"] == "getup stands the robot up: send confirm=true"
+    finally:
+        app.close()
 
 
 # ---- 9: default preset ---------------------------------------------------------------------------------
@@ -393,3 +468,32 @@ def test_eye_log_record_carries_cal_state(running):
         assert eyes and all(e["cal"] == "suspect" for e in eyes)
     finally:
         app.eye = None
+
+
+def test_ack_tilt_held_high_zeroes_translation_then_releases(tmp_path):
+    """Run 20261128T065952Z: the laptop kept ramping vx for 0.7 s after the ack read 39 deg. Tick integration: a held
+    high ack tilt zeroes vx/vy (wz kept, brain ramp restarts from zero), and commands pass again once upright."""
+    app = App("sim", runs_root=tmp_path / "runs", presets_dir=tmp_path / "presets")
+    tilt = {"v": 40.0}
+    app.link_status = lambda: {"blue": {"imu": {"tilt_deg": tilt["v"], "level": "warn"}, "ack_age": 0.02, "connected": True}}
+    try:
+        with app.lock:
+            assert app._start_test({"test": "drive", "robot": "blue"})["ok"]
+
+        def run(seconds):
+            end = time.monotonic() + seconds
+            while time.monotonic() < end:
+                app.teleop["blue"] = (1.0, 0.0, 0.5, time.monotonic())
+                app.tick(1 / 30)
+                time.sleep(1 / 60)
+            return app.cmds["blue"]
+
+        c = run(0.8)
+        assert (c.vx, c.vy, c.tag) == (0.0, 0.0, "tilt") and c.wz > 0, c
+        assert any("TILT on blue" in e["msg"] for e in app.events)
+        tilt["v"] = 4.0
+        c = run(0.8)
+        assert c.vx > 0 and c.tag == "teleop", c
+        assert any("tilt on blue back to 4 deg" in e["msg"] for e in app.events)
+    finally:
+        app.close()

@@ -801,7 +801,7 @@ def test_estop_latches_holds_zero_and_never_auto_clears(server):
     assert code == 200 and r["robots"] == ["blue"] and sent == [["blue"]]
     s = state(base)
     assert s["mode"] == "idle" and s["last_summary"]["result"] == "estop"           # the drive test ended
-    assert s["estop"]["blue"]["confirmed"] and "Re-arm = Ready" in s["estop"]["blue"]["text"]
+    assert s["estop"]["blue"]["confirmed"] and "Re-arm = Get up" in s["estop"]["blue"]["text"]
     assert s["play"]["robots"]["blue"]["health"]["text"].startswith("E-STOPPED")
     assert any(b.get("kind") == "estop" for b in s["play"]["banners"])
     code, r = post(base, "/action", {"action": "test", "test": "step", "robot": "blue", "vx": 0.1})

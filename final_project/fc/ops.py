@@ -19,6 +19,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from .play import GETUP_ASK
+
 VERSION = 1
 SAFETY = ("info", "match", "params", "motion", "confirm", "stop")   # what kind of effect the op has
 
@@ -386,6 +388,16 @@ def _ready(app, a):
     if why:
         return {"ok": False, "error": why}
     return _robot(app, "ready", a, confirm=True, **({"pov": a["pov"]} if "pov" in a else {}))
+
+
+@op("robot.getup", "Get up", "fcctl getup: a fallen / e-stopped robot back into play WITHOUT homing (~20 s): tilt gate "
+    "(refuses unless the IMU says upright: set it on its belly or feet), re-arm, stand, link. The stack must be running "
+    "(else it needs Ready with homing, on the stand); an IMU-fault latch (imu_*) stays down (check the IMU, then Ready). "
+    "In a match the robot rejoins after a short hold; the match is not paused. E-stop / R3 still win.", "robot",
+    safety="confirm", ask=GETUP_ASK, when=_real_robots, robot=P("robot", required=True, choices=_robots),
+    confirm=P("bool", "must be true", required=True, choices=[True]))
+def _getup(app, a):
+    return _robot(app, "getup", a, confirm=True)
 
 
 @op("robot.down", "Lie down", "fcctl down: gentle lie-down, then the stack stops (keep_stack keeps it homed).", "robot",

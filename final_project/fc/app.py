@@ -26,7 +26,7 @@ from dataclasses import asdict, fields, is_dataclass, replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from .brain import Brain, Coach, shape
+from .brain import Brain, Coach, TiltThrottle, shape
 from .brain import DEFAULTS as BRAIN_DEFAULTS
 from .core import CONFIG, Cmd, RobotCfg, World, load_field, load_params, wrap
 from .link import CEIL, Link
@@ -94,8 +94,10 @@ BRAIN_MODES = {"play", "goto", "push_ball", "goalie", "match", "autoplay", "warm
 # Sim scenario each test starts from (sim source only; the UI can override).
 SIM_SCENARIO = {"push_ball": "attack_solo", "goalie": "shot_on_goal", "match": "kickoff", "autoplay": "attack_solo"}
 SIM_HUMAN_S = 3.0      # sim autoplay: the "please roll the ball out" banner is up this long before the sim person does it
-ROBOT_OPS = ["status", "ready", "down", "start", "stop", "bridge_start", "bridge_stop", "imu_test", "stage"]
-CONFIRM_OPS = {"start", "ready"}                   # may home the legs / stand the robot up
+ROBOT_OPS = ["status", "ready", "getup", "down", "start", "stop", "bridge_start", "bridge_stop", "imu_test", "stage"]
+CONFIRM_OPS = {"start", "ready", "getup"}          # may home the legs / stand the robot up
+REARM_OPS = {"ready", "getup"}                     # stand the robot and clear an e-stop latch (fcctl ready path)
+REJOIN_HOLD_S = 2.0       # after a re-arm the robot holds zero this long before play (the match is not paused)
 ALWAYS_OPS = {"stop", "down"}                      # never refused by a running op
 PROFILES_DIR = HERE / "robot" / "profiles"
 HOST_RE = re.compile(r"[A-Za-z0-9_.@-]{1,253}")   # robots.json host: [user@]name, no shell or ssh-option chars
@@ -105,7 +107,7 @@ SSH_OPTS = ("-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "-o", "ServerAliveI
 IMU_TEST_S = (1, 900)
 IMU_MODES = ("auto", "bno", "ros")
 IMU_CONDITION_RE = re.compile(r"[a-z0-9_]{1,24}")
-OP_TIMEOUT_S = {"start": 180, "stage": 120, "ready": 300, "down": 90}  # fcctl start waits up to 160 s for READY
+OP_TIMEOUT_S = {"start": 180, "stage": 120, "ready": 300, "getup": 120, "down": 90}  # fcctl start waits up to 160 s for READY
 CAM_URL_RE = re.compile(r"https?://[A-Za-z0-9_.\-]+(:\d{1,5})?(/[A-Za-z0-9_./\-]*)?")
 STEP_PRE_S = 0.7                                   # step: still before the command (start pose)
 DEADMAN_PRE_S = 0.5
@@ -622,6 +624,8 @@ class App:
         # successful Ready on that robot (or estop_clear in sim). Never by time or by acks.
         self.estops: dict[str, dict] = {}
         self.estop_cleared: dict[str, float] = {}
+        self.rejoin: dict[str, float] = {}   # re-armed robot -> monotonic time its rejoin hold ends (halted until then)
+        self.tilt: dict[str, TiltThrottle] = {}   # ack IMU tilt held high -> zero translation (brain.TiltThrottle)
         self._lstat: dict[str, dict] = {}
         self._sim_ev_n = 0
         self._goal_cooldown = 0.0
@@ -742,6 +746,9 @@ class App:
                     cmd = Cmd.stop(want.tag)
                 else:   # every app-made command gets the brain's clamp + rate limit
                     cmd = shape(want, self.prev.get(r.id, Cmd()), dt, self.params)
+                thr = self._tilt_throttle(r.id, lstat, now)
+                if thr.active and (cmd.vx or cmd.vy):
+                    cmd, src = thr.apply(cmd), "tilt"
                 if src != "brain" and self.mode in BRAIN_MODES and r.id in self.brains:
                     self._brain(r.id).sent(cmd)   # next brain ramp starts from what really went out
                 self.prev[r.id] = cmd
@@ -762,9 +769,7 @@ class App:
                     out[rid] = t.get("last_sent", Cmd()) if held else Cmd.stop("ttl")
                 self.sim.step(out, dt)
             elif self.link:
-                pending = {rid for rid, e in self.estops.items()
-                           if not e["confirmed"] and e["by"] == "operator" and now - e["t"] < ESTOP_RESEND_S}
-                self.link.send({k: v for k, v in cmds.items() if k not in muted}, estop=pending)
+                self.link.send({k: v for k, v in cmds.items() if k not in muted}, estop=self._estop_pending(now))
             if t and t["name"] in ("step", "deadman") and t["robot"] not in muted:
                 c = cmds[t["robot"]]
                 t["sent"].append((now, c.vx, c.vy, c.wz))
@@ -838,13 +843,47 @@ class App:
             return
         self.estops[rid] = {"t": time.monotonic() if t is None else t, "wall": time.strftime("%H:%M:%S"), "by": by,
                             "confirmed": confirmed, "reason": reason}
-        self.say(f"E-STOP {rid} ({by}{': ' + reason if reason else ''}): zero commands until Ready re-arms it",
+        self.say(f"E-STOP {rid} ({by}{': ' + reason if reason else ''}): zero commands until Get up / Ready re-arms it",
                  robot=rid, estop=self.estops[rid])
+
+    def _tilt_throttle(self, rid: str, lstat: dict, now: float) -> TiltThrottle:
+        """The robot's tilt throttle, updated with its newest ack (sim: no acks, never active)."""
+        thr = self.tilt.get(rid)
+        if thr is None:
+            thr = self.tilt[rid] = TiltThrottle()
+        st = lstat.get(rid) or {}
+        was = thr.active
+        thr.update(now, (st.get("imu") or {}).get("tilt_deg"), st.get("ack_age"))
+        if thr.active != was:
+            self.say(f"TILT on {rid}: IMU {thr.tilt:.0f} deg held: zero translation until it is upright" if thr.active
+                     else f"tilt on {rid} back to {thr.tilt:.0f} deg: commands pass again", robot=rid, tilt=thr.tilt)
+        return thr
 
     def halted(self, rid: str) -> str | None:
         if rid in self.estops:
             return "estopped"
-        return "imu_bad" if rid in self.imu_bad else "mux_lost" if rid in self.mux_lost else None
+        if rid in self.imu_bad:
+            return "imu_bad"
+        if rid in self.mux_lost:
+            return "mux_lost"
+        t = self.rejoin.get(rid)
+        if t is not None:
+            if time.monotonic() < t:
+                return "rejoining"
+            self.rejoin.pop(rid, None)
+        return None
+
+    def _estop_pending(self, now: float) -> set[str]:
+        """Robots that get an e-stop packet this tick: operator presses not yet confirmed by an ack, for
+        ESTOP_RESEND_S after the press, and for as long as a Ready / Get up restarts that robot's bridge."""
+        return {rid for rid, e in self.estops.items() if not e["confirmed"] and e["by"] == "operator"
+                and (now - e["t"] < ESTOP_RESEND_S or self._rearming(rid, now))}
+
+    def _rearming(self, rid: str, now: float) -> bool:
+        """A Ready / Get up for rid is running or ended < ESTOP_RESEND_S ago: its bridge is restarted on the way, so
+        an operator e-stop pressed meanwhile is resent until that new bridge confirms it."""
+        op = self.ops.get(rid) or {}
+        return op.get("op") in REARM_OPS and (bool(op.get("running")) or now - op.get("t_end", -math.inf) < ESTOP_RESEND_S)
 
     def out_of_play(self, rid: str) -> str | None:
         """halted(), or "no_link": the link is on and the robot's bridge has not acked within
@@ -1707,7 +1746,14 @@ class App:
                 self.teleop.clear()
             for rid in targets:
                 self.prev.pop(rid, None)
+                self.rejoin.pop(rid, None)
                 reason = "sim: emulated latch" if self.sim is not None else "" if self.link else "link off: nothing sent"
+                if rid in self.estops and self._rearming(rid, t_press):
+                    # a Get up / Ready is clearing this robot's latch right now: an old (robot) latch must not
+                    # absorb the press, or the op's success would clear it. Fresh operator latch: resent until
+                    # the restarted bridge confirms it, and kept after the op.
+                    self.estops.pop(rid)
+                    reason = "pressed during " + str(self.ops[rid].get("op"))
                 self._latch(rid, "operator", confirmed=self.sim is not None, reason=reason, t=t_press)   # no-op if latched
         return {"ok": True, "robots": targets, "sent": sent}
 
@@ -1721,7 +1767,7 @@ class App:
             self.estop_cleared[rid] = time.monotonic()
         self.say(f"sim: e-stop cleared for {', '.join(ids) or 'nobody'}")
         for rid in ids:
-            self._pause_after_rearm(rid)
+            self._rejoin_hold(rid)
         return {"ok": True, "cleared": ids}
 
     def _apply_params(self, new: dict) -> None:
@@ -1825,7 +1871,8 @@ class App:
         if not r.host:
             return {"ok": False, "error": f"{rid} has no host in robots.json"}
         if op in CONFIRM_OPS and body.get("confirm") is not True:
-            return {"ok": False, "error": f"{op} homes the legs: send confirm=true"}
+            return {"ok": False, "error": f"{op} " + ("stands the robot up" if op == "getup" else "homes the legs")
+                    + ": send confirm=true"}
         cur = self.ops.get(rid)
         if cur and cur.get("running") and op not in ALWAYS_OPS:   # stop/down are never refused here
             return {"ok": False, "error": f"{cur['op']} still running on {rid}"}
@@ -1868,7 +1915,7 @@ class App:
         else:
             # down/stop never get --force here: a robot not confirmed lying stays up (use R3).
             # down keep_stack=true: lie down, keep the stack homed (next Ready needs no stand).
-            args = {"status": ["status"], "stop": ["stop"],
+            args = {"status": ["status"], "stop": ["stop"], "getup": ["getup"],
                     "down": ["down", "--keep-stack"] if body.get("keep_stack") is True else ["down"],
                     "bridge_start": ["bridge", "start", "--robot-id", rid],
                     "bridge_stop": ["bridge", "stop"], "stage": []}[op]
@@ -1887,7 +1934,7 @@ class App:
             state["pov"] = bool(r.cam_url) if pov is None else pov
         self.ops[rid] = state
         self.say(f"robot {rid}: {op}" + (" (dry run)" if self.dry_run_ops else ""), cmd=state["cmd"])
-        target = self._run_stream if op in ("ready", "down") else self._run_op
+        target = self._run_stream if op in ("ready", "getup", "down") else self._run_op
         threading.Thread(target=target, args=(rid, state, cmd, timeout), daemon=True).start()
         return {"ok": True, "cmd": state["cmd"], "seq": state["seq"]}
 
@@ -1914,6 +1961,7 @@ class App:
                          progress={**(state.get("progress") or {}), "ok": False, "error": err})
             self.say(f"robot {rid}: {state['op']} -> {err}")
         finally:
+            state.setdefault("t_end", time.monotonic())
             state["running"] = False
 
     def _stream_body(self, rid: str, state: dict, p, timeout: float) -> None:
@@ -1931,7 +1979,7 @@ class App:
                     if obj.get("ok") is False and obj.get("msg") and not obj.get("error"):
                         obj = {**obj, "error": obj["msg"]}   # fcctl puts the reason in msg
                     state["progress"] = obj
-                    if state["op"] == "ready" and isinstance(obj.get("phase"), str):
+                    if state["op"] in REARM_OPS and isinstance(obj.get("phase"), str):
                         self._set_phase(rid, obj["phase"])
             state["rc"] = p.wait()
         finally:
@@ -1940,6 +1988,7 @@ class App:
             state["progress"] = {**state["progress"], "ok": False, "error": f"timeout after {timeout:.0f} s"}
         elif state["rc"] != 0 and not state["progress"].get("error"):
             state["progress"] = {**state["progress"], "ok": False, "error": f"exit {state['rc']}"}
+        state["t_end"] = time.monotonic()
         state["running"] = False
         self.say(f"robot {rid}: {state['op']} -> rc {state['rc']}", out=state["out"][-1500:])
         prog = state["progress"]
@@ -1957,22 +2006,35 @@ class App:
                 if e is not None and e["t"] < state["t0"]:
                     self.estops.pop(rid)
                     self.estop_cleared[rid] = time.monotonic()
-                    self.say(f"E-STOP on {rid} cleared: Ready re-armed it", robot=rid)
-                    self._pause_after_rearm(rid)
+                    self.say(f"E-STOP on {rid} cleared: {self._op_word(state['op'])} re-armed it", robot=rid)
+                    self._rejoin_hold(rid)
                 elif e is not None:
-                    self.say(f"E-STOP on {rid} was pressed during Ready: still latched, press Ready again", robot=rid)
+                    self.say(f"E-STOP on {rid} was pressed during {self._op_word(state['op'])}: still latched, "
+                             f"press {self._op_word(state['op'])} again", robot=rid)
             if state.get("pov"):
                 self._pov_start(rid)
             if not self.dry_run_ops:
                 self._refresh_status(rid)   # speed_cap / heading_hold of the stack that is now running
 
-    def _pause_after_rearm(self, rid: str) -> None:
-        """A re-arm mid-match must not hand a just-standing robot straight back to play: the match pauses
-        (score kept; Resume = countdown). Caller holds the lock."""
-        f = self.flow
-        if f is not None and (self.test or {}).get("flow") and rid in f.cfg and f.phase not in ("paused", "full_time"):
-            f.pause(time.monotonic())
-            self.say(f"match paused: {rid} re-armed mid-match (Resume when it is ready to play)", robot=rid)
+    @staticmethod
+    def _op_word(op: str) -> str:
+        return "Get up" if op == "getup" else "Ready"
+
+    def _rejoin_hold(self, rid: str) -> None:
+        """A re-armed robot holds zero for REJOIN_HOLD_S (halted "rejoining": out of the Coach, the kickoff does not
+        wait for it), then plays again from a fresh brain whose ramp starts at zero. The match is not paused: the
+        other robot keeps playing. E-stop / IMU / mux holds still win (halted() checks them first). Caller holds
+        the lock. Only while the brain drives robots (play, match, autoplay, warm-up)."""
+        self.prev[rid] = Cmd.stop("rejoining")
+        b = self.brains.get(rid)
+        if b is not None:
+            b.reset()
+            b.out = Cmd.stop("rejoining")
+        if self.mode not in BRAIN_MODES:   # idle / a test: nothing drives it at once, the operator starts the next thing
+            return
+        self.rejoin[rid] = time.monotonic() + REJOIN_HOLD_S
+        if self.flow is not None and (self.test or {}).get("flow") and rid in self.flow.cfg:
+            self.say(f"{rid} re-armed mid-match: rejoins in {REJOIN_HOLD_S:.0f} s (match goes on)", robot=rid)
 
     def _pov_start(self, rid: str) -> None:
         """fcctl cam start (160x120 @ 5 fps MJPEG, measured 1.3 % of one Pi core, 0.13 Mbit/s) after a
@@ -2152,7 +2214,8 @@ class App:
                 "phase_age": None if self.phase_age(r.id, now) is None else round(self.phase_age(r.id, now), 1),
                 "setup": setup_step(self.source, r.host, self.dry_run_ops, self.robot_phase.get(r.id), self.ops.get(r.id),
                                     r.id in self.estops, str((self.robot_status.get(r.id) or {}).get("detail") or ""),
-                                    age=self.phase_age(r.id), linked=bool(((lstat or {}).get(r.id) or {}).get("connected"))),
+                                    age=self.phase_age(r.id), linked=bool(((lstat or {}).get(r.id) or {}).get("connected")),
+                                    estop_reason=str((self.estops.get(r.id) or {}).get("reason") or "")),
                 "cam": self.cams[r.id].status() if r.id in self.cams else None,
             }
         cam = []

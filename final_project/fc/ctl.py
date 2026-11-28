@@ -10,6 +10,8 @@
                                             Prints the JSON reply; exit 0 ok / 1 refused
     check <robot> [--ball] [--yaw DEG]      RUNBOOK gates (seen, eye fps/calib, auth, RTT, loss, not halted)
     ready <robot> [--preset NAME] [--home] [--pov on|off]  fcctl ready (stands; re-arms an e-stop). --home: allowed to HOME the legs
+    getup <robot>                           fallen / e-stopped robot back into play, NO homing (~20 s): set it on its
+                                            belly or feet first. Refuses on its side, a dead stack, an IMU-fault latch
     down <robot> [--keep-stack]             fcctl down (lie down; --keep-stack keeps it homed)
     estop <robot|all>                       link E-STOP, waits for the robot's confirmation (3.5 s)
     pi <robot>                              fcctl status: Pi temp/throttle/load, phase, bridge, latch, lean;
@@ -888,6 +890,35 @@ def cmd_ready(c: Client, a) -> None:
         raise Fail(f"ready {rid} ended at phase {phase!r}, not ready")
 
 
+def cmd_getup(c: Client, a) -> None:
+    """A fallen / e-stopped robot back into play without homing (fcctl getup): robot on its belly or feet first."""
+    rid = a.robot
+    st = c.state()
+    mode = robot_ops_mode(st)
+    if mode == "sim":
+        if rid in (st.get("estop") or {}):
+            need_ok(c.post("/api/op", {"op": "estop.clear", "args": {"robot": rid}}), "estop.clear")
+            say(f"sim: no robot ops (app without --dry-run-ops); e-stop latch on {rid} cleared (stands in for Get up)")
+        else:
+            say(f"sim: no robot ops (app without --dry-run-ops); {rid} needs no Get up")
+        return
+    op = run_op(c, rid, {"op": "getup", "confirm": True}, 150, stream=True)
+    if is_dry(op):
+        say(f"  dry-run: {short(op.get('out') or op.get('cmd'), 200)}")
+        say(f"GOT UP {rid} (dry run: nothing ran)")
+        return
+    lines = [o for _, o in json_lines(op.get("out", ""))]
+    last = lines[-1] if lines else (op.get("progress") or {})
+    if op.get("rc") != 0:
+        at = last.get("at")
+        hint = {"stack": " (robot on the stand, then `ready --home`)", "upright": " (set it on its belly or feet, then getup)",
+                "imu_fault": " (check the IMU, then `ready`)"}.get(at, "")
+        raise Fail(f"getup {rid} failed (rc {op.get('rc')}): {op_error(op)}{hint}")
+    if last.get("phase") != "ready":
+        raise Fail(f"getup {rid} ended at phase {last.get('phase')!r}, not ready")
+    say(f"UP {rid}: ready, rejoining play")
+
+
 def cmd_down(c: Client, a) -> None:
     rid = a.robot
     st = c.state()
@@ -1211,6 +1242,9 @@ def build_parser() -> Parser:
     p.add_argument("--pov", choices=["on", "off"], default=None,
                    help="robot POV feed (fcctl cam start) once ready; default on if robots.json has a cam_url")
     p.set_defaults(fn=cmd_ready)
+    p = sub.add_parser("getup", help="fallen / e-stopped robot back into play without homing (belly or feet first)")
+    p.add_argument("robot")
+    p.set_defaults(fn=cmd_getup)
     p = sub.add_parser("down")
     p.add_argument("robot")
     p.add_argument("--keep-stack", action="store_true")

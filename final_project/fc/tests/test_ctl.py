@@ -443,7 +443,7 @@ class RealOpsClient:
         if path == "/robot":
             op = body["op"]
             self.ops["blue"] = {"op": op, "cmd": f"ssh mts {op}", "running": False, "out": self.out.get(op, ""),
-                                "rc": self.rc if op == "ready" else 0}
+                                "rc": self.rc if op in ("ready", "getup") else 0}
             return {"ok": True, "cmd": f"ssh mts {op}"}
         return {"ok": True}
 
@@ -694,3 +694,18 @@ def test_show_lines_print_countdown_goals_and_full_time():
     assert ctl.show_lines(prev, g, None) == ["GOAL BLUE  BLUE 1 - 0 RED  (0:12 played)", "celebration"]
     assert ctl.show_lines(prev, None, {"result": "full_time", "score": {"blue": 1, "red": 0}}) == ["FULL TIME  BLUE 1 - 0 RED"]
     assert prev["ended"]
+
+
+def test_getup_runs_fcctl_getup_and_explains_refusals(capsys):
+    ap = ctl.build_parser()
+    c = RealOpsClient("homed", [])
+    c.out["getup"] = "".join(json.dumps(x) + "\n" for x in READY_LINES)
+    ctl.cmd_getup(c, ap.parse_args(["getup", "blue"]))
+    assert c.posts == [("/robot", {"robot": "blue", "op": "getup", "confirm": True})]   # no status, never homes
+    assert capsys.readouterr().out.rstrip().endswith("UP blue: ready, rejoining play")
+    for at, hint in (("upright", "belly or feet"), ("stack", "ready --home"), ("imu_fault", "check the IMU")):
+        c = RealOpsClient("homed", [])
+        c.out["getup"] = json.dumps({"phase": "error", "ok": False, "msg": "refused", "at": at, "done": True}) + "\n"
+        c.rc = 6
+        with pytest.raises(ctl.Fail, match=hint):
+            ctl.cmd_getup(c, ap.parse_args(["getup", "blue"]))
