@@ -48,12 +48,15 @@ Sources: a live camera name/index ("phone"), a video file, a folder of images, o
 """
 from __future__ import annotations
 
+import atexit
 import collections
 import dataclasses
 import datetime
 import json
 import math
 import os
+import select
+import subprocess
 import sys
 import threading
 import time
@@ -62,7 +65,7 @@ from pathlib import Path
 
 from . import ballcal
 from .ballvel import BallVelocity, fit_decel  # noqa: F401 - fit_decel re-exported
-from .core import CONFIG, Ball, Field, Pose, RobotCfg, RobotObs, World, wrap
+from .core import CONFIG, ROBOTS_DIR, Ball, Field, Pose, RobotCfg, RobotObs, World, load_robot_overrides, wrap
 
 OP = Path(__file__).resolve().parent.parent / "overhead_perception"
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp"}
@@ -114,6 +117,12 @@ GYRO_FRESH_S = 0.1        # measured yaw used only if a sample lies within this 
 GYRO_GAP_S = 0.3          # ...and no gap between ack samples longer than this around an end
 TRAVEL_TAU_GYRO_S = 5.0   # travel-direction pull while the measured yaw carries the heading (weak prior)
 YAW_CONF_GYRO_TAU_S = 8.0  # confidence decay while the measured yaw carries the heading
+
+# Per-robot tag mount (Nov 28). These knobs describe one robot's tag (how high, how far ahead of the body centre,
+# how it is turned), so fc/config/robots/<id>.json overrides them for that robot; params.json holds the default for
+# a robot without its own value. The files are re-read when they change (no restart); Eye.robot_over is live.
+ROBOT_MOUNT_KEYS = ("eye_tag_height", "eye_tag_offset_x", "eye_yaw_offset_deg")
+ROBOT_OVER_CHECK_S = 1.0  # how often the robots/<id>.json files are checked for edits
 
 # Field calibration (see the module notes). Pixel sizes for a 1920 px wide picture, scaled with the width.
 EYE_CAL_PATH = CONFIG / "eye_cal.json"
@@ -468,6 +477,19 @@ class RobotTrack:
         return self.yaw
 
 
+def _mount_keys(rid: str, over: dict, where: str) -> dict:
+    """The tag-mount knobs (ROBOT_MOUNT_KEYS) of one robot's overrides, as floats. Other keys are for other
+    modules (e.g. act_lag_s for the brain) and are left out. A non-number raises ValueError."""
+    out = {}
+    for k in ROBOT_MOUNT_KEYS:
+        if k in over:
+            v = over[k]
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+                raise ValueError(f"{where}: {rid} {k!r} must be a number, got {v!r}")
+            out[k] = float(v)
+    return out
+
+
 def _fieldcam():
     if str(OP) not in sys.path:
         sys.path.insert(0, str(OP))
@@ -478,24 +500,466 @@ def _fieldcam():
 
 # ---------------------------------------------------------------------------------------
 # frame sources: read() -> (frame, t_receipt_monotonic) or (None, None)
-# ---------------------------------------------------------------------------------------
+#
+# live camera: capture in a child process that the eye watches and respawns (Nov 28)
+# Nov 27: the phone camera dropped mid-session and only an app restart brought it back. Why a child process:
+#   * the camera list a process sees comes from AVFoundation / CoreMediaIO, which update it through notifications
+#     delivered on the main thread's run loop; a Python process never runs that loop, so a phone that went away and
+#     came back can stay invisible (or a dead device object stay "openable") to the process that first opened it.
+#     A NEW process enumerates afresh, so every connection attempt is a new child (hypothesis from the code and
+#     Apple's notification model; not reproduced with the phone);
+#   * a read that hangs inside AVFoundation can only be stopped by killing its process (the camera is then freed);
+#   * the frozen phone feed of Nov 27 042513Z (27 s of identical pictures at full rate) never counted as lost.
+# The child finds the camera, opens it once and writes frames into shared memory (CAM_SLOTS slots at the pinned
+# size, one byte on a pipe per frame wakes the reader). The watcher thread kills and respawns it when frames stop
+# (CAM_STALL_S), the picture freezes (CAM_FROZEN_S) or a start delivers nothing (CAM_OPEN_S), with back-off while
+# attempts fail. The picture size is pinned to the eye's (= the calibration's): a camera that comes back at another
+# size of the same aspect is scaled to it (the calibration scales the same way); another aspect is refused (another
+# view). A camera chosen by a name ("phone") is locked to the device found first: a reconnect never falls back to
+# another camera.
+CAM_SLOTS = 3
+CAM_STALL_S = 1.0       # no new frame this long -> respawn
+CAM_FROZEN_S = 1.0      # identical pictures this long -> respawn (live sensor noise differs every frame)
+CAM_OPEN_S = 6.0        # a child that delivers no moving picture this long after its start -> respawn
+CAM_BACKOFF_S = (0.0, 0.5, 1.0, 2.0, 3.0)   # wait before attempt n after a failure (last value repeats)
+_HI_SEQ, _HI_OWNER, _HI_W, _HI_H = 0, 1, 2, 3        # int64 header: frames published, owner generation, camera size
+_HF_FRAME, _HF_CHANGED, _HF_SLOT0 = 0, 1, 2          # float64 header: monotonic t of the last frame / last change
+_HDR_BYTES = 256
+ROOT = Path(__file__).resolve().parent.parent       # final_project (for the child's imports)
+
+
+def _cam_views(np, buf, w: int, h: int):
+    hi = np.ndarray((8,), np.int64, buf, 0)
+    hf = np.ndarray((8 + CAM_SLOTS,), np.float64, buf, 64)
+    slots = [np.ndarray((h, w, 3), np.uint8, buf, _HDR_BYTES + i * w * h * 3) for i in range(CAM_SLOTS)]
+    return hi, hf, slots
+
+
+def _plain(t: str) -> str:
+    return t.lower().replace("\u2019", "'").strip()
+
+
+def find_device(source: str, lock: str | None = None, cameras: list[dict] | None = None) -> tuple[dict | None, str]:
+    """The camera to open for `source` right now: ({"index", "name", ...}, "") or (None, why).
+    lock: the exact device name found at the first connection; a reconnect accepts only that device.
+    Without a lock a name is matched as fieldcam.capture.find_camera does ("phone" = a phone-looking camera, else
+    any non-built-in one); iPhone "Desk View" cameras are left out unless asked for by name."""
+    source = str(source)
+    if source.startswith("fake:"):
+        return FakeCamera.find(source, lock)
+    if source.isdigit():
+        return {"index": int(source), "name": f"camera {source}"}, ""
+    if "://" in source:
+        return {"index": source, "name": source}, ""
+    _fieldcam()
+    from fieldcam.capture import HELP, find_camera, list_cameras
+    cams = list_cameras() if cameras is None else cameras
+    if "desk view" not in _plain(source):
+        cams = [c for c in cams if "desk view" not in _plain(c["name"])]
+    seen = f" macOS sees: {', '.join(c['name'] for c in cams) or 'no camera'}."
+    if lock is not None:
+        found = next((c for c in cams if _plain(c["name"]) == _plain(lock)), None)
+        return (found, "") if found else (None, f"{lock} not connected.{seen} {HELP}")
+    found = find_camera(source, cams)
+    return (found, "") if found else (None, f"no camera matches {source!r}.{seen} {HELP}")
+
+
+def _open_device(dev: dict, w: int, h: int, fps: int):
+    if "fake" in dev:
+        return FakeCamera(dev["fake"])
+    cv2, _ = _fieldcam()
+    target = dev["index"]
+    cap = (cv2.VideoCapture(target, cv2.CAP_AVFOUNDATION) if isinstance(target, int) and sys.platform == "darwin"
+           else cv2.VideoCapture(target))
+    if cap is None or not cap.isOpened():
+        return None
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
+    cap.set(cv2.CAP_PROP_FPS, fps)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    return cap
+
+
+def _capture_child(spec_json: str) -> None:
+    """Child process: one camera connection. Exits when the parent dies or replaces it (owner generation)."""
+    spec = json.loads(spec_json)
+    cv2, np = _fieldcam()
+    from multiprocessing import resource_tracker, shared_memory
+    shm = shared_memory.SharedMemory(name=spec["shm"])
+    try:   # the parent owns and unlinks the memory; this process's tracker must not remove it when we exit
+        resource_tracker.unregister(shm._name, "shared_memory")  # noqa: SLF001
+    except Exception:  # noqa: BLE001
+        pass
+    W, H, gen, parent, fd = spec["w"], spec["h"], spec["gen"], spec["parent"], spec["notify_fd"]
+    hi, hf, slots = _cam_views(np, shm.buf, W, H)
+
+    def say(**kw):
+        print(json.dumps(kw), flush=True)
+
+    def watchdog():   # runs even while the main thread is stuck inside a camera read
+        while os.getppid() == parent and int(hi[_HI_OWNER]) == gen:
+            time.sleep(0.2)
+        os._exit(0)
+    threading.Thread(target=watchdog, daemon=True).start()
+
+    dev, why = find_device(spec["source"], spec.get("lock"))
+    if dev is None:
+        say(state="absent", why=why)
+        sys.exit(2)
+    say(state="opening", device=dev["name"], index=dev["index"] if isinstance(dev["index"], int) else None)
+    cap = _open_device(dev, W, H, spec["fps"])
+    if cap is None:
+        say(state="open_failed", device=dev["name"], why=f"could not open {dev['name']}")
+        sys.exit(3)
+    os.set_blocking(fd, False)
+    seq, prev, n, t_copy, t_stats, live = int(hi[_HI_SEQ]), None, 0, 0.0, time.monotonic() + 5.0, False
+    while True:
+        slot = (seq + 1) % CAM_SLOTS
+        dst = slots[slot]
+        ok, img = cap.read(dst)
+        t = time.monotonic()
+        if not ok or img is None:
+            time.sleep(0.005)
+            continue
+        t0 = time.perf_counter()
+        sh, sw = img.shape[:2]
+        if (sw, sh) != (W, H):
+            if abs(sw / sh - W / H) > 0.01:
+                say(state="wrong_size", device=dev["name"], size=[sw, sh],
+                    why=f"{dev['name']} gives {sw}x{sh}; the calibration needs {W}x{H} (or the same aspect)")
+                sys.exit(4)
+            cv2.resize(img, (W, H), dst=dst, interpolation=cv2.INTER_LINEAR)
+        elif not np.shares_memory(img, dst):
+            np.copyto(dst, img)
+        sig = dst[::8, ::8, 1].astype(np.int16)
+        moved = prev is not None and float(np.abs(sig - prev).mean()) >= FROZEN_DIFF
+        if moved or prev is None:
+            hf[_HF_CHANGED] = t
+        prev = sig
+        hf[_HF_SLOT0 + slot] = t
+        hf[_HF_FRAME] = t
+        hi[_HI_W], hi[_HI_H] = sw, sh
+        seq += 1
+        hi[_HI_SEQ] = seq   # published last: the reader takes the newest seq's slot
+        try:
+            os.write(fd, b"\0")
+        except (BlockingIOError, OSError):
+            pass
+        t_copy += time.perf_counter() - t0
+        n += 1
+        if moved and not live:   # a moving picture (a frozen feed also delivers frames)
+            live = True
+            say(state="streaming", device=dev["name"], size=[sw, sh], scaled=(sw, sh) != (W, H))
+        if t >= t_stats:
+            say(stats={"frames": n, "store_ms": round(1000 * t_copy / n, 3)})
+            t_stats = t + 5.0
+
+
 class LiveSource:
+    """A live camera (name like "phone", index, or stream URL) captured by a child process that is respawned when
+    frames stop or freeze. read() -> (newest frame, monotonic receipt time) or (None, None) after 1 s without one."""
     latency = True
 
-    def __init__(self, source, width, height):
-        from fieldcam.capture import FrameGrabber
-        src = int(source) if str(source).isdigit() else source
-        self.g = FrameGrabber(src, width, height, 30, wait=20, say=lambda m: print("[eye]", m, flush=True))
-        self.width, self.height, self.n = self.g.width, self.g.height, -1
+    def __init__(self, source, width: int, height: int, fps: int = 30, wait: float | None = 20.0, say=None):
+        _, np = _fieldcam()
+        from multiprocessing import shared_memory
+        self.source, self.width, self.height, self.fps = str(source), int(width), int(height), int(fps)
+        self._say = say or (lambda m: print("[eye]", m, flush=True))
+        self.by_name = not (self.source.isdigit() or "://" in self.source)   # a fake camera acts as a named one
+        self.shm = shared_memory.SharedMemory(create=True, size=_HDR_BYTES + CAM_SLOTS * self.width * self.height * 3)
+        self._hi, self._hf, self._slots = _cam_views(np, self.shm.buf, self.width, self.height)
+        self._hi[:], self._hf[:] = 0, 0.0
+        self._rfd, self._wfd = os.pipe()
+        os.set_blocking(self._rfd, False)
+        self._mu = threading.Lock()
+        self.proc, self.gen, self.lock_name, self.device = None, 0, None, None
+        self.state, self._message, self.reason = "starting", f"opening camera {self.source!r}", ""
+        self._down_why = ""
+        self.reconnects = self.respawns = self.fails = 0
+        self.camera_size: list | None = None
+        self.child_stats: dict = {}
+        self.t_down: float | None = None
+        self.last_down_s: float | None = None
+        self._why = ""                      # the current child's own reason (not connected, wrong size, ...)
+        self._live = False                  # the current child delivers a moving picture
+        self._seq_spawn = self._seq_seen = 0
+        self._t_spawn = self._next_spawn = self._told = 0.0
+        self._closed = False
+        self._stderr: collections.deque = collections.deque(maxlen=5)
+        atexit.register(self.close)
+        threading.Thread(target=self._watch, daemon=True, name="fc-eye-camwatch").start()
+        t_end = None if wait is None else time.monotonic() + wait
+        while self.state != "ok":   # a moving picture
+            if t_end is not None and time.monotonic() > t_end:
+                msg = self.message
+                self.close()
+                raise RuntimeError(f"camera {self.source!r} not open after {wait:.0f} s: {msg}")
+            time.sleep(0.02)
 
+    @property
+    def message(self) -> str:
+        if self.state == "reconnecting" and self.t_down is not None:
+            return f"camera reconnecting ({time.monotonic() - self.t_down:.0f} s): {self._down_why}"
+        return self._message
+
+    # ---- the watcher ------------------------------------------------------------------
+    def _spawn(self) -> None:
+        self.gen += 1
+        self._hi[_HI_OWNER] = self.gen
+        self._seq_spawn = int(self._hi[_HI_SEQ])
+        self._why, self._live = "", False
+        spec = {"shm": self.shm.name, "w": self.width, "h": self.height, "fps": self.fps, "source": self.source,
+                "lock": self.lock_name, "gen": self.gen, "parent": os.getpid(), "notify_fd": self._wfd}
+        env = {**os.environ, "PYTHONPATH": os.pathsep.join(filter(None, [str(ROOT), os.environ.get("PYTHONPATH")]))}
+        self.proc = subprocess.Popen(
+            [sys.executable, "-c", "import sys; from fc.eye import _capture_child; _capture_child(sys.argv[1])",
+             json.dumps(spec)], cwd=str(ROOT), env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, pass_fds=(self._wfd,), text=True, bufsize=1)
+        self._t_spawn = time.monotonic()
+        self.respawns += 1
+        threading.Thread(target=self._read_out, args=(self.proc, self.gen), daemon=True).start()
+        threading.Thread(target=self._read_err, args=(self.proc,), daemon=True).start()
+
+    def _read_out(self, proc, gen: int) -> None:
+        for line in proc.stdout:
+            try:
+                msg = json.loads(line)
+            except ValueError:
+                continue
+            if gen == self.gen:
+                self._on_child(msg)
+
+    def _read_err(self, proc) -> None:
+        for line in proc.stderr:
+            if line.strip():
+                self._stderr.append(line.strip()[:300])
+
+    def _on_child(self, msg: dict) -> None:
+        st = msg.get("state")
+        with self._mu:
+            if "stats" in msg:
+                self.child_stats = msg["stats"]
+            elif st == "streaming":
+                self._live = True
+                self.device, self.camera_size = msg.get("device"), msg.get("size")
+                was_down, self.state, self.fails = self.t_down, "ok", 0
+                size = "x".join(map(str, self.camera_size or []))
+                scaled = f", scaled to {self.width}x{self.height}" if msg.get("scaled") else ""
+                if self.by_name and self.lock_name is None:
+                    self.lock_name = self.device   # reconnects accept only this device
+                if was_down is not None:
+                    self.last_down_s = time.monotonic() - was_down
+                    self.reconnects += 1
+                    self.t_down = None
+                    self._message = f"camera back after {self.last_down_s:.1f} s: {self.device} {size}{scaled}"
+                else:
+                    self._message = f"camera {self.source!r} -> {self.device} {size}{scaled}"
+                self._say(self.message)
+            elif st in ("absent", "open_failed", "wrong_size"):
+                self._why = msg.get("why", st)
+            elif st == "opening" and self.state != "ok":
+                self._why = f"opening {msg.get('device')}"
+
+    def _stall(self, now: float) -> str:
+        if self._live:   # this child has delivered a moving picture: watch its frames
+            gap, frozen = now - float(self._hf[_HF_FRAME]), now - float(self._hf[_HF_CHANGED])
+            if gap > CAM_STALL_S:
+                return f"no new frame for {gap:.1f} s"
+            if frozen > CAM_FROZEN_S:
+                return f"picture frozen for {frozen:.1f} s"
+            return ""
+        if int(self._hi[_HI_SEQ]) > self._seq_spawn and now - float(self._hf[_HF_CHANGED]) > CAM_FROZEN_S:
+            return f"picture frozen for {now - float(self._hf[_HF_CHANGED]):.1f} s"   # frames, never a moving one
+        if now - self._t_spawn > CAM_OPEN_S:
+            return f"no frame {CAM_OPEN_S:.0f} s after opening{f' ({self._why})' if self._why else ''}"
+        return ""
+
+    def _down(self, why: str) -> None:
+        if self._closed:
+            return
+        with self._mu:
+            now = time.monotonic()
+            self.fails += 1
+            self._next_spawn = now + CAM_BACKOFF_S[min(self.fails - 1, len(CAM_BACKOFF_S) - 1)]
+            if self.state == "ok":
+                self.t_down, self.reason, self._told = now, why, now
+                self._say(f"camera lost ({why}): reconnecting")
+            self.state = "reconnecting" if self.t_down is not None else "waiting"
+            self._down_why = why
+            self._message = f"waiting for camera {self.source!r}: {why}"
+            if now - self._told > 8.0:
+                self._told = now
+                self._say(self.message)
+
+    def _end(self, proc, why: str) -> None:
+        """Kill a child (if still running) and free the camera; never blocks for long."""
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(0.5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                try:
+                    proc.wait(1.0)
+                except subprocess.TimeoutExpired:
+                    pass   # stuck in the kernel; the owner generation already retired it
+        if proc is self.proc:
+            self.proc = None
+            self._down(why)
+
+    def _watch(self) -> None:
+        while not self._closed:
+            now = time.monotonic()
+            p = self.proc
+            if p is not None:
+                code = p.poll()
+                if code is not None:
+                    time.sleep(0.05)   # let the output reader catch the child's last words
+                    why = self._why or (self._stderr[-1] if self._stderr else "") or f"capture process ended ({code})"
+                    self._end(p, why)
+                else:
+                    why = self._stall(now)
+                    if why:
+                        self._hi[_HI_OWNER] = -1   # retire it at once (its watchdog exits) ...
+                        self._end(p, why)          # ... and make sure it is gone
+            if self.proc is None and not self._closed and now >= self._next_spawn:
+                try:
+                    self._spawn()
+                except OSError as e:
+                    self._down(f"cannot start the capture process: {e}")
+            time.sleep(0.05)
+
+    # ---- for the eye --------------------------------------------------------------------
     def read(self):
-        frame, receipt, self.n = self.g.read(self.n)
-        if frame is None:
-            return None, None
-        return frame, time.monotonic() - (time.time() - receipt)
+        t_end = time.monotonic() + 1.0
+        hi, hf, slots = self._hi, self._hf, self._slots
+        while not self._closed and slots:
+            seq = int(hi[_HI_SEQ])
+            if seq > self._seq_seen:
+                slot = seq % CAM_SLOTS
+                t = float(hf[_HF_SLOT0 + slot])
+                frame = slots[slot].copy()
+                if int(hi[_HI_SEQ]) - seq <= 1 and float(hf[_HF_SLOT0 + slot]) == t:   # not overwritten meanwhile
+                    self._seq_seen = seq
+                    return frame, t
+                continue
+            left = t_end - time.monotonic()
+            if left <= 0:
+                return None, None
+            try:
+                select.select([self._rfd], [], [], min(left, 0.05))
+                while os.read(self._rfd, 65536):
+                    pass
+            except BlockingIOError:
+                pass
+            except (OSError, ValueError):   # closed meanwhile
+                break
+        return None, None
 
-    def close(self):
-        self.g.close()
+    def health(self) -> dict:
+        now = time.monotonic()
+        p = self.proc
+        return {"state": self.state, "message": self.message, "device": self.device, "lock": self.lock_name,
+                "size": [self.width, self.height], "camera_size": self.camera_size, "reconnects": self.reconnects,
+                "respawns": self.respawns, "last_reason": self.reason,
+                "down_s": round(now - self.t_down, 1) if self.t_down is not None else 0.0,
+                "last_down_s": None if self.last_down_s is None else round(self.last_down_s, 1),
+                "pid": p.pid if p is not None else None, "child": dict(self.child_stats)}
+
+    def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        self._hi[_HI_OWNER] = -1
+        p = self.proc
+        if p is not None:
+            self._end(p, "closed")
+        for fd in (self._rfd, self._wfd):
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        try:
+            self.shm.unlink()   # the memory goes once nothing maps it any more
+        except Exception:  # noqa: BLE001 - closing must never raise
+            pass
+        self._hi = self._hf = None
+        self._slots = []
+        try:
+            self.shm.close()
+        except Exception:  # noqa: BLE001 - a read() still holding a view: freed with the process
+            pass
+
+
+class FakeCamera:
+    """Stand-in camera for tests and measurements: source "fake:<control.json>". The control file is read on every
+    frame: {"mode": "ok" | "stall" (reads fail) | "freeze" (same picture) | "hang" (read blocks) | "absent"
+    (not connected), "name": device name (default "Fake iPhone Camera"), "size": [w, h] (default 1920x1080),
+    "image": picture file (default a grey ramp), "fps": 30}. Sensor noise on every 8th pixel makes frames differ."""
+
+    def __init__(self, ctl: str):
+        _, self.np = _fieldcam()
+        self.ctl, self.n, self.next, self._base = ctl, 0, time.monotonic(), None
+
+    @staticmethod
+    def control(ctl: str) -> dict:
+        try:
+            return json.loads(Path(ctl).read_text())
+        except (OSError, ValueError):
+            return {}
+
+    @staticmethod
+    def find(source: str, lock: str | None) -> tuple[dict | None, str]:
+        ctl = source[len("fake:"):]
+        c = FakeCamera.control(ctl)
+        name = c.get("name", "Fake iPhone Camera")
+        if c.get("mode") == "absent":
+            return None, "fake camera not connected"
+        if lock is not None and name != lock:
+            return None, f"{lock} not connected. macOS sees: {name}."
+        return {"index": 0, "name": name, "fake": ctl}, ""
+
+    def isOpened(self):  # noqa: N802 - cv2.VideoCapture interface
+        return True
+
+    def set(self, *_a):
+        return True
+
+    def release(self):
+        pass
+
+    def _picture(self, c: dict):
+        np = self.np
+        w, h = c.get("size", (1920, 1080))
+        key = (c.get("image"), w, h)
+        if self._base is None or self._base[0] != key:
+            cv2, _ = _fieldcam()
+            img = cv2.imread(str(c["image"])) if c.get("image") else None
+            if img is None:
+                img = np.repeat(np.tile(np.linspace(30, 220, w, dtype=np.uint8), (h, 1))[:, :, None], 3, axis=2)
+            elif img.shape[:2] != (h, w):
+                img = cv2.resize(img, (w, h), interpolation=cv2.INTER_AREA)
+            img = np.clip(img, 0, 250).astype(np.uint8)
+            sub = img[::8, ::8].shape
+            self._base = (key, img, [np.random.default_rng(i).integers(0, 4, sub, dtype=np.uint8) for i in range(2)])
+        return self._base[1], self._base[2]
+
+    def read(self, out=None):
+        c = self.control(self.ctl)
+        mode = c.get("mode", "ok")
+        time.sleep(max(0.0, self.next - time.monotonic()))
+        self.next = max(self.next + 1.0 / float(c.get("fps", 30)), time.monotonic() - 0.1)
+        if mode == "hang":
+            time.sleep(3600)
+        if mode in ("stall", "absent"):
+            return False, None
+        base, noise = self._picture(c)
+        frame = out if out is not None and out.shape == base.shape else self.np.empty_like(base)
+        self.np.copyto(frame, base)
+        if mode != "freeze":   # frozen: the same picture as the last one again
+            self.n += 1
+        frame[::8, ::8] += noise[self.n % 2]
+        return True, frame
 
 
 class VideoSource:
@@ -599,7 +1063,10 @@ class SyntheticSource:
 class Eye:
     def __init__(self, field: Field, robots: list[RobotCfg], params: dict, source="phone",
                  width: int = 1920, height: int = 1080, ball_color_path: Path | None = CONFIG / "ball_color.json",
-                 robot_colors_path: Path | None = ROBOT_COLORS_PATH, cal_path: Path | None = EYE_CAL_PATH):
+                 robot_colors_path: Path | None = ROBOT_COLORS_PATH, cal_path: Path | None = EYE_CAL_PATH,
+                 robots_dir: Path | None = ROBOTS_DIR, robot_over: dict | None = None):
+        """robots_dir: per-robot override files (<id>.json; None = none). robot_over: {robot id: {knob: value}}
+        given by the caller instead of reading robots_dir (only ROBOT_MOUNT_KEYS are used here)."""
         cv2, np = _fieldcam()
         from fieldcam.config import load_config, set_field_size
         self.cv2, self.np = cv2, np
@@ -607,6 +1074,13 @@ class Eye:
         self.source_name = str(source)
         cfg = load_config(None)
         self.synthetic = self.source_name == "synthetic"
+        self.robots_dir = None if robot_over is not None or robots_dir is None else Path(robots_dir)
+        self._over_mtimes: dict[str, float | None] = {}
+        self._next_over = 0.0
+        self.robot_over: dict[str, dict] = {r.id: {} for r in robots}
+        if robot_over is not None:
+            self.robot_over.update({rid: _mount_keys(rid, v, "robot_over") for rid, v in robot_over.items()})
+        self._reload_robot_over(strict=True)
         cfg["ball"]["radius"] = field.ball_radius   # fc/config/field.json is the one source
         # The synthetic renderer always paints fieldcam's default (pink) ball, so a floor-calibrated
         # ball_color.json (e.g. the purple ball of Nov 25) would hide it: synthetic uses the default.
@@ -621,10 +1095,11 @@ class Eye:
         set_field_size(cfg, field.length, field.width)
         mount = self.mount()
         cfg["tags"]["floor_size"] = mount["floor_size"]
+        mounts = {r.id: self.mount(r.id) for r in robots}
         cfg["robots"] = {r.id: {
             "tag_id": r.tag, "attacks": "east" if r.team == "blue" else "west",
-            "tag_height": mount["tag_height"], "tag_offset": np.array([mount["tag_offset_x"], 0.0]),
-            "yaw_offset": mount["yaw_offset"],
+            "tag_height": mounts[r.id]["tag_height"], "tag_offset": np.array([mounts[r.id]["tag_offset_x"], 0.0]),
+            "yaw_offset": mounts[r.id]["yaw_offset"],
         } for r in robots}
         self.cfg = cfg
         self._lock = threading.Lock()
@@ -661,6 +1136,7 @@ class Eye:
         self.stage_ms: dict[str, float] = {}                      # smoothed per-stage ms
         self.trace: collections.deque = collections.deque(maxlen=900)  # per-frame timing records
         self.src_size = (width, height)
+        self._src_reconnects = 0                      # live camera reconnects seen (see _after_reconnect)
         self._frame, self._frame_n = None, 0          # latest raw frame (recorder, Play view)
         self._view: tuple | None = None              # (frame_n, width, jpeg) cache for view_jpeg
         self._overlay: tuple | None = None           # (cam id, tag height, homographies) cache
@@ -685,15 +1161,54 @@ class Eye:
                        "events": collections.deque(maxlen=20)}
 
     # ---- setup -------------------------------------------------------------------
-    def mount(self) -> dict:
+    def mount(self, rid: str | None = None) -> dict:
         """Tag mount knobs, read from the live params dict on every frame so UI edits apply at
-        once. The synthetic renderer has its own fixed geometry."""
+        once; with a robot id, that robot's overrides (robots/<id>.json) win over params.
+        The synthetic renderer has its own fixed geometry."""
         if self.synthetic:
             return {"floor_size": 0.15, "tag_height": 0.18, "tag_offset_x": 0.0, "yaw_offset": 0.0}
         p = self.params
+        over = self.robot_over.get(rid) if rid is not None else None
+        if over:
+            p = {**p, **over}
         return {"floor_size": float(p.get("eye_floor_size", 0.15875)), "tag_height": float(p.get("eye_tag_height", 0.24)),
                 "tag_offset_x": float(p.get("eye_tag_offset_x", 0.065)),
                 "yaw_offset": math.radians(float(p.get("eye_yaw_offset_deg", 0.0)))}
+
+    def _reload_robot_over(self, strict: bool = False) -> None:
+        """(Re-)read robots/<id>.json for each robot when its file changed. strict (startup): a bad file raises;
+        later a bad edit keeps the previous values and says why."""
+        if self.robots_dir is None:
+            return
+        for r in self.robots:
+            path = self.robots_dir / f"{r.id}.json"
+            try:
+                mt = path.stat().st_mtime
+            except OSError:
+                mt = None
+            if r.id in self._over_mtimes and self._over_mtimes[r.id] == mt:
+                continue
+            self._over_mtimes[r.id] = mt
+            try:
+                new = _mount_keys(r.id, load_robot_overrides(r.id, self.robots_dir), str(path))
+            except ValueError as e:
+                if strict:
+                    raise
+                print(f"[eye] {e}: keeping {r.id}'s previous mount", flush=True)
+                continue
+            if r.id in self.robot_over and self.robot_over[r.id] != new and not strict:
+                print(f"[eye] {r.id} tag mount from {path.name}: {new or 'params.json defaults'}", flush=True)
+            self.robot_over[r.id] = new
+
+    def mounts(self) -> dict:
+        """Per robot: its mount knobs in params units, and which come from its own file (for status / run meta)."""
+        out = {}
+        for r in self.robots:
+            m = self.mount(r.id)
+            out[r.id] = {"tag_height": m["tag_height"], "tag_offset_x": m["tag_offset_x"],
+                         "yaw_offset_deg": round(math.degrees(m["yaw_offset"]), 3),
+                         "own": sorted(self.robot_over.get(r.id, {}))}
+        return out
 
     def _apply_floor_size(self, size: float) -> None:
         """A changed corner-tag size changes the whole calibration: recalibrate."""
@@ -1225,6 +1740,9 @@ class Eye:
         now = time.monotonic()
         mount = self.mount()
         self._apply_floor_size(mount["floor_size"])
+        if self.robots_dir is not None and now >= self._next_over:
+            self._next_over = now + ROBOT_OVER_CHECK_S
+            self._reload_robot_over()
         t_cap = t_recv - (self.params.get("eye_latency_s", 0.12) if self.src.latency else 0.0)
         self._t_frame = t_recv
         req = self._refit
@@ -1261,6 +1779,7 @@ class Eye:
         for rid, rc in perc.cfg["robots"].items():
             tag = tags.get(rc["tag_id"])
             tr = self._tracks.get(rid)
+            mount = self.mount(rid)
             if tag is not None:
                 x, y, yaw = self.tag_pose(cam.pixel_to_plane(tag, mount["tag_height"]), mount)
                 self._last[rid] = RobotObs(rid, Pose(x, y, yaw), t_cap)
@@ -1428,12 +1947,14 @@ class Eye:
             t_wait = time.perf_counter()
             frame, t_recv = self.src.read()
             if frame is None:
-                self.message = "no frame (camera lost?)"
+                cam = getattr(self.src, "state", "ok")
+                self.message = self.src.message if cam != "ok" else "no frame (camera lost?)"
                 self._paused_check()
                 with self._lock:
                     self._world = None
                 continue
             self._tm = {"wait": time.perf_counter() - t_wait}
+            self._after_reconnect()
             if self._same_picture(frame, t_recv):
                 continue   # nothing new: the last World keeps its capture times, so it goes stale
             t0 = time.perf_counter()
@@ -1466,6 +1987,20 @@ class Eye:
                 self.stage_ms[k] = round(v if k not in self.stage_ms else 0.9 * self.stage_ms[k] + 0.1 * v, 2)
             rec["t"], rec["seen"] = now, self._seen   # what this frame measured (for eye_bench)
             self.trace.append(rec)
+
+    def _after_reconnect(self) -> None:
+        """The live camera came back (new capture process): the same calibration serves at once (same pinned
+        picture size), marked unverified until the floor tags confirm it; a camera put back elsewhere shows as
+        shifted tags and its pose is re-solved by the monitor."""
+        n = getattr(self.src, "reconnects", 0)
+        if n == self._src_reconnects:
+            return
+        self._src_reconnects = n
+        back = getattr(self.src, "message", "camera back")
+        if self.cal is not None:
+            self._cal_state("unverified", f"{back}; same calibration, waiting for floor tags to verify", log=True)
+        else:
+            self.message = back
 
     def _same_picture(self, frame, t_recv: float) -> bool:
         """True if this frame is (almost) the picture before it. A live camera's sensor noise
@@ -1538,7 +2073,8 @@ class Eye:
         perc = self.perc
         if perc is None or not perc.calibration_valid or perc.cam is None or self.src is None:
             return None
-        th = self.mount()["tag_height"]
+        hs = [self.mount(r.id)["tag_height"] for r in self.robots] or [self.mount()["tag_height"]]
+        th = sum(hs) / len(hs)   # one "tag" plane for drawing: the robots' mean tag height
         key = (id(perc.cam), round(th, 4), self.field.length, self.field.width)
         if self._overlay and self._overlay[0] == key:
             return self._overlay[1]
@@ -1565,13 +2101,14 @@ class Eye:
                 "fps": round(self.fps, 1), "calibrated": bool(self.perc and self.perc.calibration_valid),
                 "hfov_deg": self.hfov, "calib_err_px": self._calib_err(),
                 "cal": self.cal_status(), "cal_suspect": self.calmon["state"] == "suspect",
-                "mount": self.mount(),
+                "mount": self.mount(), "mounts": self.mounts(),
                 "robots_age": {k: round(now - v.t, 3) for k, v in (w.robots.items() if w else [])},
                 "ball_age": round(now - w.ball.t, 3) if w and w.ball else None,
                 "paused": self.paused or (self.src is not None and now - self._t_new > FROZEN_S), "picture_age": round(now - self._t_new, 2), "pauses": self.pauses,
                 "ball_vel": {"resets": self.ball_vel.resets, "outliers": self.ball_vel.outliers},
                 "robots_src": {k: v.src for k, v in (w.robots.items() if w else [])},
                 "blob": self.blob_status(),
+                "camera": self.src.health() if hasattr(self.src, "health") else None,
                 "stage_ms": dict(self.stage_ms)}
 
     def _calib_err(self) -> float | None:
@@ -1667,16 +2204,16 @@ class Eye:
                "candidates": None, "fixes": self.blob_status()[rid]}
         if out["colors"] and self.perc is not None and self.perc.calibration_valid:
             frame, roi = self._cal_frame()
-            out["candidates"] = self._board_candidates(frame, roi, out["colors"])
+            out["candidates"] = self._board_candidates(frame, roi, out["colors"], rid)
         return out
 
-    def _board_candidates(self, frame, roi, colors) -> int:
+    def _board_candidates(self, frame, roi, colors, rid: str | None = None) -> int:
         cv2 = self.cv2
         m = color_mask(cv2.cvtColor(frame, cv2.COLOR_BGR2HSV), colors)
         if roi is not None:
             m &= roi
         m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3)))
-        cam, h, n = self.perc.cam, self.mount()["tag_height"], 0
+        cam, h, n = self.perc.cam, self.mount(rid)["tag_height"], 0
         for c in cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]:
             hull = cv2.convexHull(c)
             a = cv2.contourArea(hull)

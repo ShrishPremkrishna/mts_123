@@ -25,7 +25,7 @@ LAN IP changed.
 |---|---|---|---|
 | 1 | Swap the battery, power-cycle the Pi (clears a stuck I2C bus). Tags on, corner tags down, mat and stand ready | `ssh mts hostname -I` answers | No answer: check the power, wait 1 min, Wi-Fi section above |
 | 2 | `bash fc/robot/sha_check.sh mts` (restage with `bash fc/robot/stage.sh mts` if robot files changed) | `MATCH` | Read the diff; restage |
-| 3 | Start the app: `fc/run.sh camera` (robots with a host in `robots.json`, preset play; the banner names both). New site or the camera moved: field empty, four corner tags in view, **Recalibrate** (`ctl op eye.recalibrate`, idle only) | Card: auth ok, loss 0, RTT p95 < 100 ms; calib < 3 px, eye ≥ 15 fps; eye message `calibrated: tags … verify` | `not calibrated: <reason>` / `CAL SUSPECT`: fix what it names (hidden or moved corner tag), then Recalibrate. Camera feed dropped: restart the app (no reconnect yet) |
+| 3 | Start the app: `fc/run.sh camera` (robots with a host in `robots.json`, preset play; the banner names both). New site or the camera moved: field empty, four corner tags in view, **Recalibrate** (`ctl op eye.recalibrate`, idle only) | Card: auth ok, loss 0, RTT p95 < 100 ms; calib < 3 px, eye ≥ 15 fps; eye message `calibrated: tags … verify` | `not calibrated: <reason>` / `CAL SUSPECT`: fix what it names (hidden or moved corner tag), then Recalibrate. Camera feed dropped: the eye reconnects by itself (`camera reconnecting (N s): <why>`, then `camera back`); if it keeps saying `… not connected`, wake/replug the phone; restart the app only if that fails |
 | 4 | Robot on the stand: **Ready** (homes). Floor: **Ready** again | `status`: `speed_cap` 1.5. Ready fails `imu` (exit 5) = at-rest tilt > 6° | Robot is left standing: **down**, then `fcctl.sh imu-level check` on the stand |
 | 5 | **Solo dribble** (Push ball) at `max_vx` 1.0: 3 open, 3 wall, 2 corner balls (needs a straight fence) | Goals; no fence contact or tip; trapped corner = referee touch | Note the run; larger `wall_margin_m` |
 | 6 | **Goalie** vs Shrish (new pre-shot hedge 10e77b6) | Saves vs Nov 27's 14/18; robot visible > 95 % | Note shots and positions |
@@ -42,7 +42,7 @@ Prereqs from [PROVISION.md](robot/provision/PROVISION.md): `ssh pupper-red` work
 | R2 | Robot level on the stand, legs off: `ssh pupper-red bash ~/fc-v1/robot/fcctl.sh imu-level`, then `imu-level check` | Level < 2° homed on the stand |
 | R3 | Tag-11 board in a colour other than blue's, then `ctl robotcal red` on the live camera | Red tracked with the tag covered |
 | R4 | Preset slow, red only (`--robots red`): Ready on the stand, then floor; stops (Space, Esc, R3) | Each stop works |
-| R5 | Step fwd at 1.0 facing east and west | Gain, `heading_bias_deg` per direction (eye offsets are global for now: open item) |
+| R5 | Step fwd at 1.0 facing east and west | Gain, `heading_bias_deg` per direction. Same sign both ways: add the mean to `eye_yaw_offset_deg` in `fc/config/robots/red.json` (top level; the eye picks it up within ~1 s), repeat until < 5° |
 | R6 | Both robots, `max_vx` ≤ 1.0: show flow 1v1 | Anti-ram holds, bumps at walking pace only |
 
 **Record each step:** run folder names, pass/fail, and what the summary misses (sounds, stumbles, fence touches).

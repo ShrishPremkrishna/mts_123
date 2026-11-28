@@ -1,4 +1,7 @@
 {
-  "_note": "blue = mts. Its tag mount is the shared default in params.json (eye_tag_height 0.24, eye_tag_offset_x 0.065, eye_yaw_offset_deg -180), so no overrides yet. Measured per-robot values go here, not in params.json.",
-  "_measured": ""
+  "_note": "blue = mts. Its own tag mount; these win over params.json (the default for a robot without its own values). The eye re-reads this file when it changes.",
+  "_measured": "eye_yaw_offset_deg 7.0: step test heading bias on the floor, 2026-11-24 (commit e7de03b). eye_tag_height 0.267 (10.5 in, tape) and eye_tag_offset_x -0.02: new tag mount (commit 6818078). Moved here from params.json 2026-11-28.",
+  "eye_tag_height": 0.267,
+  "eye_tag_offset_x": -0.02,
+  "eye_yaw_offset_deg": 7.0
 }

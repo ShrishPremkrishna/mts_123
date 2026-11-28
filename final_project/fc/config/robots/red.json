@@ -1,10 +1,10 @@
 {
-  "_note": "red: UNMEASURED, runs on params.json (blue's mount) until measured. After measuring per PROVISION.md 'Per-robot calibration', move each measured key out of _to_measure to the top level (no _ prefix) and fill _measured with date + who.",
+  "_note": "red: UNMEASURED, runs on params.json (default mount: blue's tag height and offset, eye_yaw_offset_deg 0) until measured. Measure per PROVISION.md 'Per-robot calibration' (heading bias from a step test facing east and west -> eye_yaw_offset_deg), then move each measured key out of _to_measure to the top level (no _ prefix) and fill _measured with date + who. The eye picks up an edit of this file within ~1 s, no restart.",
   "_measured": "",
   "_to_measure": {
-    "eye_tag_height": 0.24,
-    "eye_tag_offset_x": 0.065,
-    "eye_yaw_offset_deg": -180.0,
+    "eye_tag_height": 0.267,
+    "eye_tag_offset_x": -0.02,
+    "eye_yaw_offset_deg": 0.0,
     "act_lag_s": 0.15
   }
 }

@@ -42,6 +42,21 @@ A restart loads it: poses at once, no tags needed. Mid-match a moved fence tag i
 camera has its pose re-solved from >= 3 floor tags (lens and field kept), meanwhile `status.eye.cal.state` is
 `suspect` (last pose kept). A full re-fit is `eye.recalibrate()`, idle only (see `fc/eye.py` module notes).
 
+Live camera (Nov 28): capture runs in a child process that the eye watches. Frames stopped > 1 s, a frozen picture
+> 1 s or a hung read -> the child is killed and a new one started (a new process sees the phone again; the old
+in-process camera list went stale). The eye message says `camera reconnecting (N s): <why>` and, after
+`camera back after N s`, the same calibration serves at once (`cal unverified` until floor tags confirm it; a camera
+put back elsewhere gets its pose re-solved). The picture size stays the one the eye calibrated at (a camera back at
+another size of the same aspect is scaled; another aspect is refused), and a camera chosen as `phone` is locked to
+the device found first: a reconnect never takes another camera. `status.eye.camera` has state, device, reconnects,
+last reason. Cost: ~1.4 ms receipt -> eye (p50) and ~1.1 ms eye CPU per 1080p frame (fake camera, Nov 28).
+
+Tag mount per robot: `eye_tag_height`, `eye_tag_offset_x`, `eye_yaw_offset_deg` in `config/robots/<id>.json` win
+over params.json (the default for a robot without its own value; blue's measured mount is in `robots/blue.json`).
+The eye re-reads those files within ~1 s of an edit. Measuring a robot's heading bias: preset slow, robot facing
+east, **Step** fwd 0.2 (or 1.0 at the play speed) and read `heading_bias_deg`; repeat facing west. Same sign both
+ways = the mount: add the mean to that robot's `eye_yaw_offset_deg`; opposite signs = gait drift, leave it.
+
 The app imports the real `fc.brain` and `fc.sim`; if either fails to import, the app does not start
 (no fallback controller).
 
@@ -156,7 +171,8 @@ brain.py doc; every other brain number is a fixed constant in `brain.TUNE`) < `s
 params.json; every key is editable live, unknown keys are rejected, strings are checked against `CHOICES`; limits
 are enforced (speed ceilings vx 1.5 / vy 0.3 / wz 2.0 = `link.CEIL`, the hard cap on every packet). The bridge
 clamps again with its own `MAX_VX`. The `eye_*` mount knobs apply on the next frame
-(a new `eye_floor_size` triggers a full re-fit from the four corner tags).
+(a new `eye_floor_size` triggers a full re-fit from the four corner tags); a robot with its own value in
+`config/robots/<id>.json` keeps that one.
 
 Presets (`config/presets/<name>.json`, committed) hold only the keys they change. **Load** = base params
 (params.json + defaults at app start) + the preset's keys; presets never stack, **Base** returns to base,

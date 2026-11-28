@@ -52,9 +52,11 @@ Cloned from mts on Nov 28 (live file copy onto a USB drive + offline identity re
 ## Open threads
 
 - **Fence handling**: wall/corner balls untested on the floor; the fence in this room is bent.
-- **Camera reconnect without an app restart** (the phone camera dropped once; hypothesis: capture in a child process).
+- **Camera reconnect without an app restart**: built Nov 28, **device-free only** (capture child respawned on stall/freeze/hang,
+  size pinned, device locked; fake-camera tests). Floor check: unplug/replug the phone mid-run.
 - **Keeper speed**: the walker's backward cap 0.3 m/s limits saves; the fix is robot-side.
-- **Per-robot eye offsets**: `eye_yaw_offset_deg` and tag height are global ([PROVISION.md](robot/provision/PROVISION.md#per-robot-params-how-the-app-should-load-them-not-wired-yet)).
+- **Per-robot eye offsets**: wired in the eye Nov 28 (`config/robots/<id>.json`, blue = 7°/0.267/-0.02; red on defaults,
+  yaw 0 until its step test). The brain's `act_lag_s` per robot is still not wired (app).
 - **Two-robot floor test**: anti-ram at `max_vx` ≤ 1.0, then the 1v1.
 - **Reusable clone script** in `fc/robot/provision/` (the Nov 28 one is not in the repo).
 
