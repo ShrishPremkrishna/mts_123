@@ -833,7 +833,8 @@ def cmd_ready(c: Client, a) -> None:
         return
     if mode == "real":
         L = (st.get("link") or {}).get(rid) or {}
-        if not L.get("connected"):     # bridge acks = stack running: ready cannot home. Otherwise ask fcctl.
+        phase = "acking" if L.get("connected") else None   # bridge acks = stack running: ready cannot home
+        if phase is None:               # otherwise ask fcctl
             op = run_op(c, rid, {"op": "status"}, 90)
             # read the phase from the op's own output: the app parses robot_status just after running=False
             phase = next((o.get("phase") for _, o in reversed(json_lines(op.get("out", ""))) if "phase" in o), None)
@@ -841,6 +842,10 @@ def cmd_ready(c: Client, a) -> None:
             if phase not in READY_PHASES and not a.home:
                 raise Fail(f"{rid} phase {phase or 'unknown'}: ready would START the stack and HOME the legs."
                            " Robot on the stand? Then rerun with --home")
+        if a.home and (phase == "acking" or phase in READY_PHASES):
+            # fcctl ready on a running stack re-arms and STANDS: --home asked for homing, so never stand instead
+            raise Fail(f"{rid} stack alive ({'bridge acking' if phase == 'acking' else 'phase ' + phase}): ready"
+                       f" --home would re-arm and STAND, not home. Run `down {rid}` first to re-home")
     timeout = 330
     pov = {"on": {"pov": True}, "off": {"pov": False}}.get(a.pov or "", {})   # default: on if robots.json has cam_url
     op = run_op(c, rid, {"op": "ready", "confirm": True, **pov}, timeout, stream=True)
@@ -1185,7 +1190,7 @@ def build_parser() -> Parser:
     p = sub.add_parser("ready")
     p.add_argument("robot")
     p.add_argument("--preset", default=None)
-    p.add_argument("--home", action="store_true", help="allowed to start the stack (HOMES the legs: robot on the stand)")
+    p.add_argument("--home", action="store_true", help="allowed to start the stack (HOMES the legs: robot on the stand); refused while the stack runs (down first)")
     p.add_argument("--pov", choices=["on", "off"], default=None,
                    help="robot POV feed (fcctl cam start) once ready; default on if robots.json has a cam_url")
     p.set_defaults(fn=cmd_ready)

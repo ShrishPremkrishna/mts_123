@@ -529,6 +529,20 @@ def test_ready_without_status_when_bridge_acks_and_homed_next(capsys):
         ctl.cmd_ready(c, ap.parse_args(["ready", "blue"]))
 
 
+def test_ready_home_refuses_while_the_stack_runs():
+    """`ready --home` on a running stack would re-arm and STAND (Nov 27, on the stand): refuse, say down first."""
+    ap = ctl.build_parser()
+    c = RealOpsClient("off", READY_LINES, connected=True)       # bridge acks: stack alive
+    with pytest.raises(ctl.Fail, match=r"stack alive \(bridge acking\).*`down blue` first"):
+        ctl.cmd_ready(c, ap.parse_args(["ready", "blue", "--home"]))
+    assert not [b for p, b in c.posts if p == "/robot"]          # nothing sent to the robot
+    for phase in ("homed", "standing", "ready"):                 # no acks, but fcctl says the stack runs
+        c = RealOpsClient(phase, READY_LINES, connected=False)
+        with pytest.raises(ctl.Fail, match=f"stack alive \\(phase {phase}\\)"):
+            ctl.cmd_ready(c, ap.parse_args(["ready", "blue", "--home"]))
+        assert [b["op"] for p, b in c.posts if p == "/robot"] == ["status"]
+
+
 # ---- camera paused, goalie shots, rollcal ------------------------------------------------------
 def test_fmt_status_camera_paused():
     st = {**CAMERA_STATE, "eye": {**CAMERA_STATE["eye"], "paused": True, "picture_age": 2.34},
