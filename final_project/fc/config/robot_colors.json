@@ -18,5 +18,9 @@
   "how": "robotcal tag 10 at 964,170",
   "k": 3.0,
   "saved": "2026-11-27 19:41:02"
+ },
+ "red": {
+  "colors": [],
+  "how": "placeholder: board colour TBD, run `python -m fc.ctl robotcal red` with red's tag in view"
  }
 }

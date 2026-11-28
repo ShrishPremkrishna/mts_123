@@ -30,6 +30,7 @@ LOSS_AFTER_S = 0.5                        # a packet not acked this long after s
 ACK_CORE = {"v", "robot", "sid", "ack", "mac", "ok", "imu", "profile", "bridge", "gz"}
 GYRO_KEEP = 150                           # measured yaw-rate samples kept per robot (~5 s of acks)
 ESTOP_BURST = (5, 0.02)                   # SPEC v1.1: e-stop burst of 5 packets, 20 ms apart
+RESOLVE_RETRY_S = 5.0                     # unresolved address / failed send: resolve the host again at most this often
 
 
 def is_tailscale(addr: str | None) -> bool:
@@ -122,20 +123,49 @@ class Link:
         self.sock.settimeout(0.2)
         self._stop = False
         self.ack_log: list[dict] = []  # drained by the app into the run log
+        self._resolve = resolve
+        self._resolving: set[str] = set()       # robots with a resolve in flight
+        self._resolve_t: dict[str, float] = {}  # monotonic time of each robot's last resolve attempt
         threading.Thread(target=self._listen, daemon=True, name="link-acks").start()
         threading.Thread(target=self._resolve_all, args=(resolve,), daemon=True, name="link-resolve").start()
 
     def _resolve_all(self, resolve) -> None:
-        for rid, r in self.robots.items():
-            host = self.udp_hosts.get(rid) or r.host
-            if not host:
-                continue
-            ip = resolve(host)
-            with self._lock:
-                st = self._st[rid]
-                st["addr"], st["error"] = ip, None if ip else f"cannot resolve {host}"
-                if ip:
-                    self._by_addr[ip] = rid
+        for rid in self.robots:
+            self._resolve_one(rid, resolve)
+
+    def _resolve_one(self, rid: str, resolve=None) -> None:
+        """Resolve one robot's host (blocking: ssh -G + DNS). A new address replaces the old one for acks too."""
+        host = self.udp_hosts.get(rid) or self.robots[rid].host
+        if not host:
+            return
+        with self._lock:
+            self._resolving.add(rid)
+            self._resolve_t[rid] = time.monotonic()
+        try:
+            ip = (resolve or self._resolve)(host)
+        except Exception:  # noqa: BLE001 - a resolver bug must not kill the thread; retried later
+            ip = None
+        with self._lock:
+            self._resolving.discard(rid)
+            st = self._st[rid]
+            if ip:
+                old = st["addr"]
+                if old and old != ip and self._by_addr.get(old) == rid:
+                    del self._by_addr[old]
+                st["addr"], st["error"] = ip, None
+                self._by_addr[ip] = rid
+            elif not st["addr"]:
+                st["error"] = f"cannot resolve {host}"
+
+    def _retry_resolve(self, rid: str, now: float) -> None:
+        """Re-resolve in the background (never on the 30 Hz loop) after a failure: an address that did not
+        resolve at start (Wi-Fi not up yet) or a send error. Throttled to RESOLVE_RETRY_S per robot."""
+        with self._lock:
+            if rid in self._resolving or now - self._resolve_t.get(rid, -math.inf) < RESOLVE_RETRY_S:
+                return
+            self._resolving.add(rid)
+            self._resolve_t[rid] = now
+        threading.Thread(target=self._resolve_one, args=(rid,), daemon=True, name=f"link-resolve-{rid}").start()
 
     # ---- sending -----------------------------------------------------------
     def send(self, cmds: dict[str, Cmd], estop: set[str] | frozenset = frozenset()) -> None:
@@ -145,7 +175,11 @@ class Link:
         now, wall = time.monotonic(), time.time()
         for rid, cmd in cmds.items():
             st = self._st.get(rid)
-            if st is None or not st["addr"]:
+            if st is None:
+                continue
+            if not st["addr"]:
+                if st["host"]:
+                    self._retry_resolve(rid, now)
                 continue
             with self._lock:
                 st["seq"] += 1
@@ -165,6 +199,7 @@ class Link:
                     st["estop_sent"] += 1
             except OSError as e:
                 st["error"] = f"send: {e}"
+                self._retry_resolve(rid, now)   # the address may have changed (DHCP, Wi-Fi rejoin)
 
     def stop_all(self, burst: int = 3) -> None:
         zero = {rid: Cmd.stop() for rid in self.robots}
