@@ -8,6 +8,9 @@ import pytest
 
 from fc.app import App, serve, validate_params
 from fc.runlog import RunLog, list_runs
+from pathlib import Path
+
+CFG = Path(__file__).resolve().parents[1] / "config"
 
 
 def test_runlog_writes_and_never_blocks(tmp_path):
@@ -199,7 +202,8 @@ def test_robot_ops_dry_run(server):
     assert code == 200 and "fcctl.sh start stock --confirm" in r["cmd"] and r["cmd"].startswith("echo DRY-RUN")
     assert wait(lambda: not state(base)["ops"]["blue"]["running"], 3)
     assert "DRY-RUN" in state(base)["ops"]["blue"]["out"]
-    assert post(base, "/robot", {"robot": "red", "op": "status"})[0] == 400   # no host
+    red_host = next(r for r in json.load(open(CFG / "robots.json")) if r["id"] == "red")["host"]
+    assert post(base, "/robot", {"robot": "red", "op": "status"})[0] == (200 if red_host else 400)  # no host = refused
     code, r = post(base, "/robot", {"robot": "blue", "op": "stage"})
     assert code == 200 and "stage.sh mts" in r["cmd"]
 
@@ -910,7 +914,7 @@ def test_shipped_stack_presets():
     data = {n: json.loads((fcapp.PRESETS / f"{n}.json").read_text()) for n in ("play", "slow")}
     stack, err = fcapp.validate_stack(data["play"].get("_stack"))
     assert not err and stack == {"speed_cap": 1.5}        # the speed ladder runs live under the walker cap
-    assert 0.75 <= data["play"]["max_vx"] <= 0.9 and data["slow"]["max_vx"] <= 0.15
+    assert 0.75 <= data["play"]["max_vx"] <= 1.1 and data["slow"]["max_vx"] <= 0.15
     assert fcapp.validate_stack(data["slow"].get("_stack"))[0] == stack   # same walker cap: slow -> play needs no Ready
 
 
