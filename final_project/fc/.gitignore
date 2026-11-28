@@ -1,3 +1,5 @@
 runs/
 __pycache__/
 config/link.key
+config/eye_cal.json
+config/eye_cal.tmp

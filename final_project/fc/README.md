@@ -36,6 +36,11 @@ Floor session: follow [RUNBOOK.md](RUNBOOK.md). Calibrations: `rollcal --apply` 
 a value, put it in `config/params.json` (`ball_decel` is global there) or a preset. `ballcal` saves to
 `config/ball_color.json` (loaded at eye start). Field length/width come from the corner-tag calibration
 (`field_from_camera`, default on; field.json is the fallback); goal mouth and ball radius come from `config/field.json`.
+The camera calibration (lens, camera pose, field size, floor-tag places) is fitted once from corner tags 0-3 on an
+empty field and saved to `config/eye_cal.json` (per site, not in git; delete it to force a new fit at the next start).
+A restart loads it: poses at once, no tags needed. Mid-match a moved fence tag is ignored ("tag N moved"); a moved
+camera has its pose re-solved from >= 3 floor tags (lens and field kept), meanwhile `status.eye.cal.state` is
+`suspect` (last pose kept). A full re-fit is `eye.recalibrate()`, idle only (see `fc/eye.py` module notes).
 
 The app imports the real `fc.brain` and `fc.sim`; if either fails to import, the app does not start
 (no fallback controller).
@@ -151,7 +156,7 @@ brain.py doc; every other brain number is a fixed constant in `brain.TUNE`) < `s
 params.json; every key is editable live, unknown keys are rejected, strings are checked against `CHOICES`; limits
 are enforced (speed ceilings vx 1.5 / vy 0.3 / wz 2.0 = `link.CEIL`, the hard cap on every packet). The bridge
 clamps again with its own `MAX_VX`. The `eye_*` mount knobs apply on the next frame
-(a new `eye_floor_size` recalibrates).
+(a new `eye_floor_size` triggers a full re-fit from the four corner tags).
 
 Presets (`config/presets/<name>.json`, committed) hold only the keys they change. **Load** = base params
 (params.json + defaults at app start) + the preset's keys; presets never stack, **Base** returns to base,
@@ -185,6 +190,7 @@ from `ready`/`status` feeds the health light. `stop` and `down` are never refuse
 and, when the browser sends `Origin`, this server's own address (else 403).
 
 Eye offline check (error vs. truth on rendered frames):
-`python -m fc.eye --source synthetic --seconds 8 --save /tmp/eye.jpg`
+`python -m fc.eye --source synthetic --seconds 8 --save /tmp/eye.jpg`; calibration on a recording (tag moved / camera moved / pose re-solves, frame by frame):
+`python -m fc.eye --source fc/runs/<run>/overhead.mp4 --fast --seconds 999`
 
 Tests: `python -m pytest -q fc/tests fc/robot/tests`

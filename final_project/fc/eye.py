@@ -24,19 +24,40 @@ Robot board blob (2026-11-25): when the robot tag is not decoded (motion blur in
 coloured tag board is tracked instead (RobotObs.src "blob", heading carried; see BLOB_* below).
 `python -m fc.tools.robot_track_replay RUN` measures coverage and errors on a recorded run.
 
+Field calibration (Nov 28; replaces fieldcam's all-or-nothing drift check). fieldcam dropped the whole
+calibration when ANY floor tag showed > 8 px off, and the corner tags sit on a flexible fence: one bumped tag
+= no World until all four corner tags decoded in one frame again (warm-up 071320Z: 4922/4924 ticks without a
+World), and each recovery re-fitted the lens (53-68.5 deg across restarts, field 3.38 -> 3.21 m mid-match).
+Now:
+  * a full fit (lens + field size + camera pose, all four corner tags) happens once, on an empty field: at the
+    first start, or when the operator asks (recalibrate(), app idle only). It is accepted only below
+    eye_cal_max_px (3 px RMS at 1920 px) and saved to config/eye_cal.json (per site, not in git);
+  * a restart loads eye_cal.json: poses at once, no tags needed ("unverified" until floor tags confirm it);
+  * the eye monitors each floor tag against where it showed at calibration (background scan, ~4 Hz). One or
+    two tags off while >= 2 others hold = "tag N moved": that tag is ignored, play goes on (re-measured where
+    it now sits once steady for READOPT_S). >= 3 tags off for > MOVED_S = the camera moved: the camera pose
+    alone is re-solved from the tags in view (lens and field frozen), accepted below eye_pose_max_px (3 px);
+  * until then the last pose keeps serving with cal state "suspect" (status()["cal"], message "CAL SUSPECT ...").
+    The field size never changes without the operator.
+
 Sources: a live camera name/index ("phone"), a video file, a folder of images, or
 "synthetic" (fieldcam's renderer with moving robots; truth kept for checking).
 
     python -m fc.eye --source synthetic --seconds 5       # offline self-check
+    python -m fc.eye --source RUN/overhead.mp4 --fast     # replay a recording frame by frame (calibration events)
 """
 from __future__ import annotations
 
 import collections
+import dataclasses
+import datetime
 import json
 import math
+import os
 import sys
 import threading
 import time
+from itertools import combinations
 from pathlib import Path
 
 from . import ballcal
@@ -93,6 +114,110 @@ GYRO_FRESH_S = 0.1        # measured yaw used only if a sample lies within this 
 GYRO_GAP_S = 0.3          # ...and no gap between ack samples longer than this around an end
 TRAVEL_TAU_GYRO_S = 5.0   # travel-direction pull while the measured yaw carries the heading (weak prior)
 YAW_CONF_GYRO_TAU_S = 8.0  # confidence decay while the measured yaw carries the heading
+
+# Field calibration (see the module notes). Pixel sizes for a 1920 px wide picture, scaled with the width.
+EYE_CAL_PATH = CONFIG / "eye_cal.json"
+TAG_MOVED_PX = 6.0     # a floor tag this far from where it showed at calibration has shifted (~2 cm on the floor;
+                       # corner tags held within ~3 px over 2 min on the Nov 27 recordings)
+MOVED_S = 1.0          # a shift must hold this long: 1-2 tags -> "tag N moved" (ignored), >= 3 -> camera moved
+POSE_MAX_PX = 3.0      # pose re-solve accepted below this RMS corner error (param eye_pose_max_px)
+FIT_MAX_PX = 3.0       # full fit accepted below this (param eye_cal_max_px); was the 17 px drift limit
+READOPT_S = 5.0        # an ignored tag steady this long (pose verified by >= 2 others) is re-measured where it is
+READOPT_STILL_PX = 1.5  # ...steady = every sighting within this of their mean
+RECENT_S = 0.6         # the monitor judges each floor tag's latest sighting this recent (a scan often decodes
+                       # only 1-2 of the edge-of-frame corner tags: Nov 27 recordings)
+REFIT_S = 8.0          # an operator re-fit keeps trying this long (all four corner tags in one frame)
+
+
+@dataclasses.dataclass
+class FieldCal:
+    """One field calibration: lens (K, dist), camera pose (rvec, tvec: field -> camera), field size, the floor
+    tags' poses on the field {id: (x, y, yaw)} and where each tag's centre showed in the picture (`ref`, the
+    monitor's reference). Pixel quantities are for a picture of `size` (w, h)."""
+    K: object
+    dist: object
+    rvec: object
+    tvec: object
+    length: float
+    width: float
+    floor_size: float
+    tags: dict
+    ref: dict
+    size: tuple
+    hfov: float | None = None
+    err: float = 0.0
+    how: str = ""
+    saved: str = ""
+
+    def camera(self):
+        _, np = _fieldcam()
+        from fieldcam.camera_model import CameraModel
+        cam = CameraModel(np.asarray(self.K, float), np.asarray(self.dist, float),
+                          np.asarray(self.rvec, float).reshape(3, 1), np.asarray(self.tvec, float).reshape(3, 1))
+        cam.reproj_err_px = float(self.err)
+        return cam
+
+    def scaled(self, w: int, h: int) -> "FieldCal":
+        _, np = _fieldcam()
+        sw, sh = w / self.size[0], h / self.size[1]
+        K = np.array(self.K, float)
+        K[0] *= sw
+        K[1] *= sh
+        return dataclasses.replace(self, K=K, ref={i: np.asarray(r, float) * [sw, sh] for i, r in self.ref.items()},
+                                   size=(int(w), int(h)))
+
+    def to_json(self) -> dict:
+        _, np = _fieldcam()
+        r = lambda v: [round(float(x), 9) for x in np.asarray(v, float).ravel()]   # noqa: E731
+        return {"version": 1, "saved": self.saved, "how": self.how, "width": self.size[0], "height": self.size[1],
+                "K": np.asarray(self.K, float).round(9).tolist(), "dist": r(self.dist), "hfov_deg": self.hfov,
+                "rvec": r(self.rvec), "tvec": r(self.tvec), "fit_err_px": round(float(self.err), 3),
+                "field": {"length": round(self.length, 4), "width": round(self.width, 4)}, "floor_size": self.floor_size,
+                "tags": {str(i): [round(float(v), 5) for v in p] for i, p in sorted(self.tags.items())},
+                "ref_px": {str(i): r(v) for i, v in sorted(self.ref.items())}}
+
+    @staticmethod
+    def from_json(d: dict) -> "FieldCal":
+        _, np = _fieldcam()
+        return FieldCal(K=np.array(d["K"], float).reshape(3, 3), dist=np.array(d["dist"], float),
+                        rvec=np.array(d["rvec"], float).reshape(3, 1), tvec=np.array(d["tvec"], float).reshape(3, 1),
+                        length=float(d["field"]["length"]), width=float(d["field"]["width"]),
+                        floor_size=float(d["floor_size"]),
+                        tags={int(i): tuple(float(v) for v in p) for i, p in d["tags"].items()},
+                        ref={int(i): np.array(v, float) for i, v in d["ref_px"].items()},
+                        size=(int(d["width"]), int(d["height"])), hfov=d.get("hfov_deg"),
+                        err=float(d.get("fit_err_px", 0.0)), how=str(d.get("how", "")), saved=str(d.get("saved", "")))
+
+
+def load_cal(path: Path, w: int, h: int, floor_size: float) -> tuple[FieldCal | None, str]:
+    """eye_cal.json scaled to a w x h picture: (cal, "") or (None, why). No file: (None, "")."""
+    p = Path(path)
+    if not p.exists():
+        return None, ""
+    try:
+        cal = FieldCal.from_json(json.loads(p.read_text()))
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        return None, f"{p.name} unreadable ({type(e).__name__}: {e})"
+    if abs(w / h - cal.size[0] / cal.size[1]) > 0.01:
+        return None, f"{p.name} is for a {cal.size[0]}x{cal.size[1]} picture, the camera gives {w}x{h}"
+    if abs(cal.floor_size - floor_size) > 1e-6:
+        return None, f"{p.name} was made with eye_floor_size {cal.floor_size}, now {floor_size}"
+    if len(cal.tags) < 3:
+        return None, f"{p.name} has fewer than 3 floor tags"
+    return cal.scaled(w, h), ""
+
+
+def save_cal(path: Path, cal: FieldCal) -> None:
+    """Atomic write (a crash never leaves half a file)."""
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp")
+    tmp.write_text(json.dumps(cal.to_json(), indent=1) + "\n")
+    os.replace(tmp, p)
+
+
+def _now_iso() -> str:
+    return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 def load_robot_colors(path: Path | None = ROBOT_COLORS_PATH) -> dict[str, list[dict]]:
@@ -474,7 +599,7 @@ class SyntheticSource:
 class Eye:
     def __init__(self, field: Field, robots: list[RobotCfg], params: dict, source="phone",
                  width: int = 1920, height: int = 1080, ball_color_path: Path | None = CONFIG / "ball_color.json",
-                 robot_colors_path: Path | None = ROBOT_COLORS_PATH):
+                 robot_colors_path: Path | None = ROBOT_COLORS_PATH, cal_path: Path | None = EYE_CAL_PATH):
         cv2, np = _fieldcam()
         from fieldcam.config import load_config, set_field_size
         self.cv2, self.np = cv2, np
@@ -549,6 +674,15 @@ class Eye:
         self.gyro_source = None   # callable(robot id) -> [(t, yaw, wz)] measured yaw rate (app: Link.gyro)
         self._blob_seeds: dict[int, tuple[float, float, float]] = {}   # tag id -> (u, v, t) board seen
         self._cal_lock = threading.Lock()
+        # field calibration (see the module notes). The site's eye_cal.json belongs to the live camera: the
+        # synthetic renderer and recorded videos use it only when a path is passed explicitly.
+        live = not self.synthetic and not Path(self.source_name).exists()
+        self.cal_path = None if cal_path is None or (Path(cal_path) == EYE_CAL_PATH and not live) else Path(cal_path)
+        self.cal: FieldCal | None = None
+        self._refit: dict | None = None     # operator re-fit request (recalibrate -> eye thread)
+        self.calmon = {"state": "none", "why": "not calibrated yet", "source": None, "shift": {}, "resid": {},
+                       "since": {}, "ignored": {}, "cam_since": None, "hist": {}, "checked": None, "resolves": 0,
+                       "events": collections.deque(maxlen=20)}
 
     # ---- setup -------------------------------------------------------------------
     def mount(self) -> dict:
@@ -565,8 +699,10 @@ class Eye:
         """A changed corner-tag size changes the whole calibration: recalibrate."""
         if self.perc is not None and abs(self.cfg["tags"]["floor_size"] - size) > 1e-6:
             self.cfg["tags"]["floor_size"] = size   # perc.cfg is this same dict
-            self.perc.invalidate_calibration("eye_floor_size changed")
+            self.perc.invalidate_calibration("eye_floor_size changed")   # operator action: full re-fit
             self._next_cal = 0.0
+            self.cal = None
+            self._cal_state("none", "eye_floor_size changed: re-fitting from the four corner tags")
 
     def _open_source(self):
         s, (w, h) = self.source_name, self.src_size
@@ -587,6 +723,15 @@ class Eye:
         self.perc = Perception(self.cfg, self.src.width, self.src.height)
         self._install_tracking()
         self.message = f"{self.src.width}x{self.src.height}, calibrating from corner tags 0-3"
+        if self.cal_path is not None:
+            cal, why = load_cal(self.cal_path, self.src.width, self.src.height, self.cfg["tags"]["floor_size"])
+            if cal is not None:
+                self._install(cal)
+                self.calmon["source"] = str(self.cal_path)
+                self._cal_state("unverified", f"loaded {self.cal_path.name} ({cal.how}, {cal.saved}): field "
+                                f"{cal.length:.2f} x {cal.width:.2f} m, lens {cal.hfov or 0:.1f} deg; waiting for floor tags to verify")
+            elif why:
+                self.message = f"{why}; calibrating from corner tags 0-3"
 
     # ---- tracking: robot tags and ball looked for near where they were -----------------
     def _install_tracking(self) -> None:
@@ -794,46 +939,273 @@ class Eye:
         det = self._ball_full(small, self._roi_small[1], r * k, radius_small)
         return None if det is None else tuple(v / k for v in det)
 
-    def _calibrate(self, frame) -> bool:
-        """Corner-tag calibration; with no intrinsics file, fit the lens angle first (Tej)."""
+    # ---- field calibration: full fit (once / operator), per-tag monitor, pose-only re-solve ----------------
+    def _full_fit(self, frame, tags: dict | None = None) -> tuple[FieldCal | None, str]:
+        """Lens angle (when there is no intrinsics file; Tej's sweep), field size and camera pose from the four
+        corner tags, on a scratch Perception: the live calibration is untouched until the result is accepted.
+        `tags` ({id: corners}) skips the detection (tests). Returns (cal, "") or (None, why)."""
+        import copy
+
         import fieldcam.pipeline as pipeline
         from fieldcam.camera_model import default_intrinsics
-        perc, cv2 = self.perc, self.cv2
-        if perc.has_calibrated_intrinsics or self.hfov is not None:
-            if perc.calibrate_from_corners(frame):
-                return True
-            if perc.has_calibrated_intrinsics or "does not fit" not in (perc.calib_fail or ""):
-                return False
-        tags = perc.tag_det.detect(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
-        missing = [t for t in perc.cfg["tags"]["corner_ids"].values() if t not in tags]
-        if missing:
-            perc.calib_fail = f"corner tags not completely in view: {missing}"
-            return False
-        orig, limit, best = perc.tag_det.detect, pipeline.CALIBRATION_DRIFT_LIMIT_PX, None
-        perc.tag_det.detect = lambda gray: dict(tags)  # one detection for the whole sweep
-        pipeline.CALIBRATION_DRIFT_LIMIT_PX = 1e9
-        w, h = self.src.width, self.src.height
+        from fieldcam.config import set_field_size
+        from fieldcam.pipeline import Perception, _quad_center
+        cv2, np = self.cv2, self.np
+        h, w = frame.shape[:2]
+        cfg = copy.deepcopy(self.cfg)
+        set_field_size(cfg, *self._cfg_size)
+        sp = Perception(cfg, w, h)
+        if tags is None:
+            tags = sp.tag_det.detect(cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY))
+        floor = {i: c for i, c in tags.items() if i not in self._robot_tag_ids()}
+        sp.tag_det.detect = lambda gray: dict(floor)   # one detection for the whole sweep
+        limit, pipeline.CALIBRATION_DRIFT_LIMIT_PX = pipeline.CALIBRATION_DRIFT_LIMIT_PX, 1e9   # judged below
+        hfov = None
         try:
-            for angles in ([float(a) for a in range(30, 121, 3)], None):
-                for hfov in angles or [best[1] + 0.5 * k for k in range(-5, 6)]:
-                    perc.K, perc.dist = default_intrinsics(w, h, hfov)
-                    if perc.calibrate_from_corners(frame) and (best is None or perc.cam.reproj_err_px < best[0]):
-                        best = (perc.cam.reproj_err_px, hfov)
-                if best is None:
-                    break
+            if not sp.has_calibrated_intrinsics:
+                best = None
+                for angles in ([float(a) for a in range(30, 121, 3)], None):
+                    for a in angles or [best[1] + 0.5 * k for k in range(-5, 6)]:
+                        sp.K, sp.dist = default_intrinsics(w, h, a)
+                        if sp.calibrate_from_corners(frame) and (best is None or sp.cam.reproj_err_px < best[0]):
+                            best = (sp.cam.reproj_err_px, a)
+                    if best is None:
+                        return None, sp.calib_fail or "the corner tags do not fit a camera above the floor"
+                hfov = best[1]
+                sp.K, sp.dist = default_intrinsics(w, h, hfov)
+            if not sp.calibrate_from_corners(frame):
+                return None, sp.calib_fail or "the corner tags do not fit a camera above the floor"
         finally:
-            perc.tag_det.detect = orig
             pipeline.CALIBRATION_DRIFT_LIMIT_PX = limit
-        perc.invalidate_calibration("lens angle fit")
-        if best is None:
-            return False
-        self.hfov = best[1]
-        perc.K, perc.dist = default_intrinsics(w, h, self.hfov)
-        perc.tag_det.detect = lambda gray: dict(tags)
+        err = float(sp.cam.reproj_err_px)
+        lim = float(self.params.get("eye_cal_max_px", FIT_MAX_PX)) * w / 1920.0
+        f = cfg["field"]
+        if not err <= lim:
+            return None, (f"fit error {err:.1f} px > {lim:.1f} px (eye_cal_max_px): rejected (field {f['length']:.2f} x "
+                          f"{f['width']:.2f} m, lens {hfov or 0:.1f} deg)")
+        return FieldCal(K=sp.K.copy(), dist=sp.dist.copy(), rvec=sp.cam.rvec.reshape(3, 1).copy(),
+                        tvec=sp.cam.tvec.reshape(3, 1).copy(), length=float(f["length"]), width=float(f["width"]),
+                        floor_size=float(cfg["tags"]["floor_size"]),
+                        tags={int(i): (p["x"], p["y"], p["yaw"]) for i, p in sp.survey["tags"].items()},
+                        ref={int(i): _quad_center(np.asarray(c, float)) for i, c in floor.items()
+                             if int(i) in sp.survey["tags"]},
+                        size=(w, h), hfov=hfov, err=err, how="full fit", saved=_now_iso()), ""
+
+    def _robot_tag_ids(self) -> set[int]:
+        return {rc["tag_id"] for rc in self.cfg["robots"].values()}
+
+    def _install(self, cal: FieldCal) -> None:
+        """Make `cal` the live calibration (eye thread, or before it starts). fieldcam's own floor-tag drift
+        check stays off (floor_layout empty): the eye monitors each tag itself."""
+        from fieldcam.config import set_field_size
+        perc = self.perc
+        perc.K, perc.dist = self.np.array(cal.K, float), self.np.array(cal.dist, float)
+        set_field_size(self.cfg, cal.length, cal.width)   # perc.cfg is this same dict
+        if not perc._use_camera(cal.camera(), "corners", {}):
+            raise ValueError(f"calibration not usable: {perc.calib_fail}")
+        perc.floor_layout = {}
+        perc.survey = {"ref": min(cal.tags), "tags": {i: {"x": p[0], "y": p[1], "yaw": p[2]} for i, p in cal.tags.items()},
+                       "field": {"length": cal.length, "width": cal.width}}
+        self._widen_ball_area()
+        self.hfov = cal.hfov
+        self.cal = cal
+        self.calmon["recent"] = {}   # sightings judged against the previous calibration
+
+    def _save_cal(self) -> None:
+        if self.cal_path is None or self.cal is None:
+            return
         try:
-            return perc.calibrate_from_corners(frame)
+            save_cal(self.cal_path, self.cal)
+        except OSError as e:
+            self._cal_event(f"could not save {self.cal_path}: {e}")
+
+    def _cal_event(self, text: str) -> None:
+        self.calmon["events"].append((round(time.time(), 1), text))
+        print(f"[eye] {text}", flush=True)
+
+    def _cal_state(self, state: str, why: str, log: bool = False) -> None:
+        """Monitor state: none (no calibration) | unverified (loaded, no floor tag checked yet) | ok | suspect
+        (the last pose keeps serving; UI: CAL SUSPECT). Message on change; logged when the state changes (or log)."""
+        m = self.calmon
+        if (state, why) != (m["state"], m["why"]):
+            self.message = f"CAL SUSPECT: {why}" if state == "suspect" else why
+        if log or state != m["state"]:
+            self._cal_event(f"cal {state}: {why}")
+        m["state"], m["why"] = state, why
+
+    def _fit(self, frame, how: str, tags: dict | None = None) -> tuple[bool, str]:
+        """Full fit; accepted -> installed, saved, monitor reset. Rejected -> the current calibration stays."""
+        t0 = time.perf_counter()
+        self._in_cal = True
+        try:
+            cal, why = self._full_fit(frame, tags)
         finally:
-            perc.tag_det.detect = orig
+            self._in_cal = False
+            self._add("calibrate", t0)
+        if cal is None:
+            return False, why
+        old = self.cal
+        cal.how = how
+        self._install(cal)
+        self._save_cal()
+        m = self.calmon
+        m.update(since={}, ignored={}, cam_since=None, hist={}, source="live fit")
+        msg = (f"calibrated ({how}): field {cal.length:.2f} x {cal.width:.2f} m (config {self._cfg_size[0]:.2f} x "
+               f"{self._cfg_size[1]:.2f}), lens {cal.hfov or 0:.1f} deg, fit err {cal.err:.1f} px")
+        if old is not None:
+            msg += (f" (was {old.length:.2f} x {old.width:.2f} m, lens {old.hfov or 0:.1f} deg)")
+        self._cal_state("ok", msg, log=True)
+        return True, msg
+
+    def recalibrate(self, timeout: float = REFIT_S, wait: bool = True) -> dict:
+        """Operator full re-fit (lens + field size + camera pose) from the four corner tags, on an empty field.
+        It can change the field size, so the app calls it only while idle. Runs on the eye thread over the next
+        frames for up to `timeout` s; the current calibration stays unless a fit passes eye_cal_max_px.
+        Returns {"ok", "message", "cal"}; wait=False returns at once ({"ok": None, "pending": True})."""
+        if self.perc is None:
+            return {"ok": False, "message": "camera not open yet"}
+        req = {"until": time.monotonic() + timeout, "done": threading.Event(), "result": None}
+        self._refit = req
+        self._next_cal = 0.0
+        if not wait:
+            return {"ok": None, "pending": True, "message": "re-fit requested"}
+        req["done"].wait(timeout + 5.0)
+        return req["result"] or {"ok": False, "message": "re-fit did not finish (no frames?)", "cal": self.cal_status()}
+
+    def _cal_check(self, floor: dict, t: float) -> None:
+        """Per-tag monitor on the floor tags of one detection ({id: corners}; background scan, ~4 Hz)."""
+        cal, m, np = self.cal, self.calmon, self.np
+        if cal is None:
+            return
+        from fieldcam.pipeline import _quad_center
+        rec = m.setdefault("recent", {})
+        rec.update({i: (t, c) for i, c in floor.items() if i in cal.tags})
+        for i in [i for i, (tt, _) in rec.items() if t - tt > RECENT_S]:
+            del rec[i]
+        floor = {i: c for i, (_, c) in rec.items()}
+        obs = {i: _quad_center(np.asarray(c, float)) for i, c in floor.items()}
+        if not obs:
+            return
+        k = cal.size[0] / 1920.0
+        lim = float(self.params.get("eye_tag_moved_px", TAG_MOVED_PX)) * k
+        cam = self.perc.cam
+        shift = {i: float(np.hypot(*(obs[i] - cal.ref[i]))) for i in obs}
+        proj = cam.project([[cal.tags[i][0], cal.tags[i][1], 0.0] for i in obs])
+        m["resid"] = {i: round(float(np.hypot(*(obs[i] - p))), 2) for i, p in zip(obs, proj)}
+        m["shift"], m["checked"] = {i: round(v, 1) for i, v in shift.items()}, t
+        for i in [i for i in m["ignored"] if shift.get(i, math.inf) <= lim]:   # back where it was
+            del m["ignored"][i]
+            m["hist"].pop(i, None)
+            self._cal_event(f"tag {i} back in place ({shift[i]:.1f} px)")
+        live = [i for i in obs if i not in m["ignored"]]
+        sh = sorted(i for i in live if shift[i] > lim)
+        ok = sorted(i for i in live if shift[i] <= lim)
+        since = m["since"]
+        for i in sh:
+            since[i] = (since.get(i, (t, t))[0], t)
+        for i in list(since):
+            if (i in obs and i not in sh) or t - since[i][1] > MOVED_S:
+                del since[i]
+        px = ", ".join(f"{i}: {shift[i]:.0f}" for i in sh)
+        if len(sh) >= 3 or (sh and len(ok) < 2):   # the camera moved (or too few steady tags to tell)
+            if m["cam_since"] is None:
+                m["cam_since"] = t
+            what = "camera moved?" if len(sh) >= 3 else f"only {len(ok)} steady floor tag(s) in view and"
+            if t - m["cam_since"] < MOVED_S or not self._resolve_pose(floor, t):
+                self._cal_state("suspect", f"{what} tags shifted (px {px}); last pose kept"
+                                + (f"; {m['resolve_fail']}" if m.get("resolve_fail") and t - m["cam_since"] >= MOVED_S else ""))
+            return
+        for i in sh:
+            if t - since[i][0] >= MOVED_S:
+                m["ignored"][i] = round(shift[i], 1)
+                self._cal_event(f"tag {i} moved {shift[i]:.0f} px: ignored, tags {ok} verify the camera")
+        if len(ok) >= 2:
+            m["cam_since"] = None
+            ign = sorted(m["ignored"])
+            self._cal_state("ok", f"calibrated: tags {ok} verify ({cal.how}, field {cal.length:.2f} x {cal.width:.2f} m)"
+                            + (f"; tag{'s' if len(ign) > 1 else ''} {', '.join(map(str, ign))} moved, ignored" if ign else ""))
+            self._readopt(floor, obs, t)
+
+    def _readopt(self, floor: dict, obs: dict, t: float) -> None:
+        """An ignored tag that has stayed put for READOPT_S (camera verified by >= 2 other tags) is re-measured
+        where it now is, so it can verify / re-solve the camera again. The field size is not touched."""
+        m, cal, np = self.calmon, self.cal, self.np
+        from fieldcam.tagmeasure import _fit_square
+        for i in list(m["ignored"]):
+            if i not in obs:
+                continue
+            h = m["hist"].setdefault(i, collections.deque())
+            h.append((t, *obs[i]))
+            while h and t - h[0][0] > READOPT_S + 1.0:
+                h.popleft()
+            pts = np.array([p[1:] for p in h])
+            if t - h[0][0] < READOPT_S or np.hypot(*(pts - pts.mean(axis=0)).T).max() > READOPT_STILL_PX * cal.size[0] / 1920:
+                continue
+            on_floor = self.perc.cam.pixel_to_plane(np.asarray(floor[i], float), 0.0)
+            ctr, yaw, _ = _fit_square(on_floor, cal.floor_size)
+            cal.tags[i] = (float(ctr[0]), float(ctr[1]), float(yaw))
+            cal.ref[i] = pts.mean(axis=0)
+            del m["ignored"][i]
+            m["hist"].pop(i, None)
+            self._save_cal()
+            self._cal_event(f"tag {i} re-measured where it now sits ({ctr[0]:+.3f}, {ctr[1]:+.3f}) m")
+
+    def _resolve_pose(self, floor: dict, t: float) -> bool:
+        """Camera moved: re-solve the camera pose alone (lens and field frozen) from the floor tags in view at
+        their calibrated places. Largest tag set that fits within eye_pose_max_px wins (a tag that also moved
+        drops out). Accepted -> installed, saved, references re-based."""
+        cal, m, np = self.cal, self.calmon, self.np
+        from fieldcam.camera_model import solve_camera_pose
+        from fieldcam.tagmeasure import tag_corners
+        vis = sorted(i for i in floor if i in cal.tags)
+        lim = float(self.params.get("eye_pose_max_px", POSE_MAX_PX)) * cal.size[0] / 1920.0
+        if len(vis) < 3:
+            m["resolve_fail"] = f"re-solve needs 3 floor tags in view, sees {vis}"
+            return False
+        old = cal.camera()
+        best = None
+        for n in range(len(vis), 2, -1):
+            for sub in combinations(vis, n):
+                cam = solve_camera_pose(cal.K, cal.dist, np.vstack([np.asarray(floor[i], float) for i in sub]),
+                                        np.vstack([tag_corners(cal.tags[i], cal.floor_size) for i in sub]))
+                if cam is None or abs(cam.center[2] - old.center[2]) > 0.5 * old.center[2]:
+                    continue
+                if best is None or cam.reproj_err_px < best[0]:
+                    best = (cam.reproj_err_px, sub, cam)
+            if best is not None and best[0] <= lim:
+                break
+        if best is None or not best[0] <= lim:
+            m["resolve_fail"] = ("no camera pose fits the tags in view" if best is None else
+                                 f"pose re-solve rejected: best {best[0]:.1f} px > {lim:.1f} px (eye_pose_max_px)")
+            return False
+        err, sub, cam = best
+        ref = {}
+        for i, p in cal.tags.items():   # where the new pose puts each tag, plus its own offset from the model
+            xyz = [[p[0], p[1], 0.0]]      # (lens residual) at calibration: not one noisy (or stale) sighting
+            ref[i] = cam.project(xyz)[0] + (np.asarray(cal.ref[i], float) - old.project(xyz)[0])
+        moved = float(np.linalg.norm(cam.center - old.center))
+        self._install(dataclasses.replace(cal, rvec=cam.rvec.reshape(3, 1).copy(), tvec=cam.tvec.reshape(3, 1).copy(),
+                                          ref=ref, err=float(err), how="pose re-solve", saved=_now_iso()))
+        self._save_cal()
+        m.update(since={}, cam_since=None, hist={}, resolve_fail="", resolves=m["resolves"] + 1,
+                 ignored={i: m["shift"].get(i, 0.0) for i in vis if i not in sub})
+        msg = (f"camera moved: pose re-solved from tags {list(sub)}, err {err:.1f} px, camera {moved * 100:.0f} cm "
+               f"from before (lens and field kept)")
+        self._cal_state("ok", msg, log=True)
+        return True
+
+    def cal_status(self) -> dict:
+        """Calibration for the UI: state (none / unverified / ok / suspect: show CAL SUSPECT), why, field, lens,
+        per-tag shift from the calibrated place (px), ignored (moved) tags, pose re-solves, recent events."""
+        cal, m = self.cal, self.calmon
+        return {"state": m["state"], "suspect": m["state"] == "suspect", "why": m["why"], "source": m["source"],
+                "path": str(self.cal_path) if self.cal_path else None,
+                "how": cal.how if cal else None, "saved": cal.saved if cal else None,
+                "field": [round(cal.length, 3), round(cal.width, 3)] if cal else None,
+                "lens_deg": cal.hfov if cal else None, "fit_err_px": round(cal.err, 2) if cal else None,
+                "tag_shift_px": {str(i): v for i, v in dict(m["shift"]).items()},
+                "ignored": sorted(dict(m["ignored"])), "pose_resolves": m["resolves"],
+                "refit_pending": self._refit is not None, "events": list(m["events"])[-5:]}
 
     def _widen_ball_area(self) -> None:
         """Look for the ball up to 0.55 m behind the goal lines, so a ball in a goal is measured."""
@@ -855,29 +1227,34 @@ class Eye:
         self._apply_floor_size(mount["floor_size"])
         t_cap = t_recv - (self.params.get("eye_latency_s", 0.12) if self.src.latency else 0.0)
         self._t_frame = t_recv
-        if not perc.calibration_valid and now >= self._next_cal:
-            self._next_cal = now + 0.5
-            self._in_cal, t0 = True, time.perf_counter()
-            try:
-                calibrated = self._calibrate(frame)
-            finally:
-                self._in_cal = False
-                self._add("calibrate", t0)
-            if calibrated:
-                self._widen_ball_area()
-                f = perc.cfg["field"]
-                self.message = (f"calibrated: field {f['length']:.2f} x {f['width']:.2f} m (config "
-                                f"{self._cfg_size[0]:.2f} x {self._cfg_size[1]:.2f}), lens {self.hfov or 0:.1f} deg, "
-                                f"err {perc.calib_err_px:.1f} px")
+        req = self._refit
+        if req is not None and now >= self._next_cal:   # operator re-fit (app idle): the old calibration stays until one passes
+            self._next_cal = now + 0.3
+            ok, why = self._fit(frame, "operator re-fit")
+            if ok or now >= req["until"]:
+                self._refit = None
+                if not ok:
+                    why = f"re-fit failed, calibration kept: {why}"
+                    self._cal_event(why)
+                    self.message = why
+                req["result"] = {"ok": ok, "message": why, "cal": self.cal_status()}
+                req["done"].set()
             else:
-                self.message = f"not calibrated: {perc.calib_fail or perc.calibration_reason}"
+                self.message = f"re-fitting: {why}"
+        elif not perc.calibration_valid and now >= self._next_cal:   # no calibration yet: the first full fit
+            self._next_cal = now + 0.5
+            ok, why = self._fit(frame, "full fit")
+            if not ok:
+                self._cal_state("none", f"not calibrated: {why}")   # the real reason (never overwritten below)
         self._seen = {}
         state = perc.process(frame, t_cap, t_cap, match_only=True)
         self._state = state
         if not state.get("calibration_valid"):
-            if perc.cam is not None and perc.calibration_reason:
-                self.message = f"calibration lost: {perc.calibration_reason}"
             return None
+        robot_ids = self._robot_tag_ids()
+        floor = {i: c for i, c in perc.debug.get("tags", {}).items() if i not in robot_ids}
+        if floor:
+            self._cal_check(floor, t_cap)   # may re-solve the camera pose: perc.cam below is the new one
         cam, tags = perc.cam, perc.debug.get("tags", {})
         blob_on = bool(self.params.get("eye_blob", 1))
         t0 = time.perf_counter()
@@ -1186,7 +1563,8 @@ class Eye:
         now = time.monotonic()
         return {"source": self.source_name, "message": self.message, "frames": self.frames,
                 "fps": round(self.fps, 1), "calibrated": bool(self.perc and self.perc.calibration_valid),
-                "hfov_deg": self.hfov, "calib_err_px": self.perc.calib_err_px if self.perc else None,
+                "hfov_deg": self.hfov, "calib_err_px": self._calib_err(),
+                "cal": self.cal_status(), "cal_suspect": self.calmon["state"] == "suspect",
                 "mount": self.mount(),
                 "robots_age": {k: round(now - v.t, 3) for k, v in (w.robots.items() if w else [])},
                 "ball_age": round(now - w.ball.t, 3) if w and w.ball else None,
@@ -1195,6 +1573,15 @@ class Eye:
                 "robots_src": {k: v.src for k, v in (w.robots.items() if w else [])},
                 "blob": self.blob_status(),
                 "stage_ms": dict(self.stage_ms)}
+
+    def _calib_err(self) -> float | None:
+        """Largest distance (px) between a steady floor tag and where the calibration puts it (last check);
+        the fit error until a tag has been checked."""
+        m = self.calmon
+        r = [v for i, v in dict(m["resid"]).items() if i not in m["ignored"]]
+        if r:
+            return max(r)
+        return round(self.cal.err, 2) if self.cal else (self.perc.calib_err_px if self.perc else None)
 
     def blob_status(self) -> dict:
         """Per robot: board colour known, fixes by source (tag / blob / board missed / too long since a
@@ -1347,8 +1734,17 @@ def main(argv=None) -> None:
     ap.add_argument("--source", default="synthetic", help="synthetic | video file | image folder | camera name")
     ap.add_argument("--seconds", type=float, default=8.0)
     ap.add_argument("--save", default=None, help="write the last annotated frame here (jpg)")
+    ap.add_argument("--cal", default=None, help="eye_cal.json to load / save (default: config/eye_cal.json for a live "
+                    "camera only; a replay or synthetic run touches none)")
+    ap.add_argument("--fast", action="store_true", help="video: every frame inline as fast as possible (scan every "
+                    "SCAN_PERIOD_S of video time); prints calibration events and a summary")
+    ap.add_argument("--start", type=float, default=0.0, help="--fast: skip this many seconds of video")
     a = ap.parse_args(argv)
-    eye = Eye(load_field(), load_robot_config()[0], {**PARAM_FALLBACKS, **load_params()}, source=a.source).start()
+    params = {**PARAM_FALLBACKS, **load_params()}
+    kw = {"cal_path": Path(a.cal)} if a.cal else {}
+    if a.fast:
+        return replay(Eye(load_field(), load_robot_config()[0], params, source=a.source, **kw), a.start, a.seconds)
+    eye = Eye(load_field(), load_robot_config()[0], params, source=a.source, **kw).start()
     t_end, errs = time.monotonic() + a.seconds, []
     while time.monotonic() < t_end:
         time.sleep(0.5)
@@ -1377,6 +1773,39 @@ def main(argv=None) -> None:
         Path(a.save).write_bytes(eye.jpeg())
         print("saved", a.save)
     eye.close()
+
+
+def replay(eye: Eye, start: float = 0.0, seconds: float = 1e9) -> dict:
+    """A recorded video frame by frame (video time drives the monitor's timers): calibration events as they
+    happen, then how many frames had a World and in which calibration state."""
+    eye._setup()
+    cap, fps = eye.src.cap, eye.src.fps
+    cap.set(eye.cv2.CAP_PROP_POS_FRAMES, int(start * fps))
+    n, next_scan, counts, last = 0, -1.0, collections.Counter(), None
+    while n < seconds * fps:
+        ok, frame = cap.read()
+        if not ok:
+            break
+        t = start + n / fps
+        n += 1
+        if eye._tracking() and t >= next_scan:
+            next_scan = t + SCAN_PERIOD_S
+            eye.scan_once(frame, t, now=t)
+        w = eye.process(frame, t)
+        st = eye.calmon["state"]
+        counts[(st, w is not None)] += 1
+        if (st, eye.message) != last:
+            print(f"t={t:7.2f}s world={'yes' if w is not None else 'NO '} [{st}] {eye.message}", flush=True)
+            last = (st, eye.message)
+    total = sum(counts.values())
+    with_world = sum(v for (st, ok), v in counts.items() if ok)
+    out = {"frames": total, "with_world": with_world, "by_state": {f"{st}{'' if ok else ' (no world)'}": v
+                                                                    for (st, ok), v in sorted(counts.items())},
+           "pose_resolves": eye.calmon["resolves"], "ignored": sorted(eye.calmon["ignored"]),
+           "field": eye.cal_status()["field"]}
+    print(f"replay: {total} frames, World in {with_world} ({100 * with_world / max(total, 1):.1f} %), {out}")
+    eye.close()
+    return out
 
 
 if __name__ == "__main__":
