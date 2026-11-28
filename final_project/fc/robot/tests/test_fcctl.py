@@ -55,6 +55,13 @@ profile_start() {
 }
 profile_alive() { fc_alive launch; }
 profile_stop() { fc_signal_group mux INT 5; fc_signal_group launch INT 5; }
+imu_rest_check() {  # FAKE_IMU=bad: the IMU reads 10.7 deg at rest (rca-20261127-tilt); none: no verdict
+  case "${FAKE_IMU:-good}" in
+    bad) echo '{"ok": false, "tilt_deg": 10.68, "error": "IMU reads 10.7 deg at rest (limit 6.0): IMU calibration off? Put the robot level on the stand, legs off, run fcctl.sh imu-level, then restart the stack"}' ;;
+    none) echo '{"ok": null, "error": "no IMU samples", "n": 0}' ;;
+    *) echo '{"ok": true, "tilt_deg": 1.9}' ;;
+  esac
+}
 '''
 
 FAKE_BRIDGE = r'''
@@ -667,3 +674,31 @@ def test_cam_uses_the_stack_camera_topic_when_the_node_runs(fc):
     assert fc("start", "fake", "--confirm")["ok"]   # fake profile: no lean option -> camera node unknown
     r = fc("cam", "start", extra_env={"FC_CAM_PORT": _free_port()})
     assert r["ok"] and r["source"] == "ros", r
+
+
+def test_ready_stops_before_the_bridge_when_the_imu_is_not_level_at_rest(fc):
+    """rca-20261127-tilt: a bad accel calibration is reported as such, not as a seconds-later imu_tilt lie-down."""
+    rc, out = fc.lines("ready", "fake", "--confirm", "--stand-now", extra_env={"FAKE_IMU": "bad"})
+    assert rc == 5 and out[-1]["phase"] == "error" and out[-1]["at"] == "imu", out
+    assert "imu-level" in out[-1]["msg"] and "STANDING" in out[-1]["msg"]
+    assert "bridge" not in phases(out) and not (fc.root / "run" / "bridge.pid").exists()
+    rc, out = fc.lines("ready", "--confirm", "--skip-imu-check", extra_env={"FAKE_IMU": "bad"})
+    assert rc == 0 and phases(out)[-2:] == ["bridge", "ready"], out
+
+
+def test_ready_continues_without_an_imu_verdict(fc):
+    rc, out = fc.lines("ready", "fake", "--confirm", "--stand-now", extra_env={"FAKE_IMU": "none"})
+    assert rc == 0 and phases(out)[-2:] == ["bridge", "ready"], out
+
+
+def test_imu_level_refuses_without_a_stack_and_status_reports_imu_cal(fc):
+    out = fc("imu-level")
+    assert out["ok"] is False and out["action"] == "refused" and "no robot stack" in out["error"]
+    assert fc("imu-level", "--bogus")["ok"] is False
+    rc, _ = fc.lines("ready", "fake", "--confirm", "--stand-now")
+    assert rc == 0
+    out = fc("imu-level")                      # walker active: legs not off
+    assert out["ok"] is False and "leg controller is active" in out["error"]
+    st = fc("status")
+    assert st["imu_cal"]["stored"] is None and st["imu_cal"]["applied"] is None
+    assert st["imu_cal"]["driver_supports_cal"] is False   # the fake robot.log has no FC_IMU_CAL line

@@ -35,6 +35,7 @@ operator-approved OS changes (undo in [robot/README.md](robot/README.md)). IMU b
 | Homing, stand, lie-down, link E-STOP, dead-man, goto, fast gait at cap 0.8; push goals with `fast-light`, `athletic`, `dribble` (v3) | **robot** Nov 24–25 (above); fast gait also **sim** (MuJoCo 0.73 m/s, 0/8 falls) |
 | Signed UDP link, 50 Hz bridge, 0.25 s dead-man, fallen cutoff 45°, E-STOP latched until Ready | **robot** (stops) + **device-free** |
 | IMU health hold; bridge auto lie-down + latch on a sustained bad IMU | **robot** (fired on the Nov 25 I2C hang) + **device-free** |
+| IMU accel calibration (rca-20261127-tilt): driver v4 `FC_IMU_CAL` bias + `fcctl.sh imu-level` + ready at-rest check | **device-free** + measured on mts (accel X +3.05 m/s², false 10°); v4 built, NOT installed; fcctl tests unrun |
 | IMU filter (`FC_IMU_FILTER`, default on in `stock.sh`); driver v3 stall guard (marker + re-init) + bridge short-stall hold (≤ 1 s stand and resume, longer lie down); `fcctl.sh i2c-recover` | v2 **robot** (stand 2.0–2.8°); v3 **device-free**, installed on mts, not yet run with the stack; i2c-recover untested on a hung bus |
 | Field from corner-tag calibration, `ctl ballcal`, `ctl rollcal --apply`, robust ball velocity (`fc/ballvel.py`) | **robot** Nov 25 (calibrations above) + **device-free** |
 | Play screen, `/ops` tests, match flow, run logs, presets with `_stack`, `fc.ctl` | **device-free** + **sim**, used on the **robot** |

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # fcctl.sh — Pupper FC robot control. Runs ON the Pi from ~/fc-v1/robot/.
 #   status                      one JSON line (incl. "phase": off|starting|homed|standing|ready|fault, "light")
-#   ready [profile] [--confirm [--stand-now]] [--no-bridge] [STACK OPTIONS]
+#   ready [profile] [--confirm [--stand-now]] [--no-bridge] [--skip-imu-check] [STACK OPTIONS]
 #                               homed -> playing: wait READY, stand the walker in software (or wait for the
 #                               gamepad), start the bridge. Not running: homes (needs --confirm) and stops
 #                               at "homed" (move it to the floor, run ready again) unless --stand-now.
@@ -38,6 +38,11 @@
 #                               free a hung I2C-1 bus (BNO "SDA stuck at low") without a power cycle:
 #                               imu/i2c_recover.sh (9+ SCL pulses, controller unbind/bind; one JSON line).
 #                               Refuses while a robot stack runs unless --force; --check only reads levels
+#   imu-level [--seconds S] [--dry-run] [--legs-on] | imu-level check|show
+#                               BNO accel calibration (fc/notes/rca-20261127-tilt.md): robot sitting LEVEL on the
+#                               stand, legs off, stack running. Captures the published IMU (read-only), refuses on
+#                               motion/noise, saves run/imu_cal.json (survives stage.sh); the v4 driver applies it
+#                               at the next stack start. check = tilt at rest now; show = stored vs applied
 #   walk | rest                 activate / deactivate the profile's walker controller (optional;
 #                               the gamepad X / R3 do the same)
 # Profiles: profiles/<name>.sh (*_hh0 = alias: same stack with --heading-hold off). State: ~/fc-v1/run/ (pidfiles, active,
@@ -397,6 +402,29 @@ if os.path.exists(latch_file):  # the bridge's e-stop latch (fail closed: unread
     except (OSError, ValueError):
         estop = {"reason": "unreadable_latch_file"}
 ready = bool(run) and os.path.exists(os.path.join(run, "READY"))
+imu_cal = None
+try:  # accel bias calibration (imu/imu_level.py): stored file vs what the running driver logged at start
+    sys.path.insert(0, os.path.join(here, "imu"))
+    import imu_level
+    try:
+        with open(imu_level.DEFAULT_CAL) as f:
+            stored = json.load(f)
+        stored = {"accel_bias_chip": stored.get("accel_bias_chip"), "measured_utc": stored.get("measured_utc"),
+                  "raw_tilt_deg": stored.get("raw_tilt_deg")}
+    except (OSError, ValueError):
+        stored = None
+    log = ""
+    if run:
+        try:
+            with open(os.path.join(run, "robot.log"), errors="replace") as f:
+                log = f.read()
+        except OSError:
+            pass
+    b, applied = imu_level.applied_bias_from_log(log)
+    imu_cal = {"file": imu_level.DEFAULT_CAL, "stored": stored, "applied": b if applied else None,
+               "driver_supports_cal": applied is not None if run else None}
+except Exception as error:  # status must never fail on this
+    imu_cal = {"error": repr(error)}
 ros = json.loads(q) if q and q != "null" else None
 mux = (ros or {}).get("mux") or {}
 failed = bool(run) and os.path.exists(os.path.join(run, "FAILED"))
@@ -432,6 +460,7 @@ print(json.dumps({
     "not_launched": (st_rec or {}).get("not_launched") if prof else None,
     "camera": (st_rec or {}).get("camera") if prof else None,
     "stack": st_rec,
+    "imu_cal": imu_cal,   # accel bias: stored run/imu_cal.json vs applied by the running driver (v4)
     "ros2_control_node": stack == "true", "foreign_stack": foreign == "true",
     "mux_alive": mux.get("alive"), "mux_ok": mux.get("ok"),   # null = not probed (no live profile)
     "dds": (ros or {}).get("dds"), "discovery": (ros or {}).get("discovery"),
@@ -723,8 +752,16 @@ _wait_start() {
   return 1
 }
 
+# imu_rest_check : one JSON line, tilt from the published orientation over 2 s (imu/imu_level.py check).
+# "ok": true/false against FC_READY_IMU_MAX_DEG (default 6 = ImuHealth warn); "ok": null = no samples.
+# Profiles (and the tests' fake profile) may override it.
+imu_rest_check() {
+  FC_IMU_TOPIC=$PROFILE_IMU_TOPIC timeout 20 python3 "$HERE/imu/imu_level.py" check --seconds 2 \
+    --max-deg "${FC_READY_IMU_MAX_DEG:-6}"
+}
+
 cmd_ready() {
-  local name="" confirm="" stand_now="" bridge=1 a rearmed=0
+  local name="" confirm="" stand_now="" bridge=1 a rearmed=0 skip_imu=""
   READY_T0=$(_now)
   while [ $# -gt 0 ]; do
     a=$1; shift
@@ -732,8 +769,9 @@ cmd_ready() {
       --confirm) confirm=1 ;;
       --stand-now) stand_now=1 ;;
       --no-bridge) bridge=0 ;;
+      --skip-imu-check) skip_imu=1 ;;
       --speed-cap|--heading-hold|--lean|--camera) stack_opt "$a" "${1:-}" || ready_fail args "$STACK_ERR" 2; shift ;;
-      -*) ready_fail args "unknown option '$a' (ready [profile] [--confirm [--stand-now]] [--no-bridge] [--speed-cap X] [--heading-hold on|off] [--lean on|off] [--camera on|off])" 2 ;;
+      -*) ready_fail args "unknown option '$a' (ready [profile] [--confirm [--stand-now]] [--no-bridge] [--skip-imu-check] [--speed-cap X] [--heading-hold on|off] [--lean on|off] [--camera on|off])" 2 ;;
       *) [ -z "$name" ] || ready_fail args "one profile only" 2; name=$a ;;
     esac
   done
@@ -864,6 +902,19 @@ cmd_ready() {
     fi
     emit standing true "$PROFILE_WALKER active; settling ${FC_READY_SETTLE_S:-3} s (blend to stance, then policy fade-in)"
     sleep "${FC_READY_SETTLE_S:-3}"
+  fi
+  # 2b. IMU sanity at rest (rca-20261127-tilt): standing still, the IMU should read near level. A bad accel
+  # calibration otherwise surfaces seconds later as a cryptic imu_tilt lie-down. Fails BEFORE the bridge,
+  # robot left standing (gamepad R3 / fcctl.sh down work as usual).
+  if [ -z "$skip_imu" ] && [ -n "${PROFILE_IMU_TOPIC:-}" ]; then
+    local ic; ic=$(imu_rest_check 2>> "$FC_LOGS/ready.log" | grep '^{' | tail -1)
+    if [[ "$ic" == *'"ok": false'* ]]; then
+      ready_fail imu "$(_json_field "$ic" error) [robot left STANDING without the bridge: fcctl.sh down; --skip-imu-check overrides]" 5
+    elif [[ "$ic" == *'"ok": true'* ]]; then
+      fc_log "IMU at rest OK: $ic"
+    else
+      fc_log "IMU at-rest check gave no verdict (continuing; the bridge guard still applies): ${ic:-no output}"
+    fi
   fi
   if [ "$bridge" = 0 ]; then emit standing true "standing; bridge not started (--no-bridge)" ',"done":true'; exit 0; fi
 
@@ -1038,6 +1089,30 @@ cmd_i2c_recover() {
   if $check; then bash "$HERE/imu/i2c_recover.sh" --check --force; else bash "$HERE/imu/i2c_recover.sh" --force; fi
 }
 
+cmd_imu_level() {  # imu-level [check|show] [--seconds S] [--dry-run] [--legs-on]
+  local mode=level legs_on="" args=() prof q
+  [ "${1:-}" = check ] || [ "${1:-}" = show ] && { mode=$1; shift; }
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --legs-on) legs_on=1; shift ;;
+      --dry-run) args+=(--dry-run); shift ;;
+      --seconds|--max-deg) [ $# -ge 2 ] || die "usage: imu-level [check|show] [--seconds S] [--max-deg D] [--dry-run] [--legs-on]"
+        args+=("$1" "$2"); shift 2 ;;
+      *) die "usage: imu-level [check|show] [--seconds S] [--max-deg D] [--dry-run] [--legs-on]" ;;
+    esac
+  done
+  if [ "$mode" = show ]; then python3 "$HERE/imu/imu_level.py" show; return; fi
+  prof=$(active_profile || true)
+  [ -n "$prof" ] && profile_alive "$(active_run)" ||
+    { echo '{"ok":false,"action":"refused","error":"no robot stack running: fcctl.sh start <profile> --confirm (robot on the stand)"}'; return 1; }
+  load_profile "$prof" > /dev/null; profile_env
+  if [ "$mode" = level ] && [ -z "$legs_on" ]; then
+    q=$(rosq controllers 2>> "$FC_LOGS/ready.log")
+    _legs_down "$q" || { echo '{"ok":false,"action":"refused","error":"a leg controller is active (or the controller manager did not answer): sit the robot level on the stand with the legs off (R3 or fcctl.sh down --keep-stack), or pass --legs-on"}'; return 1; }
+  fi
+  FC_IMU_TOPIC=${PROFILE_IMU_TOPIC:-/imu_sensor_broadcaster/imu} python3 "$HERE/imu/imu_level.py" "$mode" ${args[@]+"${args[@]}"}
+}
+
 case "${1:-}" in
   status) cmd_status ;;
   start) shift; cmd_start "$@" ;;
@@ -1051,5 +1126,6 @@ case "${1:-}" in
   walk|rest) cmd_walk "$1" ;;
   imu-test) shift; cmd_imu_test "$@" ;;
   i2c-recover) shift; cmd_i2c_recover "$@" ;;
-  *) sed -n '2,42p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  imu-level) shift; cmd_imu_level "$@" ;;
+  *) sed -n '2,47p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

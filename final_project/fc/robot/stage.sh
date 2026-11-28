@@ -21,7 +21,7 @@ ssh "$host" 'mkdir -p ~/fc-v1/robot && chmod 700 ~/fc-v1'
 echo "staging $src -> $host:~/fc-v1/robot/ as robot '$robot_id' ${dry:+(dry run)}"
 changes=$(rsync -rlptz --delete --itemize-changes ${dry:+--dry-run} \
   --exclude vendor/ --exclude __pycache__/ --exclude .pytest_cache/ --exclude '*.pyc' \
-  --exclude /link.key --exclude /robot_id --exclude /provision/ --exclude /sim/ \
+  --exclude /link.key --exclude /robot_id --exclude /imu_params.json --exclude /provision/ --exclude /sim/ \
   "$src" "$host:fc-v1/robot/")
 if [ -z "$changes" ]; then echo "no changes"; else echo "$changes"; fi
 [ -n "$dry" ] && exit 0

@@ -1,6 +1,6 @@
 # IMU crutch: our own tilt filter in the stock driver (2026-11-24)
 
-**Status (Nov 25):** v3 (stall guard) built, not installed: [v3](#v3-bno-stall-guard-2026-11-25-built-not-installed). **Nov 24:** v2 installed on mts and on by default in the stock profile (`FC_IMU_FILTER=0` = stock behaviour); see [Deployment status](#deployment-status-2026-11-24).
+**Nov 27:** v4 = v3 + accel bias calibration (`FC_IMU_CAL`), built, not installed: [RCA](rca-20261127-tilt.md). **Status (Nov 25):** v3 (stall guard) built, not installed: [v3](#v3-bno-stall-guard-2026-11-25-built-not-installed). **Nov 24:** v2 installed on mts and on by default in the stock profile (`FC_IMU_FILTER=0` = stock behaviour); see [Deployment status](#deployment-status-2026-11-24).
 
 **Patch:** `fc/robot/imu/stock-imu-filter.patch`, sha `b0d57361…` (v3 = v2 + stall guard; v2 was `983a6e49…`, in git history).
 - Applies to the Pi stock driver (`~/pupperv3-monorepo` `0e50afb`, `control_board_hardware_interface` at `e333272`).

@@ -1,7 +1,7 @@
 diff -ruN a/control_board_hardware_interface/CMakeLists.txt b/control_board_hardware_interface/CMakeLists.txt
---- a/control_board_hardware_interface/CMakeLists.txt	2026-11-24 23:29:14.730353645 -0800
-+++ b/control_board_hardware_interface/control_board_hardware_interface/CMakeLists.txt	2026-11-24 23:29:14.742353782 -0800
-@@ -62,6 +62,15 @@
+--- a/control_board_hardware_interface/CMakeLists.txt	2025-10-18 14:55:04.077415005 -0700
++++ b/control_board_hardware_interface/CMakeLists.txt	2026-11-27 19:57:16.157056923 -0800
+@@ -62,6 +62,19 @@
    # a copyright and license is added to all source files
    set(ament_cmake_cpplint_FOUND TRUE)
    ament_lint_auto_find_test_dependencies()
@@ -14,12 +14,16 @@ diff -ruN a/control_board_hardware_interface/CMakeLists.txt b/control_board_hard
 +  add_executable(test_fc_imu_stall test/test_fc_imu_stall.cpp)
 +  target_include_directories(test_fc_imu_stall PRIVATE include)
 +  add_test(NAME test_fc_imu_stall COMMAND test_fc_imu_stall)
++  # FC v4: accel bias calibration file (header-only, no ROS deps)
++  add_executable(test_fc_imu_cal test/test_fc_imu_cal.cpp)
++  target_include_directories(test_fc_imu_cal PRIVATE include)
++  add_test(NAME test_fc_imu_cal COMMAND test_fc_imu_cal)
  endif()
  
  ## EXPORTS
 diff -ruN a/control_board_hardware_interface/include/control_board_hardware_interface/imu_manager.hpp b/control_board_hardware_interface/include/control_board_hardware_interface/imu_manager.hpp
---- a/control_board_hardware_interface/include/control_board_hardware_interface/imu_manager.hpp	2026-11-24 23:29:14.734353691 -0800
-+++ b/control_board_hardware_interface/control_board_hardware_interface/include/control_board_hardware_interface/imu_manager.hpp	2026-11-24 23:29:14.742353782 -0800
+--- a/control_board_hardware_interface/include/control_board_hardware_interface/imu_manager.hpp	2025-10-18 14:55:04.077415005 -0700
++++ b/control_board_hardware_interface/include/control_board_hardware_interface/imu_manager.hpp	2026-11-24 23:27:40.000000000 -0800
 @@ -14,6 +14,7 @@
  #include <thread>
  #include <utility>
@@ -43,9 +47,116 @@ diff -ruN a/control_board_hardware_interface/include/control_board_hardware_inte
  
    void imu_read_thread_fn();
  
+diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_cal.hpp b/control_board_hardware_interface/include/rt/fc_imu_cal.hpp
+--- a/control_board_hardware_interface/include/rt/fc_imu_cal.hpp	1969-12-31 16:00:00.000000000 -0800
++++ b/control_board_hardware_interface/include/rt/fc_imu_cal.hpp	2026-11-27 19:57:15.973057376 -0800
+@@ -0,0 +1,103 @@
++// FC v4 (2026-11-27): accelerometer bias correction for the BNO085 calibrated accel (0x01).
++//
++// Why: after service, mts's chip-frame accel at rest on the stand read (9.99, -0.34, -7.03) m/s^2,
++// |a| = 12.2, where Nov 24 read (6.66, -0.14, -7.09), |a| = 9.73, in the same pose. Only chip X moved
++// (+3.3 m/s^2). A rotation cannot change |a|, so this is a sensor bias (chip calibration or the
++// sensor), not a mount offset. Uncorrected, it tilts the filter's gravity ~10 deg, and the chip's own
++// rotation vector agrees because it fuses the same accel. See fc/notes/rca-20261127-tilt.md.
++//
++// File (written by `fcctl.sh imu-level`, outside the rsync'd tree so stage.sh never deletes it):
++//   $FC_IMU_CAL, else $HOME/fc-v1/run/imu_cal.json, flat JSON containing
++//   "accel_bias_chip": [bx, by, bz]     m/s^2 in the chip frame, subtracted from every 0x01 sample.
++// Missing file or key = zero bias (v3 behaviour). Each component must be finite and |b| <= 6 m/s^2,
++// else the file is rejected (zero bias) and the reason is logged.
++// Header-only, no ROS / Eigen, so the unit test runs the same code.
++#pragma once
++
++#include <cmath>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <string>
++
++namespace fc_imu {
++
++constexpr double kMaxAccelBias = 6.0;  // m/s^2 per component
++
++struct AccelCal {
++  double bias[3] = {0, 0, 0};
++  bool loaded = false;
++  std::string source;  // path, or why nothing was applied
++};
++
++// Parse "accel_bias_chip": [a, b, c] out of a flat JSON text. Returns false (bias untouched) if the
++// key is missing or malformed or a value is out of range; *why says which.
++inline bool parse_accel_bias(const std::string &text, double out[3], std::string *why) {
++  const char *key = "\"accel_bias_chip\"";
++  const size_t k = text.find(key);
++  if (k == std::string::npos) {
++    if (why) *why = "no accel_bias_chip key";
++    return false;
++  }
++  const size_t lb = text.find('[', k);
++  const size_t rb = text.find(']', k);
++  if (lb == std::string::npos || rb == std::string::npos || rb < lb) {
++    if (why) *why = "accel_bias_chip is not a [x, y, z] list";
++    return false;
++  }
++  std::string body = text.substr(lb + 1, rb - lb - 1);
++  double v[3];
++  const char *p = body.c_str();
++  for (int i = 0; i < 3; i++) {
++    while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r' || (i > 0 && *p == ',')) p++;
++    char *end = nullptr;
++    v[i] = std::strtod(p, &end);
++    if (end == p || !std::isfinite(v[i]) || std::fabs(v[i]) > kMaxAccelBias) {
++      if (why) *why = "accel_bias_chip value " + std::to_string(i) + " missing, not finite or > 6 m/s^2";
++      return false;
++    }
++    p = end;
++  }
++  while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') p++;
++  if (*p != '\0') {
++    if (why) *why = "accel_bias_chip must have exactly 3 values";
++    return false;
++  }
++  for (int i = 0; i < 3; i++) out[i] = v[i];
++  return true;
++}
++
++inline std::string default_cal_path() {
++  const char *env = std::getenv("FC_IMU_CAL");
++  if (env != nullptr && env[0] != '\0') return env;
++  const char *home = std::getenv("HOME");
++  return std::string(home ? home : "/home/pi") + "/fc-v1/run/imu_cal.json";
++}
++
++inline AccelCal load_accel_cal(const std::string &path) {
++  AccelCal cal;
++  FILE *f = std::fopen(path.c_str(), "r");
++  if (f == nullptr) {
++    cal.source = "none (" + path + " not found)";
++    return cal;
++  }
++  std::string text;
++  char buf[512];
++  size_t n;
++  while ((n = std::fread(buf, 1, sizeof buf, f)) > 0 && text.size() < 16384) text.append(buf, n);
++  std::fclose(f);
++  std::string why;
++  if (parse_accel_bias(text, cal.bias, &why)) {
++    cal.loaded = true;
++    cal.source = path;
++  } else {
++    cal.source = "REJECTED " + path + ": " + why;
++  }
++  return cal;
++}
++
++inline void apply_accel_bias(const AccelCal &cal, double a[3]) {
++  for (int i = 0; i < 3; i++) a[i] -= cal.bias[i];
++}
++
++}  // namespace fc_imu
 diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp b/control_board_hardware_interface/include/rt/fc_imu_filter.hpp
 --- a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp	1969-12-31 16:00:00.000000000 -0800
-+++ b/control_board_hardware_interface/control_board_hardware_interface/include/rt/fc_imu_filter.hpp	2026-11-24 23:29:14.742353782 -0800
++++ b/control_board_hardware_interface/include/rt/fc_imu_filter.hpp	2026-11-24 23:26:19.000000000 -0800
 @@ -0,0 +1,300 @@
 +// FC v1 IMU crutch: our own roll/pitch estimate for a BNO085 whose gyro X axis
 +// emits one-sided negative pulses, drifts in bias and sometimes freezes.
@@ -349,7 +460,7 @@ diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_filter.hpp b/cont
 +}  // namespace fc_imu
 diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_stall.hpp b/control_board_hardware_interface/include/rt/fc_imu_stall.hpp
 --- a/control_board_hardware_interface/include/rt/fc_imu_stall.hpp	1969-12-31 16:00:00.000000000 -0800
-+++ b/control_board_hardware_interface/control_board_hardware_interface/include/rt/fc_imu_stall.hpp	2026-11-24 23:29:14.742353782 -0800
++++ b/control_board_hardware_interface/include/rt/fc_imu_stall.hpp	2026-11-24 23:26:41.000000000 -0800
 @@ -0,0 +1,138 @@
 +// FC v1 (v3): BNO085 stall guard. Header-only, no ROS; the IMU manager thread drives it.
 +//
@@ -490,19 +601,20 @@ diff -ruN a/control_board_hardware_interface/include/rt/fc_imu_stall.hpp b/contr
 +
 +}  // namespace fc_imu
 diff -ruN a/control_board_hardware_interface/include/rt/rt_bno055.h b/control_board_hardware_interface/include/rt/rt_bno055.h
---- a/control_board_hardware_interface/include/rt/rt_bno055.h	2026-11-24 23:29:14.734353691 -0800
-+++ b/control_board_hardware_interface/control_board_hardware_interface/include/rt/rt_bno055.h	2026-11-24 23:29:14.742353782 -0800
-@@ -9,6 +9,9 @@
+--- a/control_board_hardware_interface/include/rt/rt_bno055.h	2025-10-18 14:55:04.077415005 -0700
++++ b/control_board_hardware_interface/include/rt/rt_bno055.h	2026-11-27 19:57:16.153056933 -0800
+@@ -9,6 +9,10 @@
  
  #include <chrono>
  #include <eigen3/Eigen/Dense>
 +#include <memory>
 +
 +#include "rt/fc_imu_filter.hpp"
++#include "rt/fc_imu_cal.hpp"
  
  // Packets can be up to 32k but we don't have that much RAM.
  #define MAX_PACKET_SIZE 128
-@@ -79,8 +82,9 @@
+@@ -79,8 +83,9 @@
  
    struct Output {
      Eigen::Quaternionf quat;
@@ -514,7 +626,7 @@ diff -ruN a/control_board_hardware_interface/include/rt/rt_bno055.h b/control_bo
  
      // Timestamp of when the data was sent from the sensor to the Raspberry Pi
      std::chrono::high_resolution_clock::time_point packet_timestamp;
-@@ -92,6 +96,16 @@
+@@ -92,6 +97,16 @@
    Output sample();
    void read_vector(int addr, float scale, int num_elt, float *out);
  
@@ -531,7 +643,7 @@ diff -ruN a/control_board_hardware_interface/include/rt/rt_bno055.h b/control_bo
   private:
    void enter_mode(int mode);
    void write_byte(int addr, int value);
-@@ -112,7 +126,7 @@
+@@ -112,7 +127,7 @@
        buffer[i + 4] = shtpData[i];
      }
      if (write(m_fd, buffer.data(), packetLength) != packetLength) {
@@ -540,7 +652,7 @@ diff -ruN a/control_board_hardware_interface/include/rt/rt_bno055.h b/control_bo
        return false;
      }
  
-@@ -120,6 +134,17 @@
+@@ -120,6 +135,17 @@
    }
  
    void softReset(void);
@@ -558,7 +670,7 @@ diff -ruN a/control_board_hardware_interface/include/rt/rt_bno055.h b/control_bo
    bool receivePacket(void);
    bool getData(uint16_t bytesRemaining);
    bool waitForI2C(void);
-@@ -149,6 +174,22 @@
+@@ -149,6 +175,23 @@
    void parseInputReport(void);
    void parseCommandReport(void);
  
@@ -572,6 +684,7 @@ diff -ruN a/control_board_hardware_interface/include/rt/rt_bno055.h b/control_bo
 +  bool fc_warned_no_accel_ = false;
 +  std::chrono::steady_clock::time_point fc_last_log_;
 +  fc_imu::FilterParams fc_params_;
++  fc_imu::AccelCal fc_accel_cal_;  // FC v4: chip-frame accel bias (fc_imu_cal.hpp)
 +  bool fc_accel_since_init_ = false;
 +  uint32_t micros_between_reports_ = 10000;
 +  uint64_t input_reports_ = 0;
@@ -582,8 +695,8 @@ diff -ruN a/control_board_hardware_interface/include/rt/rt_bno055.h b/control_bo
    bool m_okay = false;
  
 diff -ruN a/control_board_hardware_interface/src/imu_manager.cpp b/control_board_hardware_interface/src/imu_manager.cpp
---- a/control_board_hardware_interface/src/imu_manager.cpp	2026-11-24 23:29:14.734353691 -0800
-+++ b/control_board_hardware_interface/control_board_hardware_interface/src/imu_manager.cpp	2026-11-24 23:29:14.742353782 -0800
+--- a/control_board_hardware_interface/src/imu_manager.cpp	2025-10-18 14:55:04.077415005 -0700
++++ b/control_board_hardware_interface/src/imu_manager.cpp	2026-11-24 23:27:40.000000000 -0800
 @@ -1,5 +1,9 @@
  #include "control_board_hardware_interface/imu_manager.hpp"
  
@@ -691,8 +804,8 @@ diff -ruN a/control_board_hardware_interface/src/imu_manager.cpp b/control_board
    imu_read_thread_ = std::make_unique<std::thread>(&IMUManager::imu_read_thread_fn, this);
  }
 diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_board_hardware_interface/src/rt/rt_bno055.cpp
---- a/control_board_hardware_interface/src/rt/rt_bno055.cpp	2026-11-24 23:29:14.738353737 -0800
-+++ b/control_board_hardware_interface/control_board_hardware_interface/src/rt/rt_bno055.cpp	2026-11-24 23:29:14.742353782 -0800
+--- a/control_board_hardware_interface/src/rt/rt_bno055.cpp	2025-10-18 14:55:04.077415005 -0700
++++ b/control_board_hardware_interface/src/rt/rt_bno055.cpp	2026-11-27 19:57:16.157056923 -0800
 @@ -1,6 +1,9 @@
  
  #include "rt/rt_bno055.h"
@@ -703,7 +816,7 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
  #include <string>
  // #include <i2c/smbus.h>
  
-@@ -29,6 +32,37 @@
+@@ -29,6 +32,41 @@
      }
    }
    printf("Connected\r\n");
@@ -731,6 +844,10 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
 +    fc_last_log_ = std::chrono::steady_clock::now();
 +    printf("FC_IMU_FILTER on: kp=%.3f ki=%.3f period=%.4fs; enabling accelerometer 0x01\n", p.kp,
 +           p.ki, fc_period_s_);
++    fc_accel_cal_ = fc_imu::load_accel_cal(fc_imu::default_cal_path());
++    printf("FC_IMU_CAL accel_bias_chip=(%.4f,%.4f,%.4f) m/s^2 %s; source %s\n", fc_accel_cal_.bias[0],
++           fc_accel_cal_.bias[1], fc_accel_cal_.bias[2], fc_accel_cal_.loaded ? "APPLIED" : "not applied",
++           fc_accel_cal_.source.c_str());
 +    fflush(stdout);
 +  }
 +  initDevice();
@@ -741,7 +858,7 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
    softReset();
    printf("Reset\r\n");
    shtpData[0] = SHTP_REPORT_PRODUCT_ID_REQUEST;  // Request the product ID and reset info
-@@ -45,13 +79,49 @@
+@@ -45,13 +83,49 @@
      }
    }
  
@@ -795,7 +912,7 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
  }
  
  BNO055::~BNO055() {
-@@ -86,7 +156,7 @@
+@@ -86,7 +160,7 @@
    int response = read(m_fd, &packetHeader, headerLength);
    // printf("%i\r\n",response);
    if (response != headerLength) {
@@ -804,7 +921,7 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
      return false;
    }
  
-@@ -129,7 +199,7 @@
+@@ -129,7 +203,7 @@
      // }
      int response = read(m_fd, readBuffer.data(), numberOfBytesToRead + 4);
      if (response != numberOfBytesToRead + 4) {
@@ -813,7 +930,7 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
        return false;
      }
  
-@@ -154,7 +224,7 @@
+@@ -154,7 +228,7 @@
    while (timeoutCounter > 0) {
      int bytesRead = read(m_fd, &buffer, 1);
      if (bytesRead == -1) {
@@ -822,7 +939,7 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
        return false;
      } else if (bytesRead == 1) {
        return true;
-@@ -213,8 +283,13 @@
+@@ -213,8 +287,13 @@
        //   printf("got channel report. shtpData[0]=%d\n", static_cast<int>(shtpData[0]));
        if (shtpData[0] == SHTP_REPORT_BASE_TIMESTAMP) {
          // printf("got base timestamp\n");
@@ -838,14 +955,17 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
          return (true);
        }
      } else if (shtpHeader[2] == CHANNEL_CONTROL) {
-@@ -460,6 +535,30 @@
+@@ -460,6 +539,33 @@
    result.quat.z() = getQuatK();
    result.quat.w() = getQuatReal();
  
 +  if (fc_filter_on_) {
-+    result.acc(0) = getAccelX();
-+    result.acc(1) = getAccelY();
-+    result.acc(2) = getAccelZ();
++    // FC v4: publish the bias-corrected accel (what the filter uses).
++    double acc[3] = {getAccelX(), getAccelY(), getAccelZ()};
++    fc_imu::apply_accel_bias(fc_accel_cal_, acc);
++    result.acc(0) = static_cast<float>(acc[0]);
++    result.acc(1) = static_cast<float>(acc[1]);
++    result.acc(2) = static_cast<float>(acc[2]);
 +    // Our orientation once the filter has an accel fix and the accel stream is live;
 +    // otherwise the chip's rotation vector (stock) so a missing 0x01 cannot leave us
 +    // integrating the faulty gyro alone.
@@ -869,7 +989,7 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
    // Accelerometer currently not enabled
    //   result.acc(0) = getAccelX();
    //   result.acc(1) = getAccelY();
-@@ -475,3 +574,124 @@
+@@ -475,3 +581,125 @@
  
    return result;
  }
@@ -943,7 +1063,8 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
 +}
 +
 +void BNO055::fcOnAccel(void) {
-+  const double a[3] = {getAccelX(), getAccelY(), getAccelZ()};
++  double a[3] = {getAccelX(), getAccelY(), getAccelZ()};
++  fc_imu::apply_accel_bias(fc_accel_cal_, a);  // FC v4
 +  fc_filter_->set_accel(a);
 +  fc_accel_reports_++;
 +  fc_accel_since_init_ = true;
@@ -994,9 +1115,92 @@ diff -ruN a/control_board_hardware_interface/src/rt/rt_bno055.cpp b/control_boar
 +      fc_filter_->pulse_mean(), b[0], b[1], b[2], fc_filter_->tilt_diff_deg(rv));
 +  fflush(stdout);
 +}
+diff -ruN a/control_board_hardware_interface/test/test_fc_imu_cal.cpp b/control_board_hardware_interface/test/test_fc_imu_cal.cpp
+--- a/control_board_hardware_interface/test/test_fc_imu_cal.cpp	1969-12-31 16:00:00.000000000 -0800
++++ b/control_board_hardware_interface/test/test_fc_imu_cal.cpp	2026-11-27 19:57:16.073057130 -0800
+@@ -0,0 +1,79 @@
++// FC v4: accel bias file parsing + the mts Nov 27 case end to end through the attitude filter.
++#include <cmath>
++#include <cstdio>
++#include <cstdlib>
++#include <string>
++
++#include "rt/fc_imu_cal.hpp"
++#include "rt/fc_imu_filter.hpp"
++
++static int failures = 0;
++static void check(bool ok, const char *what) {
++  std::printf("%s %s\n", ok ? "PASS" : "FAIL", what);
++  if (!ok) failures++;
++}
++
++// Base-frame tilt (deg) of the filter's estimate, mount = pitch -135 deg about y (base = Ry(p) chip).
++static double base_tilt_deg(const fc_imu::AttitudeFilter &f) {
++  double q[4];
++  f.quat_xyzw(q);
++  const double x = q[0], y = q[1], z = q[2], w = q[3];
++  // world up expressed in the sensor frame = R^T e_z (third row of R)
++  const double ux = 2 * (x * z - w * y), uy = 2 * (y * z + w * x), uz = 1 - 2 * (x * x + y * y);
++  const double p = -135.0 * M_PI / 180.0, c = std::cos(p), s = std::sin(p);
++  const double bz = -s * ux + c * uz;
++  (void)uy;
++  return std::acos(std::fmax(-1.0, std::fmin(1.0, bz))) * 180.0 / M_PI;
++}
++
++static double run_tilt(const double raw[3], const fc_imu::AccelCal &cal) {
++  fc_imu::AttitudeFilter f{fc_imu::FilterParams{}};
++  const double g[3] = {0, 0, 0};
++  for (int i = 0; i < 500; i++) {  // 5 s still at 100 Hz
++    double a[3] = {raw[0], raw[1], raw[2]};
++    fc_imu::apply_accel_bias(cal, a);
++    f.set_accel(a);
++    f.update_gyro(g, 0.01);
++  }
++  return base_tilt_deg(f);
++}
++
++int main() {
++  double b[3] = {9, 9, 9};
++  std::string why;
++  check(fc_imu::parse_accel_bias("{\"accel_bias_chip\": [3.05, -0.34, -0.09], \"n\": 900}", b, &why) &&
++            std::fabs(b[0] - 3.05) < 1e-12 && std::fabs(b[1] + 0.34) < 1e-12 && std::fabs(b[2] + 0.09) < 1e-12,
++        "parses accel_bias_chip");
++  double keep[3] = {1, 2, 3};
++  check(!fc_imu::parse_accel_bias("{\"x\": 1}", keep, &why) && keep[0] == 1, "missing key rejected, bias untouched");
++  check(!fc_imu::parse_accel_bias("{\"accel_bias_chip\": [1, 2]}", keep, &why), "two values rejected");
++  check(!fc_imu::parse_accel_bias("{\"accel_bias_chip\": [1, 2, 3, 4]}", keep, &why), "four values rejected");
++  check(!fc_imu::parse_accel_bias("{\"accel_bias_chip\": [7, 0, 0]}", keep, &why), "> 6 m/s^2 rejected");
++  check(!fc_imu::parse_accel_bias("{\"accel_bias_chip\": [nan, 0, 0]}", keep, &why), "nan rejected");
++  check(!fc_imu::load_accel_cal("/nonexistent/fc_imu_cal.json").loaded, "missing file = zero bias");
++
++  // mts 2026-11-27, robot level on the stand: published accel converted to the chip frame.
++  const double raw[3] = {9.992, -0.336, -7.027};
++  const double level[3] = {6.9367, 0.0, -6.9367};  // R_mount^T (0, 0, 9.81)
++  fc_imu::AccelCal none;
++  const double t0 = run_tilt(raw, none);
++  std::printf("uncorrected tilt %.2f deg\n", t0);
++  check(t0 > 9.0 && t0 < 11.5, "uncorrected: reproduces the ~10 deg false tilt");
++
++  fc_imu::AccelCal cal;
++  for (int i = 0; i < 3; i++) cal.bias[i] = raw[i] - level[i];
++  cal.loaded = true;
++  const double t1 = run_tilt(raw, cal);
++  std::printf("corrected tilt %.3f deg\n", t1);
++  check(t1 < 0.3, "corrected: level on the stand");
++
++  // A real 8 deg pitch with the same bias still reads ~8 deg (the bias model holds in any pose).
++  const double th = (-135.0 - 8.0) * M_PI / 180.0;
++  const double tilted[3] = {-std::sin(th) * 9.81 + cal.bias[0], cal.bias[1], std::cos(th) * 9.81 + cal.bias[2]};
++  const double t2 = run_tilt(tilted, cal);
++  std::printf("corrected, real 8 deg pitch: %.3f deg\n", t2);
++  check(std::fabs(t2 - 8.0) < 0.3, "corrected: a real 8 deg pitch reads 8 deg");
++
++  std::printf("%s (%d failures)\n", failures ? "FAILED" : "OK", failures);
++  return failures ? 1 : 0;
++}
 diff -ruN a/control_board_hardware_interface/test/test_fc_imu_filter.cpp b/control_board_hardware_interface/test/test_fc_imu_filter.cpp
 --- a/control_board_hardware_interface/test/test_fc_imu_filter.cpp	1969-12-31 16:00:00.000000000 -0800
-+++ b/control_board_hardware_interface/control_board_hardware_interface/test/test_fc_imu_filter.cpp	2026-11-24 23:29:14.742353782 -0800
++++ b/control_board_hardware_interface/test/test_fc_imu_filter.cpp	2026-11-24 23:26:19.000000000 -0800
 @@ -0,0 +1,255 @@
 +// Unit test for rt/fc_imu_filter.hpp (FC v1 IMU crutch). Plain C++, no ROS/gtest.
 +// Simulates the Pupper IMU (sensor pitched -135 deg about body y) with the observed
@@ -1255,7 +1459,7 @@ diff -ruN a/control_board_hardware_interface/test/test_fc_imu_filter.cpp b/contr
 +}
 diff -ruN a/control_board_hardware_interface/test/test_fc_imu_stall.cpp b/control_board_hardware_interface/test/test_fc_imu_stall.cpp
 --- a/control_board_hardware_interface/test/test_fc_imu_stall.cpp	1969-12-31 16:00:00.000000000 -0800
-+++ b/control_board_hardware_interface/control_board_hardware_interface/test/test_fc_imu_stall.cpp	2026-11-24 23:29:14.742353782 -0800
++++ b/control_board_hardware_interface/test/test_fc_imu_stall.cpp	2026-11-24 23:28:12.000000000 -0800
 @@ -0,0 +1,141 @@
 +// Unit test for rt/fc_imu_stall.hpp (FC v3 BNO stall guard). Plain C++, no ROS/gtest.
 +// Simulates the IMU thread: a poll every 1 ms, input reports at 200/s when the chip is alive,
