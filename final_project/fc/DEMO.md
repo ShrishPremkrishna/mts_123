@@ -1,6 +1,6 @@
 # Pupper FC demo plan (Thu Dec 3, 2026)
 
-Updated Nov 27 (exhibition plan replaces the staged Shootout → Keeper → Switch → Match gates). Current state:
+Updated Nov 28 (after the Nov 27 evening floor session and robot 2's clone). Current state:
 [STATUS.md](STATUS.md). Next floor session: [RUNBOOK.md](RUNBOOK.md). Numbers marked sim are targets until measured on
 the floor. On stage the robot **shoots by running through the ball**: no kick policy in this demo.
 
@@ -16,7 +16,7 @@ Two Puppers play a short, watchable game. Nobody drives; the Play screen shows w
    **P** starts play if the flow waits on a misread ball or spot. **Space** stops everything at once.
 5. Full time: end card (score, time played, referee touches).
 
-**Target: ≥ 2 goals per 90 s game.** Sim: 59 % of 90 s games reach 2 goals (Coach, `aggression` 0.75, fenced
+**Target: ≥ 2 goals per 90 s game.** Floor, one robot vs Shrish (Nov 27): 5–1 in a 90 s show-flow match. Sim 1v1: 59 % of 90 s games reach 2 goals (Coach, `aggression` 0.75, fenced
 field; [notes/brain.md](notes/brain.md#1v1-coach-2026-11-27-sim-only)). The biggest lever is fewer corner traps, not
 the Coach. Setup: `ctl preset play`; show settings (90 s, spots, 3-2-1, spin) are plain params in `config/params.json`.
 Robots wear their AprilTags styled as jerseys (blue 10, red 11).
@@ -28,9 +28,9 @@ What the show must prove: **nobody is driving** (hands visible), **glass box** (
 
 | Gate | Pass | If not |
 |---|---|---|
-| Speed | Highest clean step on the ladder 1.0 / 1.2 / 1.4 (1.5 optional): no fall, no stumble in bursts and arcs | Play at the last clean `max_vx` (0.75 is floor-proven) |
-| Fence | Wall and corner balls: no tip; a trapped corner ball = referee touch | Larger `wall_margin_m` |
-| Solo show (1 robot) | Show flow W → K → goal → celebration → spots → 3-2-1 runs clean ×3 | Fix before robot 2 time |
+| Speed | **Done Nov 27:** 1.0 and 1.2 clean, 1.4 fell → play at `max_vx` 1.0–1.1 | — |
+| Fence | Wall and corner balls: no tip; a trapped corner ball = referee touch (open: the fence is bent) | Larger `wall_margin_m` |
+| Solo show (1 robot) | Show flow W → K → goal → celebration → spots → 3-2-1 runs clean ×3 (1 of 3 Nov 27: 5–1; calibration and camera drops needed restarts) | Fix before robot 2 time |
 | Robot 2 G0 | Stops, step test, heading bias < 5° | Solo fallback below |
 | 1v1 (at `max_vx` ≤ 1.0 until anti-ram is floor-checked) | ≥ 2 goals in ≥ 3 of 5 90 s games; 0 falls; bumps at walking pace only | Solo fallback below |
 
@@ -39,30 +39,28 @@ referee (keeper + dribble, `play` alone uses the vs-human rules), then the 1v1 a
 
 ## Robot 2 (critical path)
 
-Card: use the robot's own card and run `provision.sh --apply-os pupper-red red red 11`
-([PROVISION.md path B](robot/provision/PROVISION.md)). It stages `~/fc-v1` and applies mts's OS/driver changes: Hailo off,
-fan curve, `pupper-gui` off, GT911 touch overlays off, and the v4 IMU driver built from the card's own source. It prints each
-change with its undo and waits for the owner to confirm, then a reboot finishes it. `--check` lists each item as ok/missing.
-This is tested on a fake Pi only. The driver build refuses if our patch does not apply to that card's source; the fallback is
-cloning mts (path A: two readers, a larger card, mts offline ~1.5–2 h, an identity reset). Then per robot:
+Card done Nov 28: a live clone of mts onto a USB drive with an identity reset (hostname `pupper-red`, robot_id red, tag
+11; [PROVISION.md path A](robot/provision/PROVISION.md#path-a-clone-mts-used-nov-28)). It boots, answers `ssh pupper-red`
+(LAN 10.5.6.37) and `provision.sh --check` passes except the gamepad. Remaining, in order
+([RUNBOOK robot 2 block](RUNBOOK.md#robot-2-red-first-motion--shrish-present)):
 
-1. Identity (path A clone only): `provision.sh --fix-clone-identity pupper-red pi@<ip> red red 11` (hostname, machine-id,
-   ssh keys, Tailscale state, `~/fc-v1/run`; robot_id red, tag **11**).
-2. `robots.json` red entry (`host`, `udp_host`, `cam_url`), then `stage.sh` + `sha_check.sh`.
-3. A tag board in a **different colour** from blue's, then `ctl robotcal red` on the live camera.
-4. `fcctl.sh imu-level` on the stand (the bias is per chip; the clone's `imu_cal.json` is cleared with `run/`).
-5. Step test facing east and west (heading bias → `eye_yaw_offset_deg`), stops, then the solo show once.
+1. Its own DualSense paired (each robot needs its own R3 stop).
+2. `fcctl.sh imu-level` on the stand (the bias is per chip; the clone has no `imu_cal.json`).
+3. A tag-11 board in a **different colour** from blue's, then `ctl robotcal red` on the live camera.
+4. Step test facing east and west. Eye offsets are global today, so red's tag mount must copy blue's until per-robot
+   `eye_*` is wired (open item).
+5. First motion with Shrish present: stops, then the solo show once, then the 1v1 at `max_vx` ≤ 1.0.
 
 ## Who does what
 
-- **Shrish (owner)**: robot 2, the video (due Dec 2), the stage script, the router (campus Wi-Fi RTT p95 ~200–250 ms),
+- **Shrish (owner)**: robot 2, the video (due Dec 2), the stage script, the venue Wi-Fi (RTT p95 ~75–80 ms on CS.Test.PSK Nov 27; campus Wi-Fi was ~200–250 ms),
   the UI pass, rigid jersey tags, balls, room access.
 - **Operator** at the laptop (space, Esc). **Referee**: ball, stick, gamepad R3. Robots homed, standing, health green
   before the slot.
 
 ## Calendar
 
-Next floor session: [RUNBOOK](RUNBOOK.md). Robot 2 G0 by Sat 28 night (Nov 23 target). Sun 29 feature freeze, film
+Next floor session: [RUNBOOK](RUNBOOK.md). Robot 2 G0 by Sat 28 night (card done Nov 28; motion steps above remain). Sun 29 feature freeze, film
 day. Mon 30 counted games. Tue Dec 1 param freeze, 5 run-throughs, venue drill (setup ≤ 8 min). Wed 2 video in,
 rehearse ×5, no code, charge. Thu 3 two warm-up goals, demo. **Do not build:** kick policy, commentator, retraining, self-righting.
 

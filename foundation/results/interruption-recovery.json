@@ -4,7 +4,7 @@
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "fc-v1",
   "mode": "fc_v1_floor_testing",
-  "updated_utc": "2026-11-28T07:30:00+00:00",
+  "updated_utc": "2026-11-28T08:20:00+00:00",
   "current_report": "final_project/fc/STATUS.md",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -23,7 +23,8 @@
     "fc_brain_notes": "final_project/fc/notes/brain.md",
     "fc_gyro_notes": "final_project/fc/notes/gyro.md",
     "fc_imu_tilt_rca": "final_project/fc/notes/rca-20261127-tilt.md",
-    "fc_1v1_design": "final_project/fc/notes/1v1-design.md"
+    "fc_1v1_design": "final_project/fc/notes/1v1-design.md",
+    "fc_provision": "final_project/fc/robot/provision/PROVISION.md"
   },
   "environment": {
     "python": ".venv-fc/bin/python",
@@ -45,14 +46,14 @@
       "physical_robot": "Shrish, in person: operator for every floor session; owner of robot 2, balls, fence, goals, tags, room access.",
       "software": "Claude main session as overseer; focused subagents with disjoint file ownership per task."
     },
-    "goal_status": "Nov 27 floor on mts (fenced 3.36 x 2.70 m, robot): false ~10 deg IMU tilt = accel X bias +3.05 m/s^2 (RCA); IMU driver v4 + fcctl imu-level installed, 0.26 deg level on the stand; robot walked into the fence on a corner ball and tipped (before the fence fix); vs a human: defence weak, play too slow. Since (sim/device-free only, not on the floor): fence margin + bank shots (sim would-tip 228 -> 2), keeper redesign, long shot, 1v1 Coach in the app loop (bumps 6.1 -> 4.1/min), show flow (W warm-up, K 3-2-1, 90 s, spin celebration), two presets slow/play (c68af93). Detail: final_project/fc/STATUS.md.",
+    "goal_status": "Nov 27 evening floor on mts (preset play, robot): speed ladder 1.0/1.2 clean, 1.4 fell on the accel ramp -> play at max_vx 1.0-1.1; solo dribble 3/3 open balls; goalie vs owner 14/18 on-target saves after keeper lateral fix 0eafdc5; show flow 90 s match vs owner 5-1. Calibration (flexing fence corner tag) and phone camera drops needed app restarts. Since (sim/device-free only): self-healing calibration + eye.recalibrate, robustness fixes, keeper pre-shot hedge. Robot 2 (pupper-red) cloned from mts Nov 28, provision --check 20/21 (no DualSense), no motion yet. Detail: final_project/fc/STATUS.md.",
     "pending_archives": [],
     "processes": "none"
   },
   "hardware_session": {
-    "status": "Nov 27 on mts (stock profile): IMU driver v4 symlinked (sha f849f254...), run/imu_cal.json written, imu-level 0.26 deg. Robot files since 1b2b879 (speed caps 1.5) NOT staged. Operator-approved Pi changes and undo in final_project/fc/robot/README.md. Not a live check: restage and run fcctl status before the next session.",
-    "observed_utc": "2026-11-27",
-    "ssh": "mts",
+    "status": "Nov 27 evening on mts (stock profile): robot files staged (walker cap 1.5 ran), IMU v4 + imu_cal.json, fallen cutoff fired once (max_vx 1.4). Nov 28 robot 2 = pupper-red (Pi 5, USB-drive clone of mts, identity reset, empty ~/fc-v1/run): LAN 10.5.6.37, Tailscale 100.92.219.105, provision --check 20 pass / 1 fail (no paired DualSense), Pi OS items ok; no motion. Not a live check: run sha_check and fcctl status before the next session.",
+    "observed_utc": "2026-11-28",
+    "ssh": "mts, pupper-red",
     "pi_install": "~/fc-v1 only",
     "teammate_experiment": "/home/pi/kick preserved; do not modify or name-kill its processes"
   },
@@ -83,16 +84,20 @@
   },
   "next": [
     {
-      "id": "floor_checklist",
-      "action": "Next floor session = final_project/fc/RUNBOOK.md checklist: battery swap + power cycle, stage.sh + sha_check.sh, app restart, Ready with play (--speed-cap 1.50), imu-level check, speed ladder 1.0/1.2/1.4 (ctl set max_vx=...), solo dribble incl. wall/corner balls, goalie vs owner, show flow, autoplay, vs-human, POV + RTT."
+      "id": "robot2_bringup",
+      "action": "Robot 2 (pupper-red), owner present (final_project/fc/RUNBOOK.md robot 2 block): pair its DualSense, fcctl.sh imu-level on the stand, tag-11 board in a different colour + ctl robotcal red, stops, step tests, first motion; then the two-robot test (anti-ram at max_vx <= 1.0)."
     },
     {
-      "id": "robot2_golden_image",
-      "action": "Robot 2 (critical path, final_project/fc/DEMO.md): flash SD from mts, provision.sh --fix-clone-identity (hostname, robot_id red, tag 11), robots.json entry, different board colour + ctl robotcal red, fcctl imu-level, step test."
+      "id": "floor_checklist",
+      "action": "Blue floor checklist (RUNBOOK): sha_check, app with Recalibrate if the camera moved, Ready, wall/corner balls once the fence is straight, goalie with the pre-shot hedge, show flow without a calibration restart."
+    },
+    {
+      "id": "open_threads",
+      "action": "Software: camera reconnect without an app restart (capture in a child process?), per-robot eye_yaw_offset/tag height wiring, reusable clone script in fc/robot/provision/, walker backward cap 0.3 (robot-side, keeper)."
     },
     {
       "id": "owner",
-      "action": "Shrish: robot 2, video (Dec 2), stage script, own router (campus Wi-Fi RTT p95 ~200-250 ms), UI pass, jersey-styled tags, replacement IMU/control board for mts."
+      "action": "Shrish: robot 2 floor time, video (Dec 2), stage script, a straight fence, jersey-styled tags, balls, replacement IMU/control board for mts."
     },
     {
       "id": "decide",
@@ -102,7 +107,7 @@
   "legacy_branches": [
     "pupper-foundation"
   ],
-  "context_review_date": "2026-11-27",
+  "context_review_date": "2026-11-28",
   "alignment": {
     "confirmed_2026_11_23": "Staged plan Shootout -> Keeper -> Switch -> Match adopted with its gates and dates (advisor reconciliation). Shot = hitting the ball at speed; leg kick maybe a later iteration. Goals widened to 1.0 m (now 1.22 m in field.json, Nov 24). Owner is getting light balls, a fence with 45 deg corners and rigid tags.",
     "do_not_build": "kick policy, commentator, retraining, self-righting.",
