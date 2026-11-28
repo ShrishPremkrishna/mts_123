@@ -57,7 +57,10 @@ Cloned from mts on Nov 28 (live file copy onto a USB drive + offline identity re
 - **Keeper speed**: the walker's backward cap 0.3 m/s limits saves; the fix is robot-side.
 - **Per-robot eye offsets**: wired in the eye Nov 28 (`config/robots/<id>.json`, blue = 7°/0.267/-0.02; red on defaults,
   yaw 0 until its step test). The brain's `act_lag_s` per robot is still not wired (app).
-- **Two-robot floor test**: anti-ram at `max_vx` ≤ 1.0, then the 1v1.
+- **Two-robot floor test**: anti-ram at `max_vx` ≤ 1.0, then the 1v1. Sim show rehearsal (Nov 28, fake bridge, 25 games):
+  ~7 bumps per game, ~0.7 of them closing > 0.3 m/s; fall → Get up → rejoin, link loss, Space/resume all recover
+  without a wedge. Open from it: a robot whose link returns gets the brain's running command at once (no ramp from
+  zero; seen 0.45 m/s + 1.2 rad/s); E-STOP all ends the match (Space keeps it).
 - **Reusable clone script** in `fc/robot/provision/` (the Nov 28 one is not in the repo).
 
 ## Blockers (owner)

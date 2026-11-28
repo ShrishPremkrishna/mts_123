@@ -16,9 +16,10 @@ Two Puppers play a short, watchable game. Nobody drives; the Play screen shows w
    **P** starts play if the flow waits on a misread ball or spot. **Space** stops everything at once.
 5. Full time: end card (score, time played, referee touches).
 
-**Target: ≥ 2 goals per 90 s game.** Floor, one robot vs Shrish (Nov 27): 5–1 in a 90 s show-flow match. Sim 1v1: 59 % of 90 s games reach 2 goals (Coach, `aggression` 0.75, fenced
-field; [notes/brain.md](notes/brain.md#1v1-coach-2026-11-27-sim-only)). The biggest lever is fewer corner traps, not
-the Coach. Setup: `ctl preset play`; show settings (90 s, spots, 3-2-1, spin) are plain params in `config/params.json`.
+**Target: ≥ 2 goals per 90 s game.** Floor, one robot vs Shrish (Nov 27): 5–1 in a 90 s show-flow match. Sim 1v1 with preset `play` (Nov 28 rehearsal, the
+app's show flow, sim referee for traps): **1.0 goals per 90 s, 7 of 25 games reach 2**; `sim_eval --floor25` 3.3 goals
+/ 3 min. `aggression` 1.0 gave 4.0 / 3 min with harder bumps (closing max 0.64 m/s): floor-check anti-ram first
+([notes/brain.md](notes/brain.md#1v1-coach-2026-11-27-sim-only)). The biggest lever is fewer corner traps, not the Coach. Setup: `ctl preset play`; show settings (90 s, spots, 3-2-1, spin) are plain params in `config/params.json`.
 Robots wear their AprilTags styled as jerseys (blue 10, red 11).
 
 What the show must prove: **nobody is driving** (hands visible), **glass box** (target, path, task on screen),
