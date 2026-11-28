@@ -1103,9 +1103,10 @@ cmd_imu_level() {  # imu-level [check|show] [--seconds S] [--dry-run] [--legs-on
   done
   if [ "$mode" = show ]; then python3 "$HERE/imu/imu_level.py" show; return; fi
   prof=$(active_profile || true)
-  [ -n "$prof" ] && profile_alive "$(active_run)" ||
+  # profile_alive comes from the profile script, so load the profile before asking.
+  [ -n "$prof" ] && load_profile "$prof" > /dev/null && profile_alive "$(active_run)" ||
     { echo '{"ok":false,"action":"refused","error":"no robot stack running: fcctl.sh start <profile> --confirm (robot on the stand)"}'; return 1; }
-  load_profile "$prof" > /dev/null; profile_env
+  profile_env
   if [ "$mode" = level ] && [ -z "$legs_on" ]; then
     q=$(rosq controllers 2>> "$FC_LOGS/ready.log")
     _legs_down "$q" || { echo '{"ok":false,"action":"refused","error":"a leg controller is active (or the controller manager did not answer): sit the robot level on the stand with the legs off (R3 or fcctl.sh down --keep-stack), or pass --legs-on"}'; return 1; }
