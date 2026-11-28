@@ -653,3 +653,19 @@ def test_live_ops_listing_and_generic_op(live, capsys):
     capsys.readouterr()
     assert run("op", "match.touch", "delta=3") == 1
     assert '"code":"bad_args"' in capsys.readouterr().out
+
+
+def test_show_lines_print_countdown_goals_and_full_time():
+    prev = {}
+    flow = {"phase": "kickoff", "waiting": ["Red to its spot"], "goals": [], "score": {"blue": 0, "red": 0}}
+    assert ctl.show_lines(prev, flow, None) == [ctl.SHOW_PHASE["kickoff"], "  waiting for Red to its spot"]
+    assert ctl.show_lines(prev, flow, None) == []
+    out = []
+    for left in (2.9, 2.5, 1.9, 0.95, 0.1):
+        out += ctl.show_lines(prev, {**flow, "phase": "countdown", "countdown_left": left}, None)
+    assert out == [ctl.BIG[3], ctl.BIG[2], ctl.BIG[1]]
+    assert ctl.show_lines(prev, {**flow, "phase": "play", "clock_left": 90}, None) == ["GO!  1:30 left"]
+    g = {**flow, "phase": "celebrate", "goals": [{"team": "blue", "clock": 12.3, "n": 1}], "score": {"blue": 1, "red": 0}}
+    assert ctl.show_lines(prev, g, None) == ["GOAL BLUE  BLUE 1 - 0 RED  (0:12 played)", "celebration"]
+    assert ctl.show_lines(prev, None, {"result": "full_time", "score": {"blue": 1, "red": 0}}) == ["FULL TIME  BLUE 1 - 0 RED"]
+    assert prev["ended"]

@@ -75,7 +75,8 @@ def test_one_p_op_enabled_in_every_flow_phase(app):
     assert enabled() == ["match.play_here"]            # no match
     assert ops.call(app, "match.kickoff")["ok"]
     for phase, want in (("kickoff", "match.start_now"), ("restart", "match.start_now"), ("countdown", "match.pause"),
-                        ("play", "match.pause"), ("goal", "match.pause"), ("paused", "match.resume")):
+                        ("play", "match.pause"), ("goal", "match.pause"), ("celebrate", "match.pause"),
+                        ("paused", "match.resume")):
         app.flow.phase = phase
         assert enabled() == [want], phase
 
@@ -216,3 +217,18 @@ def test_source_switch_restarts_only_when_idle(app):
     while not calls and time.monotonic() - t0 < 2:
         time.sleep(0.02)
     assert calls == [("camera", "fast")]                                 # the loaded preset survives the restart
+
+
+def test_show_warmup_toggles_and_refuses_during_a_match(app):
+    with app.lock:
+        assert ops.availability(app)["show.warmup"] == {"enabled": True, "label": "Warm-up"}
+    r = ops.call(app, "show.warmup", {"loops": 1})
+    assert r["ok"] and app.mode == "warmup" and app.warm.loops == 1 and r["robots"] == ["blue", "red"]
+    with app.lock:
+        assert ops.availability(app)["show.warmup"]["label"] == "End warm-up"
+    r = ops.call(app, "show.warmup")
+    assert r["ok"] and r["finishing"] and app.warm.finishing
+    assert ops.call(app, "show.warmup", {"loops": 99})["code"] == "bad_args"
+    assert ops.call(app, "match.kickoff")["ok"] and app.warm is None and app.flow is not None   # K replaces it
+    r = ops.call(app, "show.warmup")
+    assert r["code"] == "unavailable" and "match" in r["error"]

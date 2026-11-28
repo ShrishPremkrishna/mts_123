@@ -24,6 +24,12 @@
                                             | autoplay [minutes=N (0 = until stop) alternate=false reset=none
                                               after_roll=attack reset_vx=0.15]: hands-off solo loop
                                             (all take robot=, sim tests scenario=)
+    show warmup [loops=N] [--wait]          demo warm-up (op show.warmup, Play key W); again = end it at the kickoff spots
+    show kickoff [--wait]                   match kickoff (K); --wait follows the match like `show watch`
+    show go                                 operator override (P): start the countdown without waiting for
+                                            the spots / the ball at the centre
+    show watch                              follow the match: phases, a large 3-2-1 countdown, goals, full time
+                                            (Ctrl-C only stops watching; the match goes on)
     last [n]                                summaries of the last n runs (default 5)
     ballcal [X Y] [--k K] | --show          ball HSV range from the live frame: at pixel X Y, else the most
                                             saturated compact blob in the field; applied live, saved to
@@ -607,6 +613,115 @@ def cmd_stop(c: Client, a) -> None:
     say("STOP sent: zero speed to every robot")
 
 
+SHOW_PHASE = {"kickoff": "KICKOFF: robots walk to their spots", "restart": "PLACE THE BALL", "play": "GO!",
+              "paused": "PAUSED", "celebrate": "celebration", "goal": "goal pause"}
+BIG = {3: "  ###\n    #\n  ###\n    #\n  ###", 2: "  ###\n    #\n  ###\n  #\n  ###", 1: "   #\n  ##\n   #\n   #\n  ###"}
+
+
+def show_lines(prev: dict, flow: dict | None, last: dict | None) -> list[str]:
+    """New lines for `show watch` from one /state poll. prev carries what was already printed (mutated)."""
+    out = []
+    if flow is None:
+        if prev.get("phase") and last and not prev.get("ended"):
+            sc = last.get("score") or {}
+            prev["ended"] = True
+            out.append(f"{'FULL TIME' if last.get('result') == 'full_time' else 'END (' + str(last.get('result')) + ')'}"
+                       f"  BLUE {sc.get('blue', 0)} - {sc.get('red', 0)} RED")
+        return out
+    ph, sc = flow.get("phase"), flow.get("score") or {}
+    goals = flow.get("goals") or []
+    n = goals[-1]["n"] if goals else 0
+    if n > prev.get("goals", 0):
+        g = goals[-1]
+        out.append(f"GOAL {str(g.get('team')).upper()}  BLUE {sc.get('blue', 0)} - {sc.get('red', 0)} RED"
+                   f"  ({clock_str(g.get('clock'))} played)")
+        prev["goals"] = n
+    if ph != prev.get("phase"):
+        prev["phase"], prev["digit"] = ph, None
+        if ph == "play":
+            out.append(f"GO!  {clock_str(flow.get('clock_left'))} left")
+        elif ph != "countdown":
+            out.append(SHOW_PHASE.get(ph, ph))
+    if ph == "kickoff":
+        w = ", ".join(flow.get("waiting") or [])
+        if w and w != prev.get("waiting"):
+            out.append(f"  waiting for {w}")
+        prev["waiting"] = w
+    if ph == "countdown" and isinstance(flow.get("countdown_left"), (int, float)):
+        d = max(1, math.ceil(flow["countdown_left"] - 1e-6))
+        if d != prev.get("digit") and d <= 9:
+            prev["digit"] = d
+            out.append(BIG.get(d, f"  {d}"))
+    return out
+
+
+def clock_str(sec) -> str:
+    if not isinstance(sec, (int, float)):
+        return "-"
+    s = max(0, int(round(sec)))
+    return f"{s // 60}:{s % 60:02d}"
+
+
+def watch_match(c: Client, timeout: float = 3600.0) -> dict | None:
+    prev: dict = {}
+    end = time.monotonic() + timeout
+    try:
+        while time.monotonic() < end:
+            st = c.get("/state?lite=1") or {}
+            play = st.get("play") or {}
+            flow, last = play.get("flow"), play.get("last_match")
+            if flow is None and not prev.get("phase"):
+                raise Fail("no match running: show kickoff")
+            for line in show_lines(prev, flow, last):
+                say(line)
+            if prev.get("ended"):
+                return last
+            time.sleep(0.2)
+    except KeyboardInterrupt:
+        say("stopped watching (the match goes on; Space on the Play screen stops it)")
+        raise
+    return None
+
+
+def cmd_show(c: Client, a) -> None:
+    kv = parse_kv(a.pairs)
+    if a.what == "warmup":
+        res = c.post("/api/op", {"op": "show.warmup", "args": kv})
+        need_ok(res, "show warmup")
+        if res.get("finishing"):
+            say("warm-up ending: robots walk to their kickoff spots")
+        else:
+            say(f"warm-up started ({', '.join(res.get('robots') or [])}): `show warmup` again (or W) ends it at the spots")
+        if not a.wait:
+            return
+        last = None
+        while True:
+            st = c.get("/state?lite=1") or {}
+            t = st.get("test") or {}
+            if t.get("name") != "warmup":
+                s = st.get("last_summary") or {}
+                say(f"warm-up {s.get('result', 'ended')}: loops {s.get('loops')}, recentres {s.get('recentres')}")
+                if is_health_stop(s):
+                    raise HealthStop(f"warm-up ended {s.get('result')}")
+                return
+            line = " | ".join(f"{rid} {step}" for rid, step in sorted((t.get("steps") or {}).items()))
+            if line and line != last:
+                say(f"  {line}")
+                last = line
+            time.sleep(POLL_S)
+    if a.what == "kickoff":
+        need_ok(c.post("/api/op", {"op": "match.kickoff", "args": {}}), "show kickoff")
+        say("kickoff: robots walk to their spots; the countdown starts when they are there and the ball is at the centre")
+        if a.wait:
+            watch_match(c)
+        return
+    if a.what == "go":
+        need_ok(c.post("/api/op", {"op": "match.start_now", "args": {}}), "show go")
+        say("override: countdown starts now")
+        return
+    watch_match(c)
+
+
 def cmd_estop(c: Client, a) -> None:
     target = None if a.robot == "all" else a.robot
     res = need_ok(c.post("/action", {"action": "estop", "robot": target}), "estop")
@@ -1102,6 +1217,11 @@ def build_parser() -> Parser:
     p.add_argument("--wait", action="store_true")
     p.add_argument("--timeout", type=float, default=None)
     p.set_defaults(fn=cmd_test)
+    p = sub.add_parser("show")
+    p.add_argument("what", choices=["warmup", "kickoff", "go", "watch"])
+    p.add_argument("pairs", nargs="*")
+    p.add_argument("--wait", action="store_true")
+    p.set_defaults(fn=cmd_show)
     p = sub.add_parser("last")
     p.add_argument("n", nargs="?", type=int, default=5)
     p.set_defaults(fn=cmd_last)

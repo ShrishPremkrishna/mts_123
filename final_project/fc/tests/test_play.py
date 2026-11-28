@@ -328,3 +328,152 @@ def test_autoplay_waits_for_robot_and_ends_on_minutes():
     b._set("stage", 0.0)
     b.update(0.1, aw(0.1, (0.5, 0.0), None), [])
     assert b.want == ("stop", "stale") and b.banner["text"] == "Robot not seen: waiting"
+
+
+# ---- show: celebration after a goal, warm-up ----------------------------------------------------
+from fc.core import Pose, RobotObs  # noqa: E402
+from fc.play import CEL_STEP_IN_S, WARM, Warmup, kickoff_spot, show_margin  # noqa: E402
+
+SHOW = {**P, "celebrate_style": "spin", "celebrate_s": 2.0, "celebrate_wz": 1.8, "celebrate_other": "walk",
+        "restart_mode": "kickoff", "kickoff_x_frac": 0.25, "wall_margin_m": 0.28}
+
+
+def robots_world(t, poses, ball=None):
+    return World(t, Ball(*ball, t=t) if ball else None,
+                 {rid: RobotObs(rid, Pose(*p), t) for rid, p in poses.items()})
+
+
+def test_spots_and_margin():
+    assert kickoff_spot("blue", F, 0.25) == (-0.25 * F.length, 0.0, 0.0)
+    assert kickoff_spot("red", F, 0.25)[0] == 0.25 * F.length and kickoff_spot("red", F, 0.25)[2] == pytest.approx(math.pi)
+    assert show_margin({"wall_margin_m": 0.0}) == 0.28 and show_margin({"wall_margin_m": 0.35}) == 0.35
+
+
+def test_celebrate_steps_inside_the_margin_spins_then_kickoff_spots():
+    f = MatchFlow([BLUE, RED], F, 0.0, kickoff=False)
+    hl = F.length / 2
+    poses = {"blue": (hl - 0.1, 0.1, 0.0), "red": (0.3, 0.0, math.pi)}      # blue scored right at the east fence
+    t = 0.0
+    while f.phase != "play":
+        f.update(t, 1 / 30, robots_world(t, poses), {}, [], SHOW)
+        t += 1 / 30
+    assert f.update(t, 1 / 30, robots_world(t, poses), {}, ["blue"], SHOW) == ["goal:blue"]
+    assert f.phase == "celebrate" and f.scorer == "blue" and f.score["blue"] == 1
+    f.update(t, 1 / 30, robots_world(t, poses), {}, [], SHOW)
+    kind, arg = f.command("blue")
+    assert kind == "goto" and arg[0] <= hl - 0.28 - 0.15 + 1e-9 and arg[3] == 0.3    # step back inside first
+    assert f.command("red") == ("goto", (0.25 * F.length, 0.0, math.pi, 0.15))      # slow walk to its spot
+    poses["blue"] = (hl - 0.5, 0.1, 0.0)                                            # now inside
+    t += 0.5
+    f.update(t, 1 / 30, robots_world(t, poses), {}, [], SHOW)
+    t += 0.5
+    f.update(t, 1 / 30, robots_world(t, poses), {}, [], SHOW)
+    kind, cmd = f.command("blue")
+    assert kind == "app" and (cmd.vx, cmd.vy, cmd.wz, cmd.tag) == (0.0, 0.0, 1.8, "celebrate")
+    assert f.json(t, SHOW)["celebrate"] == {"blue": "party", "red": "walk"} and f.clock < 5
+    clock = f.clock
+    while f.phase == "celebrate":
+        t += 1 / 30
+        f.update(t, 1 / 30, robots_world(t, poses), {}, [], SHOW)
+    assert f.phase == "kickoff" and f.clock == clock and f.command("blue")[0] == "goto"   # clock stood still
+
+
+def test_celebrate_wiggle_flips_and_is_capped_without_a_pose():
+    f = MatchFlow([BLUE, RED], F, 0.0, kickoff=False)
+    f.phase = "play"
+    p = {**SHOW, "celebrate_style": "wiggle", "celebrate_other": "still"}
+    poses = {"blue": (0.5, 0.0, 0.0), "red": (0.8, 0.0, math.pi)}
+    f.update(0.0, 1 / 30, robots_world(0.0, poses), {}, ["red"], p)
+    signs = set()
+    t = 0.0
+    while t < 1.5:
+        t += 1 / 30
+        f.update(t, 1 / 30, robots_world(t, poses), {}, [], p)
+        k, c = f.command("red")
+        if k == "app":
+            signs.add(c.wz > 0)
+    assert signs == {True, False} and f.command("blue") == ("stop", "goal")       # red wiggles, blue holds
+    g = MatchFlow([BLUE, RED], F, 0.0, kickoff=False)                               # scorer never seen: time cap
+    g.phase = "play"
+    g.update(0.0, 1 / 30, robots_world(0.0, {}), {}, ["blue"], p)
+    t = 0.0
+    while g.phase == "celebrate" and t < 20:
+        t += 1 / 30
+        g.update(t, 1 / 30, robots_world(t, {}), {}, [], p)
+    assert g.phase == "kickoff" and t <= p["celebrate_s"] + CEL_STEP_IN_S + 1.2
+
+
+def test_celebrate_none_keeps_the_old_goal_pause():
+    f = MatchFlow([BLUE, RED], F, 0.0, kickoff=False)
+    f.phase = "play"
+    f.update(0.0, 1 / 30, world(0.0), {}, ["blue"], P)
+    assert f.phase == "goal" and f.command("blue") == ("stop", "goal")
+
+
+def _drive(w, poses, now, dt):
+    """Toy kinematics: app commands integrate in the body frame; gotos walk straight at vmax, then turn."""
+    for rid, (kind, arg) in w.want.items():
+        x, y, yaw = poses[rid]
+        if kind == "app":
+            c, s = math.cos(yaw), math.sin(yaw)
+            x, y, yaw = x + dt * (c * arg.vx - s * arg.vy), y + dt * (s * arg.vx + c * arg.vy), yaw + dt * arg.wz
+        elif kind == "goto":
+            tx, ty, tyaw, v = arg
+            d = math.hypot(tx - x, ty - y)
+            if d > 0.02:
+                k = min(1.0, v * dt / d)
+                x, y = x + k * (tx - x), y + k * (ty - y)
+            elif tyaw is not None:
+                yaw = tyaw
+        poses[rid] = (x, y, yaw)
+
+
+def test_warmup_loops_the_move_table_and_finishes_at_the_spots():
+    w = Warmup([BLUE, RED], F, 0.0, loops=1)
+    p = {"kickoff_x_frac": 0.25, "wall_margin_m": 0.28}
+    poses = {"blue": (-0.7, 0.2, 0.3), "red": (0.7, -0.1, 3.0)}
+    seen, t, dt, evs = set(), 0.0, 1 / 30, []
+    margin = show_margin(p)
+    while t < 120:
+        evs = w.update(t, robots_world(t, poses), {}, p)
+        if "done" in evs:
+            break
+        seen |= {st["step"] for st in w.st.values()}
+        _drive(w, poses, t, dt)
+        for rid, (x, y, _) in poses.items():
+            assert abs(x) <= F.length / 2 - margin + 0.02 and abs(y) <= F.width / 2 - margin + 0.02
+        assert math.hypot(poses["blue"][0] - poses["red"][0], poses["blue"][1] - poses["red"][1]) > WARM["gap_m"] - 0.1
+        t += dt
+    assert "done" in evs and seen >= {"home", "trot", "circle", "shuffle", "spin"}
+    for rid, team in (("blue", "blue"), ("red", "red")):
+        sx, sy, syaw = kickoff_spot(team, F, 0.25)
+        assert math.hypot(poses[rid][0] - sx, poses[rid][1] - sy) < 0.12 and w.want[rid] == ("stop", "warmup")
+    assert w.summary(t)["loops"] == {"blue": 1, "red": 1}
+
+
+def test_warmup_contains_moves_and_finish_goes_home():
+    w = Warmup([BLUE, RED], F, 0.0)
+    p = {"kickoff_x_frac": 0.25, "wall_margin_m": 0.28}
+    sx = kickoff_spot("blue", F, 0.25)[0]
+    poses = {"blue": (sx, 0.0, 0.0), "red": (-sx, 0.0, math.pi)}
+    w.update(0.0, robots_world(0.0, poses), {}, p)
+    assert w.st["blue"]["step"] == "home"                              # on the spot, but not for home_hold_s yet
+    w.update(0.7, robots_world(0.7, poses), {}, p)                     # held: starts trotting
+    assert w.st["blue"]["step"] == "trot" and w.want["blue"][0] == "app"
+    poses["blue"] = (sx + 0.48, 0.0, 0.0)                              # drifted to the end of its leash
+    evs = w.update(0.8, robots_world(0.8, poses), {}, p)
+    assert "recentre:blue" in evs and w.st["blue"]["step"] == "home" and w.want["blue"][0] == "goto"
+    poses["red"] = (sx + 0.6, 0.3, math.pi)                            # red wanders next to blue's spot
+    poses["blue"] = (sx, 0.0, 0.0)
+    for t in (0.9, 1.6, 1.7, 2.4, 2.5):
+        w.update(t, robots_world(t, poses), {}, p)
+    assert w.st["blue"]["step"] == "home"                              # too close to red: never moves off
+    w.update(2.6, robots_world(2.6, {"blue": poses["blue"]}), {}, p)
+    assert w.want["red"] == ("stop", "stale")                          # not seen: holds
+    w.finish()
+    poses["red"] = (-sx, 0.0, math.pi)
+    t = 2.7
+    while t < 30 and "done" not in w.update(t, robots_world(t, poses), {}, p):
+        _drive(w, poses, t, 1 / 30)
+        t += 1 / 30
+    assert all(st["step"] == "done" for st in w.st.values()) and t < 30

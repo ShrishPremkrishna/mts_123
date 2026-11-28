@@ -21,6 +21,9 @@ python -m fc.ctl ops                               # every operation the app acc
 python -m fc.ctl op match.kickoff                  # run any one of them by name: op <name> k=v ... (JSON reply)
 python -m fc.ctl test step vx=0.2 --wait           # also ready/down/estop/pi/preset/set/drive/stop/last/check/sleep: --help
 python -m fc.ctl batch fc/sessions/S1.batch        # first floor session (RUNBOOK) as one batch; pauses wait for Enter
+python -m fc.ctl preset show                       # demo show: 90 s match, 25/75 % spots, celebration (on its _base brain preset)
+python -m fc.ctl show warmup [loops=N] [--wait]    # warm-up at the kickoff spots (W); again = walk to the spots and end
+python -m fc.ctl show kickoff --wait               # K, then follow the match: 3-2-1, goals, full time (show watch / show go = P)
 python -m fc.ctl rollcal --apply                   # roll the ball a few times: fits ball_decel (brain prediction), sets it live
 python -m fc.ctl ballcal [X Y]                     # ball colour from the ball (or pixel X Y); --show; also Shift-click on /ops
 ```
@@ -55,7 +58,7 @@ One look and one set of building blocks: [ui/kit/](ui/kit/) (`tokens.css` every 
   decision ticker, one banner per fact, a ready check before kickoff, and the Robots drawer (Tab: jobs, setup,
   lie down, per-robot E-stop). Keys: **Space stop** and **Esc E-STOP** always (even over a dialog), K kickoff,
   P play / start now / pause / resume (whichever applies), R back to kickoff spots, V who plays, T / shift+T
-  referee touch, C field view, 1/2 robot cameras, Tab robots, H hide the end card.
+  referee touch, W show warm-up (again: to the spots), C field view, 1/2 robot cameras, Tab robots, H hide the end card.
 
 Every button is an operation in [ops.py](ops.py): `GET /api/ops` lists them (label, key, safety, typed
 params), `POST /api/op {"op", "args"}` runs one (`{ok, op, ...}` or `{ok: false, code, error}`), and
@@ -86,11 +89,20 @@ Match flow (`play.py`, one `match` run with `flow`): **kickoff** (brain `role_mo
 ∓`kickoff_x_frac`·length, facing the other goal; waits for both in position and the ball still at the
 centre; the sim referee re-centres the ball) → **countdown** (`countdown_s`, robots hold) → **play**
 (clock runs only here; jobs from the Play screen, a lone robot defaults to attack) → goal: **goal**
-(`goal_pause_s`, robots hold, score + flash) → **restart** (play resumes once the ball is seen still,
+(`goal_pause_s`, robots hold, score + flash; with `celebrate_style` spin|wiggle instead **celebrate**: the scorer
+turns on the spot for `celebrate_s` at `celebrate_wz`, after stepping inside the fence margin (`wall_margin_m`, else
+0.28 m), the other robot holds or walks slowly to its spot per `celebrate_other`; in sim the robots keep their
+places) → **restart** (play resumes once the ball is seen still,
 `ball_settle_s` within `ball_rest_m`, anywhere in the field; `restart_mode=kickoff` walks back to the spots
 instead) → … → **full_time** at `match_s`. Pause holds everyone (zero at once) and freezes the clock. A
 robot the bridge halts (IMU/mux) is zeroed and bannered but the match goes on for the other one. Each
 tick logs `m` (phase, score, clock, touches) and new ticker lines `tk` to `events.jsonl`.
+
+Show warm-up (`show.warmup`, W, `play.Warmup`, its own run `warmup`): the playing robots loop trot in place → small
+circle → side shuffle → quick spin at their kickoff spots (app-made commands through `brain.shape`; walks back by the
+brain's goto). A move that would leave the field shrunk by `wall_margin_m` (else 0.28 m), stray 0.5 m from the spot
+or come within 0.7 m of the other robot ends early (`recentres`). `loops=0` runs until W again; then both walk to
+their spots facing the field and it ends `done`. Stop / E-stop / IMU / mux end it at once; K replaces it.
 
 Recording: with the camera source and `record: 1`, every run writes `<run>/overhead.mp4` (clean frames,
 `rec_fps`, ≤1280 px, real time; side thread, `summary.json` → `video`). Onboard feeds: optional
@@ -141,7 +153,8 @@ enforced (speed ceilings vx 1.5 / vy 0.3 / wz 2.0 = `link.CEIL`, the hard cap on
 Presets (`config/presets/<name>.json`, committed) hold only the keys they change. **Load** = base params
 (params.json + defaults at app start) + the preset's keys; presets never stack, **Base** returns to base,
 **Save current** writes only keys that differ from base. `_profile` names the robot profile `start` will use;
-`_note` is shown. `_stack` (SPEC v1.1) = walker options Ready/start pass to fcctl, allowlisted: `speed_cap` 0.30–1.50
+`_note` is shown. `_base` names one plain preset whose keys (and `_profile`/`_stack`) a preset starts from
+(`show` = show keys on a brain preset). `_stack` (SPEC v1.1) = walker options Ready/start pass to fcctl, allowlisted: `speed_cap` 0.30–1.50
 (`--speed-cap 0.80`), `heading_hold` on/off (`--heading-hold off`). The header shows the active preset (`*` =
 edited since) and its stack; each robot card shows the running `speed_cap`/`heading_hold` from `fcctl status`
 (refreshed after a successful Ready) and warns when `max_vx` exceeds the robot's speed cap (unknown cap: stock

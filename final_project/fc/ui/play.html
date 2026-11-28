@@ -131,7 +131,7 @@ const store = createStore(), toast = createToast();
 const ops = await createOps(store, toast);
 const teamOf = (s, rid) => (s.robots.find((r) => r.id === rid) || {}).team;
 const RESULT = { full_time: "full time", ended: "ended", stopped: "stopped", estop: "e-stopped", estopped: "e-stopped" };
-const PHASE = { kickoff: "kickoff", countdown: "get ready", play: "live", goal: "goal", restart: "ball reset", paused: "paused", full_time: "full time" };
+const PHASE = { kickoff: "kickoff", countdown: "get ready", play: "live", goal: "goal", celebrate: "goal!", restart: "ball reset", paused: "paused", full_time: "full time" };
 const ROLE = { attack: "ATTACK", defend: "DEFEND", goto: "KICKOFF" };
 
 // ---- view state (this screen only) ----
@@ -158,7 +158,7 @@ function renderHeader(s) {
     h("div", { class: "plate", "data-team": "red", "data-fill": "team-r", id: "pr" }, h("span", { class: "score display num", id: "sr" }, "0"), h("span", { class: "team display" }, "RED"))]);
   for (const [id, v] of [["sb", sc.blue], ["sr", sc.red]]) { const e = $(id); if (e.textContent !== String(v)) { const first = e.textContent === ""; e.textContent = v; if (!first) pulse(e, "data-pop"); } }
   for (const [id, t] of [["pb", "blue"], ["pr", "red"]]) $(id).toggleAttribute("data-dim", !s.play.playing.some((r) => teamOf(s, r) === t));
-  const ph = $("phase"); ph.textContent = f ? PHASE[f.phase] || f.phase : lm ? RESULT[lm.result] || lm.result.replace("_", " ") : "ready";
+  const ph = $("phase"); ph.textContent = f ? PHASE[f.phase] || f.phase : s.play.warmup ? "warm-up" : lm ? RESULT[lm.result] || lm.result.replace("_", " ") : "ready";
   ph.toggleAttribute("data-live", !!f && f.phase === "play");
   patch($("src"), s.source, () => [h("i", { class: "light", "data-level": s.source === "sim" ? "warn" : "ok" }), s.source === "sim" ? "Sim" : "Live"]);
   patch($("rec"), String(s.play.recording), () => s.play.recording ? [h("i", { class: "light", "data-level": "bad" }), "REC"] : []);
@@ -228,15 +228,19 @@ function renderTiles(s) {
 function renderCenter(s) {
   const f = s.play.flow, c = $("center"); let node = null, low = false;
   if (f && f.goals.length && f.goals[f.goals.length - 1].n !== lastGoal) { lastGoal = f.goals[f.goals.length - 1].n; pitch.goal(f.goals[f.goals.length - 1].team); }
-  const au = s.play.auto;
-  if (au) {   // autoplay: hands-off solo loop; one plate with the tally and what it is doing
+  const au = s.play.auto, wu = s.play.warmup;
+  if (wu) {   // show warm-up: one plate, what each robot is doing
+    low = true;
+    node = h("div", null, h("div", { class: "plate title display" }, h("span", null, wu.finishing ? "TO THE KICKOFF SPOTS" : "WARM-UP")),
+      h("div", null, h("div", { class: "sub" }, Object.entries(wu.robots).map(([rid, r]) => `${NAME(rid)}: ${r.words}`).join(" · "))));
+  } else if (au) {   // autoplay: hands-off solo loop; one plate with the tally and what it is doing
     low = au.phase !== "goal";
     node = au.phase === "goal" ? h("div", { class: "plate goal display", "data-team": teamOf(s, s.test && s.test.robot) || "blue", "data-fill": "team" }, h("span", null, "GOAL"))
       : h("div", null, h("div", { class: "plate title display" }, h("span", null, `AUTOPLAY · ${au.goals} GOAL${au.goals === 1 ? "" : "S"}`)),
           h("div", null, h("div", { class: "sub" }, [cap(au.words), au.time_per_goal_s != null ? `${au.time_per_goal_s.toFixed(0)} s per goal` : null,
             au.interventions ? `${au.interventions} ball returns by hand` : null].filter(Boolean).join(" · "))));
   } else if (f) {
-    if (f.phase === "goal") { const g = f.goals[f.goals.length - 1] || {}; node = h("div", { class: "plate goal display", "data-team": g.team || "blue", "data-fill": "team" }, h("span", null, "GOAL")); }
+    if (f.phase === "goal" || f.phase === "celebrate") { const g = f.goals[f.goals.length - 1] || {}; node = h("div", { class: "plate goal display", "data-team": g.team || "blue", "data-fill": "team" }, h("span", null, "GOAL")); }
     else if (f.phase === "countdown") node = h("div", { class: "count display num" }, Math.max(1, Math.ceil(f.countdown_left - (performance.now() - store.at()) / 1000)));
     else if (f.phase === "kickoff") { low = true; node = h("div", null, h("div", { class: "plate title display" }, h("span", null, "KICKOFF")), f.waiting.length ? h("div", null, h("div", { class: "sub" }, `Waiting for ${f.waiting.join(", ")}`)) : null); }
     else if (f.phase === "restart") { low = true; node = h("div", { class: "plate title display" }, h("span", null, "PLACE THE BALL")); }
@@ -266,7 +270,7 @@ function renderCenter(s) {
 // ---- key bar: built once from the registry, refreshed every poll ----
 const touchN = h("span", { class: "count num" }, "0");
 const touch = ops.prompt("T", touchN); touch.shiftArgs = { delta: -1 };
-const prompts = [ops.prompt("Space"), ops.prompt("Esc"), h("i", { class: "sep" }), ops.prompt("K"), ops.prompt("P"), ops.prompt("R"), ops.prompt("V"), touch, ops.prompt("A"),
+const prompts = [ops.prompt("Space"), ops.prompt("Esc"), h("i", { class: "sep" }), ops.prompt("W"), ops.prompt("K"), ops.prompt("P"), ops.prompt("R"), ops.prompt("V"), touch, ops.prompt("A"),
   h("i", { class: "grow" }), ops.prompt("C"), ops.prompt("1"), ops.prompt("2"), h("i", { class: "sep" }), ops.prompt("Tab")];
 $("bar").replaceChildren(...prompts);
 ops.bindKeys({ shift: { "match.touch": { delta: -1 } }, opts: { stop: { done: "Stopped" }, estop: { done: "E-stop sent", level: "bad" } } });

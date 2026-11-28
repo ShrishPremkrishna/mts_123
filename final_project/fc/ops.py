@@ -234,7 +234,7 @@ def _when_start_now(app):
 
 
 def _when_pause(app):
-    return {} if _flow_phase(app) in ("countdown", "play", "goal") else {"reason": "nothing to pause"}
+    return {} if _flow_phase(app) in ("countdown", "play", "goal", "celebrate") else {"reason": "nothing to pause"}
 
 
 def _when_resume(app):
@@ -332,6 +332,30 @@ def _players(app, a):
     job=P("str", required=True, choices=["auto", "attack", "defend"]))
 def _job(app, a):
     return _play(app, "job", robot=a["robot"], job=a["job"])
+
+
+# ---- show ------------------------------------------------------------------------------------------
+def _when_warmup(app):
+    t = app.test or {}
+    if t.get("name") == "warmup":
+        return {"label": "End warm-up", "state": "on"}
+    if app.flow:
+        return {"reason": "a match is running", "label": "Warm-up"}
+    if t:
+        return {"reason": f"{t.get('name')} is running: Stop first", "label": "Warm-up"}
+    halted = [r for r in app.playing if app.halted(r)]
+    if halted:
+        return {"reason": f"{', '.join(halted)} halted by the bridge", "label": "Warm-up"}
+    return {"label": "Warm-up"}
+
+
+@op("show.warmup", "Warm-up", "Show warm-up while the owner talks: each playing robot loops trot in place, a small circle, "
+    "a side shuffle and a quick spin at its kickoff spot (inside the fence margin, away from the other robot), smoothed. "
+    "Pressed again: robots walk to their kickoff spots facing the field and it ends. Stop / E-stop / a health hold "
+    "end it at once. Then K = kickoff.", "match", key="W", safety="motion", when=_when_warmup,
+    loops=P("int", "move-table loops, then to the spots and end; 0 = until W again (or K)", lo=0, hi=20, default=0))
+def _warmup(app, a):
+    return app.warmup(a["loops"])
 
 
 # ---- robots (ssh to the Pi; results stream into /state ops[robot]) --------------------------------

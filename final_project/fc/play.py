@@ -6,10 +6,14 @@ Match flow (one `match` run with flow=True):
     kickoff --robots at their spots + ball at rest at centre--> countdown --> play
     play --goal--> goal (pause) --> restart (ball seen at rest anywhere in the field) --> countdown
                                     (or kickoff again when restart_mode = kickoff)
+    play --goal, celebrate_style spin|wiggle--> celebrate (scorer turns on the spot inside the fence margin,
+                                    the other robot holds or walks slowly to its spot) --> kickoff / restart
     any --pause--> paused --resume--> countdown (if it was play) / where it was
     play --clock out--> full_time
 
 The clock runs only in play. Robots hold still (hard zero) in countdown, goal, restart, paused.
+
+Warmup (show.warmup): a short move table per robot at its kickoff spot while the owner talks, then back to the spot.
 """
 from __future__ import annotations
 
@@ -26,10 +30,21 @@ FLOW_DEFAULTS = {
     "ball_rest_m": 0.04,         # "at rest": stays within this distance
     "ball_centre_tol_m": 0.15,   # kickoff: ball this close to the centre spot
     "kickoff_x_frac": 0.27,      # kickoff spots at x = -/+ frac * length (blue west, red east)
+    "celebrate_style": "none",   # after a goal: none (goal pause) | spin | wiggle (scorer, on the spot)
+    "celebrate_s": 2.0,          # ...this long
+    "celebrate_wz": 1.5,         # ...turn rate, rad/s (brain.shape clamps to max_wz and ramps by accel_wz)
+    "celebrate_other": "still",  # the robot scored on: still | walk (slowly to its kickoff spot)
 }
 FLOW_LIMITS = {"countdown_s": (0.0, 10.0), "goal_pause_s": (0.5, 10.0), "ball_settle_s": (0.2, 5.0),
-               "ball_rest_m": (0.01, 0.3), "ball_centre_tol_m": (0.05, 0.5), "kickoff_x_frac": (0.1, 0.45)}
+               "ball_rest_m": (0.01, 0.3), "ball_centre_tol_m": (0.05, 0.5), "kickoff_x_frac": (0.1, 0.45),
+               "celebrate_s": (0.5, 6.0), "celebrate_wz": (0.3, 2.0)}
 RESTART_MODES = ["ball_rest", "kickoff"]
+FLOW_CHOICES = {"celebrate_style": ["none", "spin", "wiggle"], "celebrate_other": ["still", "walk"]}
+SHOW_MARGIN_M = 0.28      # fence margin for show moves when the brain's wall_margin_m is 0 (off)
+CEL_STEP_IN_S = 3.0       # celebrate: at most this long stepping back inside the fence margin first
+CEL_SLACK_M = 0.08        # ...spin only this far inside it (a scoring robot coasts on; the camera pose lags)
+CEL_WIGGLE_S = 0.35       # wiggle: turn direction flips this often
+CEL_WALK_VX = 0.15        # the robot scored on walks to its spot this slowly (celebrate_other walk)
 JOBS = ["auto", "attack", "defend"]
 
 # brain debug phase -> short action label (robot card, field chip)
@@ -45,6 +60,7 @@ STOP_ACTION = {
     "stale": "can't see itself", "imu_bad": "stopped: IMU", "mux_lost": "stopped: motion link",
     "brain_error": "stopped: error", "benched": "benched", "countdown": "get ready", "goal": "goal!",
     "wait_ball": "waiting for ball", "paused": "paused", "full_time": "full time", "idle": "idle",
+    "celebrate": "celebrating", "warmup": "warming up",
 }
 # brain phase -> ticker sentence (what it decided, in plain words)
 TICKER = {
@@ -59,6 +75,22 @@ TICKER = {
 
 def name(rid: str) -> str:
     return rid[:1].upper() + rid[1:]
+
+
+def show_margin(params: dict) -> float:
+    """Robot centre keeps this far from every fence during show moves: the brain's wall_margin_m, else 0.28 m."""
+    m = params.get("wall_margin_m") or 0.0
+    return float(m) if m > 0 else SHOW_MARGIN_M
+
+
+def kickoff_spot(team: str, field: Field, frac: float) -> tuple[float, float, float]:
+    """Kickoff spot (x, y, yaw): blue on the west -frac*length line facing east, red mirrored."""
+    blue = team == "blue"
+    return (-frac * field.length if blue else frac * field.length, 0.0, 0.0 if blue else math.pi)
+
+
+def _clamp(v: float, lo: float, hi: float) -> float:
+    return max(lo, min(hi, v))
 
 
 def phase_key(phase) -> str:
@@ -96,6 +128,9 @@ class MatchFlow:
         self.phase = ""
         self.paused_from = ""
         self.t_phase = now
+        self.scorer: str | None = None              # team credited with the last goal (celebrate)
+        self.cel: dict[str, dict] = {}              # celebrate: per robot {"stage", "t"}
+        self.want: dict[str, tuple] = {}            # celebrate: per robot command (see command())
         self._set("kickoff" if kickoff else "countdown", now)
 
     # ---- phase control ----------------------------------------------------------------
@@ -105,6 +140,8 @@ class MatchFlow:
         self.ball_ok = False
         if phase == "kickoff":
             self.in_pos = {}
+        if phase == "celebrate":
+            self.cel, self.want = {}, {}
 
     def pause(self, now: float) -> bool:
         if self.phase in ("paused", "full_time"):
@@ -130,20 +167,19 @@ class MatchFlow:
         return False
 
     def spot(self, rid: str) -> tuple[float, float, float]:
-        L = self.field.length
-        frac = self.frac
-        blue = self.cfg[rid].team == "blue"
-        return (-frac * L if blue else frac * L, 0.0, 0.0 if blue else math.pi)
+        return kickoff_spot(self.cfg[rid].team, self.field, self.frac)
 
     frac = FLOW_DEFAULTS["kickoff_x_frac"]
 
     def command(self, rid: str) -> tuple[str, object]:
-        """("stop", tag) | ("goto", (x, y, yaw)) | ("brain", role_mode) for a playing robot."""
+        """("stop", tag) | ("goto", (x, y, yaw[, vmax])) | ("brain", role_mode) | ("app", Cmd) for a playing robot."""
         if rid not in self.cfg:
             return "stop", "benched"
         ph = self.phase
         if ph == "kickoff":
             return "goto", self.spot(rid)
+        if ph == "celebrate":
+            return self.want.get(rid, ("stop", "celebrate"))
         if ph == "play":
             return "brain", self.roles.get(rid, "auto")
         return "stop", {"countdown": "countdown", "goal": "goal", "restart": "wait_ball",
@@ -176,7 +212,8 @@ class MatchFlow:
                 self.goals.append({"team": team, "clock": round(self.clock, 1), "n": len(self.goals) + 1})
                 out.append(f"goal:{team}")
             if goals:
-                self._set("goal", now)
+                self.scorer = goals[-1]
+                self._set("goal" if p.get("celebrate_style", "none") == "none" else "celebrate", now)
                 return out
             self.clock += dt
             if self.clock >= p["match_s"]:
@@ -184,7 +221,10 @@ class MatchFlow:
                 out.append("full_time")
         elif ph == "goal":
             if el >= p["goal_pause_s"]:
-                self._set("kickoff" if p.get("restart_mode", self.restart_mode) == "kickoff" else "restart", now)
+                self._set(self._after_goal(p), now)
+        elif ph == "celebrate":
+            if self._celebrate(now, world, p):
+                self._set(self._after_goal(p), now)
         elif ph == "kickoff":
             for rid in self.cfg:
                 self.in_pos[rid] = bool((debug.get(rid) or {}).get("done"))
@@ -200,6 +240,45 @@ class MatchFlow:
                 self._set("play", now)
                 out.append("play")
         return out
+
+    def _after_goal(self, p: dict) -> str:
+        return "kickoff" if p.get("restart_mode", self.restart_mode) == "kickoff" else "restart"
+
+    def _celebrate(self, now: float, world: World | None, p: dict) -> bool:
+        """Fill self.want for the celebrate phase; True when it is over. The scorer first steps back inside the
+        field shrunk by the fence margin (if it is not already), then spins or wiggles on the spot for
+        celebrate_s. The other robot holds still or walks slowly to its kickoff spot."""
+        f, m, style = self.field, show_margin(p), p.get("celebrate_style", "spin")
+        hx, hy = f.length / 2 - m, f.width / 2 - m
+        done = True
+        for rid, cfg in self.cfg.items():
+            mine = cfg.team == self.scorer
+            st = self.cel.setdefault(rid, {"stage": "in" if mine else p.get("celebrate_other", "still"), "t": now})
+            o = world.robots.get(rid) if world else None
+            pose = o.pose if o is not None and now - o.t <= 0.6 else None
+            if not mine:
+                self.want[rid] = (("goto", (*self.spot(rid)[:2], self.spot(rid)[2], CEL_WALK_VX))
+                                  if st["stage"] == "walk" else ("stop", "goal"))
+                continue
+            if st["stage"] == "in":
+                inside = pose is not None and abs(pose.x) <= hx - CEL_SLACK_M and abs(pose.y) <= hy - CEL_SLACK_M
+                if inside or now - st["t"] > CEL_STEP_IN_S:
+                    st.update(stage="party", t=now)
+                else:
+                    done = False
+                    self.want[rid] = ("stop", "celebrate") if pose is None else \
+                        ("goto", (_clamp(pose.x, -hx + 0.15, hx - 0.15), _clamp(pose.y, -hy + 0.15, hy - 0.15), None, 0.3))
+                    continue
+            if st["stage"] == "party":
+                t = now - st["t"]
+                if t < p["celebrate_s"]:
+                    sign = 1.0 if style == "spin" or int(t / CEL_WIGGLE_S) % 2 == 0 else -1.0
+                    self.want[rid] = ("app", Cmd(0.0, 0.0, sign * p["celebrate_wz"], "celebrate"))
+                    done = False
+                    continue
+                st["stage"] = "done"
+            self.want[rid] = ("stop", "celebrate")
+        return done or now - self.t_phase > p["celebrate_s"] + CEL_STEP_IN_S + 1.0
 
     def waiting(self) -> list[str]:
         """What the flow is waiting for, in plain words."""
@@ -220,7 +299,8 @@ class MatchFlow:
                 "in_pos": dict(self.in_pos), "ball_ok": self.ball_ok, "waiting": self.waiting(),
                 "countdown_left": round(max(0.0, p["countdown_s"] - el), 2) if self.phase == "countdown" else None,
                 "goal_left": round(max(0.0, p["goal_pause_s"] - el), 2) if self.phase == "goal" else None,
-                "restart_mode": p.get("restart_mode", self.restart_mode)}
+                "restart_mode": p.get("restart_mode", self.restart_mode), "scorer": self.scorer,
+                "celebrate": {rid: c["stage"] for rid, c in self.cel.items()} if self.phase == "celebrate" else None}
 
 
 AUTO_DEFAULTS = {
@@ -604,6 +684,144 @@ class AutoPlay:
 
 def _wrap(a: float) -> float:
     return (a + math.pi) % (2 * math.pi) - math.pi
+
+
+WARM = {
+    "trot_v": 0.10, "trot_half_s": 0.6, "trot_s": 3.6,   # trot in place: tiny steps forward and back
+    "circle_r": 0.20, "circle_v": 0.16,                   # one small circle (left)
+    "shuffle_vy": 0.15, "shuffle_half_s": 0.8, "shuffle_s": 3.2,   # sideways shuffle, left and right
+    "spin_wz": 1.4,                                       # one quick turn on the spot
+    "home_vx": 0.35, "home_max_s": 10.0,                  # back to the kickoff spot, calm; give up after this
+    "home_tol_m": 0.10, "home_yaw_deg": 12.0,
+    "home_hold_s": 0.6,   # ...and on the spot this long (the camera pose lags ~0.3 s behind a turning robot)
+    "leash_m": 0.50,      # a move that would take the robot further than this from its spot ends early
+    "gap_m": 0.70,        # ...or closer than this to another robot
+    "look_s": 0.4,        # containment looks this far ahead along the command
+}
+WARM_MOVES = ("trot", "circle", "shuffle", "spin")
+WARM_WORDS = {"trot": "trotting in place", "circle": "small circle", "shuffle": "side shuffle", "spin": "quick spin",
+              "home": "to its kickoff spot", "done": "ready at its kickoff spot"}
+
+
+class Warmup:
+    """Show warm-up for the playing robots while the owner talks: from its kickoff spot each robot loops
+    trot in place -> small circle -> side shuffle -> quick spin -> back to the spot (facing the field).
+
+    Pure logic like AutoPlay: update() advances per-robot steps from the World; want[rid] is ("app", Cmd) (an
+    app-made command, smoothed by brain.shape), ("goto", (x, y, yaw, vmax)) (the brain's goto) or ("stop", tag).
+    Containment: a move whose command, looked ahead look_s, would leave the field shrunk by the fence margin, go
+    further than leash_m from the spot or closer than gap_m to another robot ends early and the robot walks back
+    to its spot (counted in `recentres`). loops = 0 repeats until finish() (W again); then every robot walks to its
+    spot and the warm-up is over ("done") once all are there.
+    """
+
+    def __init__(self, robots: list[RobotCfg], field: Field, now: float, loops: int = 0):
+        self.cfg = {r.id: r for r in robots}
+        self.f, self.loops, self.t0 = field, int(loops), now
+        self.finishing = False
+        self.st = {rid: {"step": "home", "t": now, "loop": 0, "recentres": 0} for rid in self.cfg}
+        self.want: dict[str, tuple] = {rid: ("stop", "warmup") for rid in self.cfg}
+
+    def finish(self) -> None:
+        """End gracefully: every robot walks to its kickoff spot now."""
+        self.finishing = True
+
+    @staticmethod
+    def move_s(step: str) -> float:
+        w = WARM
+        return {"trot": w["trot_s"], "circle": 2 * math.pi * w["circle_r"] / w["circle_v"], "shuffle": w["shuffle_s"],
+                "spin": 2 * math.pi / w["spin_wz"]}[step]
+
+    @staticmethod
+    def move_cmd(step: str, t: float) -> Cmd:
+        w = WARM
+        if step == "trot":
+            return Cmd(w["trot_v"] if int(t / w["trot_half_s"]) % 2 == 0 else -w["trot_v"], 0.0, 0.0, "warmup")
+        if step == "circle":
+            return Cmd(w["circle_v"], 0.0, w["circle_v"] / w["circle_r"], "warmup")
+        if step == "shuffle":
+            return Cmd(0.0, w["shuffle_vy"] if int(t / w["shuffle_half_s"]) % 2 == 0 else -w["shuffle_vy"], 0.0, "warmup")
+        return Cmd(0.0, 0.0, w["spin_wz"], "warmup")
+
+    def _ok(self, rid: str, pose, cmd: Cmd, spot, others, margin: float) -> bool:
+        """Containment: where the command takes the robot in look_s stays in bounds."""
+        k, c, s = WARM["look_s"], math.cos(pose.yaw), math.sin(pose.yaw)
+        x, y = pose.x + k * (c * cmd.vx - s * cmd.vy), pose.y + k * (s * cmd.vx + c * cmd.vy)
+        if abs(x) > self.f.length / 2 - margin or abs(y) > self.f.width / 2 - margin:
+            return False
+        if math.hypot(x - spot[0], y - spot[1]) > WARM["leash_m"]:
+            return False
+        return all(math.hypot(x - ox, y - oy) >= WARM["gap_m"] for ox, oy in others)
+
+    def _go(self, rid: str, step: str, now: float, out: list[str]) -> None:
+        st = self.st[rid]
+        st["step"], st["t"], st["near_t"] = step, now, None
+        out.append(f"step:{rid}:{step}")
+
+    def update(self, now: float, world: World | None, debug: dict, params: dict) -> list[str]:
+        """Advance every robot. Returns events "step:<rid>:<step>", "recentre:<rid>" and "done"."""
+        out: list[str] = []
+        frac, margin = params.get("kickoff_x_frac", FLOW_DEFAULTS["kickoff_x_frac"]), show_margin(params)
+        poses = {}
+        for rid, o in ((world.robots.items()) if world else []):
+            if now - o.t <= 0.6:
+                poses[rid] = o.pose
+        for rid, cfg in self.cfg.items():
+            st, pose = self.st[rid], poses.get(rid)
+            spot = kickoff_spot(cfg.team, self.f, frac)
+            if self.finishing and st["step"] in WARM_MOVES:
+                self._go(rid, "home", now, out)
+            if pose is None:
+                self.want[rid] = ("stop", "stale")
+                continue
+            step, t = st["step"], now - st["t"]
+            if step == "home":
+                near = ((math.hypot(pose.x - spot[0], pose.y - spot[1]) < WARM["home_tol_m"]
+                         and abs(_wrap(pose.yaw - spot[2])) < math.radians(WARM["home_yaw_deg"]))
+                        or bool((debug.get(rid) or {}).get("done")))
+                st["near_t"] = (now if st.get("near_t") is None else st["near_t"]) if near else None
+                if (near and now - st["near_t"] >= WARM["home_hold_s"]) or t > WARM["home_max_s"]:
+                    if self.finishing or (self.loops and st["loop"] >= self.loops):
+                        self._go(rid, "done", now, out)
+                    else:
+                        st["loop"] += 1
+                        self._go(rid, WARM_MOVES[0], now, out)
+                else:
+                    self.want[rid] = ("goto", (spot[0], spot[1], spot[2], WARM["home_vx"]))
+                    continue
+            step, t = st["step"], now - st["t"]
+            if step == "done":
+                self.want[rid] = ("stop", "warmup")
+                continue
+            if t >= self.move_s(step):
+                i = WARM_MOVES.index(step)
+                self._go(rid, WARM_MOVES[i + 1] if i + 1 < len(WARM_MOVES) else "home", now, out)
+                step, t = st["step"], 0.0
+                if step == "home":
+                    self.want[rid] = ("goto", (spot[0], spot[1], spot[2], WARM["home_vx"]))
+                    continue
+            cmd = self.move_cmd(step, t)
+            others = [(p.x, p.y) for r, p in poses.items() if r != rid]
+            if not self._ok(rid, pose, cmd, spot, others, margin):
+                st["recentres"] += 1
+                out.append(f"recentre:{rid}")
+                self._go(rid, "home", now, out)
+                self.want[rid] = ("goto", (spot[0], spot[1], spot[2], WARM["home_vx"]))
+                continue
+            self.want[rid] = ("app", cmd)
+        if all(st["step"] == "done" for st in self.st.values()):
+            out.append("done")
+        return out
+
+    def json(self, now: float) -> dict:
+        return {"loops": self.loops, "finishing": self.finishing, "time_s": round(now - self.t0, 1),
+                "robots": {rid: {"step": st["step"], "words": WARM_WORDS.get(st["step"], st["step"]), "loop": st["loop"],
+                                 "recentres": st["recentres"]} for rid, st in self.st.items()}}
+
+    def summary(self, now: float) -> dict:
+        j = self.json(now)
+        return {"time_s": j["time_s"], "loops": {r: v["loop"] for r, v in j["robots"].items()},
+                "recentres": {r: v["recentres"] for r, v in j["robots"].items()}}
 
 
 class Ticker:

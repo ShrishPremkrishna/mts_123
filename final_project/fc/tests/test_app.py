@@ -1070,3 +1070,67 @@ def test_ready_starts_the_pov_feed(server):
     time.sleep(0.3)
     assert sum("POV feed" in e["msg"] for e in app.events) == n
     assert post(base, "/robot", {"robot": "blue", "op": "ready", "confirm": True, "pov": "yes"})[0] == 400
+
+
+def test_preset_base_inherits_one_level(server):
+    app, base = server
+    app.presets_dir.mkdir(parents=True, exist_ok=True)
+    (app.presets_dir / "brainy.json").write_text(json.dumps({"_note": "b", "_stack": {"speed_cap": 0.8}, "max_vx": 0.6,
+                                                             "match_s": 300}))
+    (app.presets_dir / "showx.json").write_text(json.dumps({"_base": "brainy", "_note": "s", "match_s": 90}))
+    (app.presets_dir / "loop.json").write_text(json.dumps({"_base": "showx", "match_s": 60}))
+    (app.presets_dir / "orphan.json").write_text(json.dumps({"_base": "nope", "match_s": 60}))
+    code, r = post(base, "/preset", {"op": "load", "name": "showx"})
+    assert code == 200 and r["stack"] == {"speed_cap": 0.8}
+    assert app.params["max_vx"] == 0.6 and app.params["match_s"] == 90 and app.preset_note == "s"
+    assert state(base)["preset"]["modified"] == []
+    for bad in ("loop", "orphan"):
+        code, r = post(base, "/preset", {"op": "load", "name": bad})
+        assert code == 400 and "_base" in r["error"]
+
+
+def test_shipped_show_preset_loads_on_its_base():
+    data = json.loads((fcapp.PRESETS / "show.json").read_text())
+    assert (fcapp.PRESETS / f"{data['_base']}.json").exists()
+    assert {k for k in data if not k.startswith("_")} <= set(fcapp.FLOW_DEFAULTS) | {"match_s", "restart_mode"}
+    assert data["match_s"] == 90 and data["celebrate_style"] != "none" and data["restart_mode"] == "kickoff"
+
+
+def test_warmup_runs_in_sim_and_any_stop_ends_it(server):
+    app, base = server
+    code, r = post(base, "/api/op", {"op": "show.warmup", "args": {}})
+    assert code == 200 and r["ok"]
+    assert wait(lambda: state(base)["play"]["warmup"] is not None, 2)
+    assert wait(lambda: any(st["step"] != "home" for st in state(base)["play"]["warmup"]["robots"].values()), 20)
+    assert wait(lambda: any(c["tag"] == "warmup" and (c["vx"] or c["vy"] or c["wz"]) for c in state(base)["cmds"].values()), 5)
+    s = state(base)
+    assert s["mode"] == "warmup" and s["play"]["robots"]["blue"]["action"]
+    post(base, "/action", {"action": "stop"})                                  # Space: ends at once, zero
+    s = state(base)
+    assert s["mode"] == "idle" and s["play"]["warmup"] is None and s["last_summary"]["result"] == "stopped"
+    assert "recentres" in s["last_summary"]
+    assert post(base, "/api/op", {"op": "show.warmup", "args": {}})[1]["ok"]
+    post(base, "/action", {"action": "estop", "robot": "red"})                 # one robot e-stopped: ends too
+    assert wait(lambda: state(base)["mode"] == "idle", 2)
+    assert state(base)["last_summary"]["result"] in ("estop", "estopped")
+    assert post(base, "/api/op", {"op": "show.warmup", "args": {}})[1]["code"] == "unavailable"   # halted: refused
+    post(base, "/action", {"action": "estop_clear"})
+
+
+def test_show_match_celebrates_then_walks_to_the_spots(server):
+    app, base = server
+    post(base, "/params", {"countdown_s": 0.3, "ball_settle_s": 0.3, "celebrate_style": "spin", "celebrate_s": 1.0,
+                           "celebrate_other": "walk", "restart_mode": "kickoff", "kickoff_x_frac": 0.25})
+    assert post(base, "/action", {"action": "kickoff"})[0] == 200
+    assert app.sim.keep_ball
+    assert wait(lambda: state(base)["play"]["flow"]["phase"] == "play", 25)
+    with app.lock:     # the operator rolls one in: a goal for blue in the east goal
+        app.sim.kick(app.field.length / 2 - 0.3, 0.0, 2.0, 0.0)
+    assert wait(lambda: state(base)["play"]["flow"]["phase"] == "celebrate", 5)
+    s = state(base)
+    assert s["play"]["flow"]["scorer"] == "blue" and s["play"]["flow"]["score"]["blue"] == 1
+    assert wait(lambda: state(base)["cmds"]["blue"]["tag"] in ("celebrate", "goto"), 3)
+    assert wait(lambda: state(base)["play"]["flow"]["phase"] == "kickoff", 8)
+    assert wait(lambda: state(base)["play"]["flow"]["phase"] in ("countdown", "play"), 30), state(base)["play"]["flow"]
+    post(base, "/action", {"action": "end"})
+    assert not app.sim.keep_ball

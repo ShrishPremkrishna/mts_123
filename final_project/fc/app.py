@@ -32,8 +32,9 @@ from .core import CONFIG, Cmd, RobotCfg, World, load_field, load_params, wrap
 from .link import CEIL, Link
 from .media import CamFeed, Recorder
 from . import ops as OPS
-from .play import (AUTO_AFTER_ROLL, AUTO_RESETS, FLOW_DEFAULTS, FLOW_LIMITS, JOBS, RESTART_MODES, AutoPlay, MatchFlow,
-                   Ticker, action_label, banners, down_failed, estop_view, health, safety_banners, setup_step)
+from .play import (AUTO_AFTER_ROLL, AUTO_RESETS, FLOW_CHOICES, FLOW_DEFAULTS, FLOW_LIMITS, JOBS, RESTART_MODES, AutoPlay,
+                   MatchFlow, Ticker, Warmup, action_label, banners, down_failed, estop_view, health, safety_banners,
+                   setup_step)
 from .runlog import RUNS, Metrics, RunLog, list_runs
 from .sim import Sim
 from .sim import SIM_DEFAULTS
@@ -91,10 +92,11 @@ LIMITS.update(FLOW_LIMITS, record=(0, 1), rec_fps=(2, 30))
 LIMITS.update(shot_vmin=(0.05, 3.0), shot_horizon_s=(0.5, 10.0), shot_mouth_margin=(0.0, 0.5), shot_end_s=(0.1, 2.0),
               ball_decel=(0.0, 3.0))
 CHOICES = {"role_mode": ["auto", "attack", "defend"], "contact_mode": ["push", "headbutt"],
-           "ball_lost": ["hold", "search"], "goalie_style": ["sideways", "facing"], "restart_mode": RESTART_MODES}
+           "ball_lost": ["hold", "search"], "goalie_style": ["sideways", "facing"], "restart_mode": RESTART_MODES,
+           **FLOW_CHOICES}
 TESTS = ["drive", "goto", "step", "deadman", "push_ball", "goalie", "match", "sim_eval", "autoplay"]
 ONE_ROBOT_TESTS = {"drive", "goto", "step", "deadman", "push_ball", "goalie", "autoplay"}
-BRAIN_MODES = {"play", "goto", "push_ball", "goalie", "match", "autoplay"}
+BRAIN_MODES = {"play", "goto", "push_ball", "goalie", "match", "autoplay", "warmup"}
 # Sim scenario each test starts from (sim source only; the UI can override).
 SIM_SCENARIO = {"push_ball": "attack_solo", "goalie": "shot_on_goal", "match": "kickoff", "autoplay": "attack_solo"}
 SIM_HUMAN_S = 3.0      # sim autoplay: the "please roll the ball out" banner is up this long before the sim person does it
@@ -626,6 +628,7 @@ class App:
         self.last_match: dict | None = None
         self.auto: AutoPlay | None = None          # autoplay test: the solo demo loop (play.AutoPlay)
         self.auto_brain: Brain | None = None       # ...its own brain, whose team picks the attacked goal
+        self.warm: Warmup | None = None            # show warm-up (play.Warmup), op show.warmup
         self.ticker = Ticker()
         self.robot_phase: dict[str, str] = {}
         self._op_seq = 0                            # robot op counter (ops[rid].seq)
@@ -859,12 +862,22 @@ class App:
             return idle
         if mode in ("play", "match") and r.id not in self.playing:
             return Cmd.stop("benched"), {"role": "idle", "phase": "benched", "target": None}, "hard"
-        flow_goto = flow_role = None
+        flow_goto = flow_role = flow_app = None
         if mode == "match" and test.get("flow") and self.flow:
             kind, arg = self.flow.command(r.id)
             if kind == "stop":
                 return Cmd.stop(arg), {"role": "idle", "phase": arg, "target": None}, "hard"
-            flow_goto, flow_role = (arg, None) if kind == "goto" else (None, arg)
+            if kind == "app":
+                flow_app = arg
+            else:
+                flow_goto, flow_role = (arg, None) if kind == "goto" else (None, arg)
+        if mode == "warmup":
+            if not self.warm or r.id not in self.warm.cfg:
+                return idle
+            kind, arg = self.warm.want.get(r.id, ("stop", "warmup"))
+            if kind == "stop":
+                return Cmd.stop(arg), {"role": "warmup", "phase": arg, "target": None}, "hard"
+            flow_goto, flow_app = (arg, None) if kind == "goto" else (None, arg)
         if mode == "drive":
             vx, vy, wz, t = self.teleop.get(r.id, (0, 0, 0, 0))
             if now - t > self.params["teleop_timeout_s"]:
@@ -878,6 +891,8 @@ class App:
             return self._pipeline_cmd(test, fresh, now)
         if not fresh:
             return Cmd.stop("stale"), {"role": "idle", "phase": "not seen", "target": None}, "app"
+        if flow_app is not None:     # show moves: celebration turn, warm-up moves (smoothed by brain.shape)
+            return flow_app, {"role": "show", "phase": flow_app.tag, "target": None}, "app"
         params = self.params
         if mode == "autoplay" and self.auto:
             kind, arg = self.auto.want
@@ -895,6 +910,8 @@ class App:
             tgt = flow_goto or test["target"]
             params = {**params, "role_mode": "goto", "goto_x": tgt[0], "goto_y": tgt[1],
                       "goto_yaw": tgt[2] if len(tgt) > 2 else None}
+            if len(tgt) > 3 and tgt[3] is not None:     # show walks: a calmer speed cap
+                params["max_vx"] = min(params["max_vx"], tgt[3])
         elif flow_role:
             params = {**params, "role_mode": flow_role}
         elif mode == "push_ball":
@@ -1067,6 +1084,8 @@ class App:
         name = t["name"]
         if name == "autoplay" and self.auto:
             return self._auto_tick(t, world, now, goals)
+        if name == "warmup" and self.warm:
+            return self._warm_tick(t, world, now)
         if name == "push_ball":
             team = self.cfg[t["robot"]].team
             if goals:
@@ -1147,6 +1166,7 @@ class App:
 
     def _flow_tick(self, world: World | None, now: float, goals: list[str]) -> None:
         f, t = self.flow, self.test
+        before = f.phase
         for ev in f.update(now, self._dt, world, self.debug, goals, self.params):
             if ev.startswith("goal:"):
                 team = ev[5:]
@@ -1162,13 +1182,47 @@ class App:
                              time_s=round(now - t["t0"], 1))
                 return
         self.score = dict(f.score)
-        # sim referee: robots in position but the ball is not at the centre -> put it back (kickoff reset)
-        if self.sim and f.phase == "kickoff" and f.in_pos and all(f.in_pos.values()) and not f.ball_ok:
-            if now - t.setdefault("ref_wait", now) > 1.0:
-                self._reset_sim("kickoff", list(f.cfg))
+        if f.phase != before:
+            if f.phase == "celebrate":
+                g = f.goals[-1] if f.goals else {}
+                self.say(f"celebrate: {g.get('team')} {self.params.get('celebrate_style')}", scorer=g.get("team"))
+            if f.phase in ("celebrate", "kickoff"):    # fresh goto memory (goto_done latch), ramp from what went out
+                self._reset_brains()
+        # sim referee: robots in position but the ball is not at the centre -> put it back (kickoff reset). With
+        # keep_ball (show matches: robots must not teleport during a celebration) it only places the ball, like the
+        # operator; a ball left in a net / off the field waiting for a restart is placed at the centre too.
+        sim_ref = self.sim and ((f.phase == "kickoff" and f.in_pos and all(f.in_pos.values()) and not f.ball_ok)
+                                or (f.phase == "restart" and self.sim.keep_ball and not f.ball_ok))
+        if sim_ref:
+            if now - t.setdefault("ref_wait", now) > (1.0 if f.phase == "kickoff" else 3.0):
+                if self.sim.keep_ball:
+                    self.sim.kick(0.0, 0.0, 0.0, 0.0)
+                    self.say("sim: the operator puts the ball on the centre spot")
+                else:
+                    self._reset_sim("kickoff", list(f.cfg))
                 t.pop("ref_wait", None)
         else:
             t.pop("ref_wait", None)
+
+    def _reset_brains(self) -> None:
+        for rid, b in self.brains.items():
+            b.reset()
+            b.out = self.prev.get(rid, Cmd())
+
+    def _warm_tick(self, t: dict, world: World | None, now: float) -> None:
+        w = self.warm
+        evs = w.update(now, world, self.debug, self.params)
+        for ev in evs:
+            if ev.startswith("step:") and ev.endswith(":home"):    # fresh goto memory for each walk back
+                rid = ev.split(":")[1]
+                self.brains[rid].reset()
+                self.brains[rid].out = self.prev.get(rid, Cmd())
+            elif ev.startswith("recentre:"):
+                self.say(f"warm-up: {ev[9:]} back to its spot early (fence margin / leash / other robot)")
+        if "done" in evs:
+            self.ticker.add(None, None, "Warm-up done: robots on their kickoff spots")
+            return self._finish("done", **w.summary(now))
+        t.update(steps={rid: st["step"] for rid, st in w.st.items()}, finishing=w.finishing)
 
     def _auto_tick(self, t: dict, world: World | None, now: float, goals: list[str]) -> None:
         a, rid = self.auto, t["robot"]
@@ -1277,14 +1331,18 @@ class App:
         if self.flow is not None:
             self.last_match = {**self.flow.json(time.monotonic(), self.params), "result": result}
             self.flow = None
+        if self.warm is not None:
+            if t and t.get("name") == "warmup" and "recentres" not in summary:
+                summary = {**self.warm.summary(time.monotonic()), **summary}
+            self.warm = None
         if self.auto is not None:
             if t and t.get("name") == "autoplay" and "goals" not in summary:
                 summary = {**self.auto.summary(time.monotonic()), **summary}
             self.auto = self.auto_brain = None
-            if self.sim is not None:
-                self.sim.keep_ball = False
-                if self.sim.netted:       # a ball left lying in the net would stay frozen: back to kickoff
-                    self._reset_sim("kickoff")
+        if self.sim is not None and self.sim.keep_ball:
+            self.sim.keep_ball = False
+            if self.sim.netted:       # a ball left lying in the net would stay frozen: back to kickoff
+                self._reset_sim("kickoff")
         self.teleop.clear()
         if self.link:
             self.link.stop_all()
@@ -1376,6 +1434,8 @@ class App:
             self.ticker.clear()
             self.flow = MatchFlow([self.cfg[r] for r in self.playing], self.field, now, kickoff=a == "kickoff",
                                   restart_mode=self.params.get("restart_mode", "ball_rest"))
+            if self.sim is not None:   # celebration: a goal must not teleport the robots back (sim kickoff reset)
+                self.sim.keep_ball = self.params.get("celebrate_style", "none") != "none"
             self.ticker.add(None, None, "Kickoff: robots walk to their spots" if a == "kickoff" else "Play from here")
             return {"ok": True, "run": self.test["run_dir"]}
         if not f:
@@ -1476,6 +1536,29 @@ class App:
             self._begin(name, robot, **extra)
         return {"ok": True, "run": self.test["run_dir"] if self.test else None}
 
+    def warmup(self, loops: int = 0) -> dict:
+        """show.warmup: start the warm-up for the playing robots, or (running) end it at the kickoff spots."""
+        with self.lock:
+            if self.test and self.test.get("name") == "warmup" and self.warm:
+                self.warm.finish()
+                self.say("warm-up: finishing, robots walk to their kickoff spots")
+                return {"ok": True, "finishing": True}
+            if self.flow:
+                return {"ok": False, "error": "a match is running"}
+            if self.test:
+                return {"ok": False, "error": f"{self.test.get('name')} is running: Stop first"}
+            halted = [r for r in self.playing if self.halted(r)]
+            if halted:
+                return {"ok": False, "error": f"{', '.join(halted)} halted ({self.halted(halted[0])})"}
+            if self.sim is not None:
+                in_sim = set((truth_json(self.sim.truth()) or {}).get("robots", {}))
+                if not set(self.playing) <= in_sim:
+                    self._reset_sim("kickoff")
+            self._begin("warmup", None, loops=int(loops), playing=list(self.playing))
+            self.warm = Warmup([self.cfg[r] for r in self.playing], self.field, time.monotonic(), loops=int(loops))
+            self.ticker.add(None, None, "Warm-up: robots stretch their legs at their kickoff spots")
+            return {"ok": True, "run": self.test["run_dir"], "robots": list(self.playing)}
+
     def _sim_eval(self, test: dict, args: str) -> None:
         cmd = [sys.executable, "-m", "fc.sim_eval", *shlex.split(args)]
         test["output"] = f"$ {' '.join(cmd)}\n"
@@ -1555,9 +1638,10 @@ class App:
         return {"ok": not errors, "applied": ok, "errors": errors}
 
     def preset(self, body: dict) -> dict:
-        """op load: base params + the preset's keys (presets never stack). op save: only the keys
-        that differ from base (plus the preset's robot profile). op base: back to base params.
-        Keys starting with "_" are metadata: _profile (robot profile for start), _note."""
+        """op load: base params + the preset's keys (presets never stack; a preset may name one `_base` preset
+        whose keys it starts from). op save: only the keys that differ from base (plus the preset's robot
+        profile). op base: back to base params.
+        Keys starting with "_" are metadata: _profile (robot profile for start), _note, _stack, _base."""
         op = body.get("op")
         if op == "base":
             with self.lock:
@@ -1589,6 +1673,15 @@ class App:
                 data = json.loads(path.read_text())
                 if not isinstance(data, dict):
                     raise ValueError("not a JSON object")
+                base = data.get("_base")
+                if base is not None:   # one level: the base preset's keys (and _profile/_stack), then this one's
+                    bpath = self.presets_dir / f"{base}.json"
+                    if not (isinstance(base, str) and PRESET_NAME_RE.fullmatch(base) and base != name and bpath.exists()):
+                        raise ValueError(f"_base {base!r} is not another preset")
+                    bdata = json.loads(bpath.read_text())
+                    if not isinstance(bdata, dict) or "_base" in bdata:
+                        raise ValueError(f"_base {base!r} must be a plain preset (one level)")
+                    data = {**{k: v for k, v in bdata.items() if k != "_note"}, **data}
             except ValueError as e:
                 return {"ok": False, "error": f"preset {name}: {e}"}
             vals = {k: v for k, v in data.items() if not k.startswith("_")}
@@ -1607,7 +1700,7 @@ class App:
                 self.preset_profile = prof if isinstance(prof, str) else None
                 self.preset_stack = stack
                 self.preset_note = str(data.get("_note", ""))
-                self.say(f"preset loaded: {name} ({len(ok)} keys"
+                self.say(f"preset loaded: {name} ({len(ok)} keys" + (f" on base {data['_base']}" if data.get("_base") else "")
                          + (f", profile {self.preset_profile}" if self.preset_profile else "")
                          + (f", stack {' '.join(stack_args(stack))}" if stack else "")
                          + (f"; {len(errors)} rejected: {'; '.join(errors)}" if errors else "") + ")",
@@ -1903,7 +1996,8 @@ class App:
     def play_state(self, now: float) -> dict:
         """What the Play screen shows beyond the world: flow, labels, ticker, banners, lights.
         Caller holds the lock."""
-        moving = self.mode in ("play", "match") and (self.flow is None or self.flow.phase in ("play", "kickoff"))
+        moving = self.mode in ("play", "match", "warmup") and (self.flow is None or self.flow.phase in ("play", "kickoff",
+                                                                                                    "celebrate"))
         lstat = self._lstat if self.link else None
         seen = {rid for rid, o in (self.world.robots.items() if self.world else [])
                 if now - o.t <= self.params["stale_stop_s"]}
@@ -1915,8 +2009,11 @@ class App:
                         self.ops.get(r.id), self.robot_phase.get(r.id), r.id in self.imu_bad, r.id in self.mux_lost,
                         estopped=r.id in self.estops)
             auto_me = self.auto is not None and r.id == (self.test or {}).get("robot")
+            warm_me = self.warm is not None and r.id in self.warm.cfg
             robots[r.id] = {
-                "action": self.auto.json(now)["words"] if auto_me else action_label(dbg, getattr(self.cmds.get(r.id), "tag", "")),
+                "action": self.auto.json(now)["words"] if auto_me else
+                self.warm.json(now)["robots"][r.id]["words"] if warm_me else
+                action_label(dbg, getattr(self.cmds.get(r.id), "tag", "")),
                 "role": dbg.get("role"),
                 "health": hl,
                 # ready to play: green light AND (sim, or fcctl reported phase ready). "link ok" alone is not ready.
@@ -1938,7 +2035,7 @@ class App:
         auto_b = [{"robot": self.auto.rid, "team": self.cfg[self.auto.rid].team, "kind": "autoplay", **self.auto.banner}] \
             if self.auto and self.auto.banner else []
         return {"flow": self.flow.json(now, self.params) if self.flow else None, "last_match": self.last_match,
-                "auto": auto,
+                "auto": auto, "warmup": self.warm.json(now) if self.warm else None,
                 "playing": self.playing, "variants": variants([r.id for r in self.active]), "robots": robots,
                 "ticker": list(self.ticker.items)[-12:],
                 "banners": cam + safety_banners(self.cfg, [r.id for r in self.active], self.estops, self.ops, now,

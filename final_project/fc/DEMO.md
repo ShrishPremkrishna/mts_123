@@ -48,9 +48,20 @@ Calendar: Thu 26 sim retune, no floor. Sat 28 hardware freeze. Sun 29 feature fr
 timed run-throughs. Tue Dec 1 param freeze, 5 run-throughs, venue drill. Wed 2 video in by noon, rehearse ×5, no
 code, charge. Thu 3 two warm-up goals, demo. Between sessions build only the last session's top failure and the next
 gate's test. **Do not build:** leg kick, headbutt tuning, commentator, retraining, corner extraction, self-righting,
-celebrations, more UI.
+more UI. (The show flow below, incl. a goal celebration, was approved by the owner Nov 27 and built in sim.)
 
 ## Run of show (120 s each)
+
+**1v1 exhibition show** (built Nov 27, **sim only**; one preset, keys on the Play screen, same as `fc.ctl show ...`):
+
+1. Before the slot: `ctl preset show` (show keys on its `_base` brain preset), robots standing at opposite ends.
+2. **W** warm-up while Shrish talks: each robot trots in place, circles, shuffles and spins at its kickoff spot (inside
+   `wall_margin_m`, away from the other robot). **W** again: both walk to their spots facing the field.
+3. **K** kickoff: robots on the 25 % / 75 % lines; referee puts the ball on the centre spot; big **3-2-1**, play.
+4. Goal: the scorer spins 2 s on the spot (steps inside the fence margin first), the other walks slowly to its spot,
+   then both walk to the spots; referee puts the ball at the centre; 3-2-1; play. **P** = start now (override) if the
+   flow waits on a misread ball or spot.
+5. Full time at 90 s: end card (score, time played, touches). **Space** stops anything at once.
 
 People: **Shrish** talks, hands free. **Referee** has the ball, a stick and the gamepad (R3). **Operator** at the
 laptop (space, Esc). Robots homed, standing, bridge up, health green *before* the slot. Every variant opens and closes the same way:
