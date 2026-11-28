@@ -39,9 +39,10 @@ referee (keeper + dribble, `play` alone uses the vs-human rules), then the 1v1 a
 
 ## Robot 2 (critical path)
 
-Golden image: flash a microSD from mts's card ([PROVISION.md path A](robot/provision/PROVISION.md#path-a-clone-mts-fallback);
-it carries the OS changes and the v4 IMU driver symlink; PROVISION.md's earlier pick was the class card, path B). Then
-per robot:
+Card: neither path is complete yet. The robot's own card + `provision.sh` ([PROVISION.md path B](robot/provision/PROVISION.md))
+is faster and carries no mts identity, but it installs only `~/fc-v1`: not mts's OS changes (Hailo, GUI, fan, touch
+overlays; [robot/README.md](robot/README.md)) or the v4 IMU driver. Cloning mts (path A) carries those but needs two readers,
+a larger card, mts offline ~1.5–2 h, and an identity reset. Open: script those OS/driver steps into path B. Then per robot:
 
 1. Identity: `provision.sh --fix-clone-identity pupper-red pi@<ip> red red 11` (hostname, machine-id, ssh keys,
    Tailscale state, `~/fc-v1/run`; robot_id red, tag **11**).

@@ -142,7 +142,7 @@ With the filter deployed, the timestamps of the `gyro frozen` log lines can also
 
 v2 (sha 19d60fad…) is installed on mts via the driver symlink (undo in fc/robot/README.md) and enabled by default in the stock profile. Stand check passed (5 min, tilt 2.0–2.8°); 3 fast floor runs had no IMU incidents.
 
-## v3: BNO stall guard (2026-11-25, built, NOT installed)
+## v3: BNO stall guard (2026-11-25; superseded by v4, installed Nov 27)
 
 **What happened (mts, run `20261125T070424Z-stock`):** while walking, the I2C bus hung. The kernel logged `i2c_designware 1f00074000.i2c: i2c_dw_handle_tx_abort: SDA stuck at low` (uptime 917.6 s). After that, every transfer failed with `timeout waiting for bus ready`, about 20 ms each.
 - The driver's last good line was `getData: Remote I/O error`. After it, every read and write returned `ETIMEDOUT`.
