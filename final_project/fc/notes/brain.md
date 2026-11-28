@@ -386,3 +386,51 @@ ball reaches the robot (defend role at the shot). vs-human counts at 20 x 3 min 
 deadlock counts by 5-40 between nearby settings (chaotic): judge on goals against. Floor checks: dribble-fast 2 s
 bursts/arcs at 0.9 first; watch the keeper shuffle and the follow-through near the fence.
 
+
+## 1v1 Coach (2026-11-27, sim only)
+
+Design: [1v1-design.md](1v1-design.md). `brain.Coach(brains, field).update(world, params)` once per tick returns
+per-call params for each brain (`coach_task` attack / challenge / jockey / goalie / recover, `coach_why`,
+`coach_adv`, `coach_poss`, `coach_aim_y`); `sim_eval._loop` runs it when `coach` is set. Preset `match.json` = dribble
++ `coach` 1, `aggression` 0.75. No coach / no `coach_task` = the brain as before (test). Play screen fields: `dbg.task`,
+`dbg.intent` (reason text), `dbg.adv`, `dbg.possession`, `dbg.shadow` = [ball, J] while shadowing. **The app loop
+does not run the Coach yet** (play.py/app.py: build one `Coach` over both brains, call `update` before `decide`, merge
+its dict into each robot's params).
+
+**Deadlock jump 6 -> 64 (vs-human 1v1, 20 x 3 min, 6c3f8ee):** not the hard roles (they are solo-only) and not two
+robots near the ball. One attacker deep in its own goal mouth with the ball beside its post: the new `wall_post`
+side wall's push-away (0.08 m/s) cancelled the dribble ramp's first step (0.04 m/s per tick from a standstill), so
+the robot stood still for minutes; the sim referee only frees balls a robot touches. Ablation: `wall_post` 0 -> 3,
+`gk_track` 0 -> 27, `shot_follow_s` 0 -> 33. Fix: the post wall only caps speed (no push-away): vs-human 64 -> 11
+deadlocks, goals 2.4 -> 3.7; dribble 12 -> 11. The remaining ones are an attacker orbiting a ball 0.5 m off its own
+end fence (pre-existing, `dr_route`).
+
+What was added beyond the design, and why:
+- **Aim away from the shadow** (`coach_aim_y`): the ball player aims at the side of the mouth whose line passes the
+  opponent widest. A shadow on the ball-goal line otherwise sits in the dribble path. +0.6 goals/3 min.
+- **`aggression` = how close the ball player may come to the shadow** (opponent guard: stop 0.45 - 0.09a m, walking
+  pace 0.3a m/s allowed at that distance; also the opening threshold 0.8 - 0.6a s). A stricter guard on the
+  ball player halves goals: a keeper on the line can only be beaten by passing close to it. The shadow's guard
+  stays 0.45 m / 0. Shorter `jockey_m` did not add goals (0.5 m: 1.9; 1.0 m: 2.6; keeper only: 0.5).
+- Dashes (challenge) almost never fire: a loose ball goes to whoever is "first" anyway, and an owner's ETA is
+  always < 0.35 s below the shadow's (0.75 m away, 0.4 s onset).
+
+`python -m fc.sim_eval --floor25 --matches 24 --scen goalie --preset dribble match --field length=3.36 width=2.70`
+runs the rows below; the sweep used 96 x 3 min per column (same seeds):
+
+| | dribble (no coach) | match a=0 | a=0.5 | **a=0.75** | a=1 |
+|---|---|---|---|---|---|
+| goals /3 min (90 s games >= 2 goals) | 3.75 (49%) | 2.47 | 3.86 | **4.01** (59%) | 4.56 (62%) |
+| bumps /min; closing mean; share > 0.3 m/s | 6.1; 0.51; 72% | 1.2; 0.18; 18% | 3.5; 0.18; 12% | 4.1; 0.22; 19% | 4.4; 0.25; 30% |
+| both robots < 0.5 m of the ball | 26% | 29% | 24% | 22% | 21% |
+| possession changes /min | 4.6 | 5.5 | 5.4 | 5.6 | 5.8 |
+| other robot goal-side in opp. possession | 58% | 67% | 60% | 58% | 56% |
+| deadlocks / referee traps (96 matches) | 22 / 505 | 29 / 555 | 36 / 561 | 36 / 584 | 21 / 553 |
+| mean speed m/s; wz rev / fast /min | 0.29; 13.9 / 1.5 | 0.22; 15.1 / 2.1 | 0.23; 15.0 / 2.1 | 0.23; 15.4 / 2.2 | 0.24; 15.3 / 2.2 |
+| task changes /robot-min; role flips | -; 5.1 | 15.3; 10.8 | 15.2; 10.3 | 15.3; 10.3 | 15.2; 10.5 |
+
+Possession and goal-side are measured from sim truth with the coach's rule, for both columns. Missed design
+targets: bumps <= 1/min (only at a=0, at the cost of goals), both near the ball <= 10%, goal-side >= 70%, task
+changes <= 8. **The biggest goal lever is not the coach:** ~5.8 referee traps per 3 min (corner balls with one
+attacker: the fence-margin geometry limit, see Fences) cost >= 35 s of play; on the floor nobody nudges them.
+Floor check before a 2-robot game: a=0.75 means touches at walking pace between the ball player and the shadow.

@@ -223,6 +223,30 @@ Demo round (Nov 27; every knob 0 = off, the brain is then unchanged; results in 
                     not while > cruise_lat off centre at the ball; cruise_alat replaces dribble_alat for the turn limit
   gait_down_v       (sim: no gain, not in a preset) in the fast gait, stay >= gait_hi unless the wanted speed is
                     below this
+
+1v1 Coach (preset match; notes/1v1-design.md; coach 0 or no per-call coach_task = the brain is unchanged):
+  coach             1 = the app / sim_eval runs one Coach for both robots and passes each brain per-call params
+                    coach_task (attack | challenge | jockey | goalie | recover), coach_why, coach_adv, coach_poss.
+                    Possession blue/red/loose: gained after gap < poss_in_m with the ball within 50 deg of the nose
+                    for poss_dwell_s (the other robot not as close); lost (always to loose) after 0.2 s of gap >
+                    poss_out_m (not while a just-touched ball runs ahead within 40 deg of the heading), ball > 90 deg
+                    off the nose, the other robot within poss_in_m too, or the ball receding > 0.7 m/s.
+                    The owner, or "first" on a loose ball (lower ETA; handed over only for first_hyst_s better after
+                    first_hold_s; a tie < 0.2 s goes to the robot that did not last own it), attacks. The other
+                    shadows: J = 0.75 m (jockey_m) goal-side of the ball on the ball -> own goal centre line (facing
+                    the ball, trot, sway +-jockey_sway_m over jockey_sway_s), clamped to the guard line = the keeper;
+                    > 0.35 m from J = recover (return at return_vx). It dashes (challenge, the dribble attack) when its
+                    ETA beats the opponent's by open_adv_s for 0.2 s, the ball is 0.20 m clear of the opponent, it is
+                    goal-side of the ball and the meeting point is inside the fence margin; held >= chal_hold_s, ends
+                    on possession, after 2.5 s or on an abort (opponent back within 0.10 m while we are > 0.40 m
+                    away), then chal_cool_s before the next dash. No clearing from the shadow.
+  jockey_m          shadow distance goal-side of the ball (m)
+  aggression        0..1, goals vs caution: the ball player (attack / challenge) may come to opp_stop_m - 0.09 a of
+                    the other robot and still close at 0.3 a m/s there (a keeper can only be beaten by passing close
+                    to it); dash threshold open_adv_s = 0.8 - 0.6 a. The ball player also aims at the side of the
+                    mouth away from the other robot (coach_aim_y)
+  opp_stop_m        coach only: speed toward the other robot capped at what brakes at 0.8 m/s^2 before this centre
+                    distance (bodies touch at 0.36; with the ball between them they stand 0.54 apart)
 """
 from __future__ import annotations
 
@@ -278,6 +302,9 @@ DEFAULTS = {
     "gait_down_v": 0.0, "cruise_v": 0.0, "cruise_spin_m": 0.35, "cruise_alat": 0.0, "cruise_lat": 0.06, "cruise_arc": 1, "shot_follow_s": 0.0, "shot_through_s": 0.25, "shot_min_m": 0.4,
     "gk_track": 0, "gk_shuffle_m": 0.06, "gk_shuffle_hz": 0.7, "gk_edge_m": 0.15, "gk_far_m": 1.8, "gk_near_m": 0.5,
     "gk_tgoal_s": 2.5,
+    "coach": 0, "aggression": 0.5, "poss_in_m": 0.12, "poss_out_m": 0.35, "poss_dwell_s": 0.3, "chal_hold_s": 1.0,
+    "chal_cool_s": 1.5, "first_hyst_s": 0.4, "first_hold_s": 1.5, "opp_stop_m": 0.45, "jockey_m": 0.75, "jockey_sway_m": 0.10,
+    "jockey_sway_s": 2.5,
     "wall_margin_m": 0.0, "wall_mouth_m": 0.05, "wall_stop_m": 0.0, "wall_rep_v": 0.2, "wall_brake": 0.8, "wall_post": 0, "wall_ball_m": 0.0,
 }
 
@@ -459,6 +486,7 @@ class Brain:
         self.b_raw: tuple | None = None  # contested: the raw (B, bv), for the goalie
         self.guard_yaw = 0.0         # wide-mouth goalie: the sideways heading chosen (+-pi/2)
         self.clear_sw_t = -1e9       # wide-mouth goalie: last clear <-> guard switch
+        self.jk: tuple | None = None  # coach: low-passed shadow point J (x, y, t)
 
     # ------------------------------------------------------------------ entry
     def decide(self, world: World, params: dict) -> tuple[Cmd, dict]:
@@ -557,10 +585,14 @@ class Brain:
         want, fenced = self._fence_guard(pose, want, p)
         if fenced:
             dbg["fence"] = 1
+        if p.get("coach_task"):
+            want = self._opp_guard(pose, want, others, p)
         want = self._occ_scale(want, pose_occ, p)
         cmd = self._smooth(want, dt, p, t, accel_vx=p["hb_accel"] if dbg["phase"] in ("charge", "backoff") else None)
         dbg.update(role=role, pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)],
                    ball=[round(B[0], 3), round(B[1], 3)], **costs)
+        if role == "defend" and p.get("coach_task") and self.jk:  # Play screen: the shadow line ball -> J
+            dbg["shadow"] = [[round(B[0], 3), round(B[1], 3)], [round(self.jk[0], 3), round(self.jk[1], 3)]]
         if occ_on:
             dbg["occluded"] = occ
         if p["contest"] or occ_on:
@@ -916,6 +948,13 @@ class Brain:
         if mode in ("attack", "defend"):
             self.role = mode
             return mode, {}
+        task = p.get("coach_task")
+        if task:  # the Coach decided for both robots: attack / challenge play the ball, the rest shadow
+            want = "attack" if task in ("attack", "challenge") else "defend"
+            if want != self.role:
+                self.role, self.role_t = want, t
+            return self.role, {"task": task, "intent": p.get("coach_why", ""), "adv": p.get("coach_adv"),
+                               "possession": p.get("coach_poss")}
         hold = p["role_hold_s"]
         if not others and p["solo_roles"] and p["hard_roles"] and self.b_press:
             want, why = self._hard_role(pose, B, bv, t, p)
@@ -969,19 +1008,24 @@ class Brain:
         hl = self._box(y, p)[0]
         return (clamp(q[0], -hl, hl), y)
 
-    def _fences(self, x: float, y: float, p: dict):
+    def _fences(self, x: float, y: float, p: dict, post: bool = True):
         """[(distance, inward normal)] to each fence; in the mouth band the end 'fence' is virtual, placed so
-        the margin ends wall_mouth_m inside the goal line."""
+        the margin ends wall_mouth_m inside the goal line. post=False leaves out the wall_post walls."""
         f, wm = self.f, p.get("wall_margin_m", 0.0)
         hl, hw = f.length / 2, f.width / 2
         edge = f.goal_width / 2 - 0.5 * f.robot_radius
-        out = []
+        out = self._post_walls(x, y, p) if post else []
         if abs(y) < edge:
-            if p["wall_post"] and f.length / 2 - abs(x) < f.robot_radius + 0.02:  # body past the goal line: the end
-                out.append((edge + f.robot_radius - abs(y), (0.0, -math.copysign(1.0, y))))  # fence beside the post is a
-                # side wall (stop at the mouth band edge)
             hl += max(0.0, wm - p["wall_mouth_m"])
         return out + [(hw - y, (0.0, -1.0)), (hw + y, (0.0, 1.0)), (hl - x, (-1.0, 0.0)), (hl + x, (1.0, 0.0))]
+
+    def _post_walls(self, x: float, y: float, p: dict):
+        """wall_post: deep in a goal mouth the end fence beside the post is a side wall (stop at the mouth band edge)."""
+        f = self.f
+        edge = f.goal_width / 2 - 0.5 * f.robot_radius
+        if p["wall_post"] and abs(y) < edge and f.length / 2 - abs(x) < f.robot_radius + 0.02:
+            return [(edge + f.robot_radius - abs(y), (0.0, -math.copysign(1.0, y)))]
+        return []
 
     def _fence_guard(self, pose: Pose, want: Cmd, p: dict) -> tuple[Cmd, bool]:
         """Within wall_margin_m of a fence: cap the velocity toward it (0 at wall_stop_m) and add a push away."""
@@ -993,14 +1037,16 @@ class Brain:
         vx, vy = c * want.vx - s * want.vy, s * want.vx + c * want.vy
         hit = False
         ox, oy = c * self.out.vx - s * self.out.vy, s * self.out.vx + c * self.out.vy  # what we are doing now
-        for d, (nx, ny) in self._fences(pose.x, pose.y, p):
+        post = self._post_walls(pose.x, pose.y, p)
+        for i, (d, (nx, ny)) in enumerate(post + self._fences(pose.x, pose.y, p, post=False)):
             vin = -(vx * nx + vy * ny)  # commanded speed toward the fence
             d_eff = d - max(0.0, -(ox * nx + oy * ny)) * p["act_lag_s"]
             cap = math.sqrt(2 * p["wall_brake"] * max(0.0, d_eff - stop))
             if vin > cap:
                 hit = True
                 vx, vy = vx + (vin - cap) * nx, vy + (vin - cap) * ny
-            if d < wm:
+            if d < wm and i >= len(post):  # the post wall only caps: its push-away cancelled a robot's
+                # first metres per second leaving the mouth past the post (1v1 deadlocks 6 -> 64 at 6c3f8ee)
                 hit = True
                 k = clamp((wm - d) / max(1e-3, wm - stop), 0.0, 1.0)  # 0 at the margin, 1 at the stop line
                 vx, vy = vx + p["wall_rep_v"] * k * nx, vy + p["wall_rep_v"] * k * ny
@@ -1008,6 +1054,39 @@ class Brain:
             return want, False
         bx, by = c * vx + s * vy, -s * vx + c * vy
         return Cmd(clamp(bx, -0.3, max(p["max_vx"], 0.3)), clamp(by, -p["max_vy"], p["max_vy"]), want.wz, want.tag), True
+
+    def _opp_guard(self, pose: Pose, want: Cmd, others, p: dict) -> Cmd:
+        """Coach: the speed toward another robot is capped at what brakes at 0.8 m/s^2 (after act_lag_s) before
+        opp_stop_m centre distance: no body rams; a ball between the two (0.54 m) still gets played."""
+        c, s = math.cos(pose.yaw), math.sin(pose.yaw)
+        vx, vy = c * want.vx - s * want.vy, s * want.vx + c * want.vy
+        ox, oy = c * self.out.vx - s * self.out.vy, s * self.out.vx + c * self.out.vy
+        hit, stop, vt = False, p["opp_stop_m"], 0.0
+        if p["coach_task"] in ("attack", "challenge"):  # the ball player may brush past at a walking pace
+            a = clamp(p["aggression"], 0.0, 1.0)
+            stop, vt = stop - 0.09 * a, 0.3 * a
+        for o in others:
+            d = math.hypot(pose.x - o.x, pose.y - o.y)
+            nx, ny = unit(pose.x - o.x, pose.y - o.y)  # away from the other robot
+            vin = -(vx * nx + vy * ny)
+            cap = math.sqrt(vt * vt + 2 * 0.8 * max(0.0, d - max(0.0, -(ox * nx + oy * ny)) * p["act_lag_s"] - stop))
+            if vin > cap:
+                hit, vx, vy = True, vx + (vin - cap) * nx, vy + (vin - cap) * ny
+        if not hit:
+            return want
+        return Cmd(c * vx + s * vy, clamp(-s * vx + c * vy, -p["max_vy"], p["max_vy"]), want.wz, want.tag)
+
+    def _shadow(self, B, p: dict):
+        """Coach shadow point J: jockey_m goal-side of the ball on the line ball -> own goal centre, never behind
+        the guard line (clamped to it = the keeper). Returns (J, on_line)."""
+        s = 1.0 if self.own_x > 0 else -1.0
+        x_line = self.own_x - s * p["goalie_dist"]
+        jm = p["jockey_m"]
+        ux, uy = unit(self.own_x - B[0], -B[1])
+        J = (B[0] + ux * jm, B[1] + uy * jm)
+        if s * J[0] >= s * x_line:
+            return (x_line, J[1]), True
+        return self._clamp_field(J, p), False
 
     def _repel(self, pose: Pose, others, p: dict):
         rx = ry = 0.0
@@ -1378,7 +1457,9 @@ class Brain:
     def _dr_dir(self, P, p: dict):
         f = self.f
         hw = f.goal_width / 2 - f.ball_radius
-        aim = (self.att_x * (1 + f.goal_depth / max(1e-3, abs(self.att_x))), clamp(P[1] * p["aim_y_frac"], -hw, hw))
+        ay = p.get("coach_aim_y")  # coach: the side of the mouth away from the opponent
+        aim = (self.att_x * (1 + f.goal_depth / max(1e-3, abs(self.att_x))),
+               clamp(P[1] * p["aim_y_frac"] if ay is None else ay, -hw, hw))
         return self._feasible_dir(P, self._wall_aim(P, aim, p) or unit(aim[0] - P[0], aim[1] - P[1]), p)
 
     def _wall_aim(self, B, aim, p: dict):
@@ -1752,7 +1833,8 @@ class Brain:
         # under pressure a contested ball is cleared only from goal-side: walking round it opens the goal
         side_ok = not (p["hard_roles"] and self.b_press and self.b_state == "contested") or \
             gl - s * pose.x < depth - (0.0 if self.clearing else 0.05)
-        clear = (not self.hold_goal and side_ok and depth < p["clear_depth"] + hyst
+        coach = p.get("coach_task") in ("jockey", "goalie", "recover")
+        clear = (not coach and not self.hold_goal and side_ok and depth < p["clear_depth"] + hyst
                  and abs(B[1]) < f.goal_width / 2 + p["clear_width_extra"] + hyst and approach < p["clear_max_speed"])
         if p["guard_line_m"] > 0 and not self.hold_goal and clear != self.clearing:
             if t - self.clear_sw_t < 0.8:  # wide-mouth goalie: clear <-> guard flips want opposite headings
@@ -1785,6 +1867,20 @@ class Brain:
             ux, uy = (B[0] - cx) / max(1e-6, dB), B[1] / max(1e-6, dB)
             G = (cx + ux * dg, clamp(uy * dg, -lim, lim))
             x_line = G[0]
+        jockey = False
+        if coach:
+            J, on_line = self._shadow(B, p)
+            if self.jk is None or t - self.jk[2] > 0.5 or math.hypot(J[0] - self.jk[0], J[1] - self.jk[1]) > 0.5:
+                self.jk = (J[0], J[1], t)
+            else:  # low-pass ~0.3 s: ball jitter is not mirrored
+                k = min(1.0, (t - self.jk[2]) / 0.3)
+                self.jk = (self.jk[0] + k * (J[0] - self.jk[0]), self.jk[1] + k * (J[1] - self.jk[1]), t)
+            if not on_line:  # jockey: hold J facing the ball, swaying across the ball-goal line (looks alive)
+                jockey = True
+                ux, uy = unit(self.own_x - B[0], -B[1])
+                sw = p["jockey_sway_m"] * math.sin(2 * math.pi * t / max(0.5, p["jockey_sway_s"]))
+                G = self._clamp_field((self.jk[0] - uy * sw, self.jk[1] + ux * sw), p)
+                x_line = G[0]
         dx, dy = G[0] - pose.x, G[1] - pose.y
         dist = math.hypot(dx, dy)
         self.returning = dist > (0.12 if self.returning else p["goalie_reach"])
@@ -1811,6 +1907,12 @@ class Brain:
             return self._goto(pose, W, p, min(p["max_vx"], p["return_vx"]), others,
                               slow_r=0.2 if W is G else 0.0, allow_back=True, tag="return",
                               back_blend=p["return_back_vx"]), dbg
+        if jockey:  # face the ball, mirror it sideways, stay in the trot; a 10 deg deadband
+            herr = wrap(math.atan2(B[1] - pose.y, B[0] - pose.x) - pose.yaw)
+            herr = math.copysign(max(0.0, abs(herr) - math.radians(10)), herr)
+            bx, by = to_body(pose, p["k_goalie"] * dx, p["k_goalie"] * dy)
+            vm = min(p["goalie_vmax"], p["gait_lo"])
+            return Cmd(clamp(bx, -vm, vm), by, p["k_turn"] * herr, "jockey"), {"phase": "jockey", "target": tgt}
         if p["goalie_style"] == "facing":
             yaw_des = math.atan2(B[1] - pose.y, B[0] - pose.x)
         else:  # body parallel to the goal line: forward/back walking slides along it
@@ -1949,3 +2051,139 @@ class Brain:
         clean = self.clean and not want.tag.startswith(UNCLEAN_TAGS)
         self.hist.append((t, self.out.vx, self.out.vy, self.out.wz, clean))
         return self.out
+
+
+class Coach:
+    """1v1: one decision per tick for both robots (notes/1v1-design.md, knobs in the module doc). update(world,
+    params) -> {robot id: per-call params for Brain.decide}; {} (coach off, not two fresh robots, no ball) leaves
+    each brain to decide alone. Uses the brains' own ETA (_dr_eta at their last command) and shadow point."""
+
+    def __init__(self, brains: dict, field: Field):
+        self.b, self.f = brains, field
+        self.reset()
+
+    def reset(self) -> None:
+        self.poss, self.last_owner, self.changes = "loose", None, 0
+        self.cand: dict = {}       # id -> since when it meets the gain condition
+        self.lose_t = None         # since when the owner meets a lose condition
+        self.touch: dict = {}      # id -> last touch
+        self.first, self.first_t = None, -1e9
+        self.open: dict = {}       # id -> since when an opening holds
+        self.chal: dict = {}       # id -> challenge start
+        self.cool: dict = {}       # id -> no dash before
+        self.task: dict = {}       # id -> last task
+        self.aim: dict = {}        # id -> aim y in the attacked mouth
+
+    def possession(self, t: float, poses: dict, B, bv, p: dict) -> str:
+        """Ball owner id or "loose", with hysteresis; never owner -> owner directly."""
+        c = self.f.ball_radius + self.f.robot_radius
+        g = {k: math.hypot(q.x - B[0], q.y - B[1]) - c for k, q in poses.items()}
+        off = {k: abs(wrap(math.atan2(B[1] - q.y, B[0] - q.x) - q.yaw)) for k, q in poses.items()}
+        for k in poses:
+            if g[k] < 0.03:
+                self.touch[k] = t
+        if self.poss in poses:
+            k, q = self.poss, poses[self.poss]
+            other = [j for j in poses if j != k]
+            sp = math.hypot(bv[0], bv[1])
+            ahead = (t - self.touch.get(k, -1e9) < 0.6 and sp > 0.05
+                     and abs(wrap(math.atan2(bv[1], bv[0]) - q.yaw)) < math.radians(40))  # a dribbled ball runs ahead
+            ux, uy = unit(B[0] - q.x, B[1] - q.y)
+            lose = ((g[k] > p["poss_out_m"] and not ahead) or off[k] > math.pi / 2 or bv[0] * ux + bv[1] * uy > 0.7
+                    or any(g[j] < p["poss_in_m"] for j in other))
+            self.lose_t = (self.lose_t if self.lose_t is not None else t) if lose else None
+            if self.lose_t is not None and t - self.lose_t >= 0.2:
+                self.poss, self.lose_t, self.cand = "loose", None, {}
+            return self.poss
+        for k in poses:
+            ok = g[k] < p["poss_in_m"] and off[k] < math.radians(50) and all(
+                g[j] >= p["poss_in_m"] for j in poses if j != k)
+            self.cand[k] = (t if self.cand.get(k) is None else self.cand[k]) if ok else None
+            if ok and t - self.cand[k] >= p["poss_dwell_s"]:
+                self.changes += k != self.last_owner
+                self.poss = self.last_owner = k
+                self.cand = {}
+                break
+        return self.poss
+
+    def _eta(self, k, q: Pose, B, bv, p: dict) -> tuple[float, tuple]:
+        """(seconds, meeting point) for robot k: fixed point of 'ball after our ETA'."""
+        br, P, e = self.b[k], B, 0.0
+        for _ in range(3):
+            e = br._dr_eta(q, P, br._dr_dir(P, p), p)
+            P = br._ball_at(B, bv, min(3.0, e), p)
+        return e, P
+
+    def _aim_y(self, k, br: Brain, q: Pose, B) -> float:
+        """Aim y in the attacked mouth: the side whose line from the ball passes the opponent widest (kept unless the
+        other side is 0.1 m wider): the dribble goes round a shadow standing on the ball-goal line."""
+        f = self.f
+        a = f.goal_width / 2 - f.ball_radius - 0.08
+        gx = br.att_x
+        w = {y: seg_dist(B, (gx, y), (q.x, q.y)) for y in (-a, a)}
+        side = self.aim.get(k, a if w[a] >= w[-a] else -a)
+        if w[-side] > w[side] + 0.1:
+            side = -side
+        self.aim[k] = side
+        return side
+
+    def update(self, world: World, params: dict) -> dict:
+        p = {**DEFAULTS, **params}
+        t, ball = world.t, world.ball
+        ids = [k for k in self.b if k in world.robots and t - world.robots[k].t < p["other_stale_s"]]  # (a dropout
+        # does not end the coaching: the stale brain stops on its own, the other keeps its task)
+        if not p["coach"] or len(ids) != 2 or ball is None or t - ball.t > p["ball_stale_s"]:
+            self.poss, self.chal = "loose", {}
+            return {}
+        poses = {k: world.robots[k].pose for k in ids}
+        B, bv = (ball.x, ball.y), (ball.vx, ball.vy)
+        poss = self.possession(t, poses, B, bv, p)
+        eta = {k: self._eta(k, poses[k], B, bv, p) for k in ids}
+        a, o = ids
+        if poss in ids:
+            self.first = poss
+        elif self.first not in ids or t - world.robots[self.first].t > p["pose_stale_s"]:
+            d = eta[a][0] - eta[o][0]
+            self.first = (o if a == self.last_owner else a) if abs(d) < 0.2 else (a if d < 0 else o)
+            self.first_t = t
+        else:
+            j = o if self.first == a else a
+            if eta[j][0] < eta[self.first][0] - p["first_hyst_s"] and t - self.first_t >= p["first_hold_s"]:
+                self.first, self.first_t = j, t
+        c = self.f.ball_radius + self.f.robot_radius
+        g = {k: math.hypot(poses[k].x - B[0], poses[k].y - B[1]) - c for k in ids}
+        out = {}
+        for k in ids:
+            j, br, q = (o if k == a else a), self.b[k], poses[k]
+            adv = eta[j][0] - eta[k][0]
+            task, why = "attack", "on the ball" if poss == k else "first to the loose ball"
+            if poss != k and self.first != k:
+                s = 1.0 if br.own_x > 0 else -1.0
+                goal_side = s * q.x > s * B[0]
+                P = eta[k][1]
+                ok = (adv >= 0.8 - 0.6 * clamp(p["aggression"], 0.0, 1.0) and g[j] > 0.20 and goal_side
+                      and br._out(P[0], P[1], p) <= 0.0)
+                self.open[k] = (t if self.open.get(k) is None else self.open[k]) if ok else None
+                t0 = self.chal.get(k)
+                if t0 is not None and (t - t0 > 2.5 or (t - t0 >= p["chal_hold_s"] and g[j] < 0.10 and g[k] > 0.40)):
+                    self.chal.pop(k)
+                    self.cool[k], t0 = t + p["chal_cool_s"], None
+                if t0 is None and ok and t - self.open[k] >= 0.2 and t >= self.cool.get(k, -1e9):
+                    self.chal[k] = t0 = t
+                if t0 is not None:
+                    task, why = "challenge", f"opening: gets there {adv:.1f} s first"
+                else:
+                    J, on_line = br._shadow(B, p)
+                    if on_line:
+                        task, why = "goalie", "in shooting range: on the line"
+                    elif math.hypot(q.x - J[0], q.y - J[1]) > (0.15 if self.task.get(k) == "recover" else 0.35):
+                        task, why = "recover", "beaten: back goal-side"
+                    else:
+                        task, why = "jockey", "goal-side, waiting for an opening"
+            else:
+                self.chal.pop(k, None)
+            self.task[k] = task
+            out[k] = {"coach_task": task, "coach_why": why, "coach_adv": round(adv, 2), "coach_poss": poss}
+            if task in ("attack", "challenge"):
+                out[k]["coach_aim_y"] = self._aim_y(k, br, poses[j], B)
+        return out

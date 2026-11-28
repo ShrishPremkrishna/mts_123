@@ -294,3 +294,14 @@ def test_sim_eval_wall_rows_smoke():
     from fc.sim_eval import evaluate
     out = evaluate(2, True, 1.0, 1, {"dribble": 1, "wall_margin_m": 0.28, "wall_ball_m": 0.32}, scen=("wall",))
     assert "wall_balls: fence contacts / tips / traps" in out
+
+
+def test_sim_eval_coached_match_smoke():
+    import dataclasses
+
+    from fc import sim_eval
+    from fc.core import load_field, load_params, load_robots
+    field = dataclasses.replace(load_field(), length=3.36, width=2.70)
+    p = {**load_params(), **sim_eval.load_preset("match"), "sim_errors": 0}
+    m = sim_eval.match(field, load_robots(), p, 1, minutes=0.5)
+    assert 0.0 <= m["both"] <= 1.0 and m["tasksw_pm"] > 0 and "poss_pm" in m

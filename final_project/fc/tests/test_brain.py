@@ -843,3 +843,72 @@ def test_wall_post_stops_sliding_into_the_end_fence_beside_the_post():
     assert cmd.vx > 0.3  # without wall_post the end fence beside the post is not seen
     cmd, hit = b._fence_guard(deep, Cmd(0.6, 0.0, 0.0, "x"), {**pw, "wall_post": 1})
     assert hit and cmd.vx < 0.2
+
+
+# ---------------------------------------------------------------- 1v1 Coach
+from fc.brain import Coach  # noqa: E402
+
+COACH = {**P, "dribble": 1, "coach": 1, "wall_margin_m": 0.28}
+
+
+def world2(t, blue, red, ball=(0.0, 0.0), bv=(0.0, 0.0)):
+    return World(t, Ball(ball[0], ball[1], bv[0], bv[1], t),
+                 {"blue": RobotObs("blue", Pose(*blue), t), "red": RobotObs("red", Pose(*red), t)})
+
+
+def test_coach_knobs_off_and_brain_unchanged_without_a_task():
+    assert DEFAULTS["coach"] == 0
+    a, b = Brain(BLUE, WF), Brain(BLUE, WF)
+    q = {**P, "dribble": 1, "wall_margin_m": 0.28}
+    for i in range(60):
+        w = world(i / 30, (-0.8, 0.3, 0.2), (0.1, -0.2), other=(0.9, 0.1, math.pi))
+        assert a.decide(w, q)[0] == b.decide(w, {**q, "coach": 1, "aggression": 1.0, "opp_stop_m": 0.45})[0]
+    assert Coach({"blue": a, "red": b}, WF).update(w, q) == {}  # coach 0: nothing to pass
+
+
+def test_coach_possession_needs_dwell_and_goes_through_loose():
+    c = Coach({"blue": Brain(BLUE, WF), "red": Brain(RED, WF)}, WF)
+    near_b, near_r, far = Pose(-0.33, 0.0, 0.0), Pose(0.33, 0.0, math.pi), Pose(1.0, 0.8, math.pi)
+    poss = [c.possession(i / 30, {"blue": near_b, "red": far}, (0.0, 0.0), (0.0, 0.0), COACH) for i in range(12)]
+    assert poss[0] == "loose" and poss[-1] == "blue"  # gained after 0.3 s
+    t0 = 12 / 30
+    seq = [c.possession(t0 + i / 30, {"blue": far, "red": near_r}, (0.0, 0.0), (0.0, 0.0), COACH) for i in range(30)]
+    assert "red" in seq and seq[seq.index("red") - 1] == "loose"  # never blue -> red directly
+    i_l, i_r = seq.index("loose"), seq.index("red")
+    assert (i_r - i_l) / 30 >= COACH["poss_dwell_s"] - 0.04 and c.changes == 2
+
+
+def test_coach_one_robot_goes_for_the_ball_the_other_shadows_goal_side():
+    bb, rb = Brain(BLUE, WF), Brain(RED, WF)
+    c = Coach({"blue": bb, "red": rb}, WF)
+    out = c.update(world2(0.0, (-0.7, 0.0, 0.0), (0.7, 0.0, math.pi)), COACH)  # kickoff tie: exactly one attacks
+    tasks = sorted(o["coach_task"] for o in out.values())
+    assert tasks[0] == "attack" and tasks[1] in ("jockey", "recover")
+    out = c.update(world2(0.1, (-0.3, 0.0, 0.0), (1.2, 0.6, math.pi), ball=(0.6, 0.0)), COACH)
+    assert out["blue"]["coach_task"] == "attack" and out["red"]["coach_task"] in ("jockey", "recover")
+    J, on_line = rb._shadow((0.6, 0.0), COACH)  # 0.75 m goal-side on the ball -> red goal line
+    assert not on_line and abs(J[0] - (0.6 + COACH["jockey_m"])) < 1e-6
+    J, on_line = rb._shadow((WF.length / 2 - 0.8, 0.2), COACH)  # within 1 m of the goal line: the keeper
+    assert on_line and abs(J[0] - (WF.length / 2 - COACH["goalie_dist"])) < 1e-6
+
+
+def test_coach_shadow_jockeys_facing_the_ball_and_reports_debug():
+    b = Brain(RED, WF)
+    q = {**COACH, "coach_task": "jockey", "coach_why": "goal-side", "coach_adv": -0.8, "coach_poss": "blue"}
+    J, _ = b._shadow((0.2, 0.3), q)
+    _, d = b.decide(World(0.0, Ball(0.2, 0.3, 0, 0, 0.0), {"red": RobotObs("red", Pose(J[0], J[1], math.pi), 0.0),
+                                                           "blue": RobotObs("blue", Pose(-0.2, 0.3, 0.0), 0.0)}), q)
+    assert d["role"] == "defend" and d["phase"] == "jockey" and d["task"] == "jockey"
+    assert d["possession"] == "blue" and d["intent"] == "goal-side" and len(d["shadow"]) == 2
+
+
+def test_opp_guard_brakes_before_the_other_robot():
+    b = Brain(BLUE, WF)
+    q = {**COACH, "coach_task": "jockey", "aggression": 0.0}
+    want = Cmd(0.6, 0.0, 0.0)
+    far = b._opp_guard(Pose(0.0, 0.0, 0.0), want, [Pose(1.5, 0.0, 0.0)], q)
+    near = b._opp_guard(Pose(0.0, 0.0, 0.0), want, [Pose(0.46, 0.0, 0.0)], q)
+    side = b._opp_guard(Pose(0.0, 0.0, 0.0), Cmd(0.0, 0.3, 0.0), [Pose(0.40, 0.0, 0.0)], q)
+    assert far.vx == 0.6 and near.vx < 0.15 and abs(side.vy - 0.3) < 1e-9  # passing sideways is not braked
+    att = b._opp_guard(Pose(0.0, 0.0, 0.0), want, [Pose(0.36, 0.0, 0.0)], {**q, "coach_task": "attack", "aggression": 1.0})
+    assert abs(att.vx - 0.3) < 1e-6  # the ball player may brush past at a walking pace (aggression 1: 0.3 m/s)

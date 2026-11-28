@@ -62,8 +62,8 @@ import random
 import statistics
 import time
 
-from .brain import Brain
-from .core import CONFIG, load_field, load_params, load_robots
+from .brain import DEFAULTS, Brain, Coach
+from .core import CONFIG, Pose, load_field, load_params, load_robots
 from .sim import Sim
 
 DT = 1.0 / 30
@@ -116,12 +116,14 @@ def preset_cap(name: str) -> dict:
 
 
 def _loop(sim: Sim, brains: dict, params: dict, seconds: float, on_tick=None) -> None:
+    coach = Coach(brains, sim.f) if params.get("coach") and len(brains) > 1 else None  # 1v1 coach (preset match)
     for _ in range(int(seconds / DT)):
         w = sim.observe()
         cmds, dbgs = {}, {}
+        tasks = coach.update(w, params) if coach else {}
         for k, b in brains.items():
             if k in sim.bots:
-                cmds[k], dbgs[k] = b.decide(w, params)
+                cmds[k], dbgs[k] = b.decide(w, {**params, **tasks[k]} if k in tasks else params)
         sim.step(cmds, DT)
         if on_tick and on_tick(cmds, dbgs):
             return
@@ -247,8 +249,10 @@ def match(field, robots, params, seed, minutes=3.0):
     brains = {r.id: Brain(r, field) for r in robots}
     st = {"flips": 0, "roles": {}, "wz": {}, "flipwz": 0, "fastwz": 0, "lastrev": {}, "jerk": [], "last": {},
           "stall": 0, "anchor": (0.0, 0.0, 0.0), "side": {}, "sideflip": 0, "band": 0, "ticks": 0,
-          "speed": [], "switch": 0, "bots": {}}
+          "speed": [], "switch": 0, "bots": {}, "both": 0, "owned": 0, "gside": 0, "task": {}, "tasksw": 0}
     jit = Jitter()
+    meter = Coach(brains, field)  # possession from sim truth (the coach's rule), with or without a coach playing
+    pp = {**DEFAULTS, **p}
 
     def tick(cmds, dbgs):
         for k, b in brains.items():
@@ -283,6 +287,19 @@ def match(field, robots, params, seed, minutes=3.0):
             st["speed"].append(math.hypot(bot.vx, bot.vy))
             st["bots"][id(bot)] = bot.switches
         bx, by = sim.ball[0], sim.ball[1]
+        if sim.pause_until <= 0 and len(sim.bots) == 2:
+            st["both"] += all(math.hypot(b.x - bx, b.y - by) < 0.5 for b in sim.bots.values())
+            own = meter.possession(sim.t, {k: Pose(b.x, b.y, b.yaw) for k, b in sim.bots.items()}, (bx, by),
+                                   (sim.ball[2], sim.ball[3]), pp)
+            if own in sim.bots:  # the other robot nearer its own goal line than the ball
+                j = next(k for k in sim.bots if k != own)
+                s = 1.0 if brains[j].own_x > 0 else -1.0
+                st["owned"] += 1
+                st["gside"] += s * sim.bots[j].x > s * bx
+        for k, d in dbgs.items():
+            if d.get("task") and st["task"].get(k) not in (None, d["task"]):
+                st["tasksw"] += 1
+            st["task"][k] = d.get("task")
         ax, ay, at = st["anchor"]
         if math.hypot(bx - ax, by - ay) > 0.1 or sim.pause_until > 0:
             st["anchor"] = (bx, by, sim.t)
@@ -302,7 +319,9 @@ def match(field, robots, params, seed, minutes=3.0):
             "speed": statistics.mean(st["speed"]) if st["speed"] else 0.0,
             "switch_pm": sum(st["bots"].values()) / minutes / n,
             "band": st["band"] / max(1, st["ticks"]), "wzrms": math.sqrt(jit.sq / max(1, jit.n)),
-            "replans_pm": sum(b.replans for b in brains.values()) / minutes / n}
+            "replans_pm": sum(b.replans for b in brains.values()) / minutes / n,
+            "both": st["both"] / max(1, st["ticks"] / n), "poss_pm": meter.changes / minutes,
+            "gside": st["gside"] / max(1, st["owned"]), "tasksw_pm": st["tasksw"] / minutes / n}
 
 
 def _fastwz(c, k, st, t):
@@ -782,6 +801,10 @@ def _team(out, raw, field, robots, params, seeds, minutes, matches, contacts):
                                                  f"{100 * sum(c > 0.45 for c in contacts) / max(1, len(contacts)):.0f}%")
     out["bumps /3 min, closing m/s mean / max"] = (f"{len(bumps) * k:.1f}, "
                                                    f"{statistics.mean(bumps) if bumps else 0:.2f} / {max(bumps, default=0):.2f}")
+    out["1v1: both <0.5 m of ball %, poss changes /min"] = (f"{100 * statistics.mean(m['both'] for m in ms):.0f}%, "
+                                                         f"{statistics.mean(m['poss_pm'] for m in ms):.1f}")
+    out["1v1: goal-side in opp poss %, task sw /min"] = (f"{100 * statistics.mean(m['gside'] for m in ms):.0f}%, "
+                                                       f"{statistics.mean(m['tasksw_pm'] for m in ms):.1f}")
     out["pace: 1v1 mean speed m/s"] = f"{statistics.mean(m['speed'] for m in ms):.2f}"
     out["pace: gait switches /min, in band"] = (f"{statistics.mean(m['switch_pm'] for m in ms):.1f}, "
                                                 f"{100 * statistics.mean(m['band'] for m in ms):.1f}%")
