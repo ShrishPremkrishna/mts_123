@@ -37,6 +37,7 @@ Nov 27 evening runs are named `20261128T…`).
 |---|---|
 | **Self-healing calibration** (0571987, 4fa7ab5): saved `config/eye_cal.json`, per-tag monitor (1–2 moved tags ignored, ≥ 3 → pose-only re-solve), `CAL SUSPECT` / CALIBRATION UNVERIFIED banner, op `eye.recalibrate` (idle only) | **device-free**: replays of `071036Z-goalie`, `042513Z-match`, `071744Z-match` keep a pose on 100 % of frames; tests |
 | **Robustness fixes** (dd1e6f8, 701a414, cb5058e): halted/link-dead robots out of the Coach; kickoff doesn't wait for absent robots; re-arm and Space pause a match (score kept); no phantom celebration; field size frozen during runs; ssh keepalives; app starts with preset `play`; `ready --home` refuses while the stack runs; link re-resolves a robot's address | **device-free** (tests) + **sim** |
+| **Fall safety** (55844a1, 49e8958): `ready`/`getup` refuse to stand above 25° tilt (exit 6); one-key **Get up** (`ctl getup`, card button): re-arm + stand on the running stack, no homing; 2 s hold then rejoin, other robot keeps playing; E-STOP pressed during Ready/Get up no longer lost; brain zeroes translation at ack tilt ≥ 25° for 0.5 s. **Link return** (d283ebf): no ack 1 s → zero, ramp reset, 0.5 s hold | **device-free** (tests, fcctl in docker) + **sim**; stage `fc/robot` on both robots, floor-check Get up from belly / refusal on its side |
 | Keeper pre-shot hedge toward its slow side (10e77b6, `gk_asym_m` 0.15). Look-ahead study: prediction is not the limit (crossing error 1–2 cm with < 0.5 s to go); the walker's backward cap 0.3 m/s is | **sim** (gallery saves 90.7 → 92.3 %) + device-free log study ([brain notes](notes/brain.md)) |
 | Fence margin + bank shots (`wall_margin_m` 0.28) | **sim** (would-tip 228 → 2); wall/corner balls not floor-tested |
 | 1v1 Coach (possession, shadow/keep goal, anti-ram) | **sim** + **device-free**; needs two robots |
@@ -54,14 +55,15 @@ Cloned from mts on Nov 28 (live file copy onto a USB drive + offline identity re
 - **Fence handling**: wall/corner balls untested on the floor; the fence in this room is bent.
 - **Camera reconnect without an app restart**: built Nov 28, **device-free only** (capture child respawned on stall/freeze/hang,
   size pinned, device locked; fake-camera tests). Floor check: unplug/replug the phone mid-run.
-- **Keeper speed**: the walker's backward cap 0.3 m/s limits saves; the fix is robot-side.
+- **Keeper speed**: the walker's backward cap 0.3 m/s limits saves. Proposal: 0.45 via a stack option, sim then a floor step ladder ([walker-backward](notes/walker-backward.md)).
 - **Per-robot eye offsets**: wired in the eye Nov 28 (`config/robots/<id>.json`, blue = 7°/0.267/-0.02; red on defaults,
   yaw 0 until its step test). The brain's `act_lag_s` per robot is still not wired (app).
 - **Two-robot floor test**: anti-ram at `max_vx` ≤ 1.0, then the 1v1. Sim show rehearsal (Nov 28, fake bridge, 25 games):
   ~7 bumps per game, ~0.7 of them closing > 0.3 m/s; fall → Get up → rejoin, link loss, Space/resume all recover
-  without a wedge. Open from it: a robot whose link returns gets the brain's running command at once (no ramp from
-  zero; seen 0.45 m/s + 1.2 rad/s); E-STOP all ends the match (Space keeps it).
-- **Reusable clone script** in `fc/robot/provision/` (the Nov 28 one is not in the repo).
+  without a wedge (link-return jump fixed in d283ebf). Open: E-STOP all ends the match (Space keeps it).
+- **Goals per game**: show-flow sim 1v1 at 1.0 gives ~1.0 goals per 90 s (7/25 games reach 2; target ≥ 2). Corner traps
+  are the main loss; `aggression` 1.0 scores more but bumps harder (needs the floor anti-ram check first).
+- **Clone script**: `fc/robot/provision/clone_live.sh` (15db04f; guards + dry-run tested, erase/copy steps not yet run from the repo copy).
 
 ## Blockers (owner)
 
