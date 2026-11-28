@@ -220,7 +220,7 @@ def _players_next(app):
 def _when_kickoff(app):
     halted = [r for r in app.playing if app.halted(r)]
     if halted:
-        return {"reason": f"{', '.join(halted)} halted by the bridge"}
+        return {"reason": app.halt_reason(halted)}
     return {"label": "Restart" if app.flow else "Kickoff"}
 
 
@@ -348,7 +348,7 @@ def _when_warmup(app):
         return {"reason": f"{t.get('name')} is running: Stop first", "label": "Warm-up"}
     halted = [r for r in app.playing if app.halted(r)]
     if halted:
-        return {"reason": f"{', '.join(halted)} halted by the bridge", "label": "Warm-up"}
+        return {"reason": app.halt_reason(halted), "label": "Warm-up"}
     return {"label": "Warm-up"}
 
 

@@ -440,6 +440,7 @@ def test_suspect_calibration_banner_and_health_text(idle):
         ps = app.play_state(time.monotonic())
         b = [x for x in ps["banners"] if x["kind"] == "calibration"]
         assert len(b) == 1 and "UNVERIFIED" in b[0]["text"] and "3 tags shifted" in b[0]["text"]
+        assert b[0]["text"].count("pose kept") == 1          # the eye's "; last pose kept" is not said twice
         assert ps["robots"]["blue"]["health"]["text"].endswith("cal unverified (suspect)")
         app.eye.cal = {"state": "unverified", "why": "loaded eye_cal.json"}
         ps = app.play_state(time.monotonic())
@@ -497,3 +498,24 @@ def test_ack_tilt_held_high_zeroes_translation_then_releases(tmp_path):
         assert any("tilt on blue back to 4 deg" in e["msg"] for e in app.events)
     finally:
         app.close()
+
+
+def test_kickoff_refusal_names_the_halt_and_the_way_out(idle):
+    """Rehearsal Nov 28: K with red e-stopped said "red halted by the bridge" (also for an operator e-stop) and not
+    what to do. The reason now names the halt and the two ways out; the same text on K, P and W."""
+    from fc import ops
+    app = idle
+    with app.lock:
+        app.estop("red")
+        why = ops.call(app, "match.kickoff")["error"]
+        assert why == "red is e-stopped (Get up / Ready re-arms it), or V to play without it"
+        assert ops.availability(app)["show.warmup"]["reason"] == why
+        assert app._play_action("play_here", {})["error"] == why
+        app.estop("blue")
+        assert ops.availability(app)["match.kickoff"]["reason"].endswith("or V to play without them")
+        app.estops.clear()
+        app.imu_bad = {"red"}
+        assert ops.availability(app)["match.kickoff"]["reason"].startswith("red has a bad IMU")
+        app.imu_bad = set()
+        assert ops.call(app, "match.kickoff")["ok"]
+        app.action({"action": "end"})

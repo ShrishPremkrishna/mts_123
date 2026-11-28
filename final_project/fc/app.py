@@ -885,6 +885,16 @@ class App:
         op = self.ops.get(rid) or {}
         return op.get("op") in REARM_OPS and (bool(op.get("running")) or now - op.get("t_end", -math.inf) < ESTOP_RESEND_S)
 
+    HALT_WORDS = {"estopped": "is e-stopped (Get up / Ready re-arms it)", "imu_bad": "has a bad IMU",
+                  "mux_lost": "lost its mux", "rejoining": "is rejoining (2 s)"}
+
+    def halt_reason(self, ids: list[str]) -> str:
+        """Why a kickoff / warm-up is refused while these playing robots are halted, and the way out. Caller holds
+        the lock. (Was "red halted by the bridge" for every case, also for an operator e-stop.)"""
+        why = "; ".join(f"{rid} {self.HALT_WORDS.get(self.halted(rid) or '', self.halted(rid) or 'is halted')}"
+                        for rid in ids)
+        return f"{why}, or V to play without {'it' if len(ids) == 1 else 'them'}"
+
     def out_of_play(self, rid: str) -> str | None:
         """halted(), or "no_link": the link is on and the robot's bridge has not acked within
         link.CONNECTED_AGE_S (it cannot move on our commands). For the Coach and the kickoff wait."""
@@ -1560,7 +1570,7 @@ class App:
         if a in ("kickoff", "play_here") or (a == "play" and not f):
             halted = [r for r in self.playing if self.halted(r)]
             if halted:
-                return {"ok": False, "error": f"{', '.join(halted)} halted by the bridge ({self.halted(halted[0])})"}
+                return {"ok": False, "error": self.halt_reason(halted)}
             self._begin("match", None, flow=True, score0={"blue": 0, "red": 0}, playing=list(self.playing))
             self.score = {"blue": 0, "red": 0}
             self.ticker.clear()
@@ -2223,8 +2233,9 @@ class App:
             cam = [{"robot": None, "team": None, "level": "bad", "kind": "camera",
                     "text": "CAMERA PAUSED: the overhead picture is frozen - robots stop (stale). Check the phone"}]
         if (cal or {}).get("state") == "suspect":
+            why = (cal.get("why") or "floor tags moved").replace("; last pose kept", "")   # said once, below
             cam.append({"robot": None, "team": None, "level": "warn", "kind": "calibration",
-                        "text": f"CALIBRATION UNVERIFIED: {cal.get('why') or 'floor tags moved'} - last camera pose kept;"
+                        "text": f"CALIBRATION UNVERIFIED: {why} - last camera pose kept;"
                                 " eye.recalibrate when idle if it persists"})
         auto = self.auto.json(now) if self.auto else None
         auto_b = [{"robot": self.auto.rid, "team": self.cfg[self.auto.rid].team, "kind": "autoplay", **self.auto.banner}] \
