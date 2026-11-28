@@ -2375,6 +2375,7 @@ def main(argv=None) -> None:
     ap.add_argument("--host", default="127.0.0.1", help="default loopback only; a LAN IP serves the UI to other devices (POSTs must come from that same address)")
     ap.add_argument("--video", default=None, help="camera source: video file, image folder, or 'synthetic'")
     ap.add_argument("--camera", default="phone", help="live camera name or index (fieldcam capture)")
+    ap.add_argument("--capture", choices=["child", "inproc"], default=None, help="live camera capture: child process (default) or inproc (the old in-process grabber; sets FC_CAPTURE)")
     ap.add_argument("--dry-run-ops", action="store_true", help="robot ops print their ssh command instead of running it")
     ap.add_argument("--no-link", action="store_true", help="camera source: compute commands but send nothing")
     ap.add_argument("--udp-host", action="append", type=_udp_arg, default=[], metavar="ID=ADDR",
@@ -2384,6 +2385,8 @@ def main(argv=None) -> None:
                     " params.json + defaults only; a mode switch passes the loaded one on)")
     argv = list(sys.argv[1:] if argv is None else argv)
     a = ap.parse_args(argv)
+    if a.capture:
+        os.environ["FC_CAPTURE"] = a.capture   # read by fc.eye.Eye
     app = App(a.source, a.robots.split(",") if a.robots else None, video=a.video, camera=a.camera,
               dry_run_ops=a.dry_run_ops, seed=a.seed, no_link=a.no_link, udp_hosts=dict(a.udp_host))
     preset = start_preset(a.preset, app.presets())

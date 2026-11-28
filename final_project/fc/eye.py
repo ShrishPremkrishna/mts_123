@@ -526,6 +526,9 @@ _HI_SEQ, _HI_OWNER, _HI_W, _HI_H = 0, 1, 2, 3        # int64 header: frames publ
 _HF_FRAME, _HF_CHANGED, _HF_SLOT0 = 0, 1, 2          # float64 header: monotonic t of the last frame / last change
 _HDR_BYTES = 256
 ROOT = Path(__file__).resolve().parent.parent       # final_project (for the child's imports)
+CAPTURE_ENV = "FC_CAPTURE"   # "child" (default) | "inproc" = the pre-Nov 28 in-process grabber (escape hatch; app --capture)
+PERMISSION_WORDS = ("not authorized", "not authorised", "permission", "denied", "tcc")
+PERMISSION_MSG = "camera permission denied in capture child: run with --capture inproc"
 
 
 def _cam_views(np, buf, w: int, h: int):
@@ -566,6 +569,9 @@ def find_device(source: str, lock: str | None = None, cameras: list[dict] | None
 
 def _open_device(dev: dict, w: int, h: int, fps: int):
     if "fake" in dev:
+        if FakeCamera.control(dev["fake"]).get("mode") == "denied":   # what OpenCV prints without camera access
+            print("OpenCV: not authorized to capture video (status 0), requesting...", file=sys.stderr, flush=True)
+            return None
         return FakeCamera(dev["fake"])
     cv2, _ = _fieldcam()
     target = dev["index"]
@@ -760,6 +766,11 @@ class LiveSource:
             elif st == "opening" and self.state != "ok":
                 self._why = f"opening {msg.get('device')}"
 
+    def _permission(self) -> bool:
+        """The child's stderr (OpenCV: "not authorized to capture video") or reason says macOS refused the camera."""
+        text = " ".join([self._why, *self._stderr]).lower()
+        return any(w in text for w in PERMISSION_WORDS)
+
     def _stall(self, now: float) -> str:
         if self._live:   # this child has delivered a moving picture: watch its frames
             gap, frozen = now - float(self._hf[_HF_FRAME]), now - float(self._hf[_HF_CHANGED])
@@ -771,6 +782,8 @@ class LiveSource:
         if int(self._hi[_HI_SEQ]) > self._seq_spawn and now - float(self._hf[_HF_CHANGED]) > CAM_FROZEN_S:
             return f"picture frozen for {now - float(self._hf[_HF_CHANGED]):.1f} s"   # frames, never a moving one
         if now - self._t_spawn > CAM_OPEN_S:
+            if self._permission():
+                return PERMISSION_MSG
             return f"no frame {CAM_OPEN_S:.0f} s after opening{f' ({self._why})' if self._why else ''}"
         return ""
 
@@ -815,7 +828,8 @@ class LiveSource:
                 code = p.poll()
                 if code is not None:
                     time.sleep(0.05)   # let the output reader catch the child's last words
-                    why = self._why or (self._stderr[-1] if self._stderr else "") or f"capture process ended ({code})"
+                    why = (PERMISSION_MSG if self._permission() else
+                           self._why or (self._stderr[-1] if self._stderr else "") or f"capture process ended ({code})")
                     self._end(p, why)
                 else:
                     why = self._stall(now)
@@ -859,7 +873,8 @@ class LiveSource:
     def health(self) -> dict:
         now = time.monotonic()
         p = self.proc
-        return {"state": self.state, "message": self.message, "device": self.device, "lock": self.lock_name,
+        return {"state": self.state, "capture": "child", "message": self.message, "device": self.device,
+                "lock": self.lock_name,
                 "size": [self.width, self.height], "camera_size": self.camera_size, "reconnects": self.reconnects,
                 "respawns": self.respawns, "last_reason": self.reason,
                 "down_s": round(now - self.t_down, 1) if self.t_down is not None else 0.0,
@@ -891,11 +906,37 @@ class LiveSource:
             pass
 
 
+class InprocSource:
+    """The pre-Nov 28 capture path, unchanged: fieldcam's FrameGrabber on a thread in this process (no respawn).
+    Escape hatch while the child capture has not met the real iPhone / macOS camera permission:
+    `fc.app --capture inproc` (or FC_CAPTURE=inproc)."""
+    latency = True
+
+    def __init__(self, source, width, height):
+        _fieldcam()
+        from fieldcam.capture import FrameGrabber
+        src = int(source) if str(source).isdigit() else source
+        self.g = FrameGrabber(src, width, height, 30, wait=20, say=lambda m: print("[eye]", m, flush=True))
+        self.width, self.height, self.n = self.g.width, self.g.height, -1
+
+    def read(self):
+        frame, receipt, self.n = self.g.read(self.n)
+        if frame is None:
+            return None, None
+        return frame, time.monotonic() - (time.time() - receipt)
+
+    def health(self) -> dict:
+        return {"state": self.g.status, "capture": "inproc", "reconnects": self.g.reconnects}
+
+    def close(self):
+        self.g.close()
+
+
 class FakeCamera:
     """Stand-in camera for tests and measurements: source "fake:<control.json>". The control file is read on every
     frame: {"mode": "ok" | "stall" (reads fail) | "freeze" (same picture) | "hang" (read blocks) | "absent"
     (not connected), "name": device name (default "Fake iPhone Camera"), "size": [w, h] (default 1920x1080),
-    "image": picture file (default a grey ramp), "fps": 30}. Sensor noise on every 8th pixel makes frames differ."""
+    "image": picture file (default a grey ramp), "fps": 30}; "denied" = macOS camera permission refused. Sensor noise on every 8th pixel makes frames differ."""
 
     def __init__(self, ctl: str):
         _, self.np = _fieldcam()
@@ -1064,14 +1105,18 @@ class Eye:
     def __init__(self, field: Field, robots: list[RobotCfg], params: dict, source="phone",
                  width: int = 1920, height: int = 1080, ball_color_path: Path | None = CONFIG / "ball_color.json",
                  robot_colors_path: Path | None = ROBOT_COLORS_PATH, cal_path: Path | None = EYE_CAL_PATH,
-                 robots_dir: Path | None = ROBOTS_DIR, robot_over: dict | None = None):
+                 robots_dir: Path | None = ROBOTS_DIR, robot_over: dict | None = None, capture: str | None = None):
         """robots_dir: per-robot override files (<id>.json; None = none). robot_over: {robot id: {knob: value}}
-        given by the caller instead of reading robots_dir (only ROBOT_MOUNT_KEYS are used here)."""
+        given by the caller instead of reading robots_dir (only ROBOT_MOUNT_KEYS are used here).
+        capture: live camera path, "child" (default) or "inproc"; None = $FC_CAPTURE or "child"."""
         cv2, np = _fieldcam()
         from fieldcam.config import load_config, set_field_size
         self.cv2, self.np = cv2, np
         self.field, self.robots, self.params = field, robots, params
         self.source_name = str(source)
+        self.capture = (capture or os.environ.get(CAPTURE_ENV) or "child").strip().lower()
+        if self.capture not in ("child", "inproc"):
+            raise ValueError(f"capture must be 'child' or 'inproc', got {self.capture!r}")
         cfg = load_config(None)
         self.synthetic = self.source_name == "synthetic"
         self.robots_dir = None if robot_over is not None or robots_dir is None else Path(robots_dir)
@@ -1228,7 +1273,7 @@ class Eye:
             return FolderSource(p)
         if p.is_file():
             return VideoSource(p)
-        return LiveSource(s, w, h)
+        return InprocSource(s, w, h) if self.capture == "inproc" else LiveSource(s, w, h)
 
     def _setup(self) -> None:
         import fieldcam.pipeline as pipeline

@@ -50,6 +50,9 @@ put back elsewhere gets its pose re-solved). The picture size stays the one the 
 another size of the same aspect is scaled; another aspect is refused), and a camera chosen as `phone` is locked to
 the device found first: a reconnect never takes another camera. `status.eye.camera` has state, device, reconnects,
 last reason. Cost: ~1.4 ms receipt -> eye (p50) and ~1.1 ms eye CPU per 1080p frame (fake camera, Nov 28).
+Not yet met the real iPhone / macOS camera permission: `fc/run.sh camera --capture inproc` (or `FC_CAPTURE=inproc`)
+restores the old in-process grabber. A refused permission shows `camera permission denied in capture child: run
+with --capture inproc`.
 
 Tag mount per robot: `eye_tag_height`, `eye_tag_offset_x`, `eye_yaw_offset_deg` in `config/robots/<id>.json` win
 over params.json (the default for a robot without its own value; blue's measured mount is in `robots/blue.json`).

@@ -211,3 +211,54 @@ def test_eye_default_cal_path_is_used_for_a_fake_live_camera_only_when_given(tmp
     """Guard for the tests above: a fake camera is a live source, so without cal_path it would write the
     site's config/eye_cal.json."""
     assert Eye(load_field(), [BLUE], {}, source="fake:/nonexistent.json").cal_path == eye_mod.EYE_CAL_PATH
+
+
+def test_permission_denied_in_the_child_says_to_use_inproc(tmp_path):
+    ctl = Ctl(tmp_path / "cam.json", size=[320, 180])
+    ctl.set("denied")
+    with pytest.raises(RuntimeError, match="camera permission denied in capture child: run with --capture inproc"):
+        LiveSource(ctl.source, 320, 180, wait=3, say=lambda m: None)
+
+
+def test_capture_inproc_restores_the_old_in_process_grabber(tmp_path, monkeypatch):
+    """Escape hatch: `fc.app --capture inproc` -> FC_CAPTURE=inproc -> the eye uses fieldcam's FrameGrabber in-process."""
+    import cv2
+    import numpy as np
+
+    from fc import app as fcapp
+    seen = {}
+
+    class Stop(Exception):
+        pass
+
+    def fake_app(*a, **k):
+        seen["env"] = os.environ.get("FC_CAPTURE")
+        raise Stop
+    monkeypatch.setenv("FC_CAPTURE", "child")
+    monkeypatch.setattr(fcapp, "App", fake_app)
+    with pytest.raises(Stop):
+        fcapp.main(["--source", "camera", "--capture", "inproc", "--no-link"])
+    assert seen["env"] == "inproc"
+    assert Eye(load_field(), [BLUE], {}, source="phone").capture == "inproc"            # from the environment
+    assert Eye(load_field(), [BLUE], {}, source="phone", capture="child").capture == "child"
+    monkeypatch.delenv("FC_CAPTURE")
+    assert Eye(load_field(), [BLUE], {}, source="phone").capture == "child"             # the default
+    with pytest.raises(ValueError):
+        Eye(load_field(), [BLUE], {}, source="phone", capture="thread")
+    # the in-process path really opens through fieldcam's FrameGrabber (a video stands in for the camera)
+    video = tmp_path / "v.avi"
+    wr = cv2.VideoWriter(str(video), cv2.VideoWriter_fourcc(*"MJPG"), 30, (320, 180))
+    for i in range(5):
+        wr.write(np.full((180, 320, 3), 40 * i, np.uint8))
+    wr.release()
+    e = Eye(load_field(), [BLUE], {}, source="phone", capture="inproc")
+    e.source_name, e.src_size = str(video), (320, 180)
+    monkeypatch.setattr(eye_mod.Path, "is_file", lambda p: False)   # route the video to the live-camera branch
+    monkeypatch.setattr(eye_mod.Path, "is_dir", lambda p: False)
+    src = e._open_source()
+    try:
+        assert isinstance(src, eye_mod.InprocSource) and type(src.g).__name__ == "FrameGrabber"
+        f, t = src.read()
+        assert f is not None and f.shape == (180, 320, 3) and src.health()["capture"] == "inproc"
+    finally:
+        src.close()
