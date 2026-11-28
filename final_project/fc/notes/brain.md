@@ -506,3 +506,20 @@ targets: bumps <= 1/min (only at a=0, at the cost of goals), both near the ball 
 changes <= 8. **The biggest goal lever is not the coach:** ~5.8 referee traps per 3 min (corner balls with one
 attacker: the fence-margin geometry limit, see Fences) cost >= 35 s of play; on the floor nobody nudges them.
 Floor check before a 2-robot game: a=0.75 means touches at walking pace between the ball player and the shadow.
+
+### Keeper lateral lag (2026-11-27, Nov 27 floor log + sim)
+
+Floor (`runs/20261128T071036Z-goalie`, play, max_vx 1.0): ball age 0.15 s (camera + eye; position is led by it);
+ballvel turns a shot into the right crossing in 0-2 frames; the guard target follows the crossing the same tick.
+The lag is the walk: on the line the keeper slides by forward/back walking, and **backward is clipped by the walker
+at 0.3** (-0.25..-0.75 commanded all walked 0.20-0.25 m/s; forward 0.75 walked ~0.5); 21% of guard ticks commanded
+< -0.3. The accel_vx 1.2 ramp took 0.5 s to the fast gait (0.6), then ~0.1-0.15 s walker lag. Conceded #3 needed
+0.45 m backward in 0.68 s; #6 started moving 0.6 s after the shot. The robot was seen through every on-target shot
+(blind stops were not a cause). Changes (TUNE): `max_vx_back` 0.3 (shape: the ramp state matches the walker, no
+phantom -0.75 to unwind on a reversal) and `gk_accel_vx` 2.5 (guard phase only: accel and braking).
+Sim, `--floor25 --preset play --set max_vx=1.0 wall_brake=0.5`, 24 x 3 min, same seeds, before -> after: human
+saves 58 -> 65%, conceded 7.0 -> 5.8 /3 min; vsH conceded dribbler 7.1 -> 6.8, dominant 14.3 -> 12.9; goalie 30/30,
+lat err 0.10 -> 0.09; return 23/29 both; solo 29/30 6.4 s both; 1v1 4.0 -> 3.9 goals (13 deadlocks: one match, an
+anti-ram standoff; 48 matches: one deadlocked match each). Floor-like gallery (scratch: sideways dribble, 40% hidden
+before the shot, 30% redirected, 0.8-1.8 m/s, 1200 paired shots): 88.3 -> 90.7% (55 better / 27 worse). Not
+cheap: the backward speed itself (walker `max_vx_backward`, fc/robot) and turning to face the threatened side.

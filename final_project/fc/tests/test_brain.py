@@ -163,6 +163,7 @@ def test_shape_rate_limits_and_stops_at_once():
     assert abs(c.vx - 0.3) < 1e-9  # clamped to max_vx
     assert shape(Cmd.stop("stale"), Cmd(0.3, 0.1, 0.8), 1 / 30, q) == Cmd.stop("stale")
     assert shape(Cmd(0.2, 0, 0), Cmd(), 0.1, {}).vx > 0  # missing keys fall back to DEFAULTS
+    assert abs(shape(Cmd(-1.0, 0, 0), Cmd(-0.29, 0, 0), 1.0, {**q, "max_vx": 1.0}).vx + TUNE["max_vx_back"]) < 1e-9
 
 
 def test_sent_resets_the_ramp():
@@ -250,6 +251,16 @@ def test_goalie_speed_cap():
     for cmd, d in run(b, lambda t: world(t, (gx, -0.15, math.pi / 2), (gx + 0.6, 0.5)), 30, q):
         assert d["phase"] == "guard" and cmd.vx <= 0.45 + 1e-9
     assert cmd.vx > 0.44  # k_goalie * 0.6 m wants 3.6 m/s
+
+
+def test_goalie_ramps_faster_on_its_line():
+    gx = -WF.length / 2 + FAST["goalie_dist"]
+    w = lambda t: world(t, (gx, -0.15, math.pi / 2), (gx + 0.6, 0.5))  # noqa: E731
+    q = {**FAST, "role_mode": "defend"}
+    fast = run(Brain(BLUE, WF), w, 5, q)
+    slow = run(Brain(BLUE, WF), w, 5, {**q, "gk_accel_vx": 0.0})
+    assert all(d["phase"] == "guard" for _, d in fast)
+    assert fast[-1][0].vx > slow[-1][0].vx + 0.1 and abs(slow[-1][0].vx - 5 * q["accel_vx"] / 30) < 1e-6
 
 
 def mworld(t, me, ball, bv=(0.0, 0.0)):

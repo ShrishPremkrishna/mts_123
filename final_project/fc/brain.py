@@ -59,6 +59,9 @@ TUNE = {
     "pose_stale_s": 1.0, "ball_stale_s": 1.0, "other_stale_s": 1.5, "ball_lead_max_s": 0.4,
     "blind_max_m": 1.0,     # own tag hidden: stop once the dead-reckoned walk since the last fix is this long (m)
     "accel_vy": 0.5, "fast_yaw_vx": 0.5,            # fast_yaw_bias_deg applies above this commanded vx
+    # the walker clips backward vx at its max_vx_backward 0.3 (Nov 27 keeper: -0.75 commanded walked ~0.21 m/s); a
+    # bigger ramp state only delayed reversals. Keeper on its line (guard): vx accel (and braking) limit
+    "max_vx_back": 0.3, "gk_accel_vx": 2.5,
     # steering gains (rad/s per rad, m/s per m) and the walker's gait switch: forward commands avoid (gait_lo, gait_hi)
     "k_turn": 1.0, "k_vy": 1.5, "gait_lo": 0.45, "gait_hi": 0.60, "gait_hold_s": 0.5,
     # near the ball: closing speed capped from max_vx at contact_slow_m (surface gap) down to contact_vx at touch
@@ -130,7 +133,7 @@ def to_body(pose: Pose, wx: float, wy: float) -> tuple[float, float]:
 
 
 def shape(cmd: Cmd, prev: Cmd, dt: float, params: dict) -> Cmd:
-    """The one output shaper: clamp to max_vx/vy/wz, then rate-limit each axis from `prev` (accel_vx/vy/wz per
+    """The one output shaper: clamp to max_vx/vy/wz (backward vx also to max_vx_back), then rate-limit each axis from `prev` (accel_vx/vy/wz per
     second; vx and wz toward zero at decel_vx / decel_wz if set). An all-zero command is a stop and passes at once.
     The caller keeps the returned Cmd as the next `prev`."""
     if cmd.vx == 0.0 and cmd.vy == 0.0 and cmd.wz == 0.0:
@@ -142,7 +145,7 @@ def shape(cmd: Cmd, prev: Cmd, dt: float, params: dict) -> Cmd:
         ax = q("decel_vx") * dt  # slowing down: the walker stops in ~0.4 s, so braking may be quicker
     if q("decel_wz") > 0 and prev.wz * (cmd.wz - prev.wz) < 0:
         aw = q("decel_wz") * dt
-    vx = clamp(cmd.vx, -q("max_vx"), q("max_vx"))
+    vx = clamp(cmd.vx, -min(q("max_vx"), q("max_vx_back")), q("max_vx"))
     vy = clamp(cmd.vy, -q("max_vy"), q("max_vy"))
     wz = clamp(cmd.wz, -q("max_wz"), q("max_wz"))
     return Cmd(prev.vx + clamp(vx - prev.vx, -ax, ax), prev.vy + clamp(vy - prev.vy, -ay, ay),
@@ -290,6 +293,8 @@ class Brain:
         if near:  # no rams, with or without a Coach task (the Coach gives {} on a stale tag or an unseen ball)
             want = self._opp_guard(pose, want, near, p, vel)
         want = self._occ_scale(want, pose_occ, p)
+        if dbg["phase"] == "guard" and p["gk_accel_vx"] > p["accel_vx"]:
+            p = {**p, "accel_vx": p["gk_accel_vx"], "decel_vx": max(p["decel_vx"], p["gk_accel_vx"])}
         cmd = self._smooth(want, dt, p, t)
         dbg.update(role=role, pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)],
                    ball=[round(B[0], 3), round(B[1], 3)], **info)
