@@ -32,7 +32,7 @@ What the show must prove: **nobody is driving** (hands visible), **glass box** (
 | Fence | Wall and corner balls: no tip; a trapped corner ball = referee touch | Larger `wall_margin_m` |
 | Solo show (1 robot) | Show flow W → K → goal → celebration → spots → 3-2-1 runs clean ×3 | Fix before robot 2 time |
 | Robot 2 G0 | Stops, step test, heading bias < 5° | Solo fallback below |
-| 1v1 | ≥ 2 goals in ≥ 3 of 5 90 s games; 0 falls; bumps at walking pace only | Solo fallback below |
+| 1v1 (at `max_vx` ≤ 1.0 until anti-ram is floor-checked) | ≥ 2 goals in ≥ 3 of 5 90 s games; 0 falls; bumps at walking pace only | Solo fallback below |
 
 **Fallback (decide Wed Dec 2, 8 pm; never upgrade on the day):** one robot plays the same show vs Shrish or the
 referee (keeper + dribble, `play` alone uses the vs-human rules), then the 1v1 as film.
