@@ -1,114 +1,76 @@
-# Pupper FC demo plan (Dec 3, 2026)
+# Pupper FC demo plan (Thu Dec 3, 2026)
 
-Updated Nov 25 (gate status only). Current state: [STATUS.md](STATUS.md). Floor steps: [RUNBOOK.md](RUNBOOK.md). Gate numbers are
-targets until measured on the floor. Wording on stage: the robot **shoots by running through the ball**. There is
-no leg kick in this demo (maybe a later iteration).
+Updated Nov 27 (exhibition plan replaces the staged Shootout → Keeper → Switch → Match gates). Current state:
+[STATUS.md](STATUS.md). Next floor session: [RUNBOOK.md](RUNBOOK.md). Numbers marked sim are targets until measured on
+the floor. On stage the robot **shoots by running through the ball**: no kick policy in this demo.
 
-## What the demo must prove
+## The vision: a 1v1 exhibition match
 
-1. **Nobody is driving.** Hands empty; one button on the laptop, then nobody touches it.
-2. **Glass box.** The Play screen shows what each robot sees, wants (target cross, path) and why (role, phase,
-   ticker). The audience can predict the next move.
-3. **It adapts.** A judge moves the ball; the robot re-plans (and, from stage 3, switches role by itself).
-4. **It fails safe, and we count our help.** Cover a tag: it stops within 0.5 s. A referee-touch counter stays on screen.
+Two Puppers play a short, watchable game. Nobody drives; the Play screen shows what each robot sees and why.
 
-Facts the script relies on: fast gait **0.75 m/s** commanded (preset `play`, walker speed cap 1.5 so the ladder
-0.9 / 1.0 runs live with `ctl set max_vx=`; ~0.73 m/s in sim; floor: 0.47 m in a 0.75 burst, gain 0.88, no falls), trot near the ball, shot = contact at speed
-(`contact_vx` 0.4 → 0.6 → 0.75, highest that passes). Field size measured by the camera calibration (field.json
-fallback 2.68 × 2.19 m), **1.22 m goal mouths**, 7 in (0.178 m) ball, fence on all sides. Safety: STOP (space), E-STOP over the link (Esc), gamepad R3, fallen-robot cutoff at 45°, gentle lie-down on `down`.
+1. **Warm-up (W)** while Shrish talks: each robot trots, circles, shuffles and spins at its kickoff spot (inside the
+   fence margin, away from the other). **W** again: both walk to their spots facing the field.
+2. **Kickoff (K)**: robots on the 25 % / 75 % lines, referee puts the ball on the centre spot, big **3-2-1**, play.
+3. **90 s match**, the Coach assigning tasks (one on the ball, the other shadows goal-side or keeps goal).
+4. **Goal**: the scorer spins on the spot; both walk back to their kickoff spots; referee re-spots the ball; 3-2-1.
+   **P** starts play if the flow waits on a misread ball or spot. **Space** stops everything at once.
+5. Full time: end card (score, time played, referee touches).
 
-## Stages and gates
+**Target: ≥ 2 goals per 90 s game.** Sim: 59 % of 90 s games reach 2 goals (Coach, `aggression` 0.75, fenced
+field; [notes/brain.md](notes/brain.md#1v1-coach-2026-11-27-sim-only)). The biggest lever is fewer corner traps, not
+the Coach. Setup: `ctl preset play`; show settings (90 s, spots, 3-2-1, spin) are plain params in `config/params.json`.
+Robots wear their AprilTags styled as jerseys (blue 10, red 11).
 
-Each stage is its own demo. Film the hero take the day a stage passes. Live variant = the highest stage whose gate
-holds in counted sets on Dec 1–2. Decide **Wed Dec 2, 8 pm**; never upgrade on the day.
+What the show must prove: **nobody is driving** (hands visible), **glass box** (target, path, task on screen),
+**it adapts** (ball moved → re-plan), **it fails safe** (cover a tag: it stops; referee touches counted on screen).
 
-| Stage | Pass (on the floor) | Target date | If not |
-|---|---|---|---|
-| G0 loop | Five stops pass; `step` `latency_s` ≤ 0.35; heading bias < 5° | Tue 24 (S1) | 0.35–0.55: set `act_lag_s`, lower `k_turn`, carry on. Above: a bug; fix first |
-| G-fast | 0.75 bursts ×6, no fall; real ball at contact 0.4 → 0.6 → 0.75, 0 falls in 10 | Wed 25 (S2) | Use the highest clean contact speed |
-| **1. Shootout** | Static ball, 3 spots: ≥ 8/10 goals, median ≤ 20 s | Wed 25 (S2) | Fix the top failure; no keeper work below 6/10 |
-| **2. Keeper** (vs human) | ≥ 7/10 hand-rolled shots saved; midfield → on the line ≤ 4 s | Wed 25 (S3) | Narrow to penalty saves |
-| **3. Switch** (solo, vs human) | Right role on ≥ 8/10 ball moves, moving within 1.5 s, ≤ 1 wrong flip/min; rolling-ball goal ≥ 6/10 | Fri 27 (S4) | Show Shootout and Keeper as two acts |
-| Robot 2 | In hand Wed 25; passes G0 by Sat 28 night | Sat 28 | Lock stage 3 or lower; stop robot-2 work |
-| **4. Match** (two robots) | Goal within 90 s in ≥ 4/5; 0 falls in 10 match-minutes | Sun 29 | Stage 3 live, match as film |
+## Gates (on the floor, counted)
 
-**Gate status (Nov 25, robot unless noted; details in [STATUS.md](STATUS.md)):**
-- G0: mostly met (Nov 24). Dead-man 0.32 s, link E-STOP and gentle lie-down confirmed; `latency_s` ≤ 0.14. Open: fast
-  gait walks ~8° right of slow, five-stop set not counted.
-- G-fast: partial. Fast gait stable at cap 0.8, 0 falls in 8 fast pushes (Nov 24); contact ladder not run.
-- 1. Shootout: close, not counted. `dribble` v3 3/3 (4.3–9.3 s) then 6/6 solo from anywhere (8.6–20.3 s); `athletic`
-  3/3, `fast-light` 3/3. Next: a counted 10-set from 3 spots with blob tracking staged.
-- 2. Keeper: 1 run Nov 24, 0 conceded. Camera save counting device-free only. Not gated yet.
-- 3. Switch: vs a human 0–3 (role flipping, occlusion); the vs-human rules (now part of `play`) sim only. Robot 2: not available.
+| Gate | Pass | If not |
+|---|---|---|
+| Speed | Highest clean step on the ladder 1.0 / 1.2 / 1.4 (1.5 optional): no fall, no stumble in bursts and arcs | Play at the last clean `max_vx` (0.75 is floor-proven) |
+| Fence | Wall and corner balls: no tip; a trapped corner ball = referee touch | Larger `wall_margin_m` |
+| Solo show (1 robot) | Show flow W → K → goal → celebration → spots → 3-2-1 runs clean ×3 | Fix before robot 2 time |
+| Robot 2 G0 | Stops, step test, heading bias < 5° | Solo fallback below |
+| 1v1 | ≥ 2 goals in ≥ 3 of 5 90 s games; 0 falls; bumps at walking pace only | Solo fallback below |
 
-Stage 3 uses the solo role rule (defend while the ball threatens our goal, attack otherwise) and the interception
-lead, both in the brain since `bc8e68a` and sim-only so far. Fallback: red's tag (id 11) on a box a human moves.
+**Fallback (decide Wed Dec 2, 8 pm; never upgrade on the day):** one robot plays the same show vs Shrish or the
+referee (keeper + dribble, `play` alone uses the vs-human rules), then the 1v1 as film.
 
-Calendar: Thu 26 sim retune, no floor. Sat 28 hardware freeze. Sun 29 feature freeze, film day. Mon 30 counted sets,
-timed run-throughs. Tue Dec 1 param freeze, 5 run-throughs, venue drill. Wed 2 video in by noon, rehearse ×5, no
-code, charge. Thu 3 two warm-up goals, demo. Between sessions build only the last session's top failure and the next
-gate's test. **Do not build:** leg kick, headbutt tuning, commentator, retraining, corner extraction, self-righting,
-more UI. (The show flow below, incl. a goal celebration, was approved by the owner Nov 27 and built in sim.)
+## Robot 2 (critical path)
 
-## Run of show (120 s each)
+Golden image: flash a microSD from mts's card ([PROVISION.md path A](robot/provision/PROVISION.md#path-a-clone-mts-fallback);
+it carries the OS changes and the v4 IMU driver symlink; PROVISION.md's earlier pick was the class card, path B). Then
+per robot:
 
-**1v1 exhibition show** (built Nov 27, **sim only**; preset `play`, keys on the Play screen, same as `fc.ctl show ...`):
+1. Identity: `provision.sh --fix-clone-identity pupper-red pi@<ip> red red 11` (hostname, machine-id, ssh keys,
+   Tailscale state, `~/fc-v1/run`; robot_id red, tag **11**).
+2. `robots.json` red entry (`host`, `udp_host`, `cam_url`), then `stage.sh` + `sha_check.sh`.
+3. A tag board in a **different colour** from blue's, then `ctl robotcal red` on the live camera.
+4. `fcctl.sh imu-level` on the stand (the bias is per chip; the clone's `imu_cal.json` is cleared with `run/`).
+5. Step test facing east and west (heading bias → `eye_yaw_offset_deg`), stops, then the solo show once.
 
-1. Before the slot: `ctl preset play` (the show settings are plain params: 90 s, 25/75 % spots, 3-2-1, spin
-   celebration; with both robots playing the Coach assigns their tasks), robots standing at opposite ends.
-2. **W** warm-up while Shrish talks: each robot trots in place, circles, shuffles and spins at its kickoff spot (inside
-   `wall_margin_m`, away from the other robot). **W** again: both walk to their spots facing the field.
-3. **K** kickoff: robots on the 25 % / 75 % lines; referee puts the ball on the centre spot; big **3-2-1**, play.
-4. Goal: the scorer spins 2 s on the spot (steps inside the fence margin first), the other walks slowly to its spot,
-   then both walk to the spots; referee puts the ball at the centre; 3-2-1; play. **P** = start now (override) if the
-   flow waits on a misread ball or spot.
-5. Full time at 90 s: end card (score, time played, touches). **Space** stops anything at once.
+## Who does what
 
-People: **Shrish** talks, hands free. **Referee** has the ball, a stick and the gamepad (R3). **Operator** at the
-laptop (space, Esc). Robots homed, standing, bridge up, health green *before* the slot. Every variant opens and closes the same way:
+- **Shrish (owner)**: robot 2, the video (due Dec 2), the stage script, the router (campus Wi-Fi RTT p95 ~200–250 ms),
+  the UI pass, rigid jersey tags, balls, room access.
+- **Operator** at the laptop (space, Esc). **Referee**: ball, stick, gamepad R3. Robots homed, standing, health green
+  before the slot.
 
-- **0:00–0:10** Operator presses Play. "One laptop, an overhead camera, nobody driving. My hands are empty."
-- **1:45–2:00** Operator hits space. End card: 3 measured numbers (attempts as well as goals), repo QR. "Same
-  brain runs the sim and the robot: a few hundred lines of Python on the stock walking policy. I'm Shrish. Thanks."
+## Calendar
 
-| Time | 1. Shootout | 2. Keeper | 3. Switch | 4. Match |
-|---|---|---|---|---|
-| 0:10–0:40 | Ball at a marked spot. Robot runs behind it and shoots through it. "The camera finds robot and ball 30 times a second; that cross is where it wants to be." | Robot on its line. Referee rolls a shot; robot crabs across and blocks. "It projects the ball's path to the goal line." | Human rolls at our goal: robot defends. Ball rests: robot attacks. "Nobody picks its job. It reads the ball." | Play from start spots. Blue attacks, red defends. "Each robot estimates who reaches the ball first. Watch the labels." |
-| 0:40–1:10 | Judge places the ball anywhere, including the wrong side. Robot orbits and scores. | Two more shots, one from a judge. Score the saves on screen. | Judge rolls and places the ball. Role chips flip on screen. | Judge moves the ball mid-play. Roles flip. |
-| 1:10–1:25 | Card over the robot's tag 2 s. Banner: "can't see itself, stopped." Remove; it carries on. | same | same | same, on the attacker |
-| 1:25–1:45 | Numbers line: "This week: N of M goals, median T s. Sim with our measured lag predicted P." Referee touch if a ball sticks. | Same line with saves. | Same line with role accuracy. | Play to goal 2 or a wall ball; referee touch, counter +1. |
-
-Rules: no goal by 0:40, move on anyway. Behind time, cut the tag cover first. Stop at 1:55 whatever happens.
+Next floor session: [RUNBOOK](RUNBOOK.md). Robot 2 G0 by Sat 28 night (Nov 23 target). Sun 29 feature freeze, film
+day. Mon 30 counted games. Tue Dec 1 param freeze, 5 run-throughs, venue drill (setup ≤ 8 min). Wed 2 video in,
+rehearse ×5, no code, charge. Thu 3 two warm-up goals, demo. **Do not build:** kick policy, commentator, retraining, self-righting.
 
 ## Failures on stage
 
 | Event | Action | Line |
 |---|---|---|
-| Fall | The fallen cutoff drops it (or referee R3). Lift it out; other robot plays on, else drop a stage or play film. Re-arm with Ready only if rehearsed. | "No get-up yet. It cut its own motors." |
-| `imu_bad` / tracking lost | App has already zeroed it. Wait 3 s hands off; referee checks the tag for shadow or tilt. | "It lost sight of itself, so it stopped." |
-| Ball stuck in a corner or robots tangled | Referee stick, counter +1, announced as a rule. | "Referee touch, that's one." |
-| App crash | Bridge stops the robot within 0.25 s. One scripted relaunch (< 10 s), else film. | "Laptop goes quiet, robot stops. You just saw it." |
-| E-STOP not confirmed | R3. | — |
+| Fall | Fallen cutoff drops it (or R3). Lift it out; play on solo or show film | "No get-up yet. It cut its own motors." |
+| `imu_bad` / tracking lost | App already zeroed it. Wait 3 s, referee checks the tag | "It lost sight of itself, so it stopped." |
+| Ball stuck in a corner / robots tangled | Referee stick, counter +1 | "Referee touch, that's one." |
+| App crash | Bridge stops the robot within 0.25 s; one relaunch (< 10 s), else film | "Laptop goes quiet, robot stops." |
+| E-STOP not confirmed | R3 | — |
 
-Never debug on stage. Never press Play twice to hide a fault. Keep one key each to drop a robot and to play the film.
-
-## Video (due Dec 2 noon, ≤ 2:50, real speed, sim labelled)
-
-Uncut autonomous goal with hands visible; the same clip beside the Play screen; ball moved, robot re-plans; keeper
-saves; role switch; safety (tag cover, laptop killed); sim and real side by side; results card with attempts; one
-failure and the limit it shows. Record every session: fixed wide phone plus screen capture.
-
-## Owner to-do (Shrish)
-
-- [ ] **Staff, by Wed 25 evening** (last day reachable): robot 2 (Wed 25 → Dec 3, or fixed checkout slots; ours
-      installs into `~/fc-v1` only) and a replacement BNO085 IMU or control board for `mts`.
-- [ ] If robot 2 comes: collect it and a second DualSense; run `provision.sh --check` (no motion) while help exists ([PROVISION.md](robot/provision/PROVISION.md)).
-- [ ] **Tags (top failure)**: rigid, flat robot tags **≥ 15 cm** ×2 (blue 10, red 11), same mount. Blue's new rigid mount
-      is measured (0.267 m high, 0.02 m behind centre, in params.json); red still needs one.
-- [ ] Ask for **Coda access Nov 26–29** and whether the field may stay up. Confirm demo room, projector input, slot, Wi-Fi.
-- [ ] **Balls**: new 7 in purple ball in field.json (radius 0.089 m). Get 2–3 more identical ones, **≤ 150 g**; weigh them,
-      run `ctl ballcal` and `ctl rollcal` with them.
-- [ ] **Fence**: foam board or 1×4s, ≤ 12 cm high, ~7 m, **corners cut at 45°**. Required: the sim assumes walls.
-- [ ] **Goals**: mouths 1.22 m (in `config/field.json`).
-- [ ] Keep people off the field during runs; use a fixed camera feed (the phone feed froze once).
-- [ ] Cold setup drill at the venue ≤ 8 min (own router, camera boom, corner tags).
+Never debug on stage. Never press Play twice to hide a fault.

@@ -1,48 +1,33 @@
-# Floor session runbook (fc v1.1, one robot: blue = `mts`)
+# Floor session runbook (one robot: blue = `mts`; current checklist, Nov 27)
 
-Every step runs from the UI (home `/` → Play for setup, match `/play`, tests `/ops`). Each run saves `fc/runs/<UTC>-<test>/`. Stop at the
-first failed step and fix it. Keep sessions under 10 minutes and let the Pi cool between them.
+Run steps from the UI (home `/`, Play `/play`, tests `/ops`) or `python -m fc.ctl`; each run saves
+`fc/runs/<UTC>-<test>/`. Stop at the first failed step and fix it. Sessions ≤ 10 min, let the Pi cool between them.
+Two presets: **`slow`** (0.15 m/s) and **`play`** (max_vx 0.75; its `_stack` makes Ready pass `--speed-cap 1.50`).
+Other speeds: `ctl set max_vx=…`; back with `ctl preset play`.
 
-**Three stops, know them before you start.**
-- **STOP (space)**: zero speed to every robot. It stands still, legs stay on. Only while the UI tab has focus.
-- **E-STOP (Esc, or the striped button; per robot on its card)**: signed e-stop burst. The bridge does the R3
-  action: legs off, the robot **drops** (damped), and stays latched until **Ready** re-arms it (the light says
-  `E-STOPPED · re-arm = Ready`; nothing clears it by itself). "NOT CONFIRMED by the robot" = use R3.
-- **R3 on the gamepad**: the same drop, and the only stop if the laptop, link or mux is gone.
+**Stops** (know them first). **Space** = zero speed, legs on (UI tab focused). **Esc / E-STOP** = signed burst, legs
+off, damped drop, latched until **Ready** ("NOT CONFIRMED" → R3). **Gamepad R3** = the same drop, works with no
+laptop or link. The bridge also drops a robot tilted past 45°. `down` lowers it gently; STILL STANDING → R3 or
+support it, never `down --force`. Pi-side details: [robot/README.md](robot/README.md).
 
-The bridge also drops a robot that tilts past 45° (fallen cutoff); the card then says "E-STOPPED by the robot".
-`down` lowers the robot to its belly under position control (stock gentle lie-down; robot-verified Nov 24; u6
-still drops) and stops the stack. E-STOP or R3 during the lowering aborts it
-(legs off: a damped drop from part-way down). If it reports **STILL STANDING**, use R3 or support
-the robot; never `down --force`.
+## Checklist
 
-## Setup
-- [ ] Battery charged, stand ready, gamepad paired, R3 within reach, soft mat for the e-stop step.
-- [ ] Robot tag fitted, corner tags 0-3 down, iPhone Center Stage off.
-- [ ] Code and key on the Pi: **stage** on the robot card (`python -m fc.robot.keygen` once, if no key).
-- [ ] `ssh mts hostname -I`, then `fc/run.sh camera --robots blue --udp-host blue=<LAN IP>`.
-- [ ] Robot card: auth ok, RTT p95 < 20 ms, loss 0. Field: calib < 1.5 px, eye ≥ 15 fps, yaw ≈ 0° facing east;
-      `ctl status` shows the field size from the camera.
-- [ ] New ball or light: `python -m fc.ctl ballcal` (ball in view). New ball: `python -m fc.ctl rollcal --apply`, then
-      copy the value into `config/params.json` `ball_decel` (the live setting is lost on restart).
-
-## Steps
 | # | Action | Pass | If it fails |
 |---|---|---|---|
-| 1 | Preset **slow**. Robot on the stand: **Ready** (homes). Move it to the floor: **Ready** again (stands, bridge up) | Light says `ready`; **status** shows `speed_cap` 0.49 and `heading_hold` on | Copy the op output. Another profile running: **down** first |
-| 2 | `/ops` **Drive** (WASD/QE) slowly for 1 min | Follows keys, no drift, IMU ok, Pi < 75 °C | IMU BAD: the app already zeroed it; R3 |
-| 3 | Every stop, robot low over the mat: space; Ctrl-C the app (restart it); gamepad stick; R3; **E-STOP** (Esc) | Space and app killed: still < 0.5 s. Stick wins. R3 and E-STOP: a damped drop, card `E-STOPPED` (confirmed), Drive refused | Note which stop failed and end the session |
-| 4 | Re-arm with **Ready** (stands it up again). Then **Deadman** | E-STOP clears only after Ready; `stop_time_s` ≤ 0.5 | E-STOP still latched: read the Ready output |
-| 5 | **Step** at Base (**Base** button): fwd 0.1 / 0.2 / 0.3, turn ±0.5, east and west | `latency_s` < 0.35, `gain_lin` within ±10 %, `\|heading_bias_deg\|` < 5 | Copy gains/lag into `sim_*` and rerun Sim eval |
-| 6 | Preset **play**, **down**, **Ready** on the stand, **Ready** on the floor (passes `--speed-cap 1.5`). Step fwd 0.4 and 0.75 | **status** shows `speed_cap` 1.5; no "max_vx > robot speed cap" warning; gain at 0.75 recorded | Warning stays: the stack runs the old cap; down + Ready again |
-| 7 | **Push ball** ×5 with preset **slow**, then ×5 with **play** (light ball) | Goals ≤ 30 s (slow: ≤ 40 s), no tip | Note failing run names |
-| 8 | **down** | Robot lies down, stack stops | STILL STANDING: R3 or support it |
+| 1 | Swap the battery, power-cycle the Pi (clears a stuck I2C bus). Tags on, corner tags down, mat and stand ready | `ssh mts hostname -I` answers | No answer: check the power, wait 1 min |
+| 2 | `bash fc/robot/stage.sh mts && bash fc/robot/sha_check.sh mts` (robot files since 1b2b879 are not on the Pi) | `MATCH` | Read the diff; restage |
+| 3 | Restart the app: `fc/run.sh camera --robots blue --udp-host blue=<LAN IP>` | Card: auth ok, RTT p95 < 20 ms (LAN), loss 0; calib < 1.5 px, eye ≥ 15 fps | Wrong IP: update `robots.json` |
+| 4 | Preset **play**. Robot on the stand: **Ready** (homes, `--speed-cap 1.50`). Floor: **Ready** again | `status`: `speed_cap` 1.5. Ready fails `imu` (exit 5) = at-rest tilt > 6° | Robot is left standing: **down**, then step 5 on the stand |
+| 5 | `ssh mts bash ~/fc-v1/robot/fcctl.sh imu-level check` (and `show`) | Standing 2–4° (< 2° homed on the stand); `status.imu_cal` stored = applied. Then delete `~/fc-v1/robot/imu_params.json` if present (default 10/6° guards from the next bridge start) | Robot level on the stand, legs off: `fcctl.sh imu-level`, then re-home |
+| 6 | **Speed ladder**, open floor: `ctl set max_vx=1.0 wall_brake=0.5`, Step fwd 1.0 + 2 s bursts and arcs; then 1.2, 1.4 (1.5 optional) | No fall or stumble; record gain and `latency_s` per step | Stop the ladder; keep the last clean `max_vx` |
+| 7 | **Solo dribble** (Push ball) at the best clean speed: 3 open, 3 wall, 2 corner balls | Goals; no fence contact or tip; trapped corner = referee touch | Note the run; fall back one ladder step |
+| 8 | **Goalie** vs Shrish: rolled shots and dribbles at goal | Keeper shuffles mid-mouth, shifts toward the ball; count saves | Note shots and positions |
+| 9 | **Show flow**: **W** (warm-up), **W** (to spot), **K** (3-2-1), score, celebration, back to spots, 3-2-1 | Every phase runs; robot stays inside the fence margin | **P** to start; note the stuck phase |
+| 10 | **Autoplay**: `ctl test autoplay minutes=3`, watched from afar | Goals each cycle, no tip | Note the cycle |
+| 11 | **vs-human**: `play` alone vs Shrish, 3 min | Goals for / against; is the defence better than Nov 27? | Note what beat it |
+| 12 | POV feed on Play; RTT p95 on the card during play | Feed live; RTT p95 (campus Wi-Fi was ~200–250 ms → use Shrish's router) | `ctl ready --pov off` |
+| 13 | **down** | Lies down, stack stops | STILL STANDING: R3 |
 
-**Speed ladder** (after step 7 passes): `ctl set max_vx=0.9 wall_brake=0.5`, 2 s bursts and arcs, then push ×5; then
-`max_vx=1.0`. Back with `ctl preset play`.
-
-**A/B heading hold:** a preset with `_stack: {"heading_hold": "off"}` (the old `stock-hh-off` / `u6-hh-off`, git
-history) passes `--heading-hold off`; down + Ready, repeat 5 and 7.
-
-**Record each step:** run folder names, pass/fail, and what the summary misses (sounds, stumbles, how the drop
-looked). Each run's `params.json` records the preset, its `_stack`, the running profile and stack options.
+**Record each step:** run folder names, pass/fail, and what the summary misses (sounds, stumbles, fence touches).
+Each run's `params.json` holds the preset, `_stack`, the running profile and stack options. After the session,
+update [STATUS.md](STATUS.md) with what changed.

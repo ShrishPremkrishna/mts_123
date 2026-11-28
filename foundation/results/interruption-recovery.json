@@ -1,10 +1,10 @@
 {
   "schema": "pupper_current_session_v2",
-  "objective": "Dec 3 demo: Pupper FC on fc/ (lean v1). Staged plan Shootout -> Keeper (vs human) -> Solo switching -> Two-robot match, each its own demo, gated on the floor (final_project/fc/DEMO.md). Shot = running through the ball at speed; no leg kick in this demo.",
+  "objective": "Dec 3 demo: Pupper FC on final_project/fc/ (lean v1). A 1v1 exhibition match (warm-up, 3-2-1 kickoff, 90 s, goal celebration, >= 2 goals per game) with a one-robot show as fallback (final_project/fc/DEMO.md). Shot = running through the ball at speed; no kick policy.",
   "worktree": "/Users/shrish/workspace/cs123",
   "branch": "fc-v1",
   "mode": "fc_v1_floor_testing",
-  "updated_utc": "2026-11-25T11:30:00+00:00",
+  "updated_utc": "2026-11-28T07:30:00+00:00",
   "current_report": "final_project/fc/STATUS.md",
   "historical_recovery": {
     "path": "foundation/results/history/interruption-recovery-20261116-before-movement-release.json",
@@ -21,7 +21,9 @@
     "fc_imu_rca": "final_project/fc/notes/rca-20261124-shaking.md",
     "fc_imu_filter": "final_project/fc/notes/imu-filter.md",
     "fc_brain_notes": "final_project/fc/notes/brain.md",
-    "fc_gyro_notes": "final_project/fc/notes/gyro.md"
+    "fc_gyro_notes": "final_project/fc/notes/gyro.md",
+    "fc_imu_tilt_rca": "final_project/fc/notes/rca-20261127-tilt.md",
+    "fc_1v1_design": "final_project/fc/notes/1v1-design.md"
   },
   "environment": {
     "python": ".venv-fc/bin/python",
@@ -43,13 +45,13 @@
       "physical_robot": "Shrish, in person: operator for every floor session; owner of robot 2, balls, fence, goals, tags, room access.",
       "software": "Claude main session as overseer; focused subagents with disjoint file ownership per task."
     },
-    "goal_status": "S2 floor session Nov 25 on mts (robot): purple ball ballcal (HSV 150-162) + rollcal ball_decel 0.149; field 3.03-3.06 x 2.46-2.54 m from camera, 1.22 m goals; athletic 3/3 (10.7-16.1 s, one IMU hang), fast-light 3/3 (12.6-14.8 s); control and fast-side rejected; dribble v3 3/3 (4.3-9.3 s) then 6/6 solo goals from anywhere (8.6-20.3 s); vs human 0-3. I2C bus hang froze the IMU mid-walk -> touchscreen overlays disabled on mts, healthy since; IMU driver v3 installed, not yet run with the stack. Since (device-free/sim, not on robot): blue-board blob tracking, gyro yaw rate for heading between tags, vs-human preset, autoplay, robot POV feed, merged UI. Detail: final_project/fc/STATUS.md.",
+    "goal_status": "Nov 27 floor on mts (fenced 3.36 x 2.70 m, robot): false ~10 deg IMU tilt = accel X bias +3.05 m/s^2 (RCA); IMU driver v4 + fcctl imu-level installed, 0.26 deg level on the stand; robot walked into the fence on a corner ball and tipped (before the fence fix); vs a human: defence weak, play too slow. Since (sim/device-free only, not on the floor): fence margin + bank shots (sim would-tip 228 -> 2), keeper redesign, long shot, 1v1 Coach in the app loop (bumps 6.1 -> 4.1/min), show flow (W warm-up, K 3-2-1, 90 s, spin celebration), two presets slow/play (c68af93). Detail: final_project/fc/STATUS.md.",
     "pending_archives": [],
     "processes": "none"
   },
   "hardware_session": {
-    "status": "Nov 25 S2 on mts (stock profile, lean stack): see fc/STATUS.md. Operator-approved Pi changes (pciex1 off, GUI off, fan curve, IMU driver v3 symlink, touchscreen dtoverlays off for I2C) with undo in fc/robot/README.md. Robot files from e70fa1c NOT staged (Pi offline at commit). Not a live check: run fcctl status and restage before the next session.",
-    "observed_utc": "2026-11-25",
+    "status": "Nov 27 on mts (stock profile): IMU driver v4 symlinked (sha f849f254...), run/imu_cal.json written, imu-level 0.26 deg. Robot files since 1b2b879 (speed caps 1.5) NOT staged. Operator-approved Pi changes and undo in final_project/fc/robot/README.md. Not a live check: restage and run fcctl status before the next session.",
+    "observed_utc": "2026-11-27",
     "ssh": "mts",
     "pi_install": "~/fc-v1 only",
     "teammate_experiment": "/home/pi/kick preserved; do not modify or name-kill its processes"
@@ -81,54 +83,35 @@
   },
   "next": [
     {
-      "id": "stage",
-      "action": "cd final_project && bash fc/robot/stage.sh mts && bash fc/robot/sha_check.sh mts (robot files from e70fa1c not yet staged; Pi was offline)."
+      "id": "floor_checklist",
+      "action": "Next floor session = final_project/fc/RUNBOOK.md checklist: battery swap + power cycle, stage.sh + sha_check.sh, app restart, Ready with play (--speed-cap 1.50), imu-level check, speed ladder 1.0/1.2/1.4 (ctl set max_vx=...), solo dribble incl. wall/corner balls, goalie vs owner, show flow, autoplay, vs-human, POV + RTT."
     },
     {
-      "id": "rehome_imu_v3",
-      "action": "Re-home on the stand: first run of IMU driver v3 with the stack; check robot.log for FC_IMU_FILTER and stall handling."
+      "id": "robot2_golden_image",
+      "action": "Robot 2 (critical path, final_project/fc/DEMO.md): flash SD from mts, provision.sh --fix-clone-identity (hostname, robot_id red, tag 11), robots.json entry, different board colour + ctl robotcal red, fcctl imu-level, step test."
     },
     {
-      "id": "robotcal",
-      "action": "python -m fc.ctl robotcal blue on the live camera (board colour for blob tracking)."
+      "id": "owner",
+      "action": "Shrish: robot 2, video (Dec 2), stage script, own router (campus Wi-Fi RTT p95 ~200-250 ms), UI pass, jersey-styled tags, replacement IMU/control board for mts."
     },
     {
-      "id": "dribble_blob",
-      "action": "Dribble pushes with blob tracking + gyro heading; expect far fewer stale stops (log goals, time, stale stops)."
-    },
-    {
-      "id": "autoplay",
-      "action": "Autoplay (ctl test autoplay), watched from afar."
-    },
-    {
-      "id": "vs_human_2",
-      "action": "vs-human round 2: A/B hard_roles on vs off."
-    },
-    {
-      "id": "pov_rtt",
-      "action": "POV feed check on Play; measure link RTT during play."
-    },
-    {
-      "id": "owner_asks",
-      "action": "Shrish: own travel router (campus Wi-Fi RTT p95 ~200-250 ms idle), fan, robot 2, replacement IMU/control board ask, field fence with 45 deg corners."
-    },
-    {
-      "id": "staged_plan",
-      "action": "Follow fc/DEMO.md gates: Shootout (>= 8/10, median <= 20 s), Keeper, Switch (Fri 27), robot 2 G0 by Sat 28, Match (Sun 29)."
+      "id": "decide",
+      "action": "Wed Dec 2 8 pm: 1v1 live if its gates hold (DEMO.md), else the one-robot show + 1v1 film."
     }
   ],
   "legacy_branches": [
     "pupper-foundation"
   ],
-  "context_review_date": "2026-11-25",
+  "context_review_date": "2026-11-27",
   "alignment": {
     "confirmed_2026_11_23": "Staged plan Shootout -> Keeper -> Switch -> Match adopted with its gates and dates (advisor reconciliation). Shot = hitting the ball at speed; leg kick maybe a later iteration. Goals widened to 1.0 m (now 1.22 m in field.json, Nov 24). Owner is getting light balls, a fence with 45 deg corners and rigid tags.",
-    "do_not_build": "leg-kick integration, headbutt tuning, commentator, retraining, corner extraction, self-righting, celebrations, more UI."
+    "do_not_build": "kick policy, commentator, retraining, self-righting.",
+    "confirmed_2026_11_27": "Owner approved the exhibition show flow (warm-up, 3-2-1, 90 s, goal celebration) and the simplification to two presets (slow, play). Supersedes the staged Shootout -> Keeper -> Switch -> Match gates."
   },
   "verified_commands": {
     "status": "python3 foundation/scripts/session_status.py",
     "fc_tests": "cd final_project && ../.venv-fc/bin/python -m pytest -q fc/tests fc/robot/tests",
     "fc_sim_app": "cd final_project && fc/run.sh",
-    "fc_sim_eval": "cd final_project && python -m fc.sim_eval --preset base fast-play"
+    "fc_sim_eval": "cd final_project && python -m fc.sim_eval --preset slow play"
   }
 }

@@ -1,79 +1,60 @@
 # Pupper FC status
 
-**As of Fri Nov 27, 2026 (S2 floor session Nov 25 + software since).** Update this page when a capability changes.
-Plan and gates: [DEMO.md](DEMO.md). Floor steps: [RUNBOOK.md](RUNBOOK.md). Contract: [SPEC.md](SPEC.md). App usage:
-[README.md](README.md). Pi side: [robot/README.md](robot/README.md). Design notes: [notes/](notes/).
+**As of Fri Nov 27, 2026, late (floor session Nov 27 + sim work after it).** Update this page when a capability changes.
+Plan: [DEMO.md](DEMO.md). Next floor session: [RUNBOOK.md](RUNBOOK.md). Contract: [SPEC.md](SPEC.md). App usage:
+[README.md](README.md). Pi side: [robot/README.md](robot/README.md). Design notes and sim tables: [notes/](notes/).
 
 Labels: **robot** = observed on the physical robot; **device-free** = automated tests, replays of logged runs or a
 Pi/Docker run with no motion; **sim** = our kinematic sim (`fc.sim_eval`) or MuJoCo. Run IDs are `fc/runs/2026112xT<id>`.
 
-## Nov 25 floor session (robot `mts`, purple ball) — robot
+## Floor history — robot (`mts`, purple ball)
 
-| Result | Value |
+| Day | Result |
 |---|---|
-| Calibration | `ballcal` purple ball HSV hue 150–162 (`config/ball_color.json`); `rollcal` `ball_decel` **0.149** from 6 rolls (in params.json); field from camera 3.03–3.06 × 2.46–2.54 m, goal mouths 1.22 m |
-| `athletic` | 3/3 goals (10.7–16.1 s); one IMU hang (below) |
-| `fast-light` | 3/3 goals (12.6–14.8 s) |
-| Rejected | `control` preset: timeout, 12 wz reversals. `fast-side` (6 cm off-centre push): slow, 26–31 s (preset names here are the Nov 25 ones, since removed: git history) |
-| **`dribble` (v3)** | 3/3 goals in 4.3, 7.4, 9.3 s, then **6/6 solo goals from anywhere** (8.6–20.3 s) |
-| vs a human | 0–3: role flipping and own-tag/ball occlusion |
-| IMU / I2C | I2C bus stuck (SDA low) froze the IMU mid-walk; bridge lay down. Touchscreen overlays disabled on mts ([robot/README.md](robot/README.md#i2c-bus-change-on-mts-2026-11-25-operator-approved)); healthy since. IMU driver v3 installed (symlink), **not yet run with the stack** |
-| Link | campus Wi-Fi RTT p95 ~200–250 ms with nothing streaming → own travel router recommended |
+| **Nov 27** (fenced field 3.36 × 2.70 m) | After service the IMU read a false ~10° tilt and the bridge lay the robot down (imu_tilt). Cause: accel **+3.05 m/s² bias on chip X**, a sensor fault, not the mount ([RCA](notes/rca-20261127-tilt.md)). Fixed with driver **v4** + `imu-level`: **0.26°** level on the stand. Ball colour and blue board (`robotcal blue`) recalibrated for the fenced field. On a corner ball the robot walked into the fence and **tipped** (fallen cutoff, 137°) — before the fence fix below. Playing vs a human: **defence weak, play not fast enough** (mean ~0.3 m/s) |
+| Nov 25 | `ballcal` hue 150–162, `rollcal` `ball_decel` 0.149, field from camera 3.03–3.06 × 2.46–2.54 m, mouths 1.22 m. Push brains 6/6 goals (10.7–16.1 s). **Dribble v3** (now the attack in `play`): 3/3 goals (4.3–9.3 s), then 6/6 solo from anywhere (8.6–20.3 s). vs a human 0–3 (role flipping, own-tag/ball occlusion). An I2C hang froze the IMU mid-walk; touchscreen overlays disabled ([robot/README.md](robot/README.md#i2c-bus-change-on-mts-2026-11-25-operator-approved)) |
+| Nov 24 | Homing 24–27 s, link E-STOP, dead-man 0.32 s, goto ×3 within 7 cm, `latency_s` ≤ 0.14, fast gait ~8° right of slow, 0 falls in 8 pushes at cap 0.8. LAN UDP ~8 ms; campus Wi-Fi RTT p95 **~200–250 ms** idle → own router recommended |
 
-Dribble analysis (Fable, device-free on the logs): the remaining stop-and-go comes from stale-pose stops, caused by
-the robot's tag blurring in the fast gait; contact at ~0.23 m/s; best finishes released the ball 0.9–1.0 m out.
-
-**Nov 24 (S1, stock profile, robot):** homing 24–27 s, link E-STOP, dead-man 0.32 s, goto ×3 within 7 cm,
-`latency_s` ≤ 0.14, slow heading offset 180 + 7°, fast gait ~8° right of slow, 0 falls in 8 fast pushes; slow 5/13,
-`fast-light` 3/7 goals. LAN UDP ~8 ms (`robots.json` `udp_host` 10.5.6.112, DHCP may change). Heat: idle ~57 °C after
-operator-approved OS changes (undo in [robot/README.md](robot/README.md)). IMU background: [RCA](notes/rca-20261124-shaking.md), [filter](notes/imu-filter.md).
+Older preset names in those runs were removed Nov 27 (git history, [notes/brain.md](notes/brain.md#simplification-2026-11-27)).
+Dribble analysis (device-free, Nov 25 logs): stop-and-go came from stale-pose stops (tag blur in the fast gait).
 
 ## What works
 
 | Capability | Verified by |
 |---|---|
-| Homing, stand, lie-down, link E-STOP, dead-man, goto, fast gait at cap 0.8; push goals with `fast-light`, `athletic`, `dribble` (v3) | **robot** Nov 24–25 (above); fast gait also **sim** (MuJoCo 0.73 m/s, 0/8 falls) |
-| Top-speed caps up to 1.5 (Nov 27): `--speed-cap` 0.30–1.50, bridge `--max-vx` ≤ 1.5, `link.CEIL` vx 1.5, app `max_vx`/`push_vx` ≤ 1.5. Not yet floor-tested above 1.0 | **sim** (cmd 1.0/1.2/1.4/1.5 → 0.86/0.99/1.11/1.14 m/s, 0/24 falls nominal; harsh 0–3/24; [notes/fast-gait.md §6](notes/fast-gait.md)) + **device-free** |
-| Signed UDP link, 50 Hz bridge, 0.25 s dead-man, fallen cutoff 45°, E-STOP latched until Ready | **robot** (stops) + **device-free** |
-| IMU health hold; bridge auto lie-down + latch on a sustained bad IMU | **robot** (fired on the Nov 25 I2C hang) + **device-free** |
-| IMU accel calibration (rca-20261127-tilt): driver v4 `FC_IMU_CAL` bias + `fcctl.sh imu-level` + ready at-rest check | **device-free** + measured on mts (accel X +3.05 m/s², false 10°); v4 built, NOT installed; fcctl tests unrun |
-| IMU filter (`FC_IMU_FILTER`, default on in `stock.sh`); driver v3 stall guard (marker + re-init) + bridge short-stall hold (≤ 1 s stand and resume, longer lie down); `fcctl.sh i2c-recover` | v2 **robot** (stand 2.0–2.8°); v3 **device-free**, installed on mts, not yet run with the stack; i2c-recover untested on a hung bus |
-| Field from corner-tag calibration, `ctl ballcal`, `ctl rollcal --apply`, robust ball velocity (`fc/ballvel.py`) | **robot** Nov 25 (calibrations above) + **device-free** |
-| Play screen, `/ops` tests, match flow, run logs, presets with `_stack`, `fc.ctl` | **device-free** + **sim**, used on the **robot** |
-| CAMERA PAUSED (frozen feed → robots stale and stop); camera goalie save counting; predicted ball path overlay | **device-free** + sim |
-| Goalie, interception | **sim** only (goalie: 1 robot run Nov 24, 0 conceded) |
+| Homing, stand, gentle lie-down, link E-STOP, dead-man, goto; fast gait at cap 0.8; push and dribble-v3 goals | **robot** Nov 24–25; fast gait also **sim** (MuJoCo 0.73 m/s, 0/8 falls) |
+| Signed UDP link, 50 Hz bridge, 0.25 s dead-man, fallen cutoff 45° (fired Nov 27), E-STOP latched until Ready | **robot** + **device-free** |
+| IMU health hold; bridge auto lie-down + latch on a sustained bad IMU | **robot** (Nov 25 I2C hang, Nov 27 false tilt) + **device-free** |
+| **IMU driver v4** on mts (filter + v3 stall guard + accel bias from `~/fc-v1/run/imu_cal.json`); `fcctl.sh imu-level [check\|show]` | **robot** Nov 27 (0.26°); chip still degraded (gyro freezes during homing, RCA) |
+| `ready` refuses at-rest tilt > 6° (exit 5, robot left standing); `stage.sh` keeps `imu_params.json` | **device-free** (`test_imu_level.py`); fcctl Linux tests and the ready check not yet seen on the robot |
+| Field from corner tags, `ctl ballcal`, `ctl rollcal --apply`, `ctl robotcal`, robust ball velocity | **robot** Nov 25/27 + **device-free** |
+| Play screen, `/ops` tests, run logs, presets with `_stack`, `fc.ctl`, merged UI (`/`, `/play`, `/play-old`) | **device-free** + **sim**, used on the **robot** (setup button not yet watched on mts) |
+| CAMERA PAUSED on a frozen feed; goalie save counting; predicted ball path overlay | **device-free** + sim |
 
-## New since the floor session (not run on the robot yet)
+## Built since the Nov 27 floor session — sim only, not on the floor yet
 
-| Change | Verified by |
+| Change | Verified by (fenced 3.36 × 2.70 field unless noted) |
 |---|---|
-| **Board blob tracking**: tag not decoded (fast-gait blur) → the blue tag board near the last fix gives position (`RobotObs.src` "blob"). Colours in `config/robot_colors.json` (`ctl robotcal <robot>`; red has none → tag only). Offline replay of Nov 25 runs: fresh pose in fast-gait frames **3–6 % → 92–96 %**, position vs live tag median 1.4 cm (p90 2.8), 0 distractor blobs, +0.5 ms/frame | **device-free** (replay) |
-| **Gyro heading between tags**: bridge acks carry yaw rate `gz` (`drive_bridge.YawRate`); the eye integrates it across tag gaps (commands as fallback). Synthetic chain test: ~1–2.4° median over a 1 s gap vs ~21° from commands | **device-free** (synthetic); **not staged on mts** |
-| **Two presets (Nov 27 simplification)**: **`play`** = the demo brain: dribble v3, shuffling keeper, fence margin + bank shots (post-wall fix), long shot; alone vs a human also the contested-ball model, hard roles, dead reckoning through own-tag/ball occlusion (app `stale_stop_s` 1.6, owner-approved) and the wide-mouth keeper; with two robots tracked the **1v1 Coach** assigns tasks (possession, one on the ball, the other shadows goal-side / keeps goal, anti-ram guard, `aggression` 0.75). **The app loop now runs the Coach** (play / match, both robots playing). **`slow`** = the same brain at 0.15 m/s. Show settings (90 s, spots, celebration) are plain params. Sim parity with the old presets, 200 seeds: every single-robot row identical to `vs-human`; 1v1 vs `match` 4.8 vs 4.5 goals/3 min at 96 matches (perturbation spread ±0.2). Older presets (dribble, dribble-fast, match, vs-human, athletic, fast-light, ...) are in git history ([notes/brain.md](notes/brain.md#simplification-2026-11-27)) | **sim** + **device-free** (app wiring test); not run on the robot |
-| Speed ladder: `play` sets walker cap 1.5; `ctl set max_vx=0.9 wall_brake=0.5` reproduces the old `dribble-fast` (sim solo 92 % / 7.5 s vs 96 % / 8.1 s at 0.75, default field) | **sim** only; not floor-tested above 0.75 |
-| **Autoplay** (`ctl test autoplay minutes=N`, key A on Play): attack, score, dribble the ball back to centre, repeat; ball in a net → waits for a person to roll it out | **device-free** + **sim** (3 min, 4 goals in 4 cycles) |
-| **Robot POV feed**: 160×120 @ 5 fps (~1.3 % Pi CPU, 0.13 Mbit/s, measured on mts), shown on Play for real robots; starts with Ready (`pov=false` / `ctl ready --pov off` to skip) | **device-free**; not watched on Play with the robot |
-| **Merged UI**: operation registry (`/api/ops`, `fc.ctl ops`), new home `/` and `/play`, setup next-step button, `/play-old` fallback, safety fixes (fail-safe stop/e-stop, fresh-phase setup, confirmed mode switch) | **device-free** + **sim**; setup button not yet watched on mts (use `ctl ready --home` / `/play-old` until then) |
+| **Two presets** (c68af93): `play` (max_vx 0.75, walker cap 1.5 via `_stack`) and `slow` (same brain, 0.15 m/s). Show settings are plain params in `config/params.json`. Higher speeds: `ctl set max_vx=…` | **sim** parity, 200 seeds: single-robot rows identical to the old vs-human preset; 1v1 4.8 vs 4.5 goals/3 min ([tables](notes/brain.md#simplification-2026-11-27)) + **device-free** |
+| **Fence margin + bank shots** (`wall_margin_m` 0.28; wall balls banked off the fence) | **sim**: would-tip fence events **228 → 2**, runs with a tip 90 → 2 of 100 ([Fences](notes/brain.md#fences-2026-11-27-sim-only)) |
+| **Keeper redesign**: shuffles mid-mouth, shifts toward the ball from 2.2 m out | **sim**: vs-human shots saved 58 → 72 % (dribbler) |
+| **Long shot**: release at speed 0.4–1.0 m out, half turn, play on | **sim**: 54 of 98 solo goals are long shots |
+| **1v1 Coach** in the app loop (two robots tracked: possession, one on the ball, the other shadows / keeps goal, anti-ram) | **sim**: bumps **6.1 → 4.1/min** at half the closing speed (0.51 → 0.22 m/s); 4.0 goals/3 min; **59 %** of 90 s games reach 2 goals ([Coach](notes/brain.md#1v1-coach-2026-11-27-sim-only)) + **device-free** (app wiring) |
+| **Show flow**: warm-up **W**, kickoff **K** with a 3-2-1, 90 s match, scorer spin celebration, both back to the 25 / 75 % spots | **sim** + **device-free** |
+| Speed caps up to 1.5 (`--speed-cap` 0.30–1.50, bridge `--max-vx`, `link.CEIL`) | **sim** (cmd 1.0/1.2/1.4/1.5 → 0.86/0.99/1.11/1.14 m/s, 0/24 falls; [fast-gait §6](notes/fast-gait.md)) + **device-free**; floor only at 0.8 |
+| Board blob tracking (tag blurred → blue board near the last fix) | **device-free** replay: fresh pose in fast-gait frames 3–6 % → 92–96 %; board calibrated on the floor Nov 27, effect on stale stops not measured |
+| Gyro heading between tags (bridge acks carry `gz`) | **device-free** (synthetic: ~1–2° over a 1 s gap vs ~21° from commands) |
+| Autoplay (`ctl test autoplay`, key A) | **device-free** + **sim** (3 min, 4 goals) |
+| Robot POV feed on Play (160×120 @ 5 fps, ~1.3 % Pi CPU) | **device-free** (cost measured on mts); not watched on Play |
 
 ## Unverified
 
-- Everything in the table above on the live camera and robot; IMU v3 under the stack.
-- Contact ladder 0.4 / 0.6 / 0.75; goalie reaction time and save counting vs a hand count; interception.
-- Bridge short-stall hold on a real fault. Robot 2: not in hand ([PROVISION.md](robot/provision/PROVISION.md)).
-
-## Next session
-
-Robot files from `e70fa1c` are **not staged** (Pi was offline at commit time).
-
-1. `bash fc/robot/stage.sh mts` then `bash fc/robot/sha_check.sh mts`.
-2. Re-home on the stand (first run of IMU driver v3): check `robot.log` for `FC_IMU_FILTER` and stall handling.
-3. `ctl robotcal blue` on the live camera.
-4. Dribble pushes with blob tracking + gyro heading: expect far fewer stale stops.
-5. Autoplay, watched from afar.
-6. `play` vs a human (round 2), then a 2-robot Coach game if robot 2 is in hand.
-7. POV feed on Play; link RTT during play.
+- Everything in the table above on the live camera and robot; speed above 0.8; corner/wall balls after the fence fix.
+- Contact ladder; goalie reaction time and save counting vs a hand count.
+- Robot files since 1b2b879 (speed caps 1.5) are **not staged** on mts.
+- Robot 2: not in hand; plan in [DEMO.md](DEMO.md#robot-2-critical-path).
 
 ## Blockers (owner)
 
-Own travel router (campus Wi-Fi RTT); fan; robot 2; replacement IMU/control board; field fence (45° corners);
-red rigid tag ≥ 15 cm; more light balls matching the purple one; Coda access Nov 26–29.
+Own travel router (campus Wi-Fi RTT); robot 2; replacement IMU/control board for mts; red rigid tag ≥ 15 cm; more
+light balls matching the purple one; Coda access.

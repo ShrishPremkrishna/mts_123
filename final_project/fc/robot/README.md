@@ -9,15 +9,15 @@ gamepad `/teleop_cmd_vel` wins) → `/cmd_vel` → walker. Contract: [../SPEC.md
 | --- | --- |
 | `drive_bridge.py` | rclpy node. 50 Hz Twist while the newest packet is younger than its ttl (0.25 s default, 0.5 s cap), then one zero and silence. Accepts only HMAC-signed packets for its `--robot-id` (key `link.key`, 0600), rejects malformed/replayed packets (replay state survives restarts), clamps to \|vx\|≤0.5, \|vy\|≤0.3, \|wz\|≤2.0. Holds zero on a bad IMU or a missing/stalled mux (below). Signed ack (seq, `imu`, profile, `hold`, `imu_hold`, `mux_ok`, `estopped`, stats) to accepted packets only. vx ceiling = the stack's speed cap (`--max-vx`, at most 1.5). E-stop + fallen cutoff: [below](#e-stop-and-fallen-cutoff-spec-v11). |
 | `rosq.py` | fcctl's rclpy queries (no ros2 daemon): `probe` (velocity topology + controllers + host DDS participant count), `controllers`, `switch` (BEST_EFFORT, or `strict` for the lie-down handover). `probe` waits until the graph settles (2-8 s) and names the reason when the mux is missing (process running but undiscovered vs no process). |
-| `fcctl.sh` | Runs on the Pi from `~/fc-v1/robot/`: `status` (incl. `phase`/`light`, `mux_alive`, `mux_ok`, `ros.mux`), `ready [profile] [--confirm]`, `down [--keep-stack]`, `start <profile> --confirm`, `stop`, `bridge start\|stop`, `cam start\|stop` (POV feed), `imu-test <seconds>`, plus `walk`/`rest` and `boot` (service only). |
+| `fcctl.sh` | Runs on the Pi from `~/fc-v1/robot/`: `status` (incl. `phase`/`light`, `mux_alive`, `mux_ok`, `ros.mux`), `ready [profile] [--confirm]`, `down [--keep-stack]`, `start <profile> --confirm`, `stop`, `bridge start\|stop`, `cam start\|stop` (POV feed), `imu-test <seconds>`, `imu-level [check\|show]` (accel bias calibration, below), `i2c-recover`, plus `walk`/`rest` and `boot` (service only). |
 | `readiness.py` | Pure: the `status` phase (`off/starting/homed/standing/ready/fault`) and the controller check `ready` uses. |
 | `boot/` | Power-on service, prepared and **not installed**: `fc-boot.service`, `install.sh` (install/uninstall/status/print). What it does, rollback and the homing-posture evidence: [boot/README.md](boot/README.md). |
-| `profiles/stock.sh` | Class platform: monorepo `ros2 launch neural_controller launch.py teleop:=False` + teleop→`/teleop_cmd_vel` + `cmd_vel_mux_node`. Domain 0. Default because it is the simplest stack known to walk (25 min on Nov 19, no driver fault), with the stock driver `01813d58` and the same policy as u6 (`ecf3a4ab`); the Pi's neural_controller has local changes, so it is "as installed", not pristine. `FC_IMU_FILTER=1` by default ([below](#imu-filter-driver-on-mts-2026-11-24-operator-approved)). |
+| `profiles/stock.sh` | Class platform: monorepo `ros2 launch neural_controller launch.py teleop:=False` + teleop→`/teleop_cmd_vel` + `cmd_vel_mux_node`. Domain 0. Default because it is the simplest stack known to walk (25 min on Nov 19, no driver fault), with the stock driver `01813d58` and the same policy as u6 (`ecf3a4ab`); the Pi's neural_controller has local changes, so it is "as installed", not pristine. `FC_IMU_FILTER=1` by default ([below](#imu-driver-on-mts-v4-since-2026-11-27-operator-approved)). |
 | `profiles/tej_u6.sh` | Tej's `software-ballkick-20261120-u6` via his `kickseen6` kit (prepare + start-native), fresh run dir, no HTTP API; + teleop→`/teleop_cmd_vel`. Domain 168. |
 | `profiles/stock_hh0.sh`, `profiles/tej_u6_hh0.sh` | Aliases of the base profile with `--heading-hold off` (set `FC_HEADING_HOLD=0`, source the base; `--heading-hold on` with an alias is refused). |
 | `stack_overlay.py` | The one per-start overlay builder (generalises `imu/heading_hold.py`, whose kp=0 policy helper it reuses): `--speed-cap`, `--heading-hold off`, and (stock) the lie-down controller, in `<run>/overlay/`, re-read and verified (YAML parsed and compared with the source plus exactly the intended edits; launch text compared; policies compared; gains/limits never wider). Any failure refuses the start before motion. Details: [Stack options](#stack-options-spec-v11). |
 | `sim/liedown_sim.py` | Laptop only (not staged): MuJoCo check of the gentle lie-down. [Gentle lie-down](#gentle-lie-down-stock-down-and-stop). |
-| `stage.sh <host>` | Laptop: rsync this dir (minus `vendor/`, `provision/`, `sim/`) to `<host>:~/fc-v1/robot/`, print changes; copy `fc/config/link.key` (0600) and write `robot_id` from the `robots.json` entry for `<host>` (or `FC_ROBOT_ID`). |
+| `stage.sh <host>` | Laptop: rsync this dir (minus `vendor/`, `provision/`, `sim/`) to `<host>:~/fc-v1/robot/`, print changes; copy `fc/config/link.key` (0600) and write `robot_id` from the `robots.json` entry for `<host>` (or `FC_ROBOT_ID`). Keeps the Pi-side `imu_params.json` (excluded from `--delete`). `sha_check.sh <host>` (read-only) then compares every staged file's sha256 and prints MATCH. |
 | `provision/` | Laptop: `provision.sh [--check] <host> <id> <team> <tag>` takes a new Pi to game-ready (read-only probe + readiness report; stages via `stage.sh`; writes only `~/fc-v1/` unless `--fix-clone-identity`). Second-robot plan, clone vs class card, and per-robot calibration: [provision/PROVISION.md](provision/PROVISION.md). Not staged to the Pi. |
 | `camstream.py` | Optional robot-POV feed: front camera as small MJPEG on :8090 (`/stream.mjpg`, `/frame.jpg`, `/health`) for the laptop Play screen (`cam_url` in robots.json; blue: `http://10.5.6.112:8090/stream.mjpg`). Started by `fcctl.sh cam start`. `--source picamera2` opens the sensor at the stream rate (sensor `FrameRate` = `--fps`); `--source ros` subscribes read-only to camera_ros `/camera/image_raw/compressed`. Cost: [Robot-POV feed](#robot-pov-feed-cam-measured-on-mts-2026-11-25). |
 | `keygen.py` | Laptop, once: `python -m fc.robot.keygen` writes `fc/config/link.key` (0600, gitignored). |
@@ -59,7 +59,7 @@ carry `hold` (reason), `imu_hold`, `mux_ok`, and `bridge.mux` (`why`, publisher/
 
 - **IMU** (`--imu-stop`, default on): ImuHealth `bad` with `bad_cause` `stale` (no message 0.5 s), `frozen`
   (messages arriving, quaternion+gyro+accel bit-identical 0.5 s) or `tilt` → `hold: "imu_<cause>"`,
-  `imu_hold: true`, released after 1 s of `ok`/`warn`. A **short driver stall** (v3 driver marker: accel exactly 0,
+  `imu_hold: true`, released after 1 s of `ok`/`warn`. A **short driver stall** (v3+ driver marker: accel exactly 0,
   ≤ 1 s; ImuHealth `stall_ms`, level `warn`) → `hold: "imu_stall"` only: no lie-down, the walker keeps standing and
   walking resumes 1 s after valid data returns. Longer → `bad_cause` `stall_long` → the lie-down below.
 - **IMU lie-down** (`--imu-lie`, default on; [RCA](../notes/rca-20261124-shaking.md)): zero velocity does not stop
@@ -128,7 +128,7 @@ JSON object per line on stdout (logs go to stderr), for example (stack already h
   "robot on the stand?" and rerun with `--confirm`. Never add `--confirm` automatically.
 - `homed` with `"next":"ready"` (exit 0, `done`): it just homed on the stand. Tell the operator "move it to
   the floor, then press Ready" and run `ready` again (no `--confirm`).
-- `error` (exit 1, 2 bad arguments, 4 operator timeout; `done`): `at` names the failed step, `msg` says what
+- `error` (exit 1, 2 bad arguments, 4 operator timeout, 5 IMU not level at rest; `done`): `at` names the failed step, `msg` says what
   to do. Another profile running → `at:"profile"` (`down` first, which means homing again).
 - Exit code 0 only on success. Already-done steps are skipped ("already standing", "bridge already
   running"), so pressing Ready twice is harmless; a second concurrent `ready`/`down` is refused.
@@ -352,16 +352,31 @@ modes) needs Linux and is skipped on the Mac; run it with (`--init` reaps zombie
   `sudo systemctl link /home/pi/pupperv3-monorepo/pupper-rs/pupper-gui.service && sudo systemctl enable --now pupper-gui`.
 - Follow-me / Hailo inference will not work until the config block is removed.
 
-## IMU filter driver on mts (2026-11-24, operator-approved)
+## IMU driver on mts (v4 since 2026-11-27, operator-approved)
 
 `~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so`
-now links to the filtered build v3 (auto-recovery) `~/fc-v1/build/imu-filter-v3/install/.../libcontrol_board_hardware_interface.so`
-(sha a64606d8…, installed 2026-11-25; v2 19d60fad… and v1 2486fa0a… retired). The stock profile sets `FC_IMU_FILTER=1` by default; `FC_IMU_FILTER=0` = stock behaviour (see [imu-filter.md](../notes/imu-filter.md)).
-Undo (stack off): `cd ~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib && rm libcontrol_board_hardware_interface.so && mv libcontrol_board_hardware_interface.so.stock-link libcontrol_board_hardware_interface.so`
-(stock sha 01813d58…).
-v3 (stall guard, sha a64606d8…) is built at `~/fc-v1/build/imu-filter-v3` and INSTALLED (2026-11-25); deploy/rollback in
-[imu-filter.md](../notes/imu-filter.md#v3-bno-stall-guard-2026-11-25-built-not-installed). A hung I2C bus
-(kernel "SDA stuck at low"): `fcctl.sh i2c-recover` (stack stopped; `--check` read-only), else power cycle.
+links to **v4** `~/fc-v1/build/imu-filter-v4/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so`
+(sha256 `f849f254…69779c6`). v4 = filter (`FC_IMU_FILTER`, on by default in `stock.sh`; [imu-filter.md](../notes/imu-filter.md))
++ v3 stall guard + **accel bias calibration**: at start it loads `accel_bias_chip` from `$FC_IMU_CAL` or
+`~/fc-v1/run/imu_cal.json` and subtracts it from every accel sample (filter and published accel), logging
+`FC_IMU_CAL … APPLIED`; no or bad file = zero bias (v3 behaviour). Why: mts's accel reads +3.05 m/s² high on chip X
+(false ~10° tilt, imu_tilt lie-downs), [RCA](../notes/rca-20261127-tilt.md). Measured with v4 on mts Nov 27: tilt
+**0.26°** level on the stand (robot).
+
+- `fcctl.sh imu-level` (robot level on the stand, legs off): 10 s capture, refuses on motion/noise/stall/>30°/bias
+  >6 m/s², writes `run/imu_cal.json` (keeps `.prev`; outside the rsync'd tree, so per robot and per chip). `check` =
+  tilt now (expect < 2°); `show` = stored file. `status.imu_cal` shows stored vs applied. Re-run after a DCD clear,
+  chip swap or a cloned card.
+- `ready` checks tilt at rest after standing, before the bridge: > 6° (`FC_READY_IMU_MAX_DEG`) fails `at:"imu"`,
+  exit 5, robot left standing (`down`, then `imu-level` on the stand); `--skip-imu-check` overrides.
+- `~/fc-v1/robot/imu_params.json` (raised guard thresholds from the RCA day) survives staging; delete it once
+  `imu-level check` passes to return to the default 10/6°.
+- The chip is degraded (gyro freezes during homing, RCA); a replacement IMU/control board is still asked for.
+
+Rollback (stack off): relink v3 `~/fc-v1/build/imu-filter-v3/...` (sha `a64606d8…`; a leftover `imu_cal.json` is
+harmless under v3). Stock: `cd ~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib && rm libcontrol_board_hardware_interface.so && mv libcontrol_board_hardware_interface.so.stock-link libcontrol_board_hardware_interface.so`
+(stock sha 01813d58…). A hung I2C bus (kernel "SDA stuck at low"): `fcctl.sh i2c-recover` (stack stopped;
+`--check` read-only), else power cycle.
 
 ## I2C bus change on mts (2026-11-25, operator-approved)
 
