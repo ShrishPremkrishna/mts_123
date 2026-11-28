@@ -72,7 +72,7 @@ arrives removes the main risk on path B. It would be a `profiles/` change, so it
 - The `config.txt` items need passwordless sudo and a reboot. `apply` first copies `config.txt` to `config.txt.bak-pre-fc-os-<date>`. `imu_v4` needs no sudo.
 - `imu_cal.json` is never copied or touched. The accel bias belongs to one chip, so each robot runs `fcctl.sh imu-level` itself (`--check` shows `info imu_cal`).
 - The v4 build on red will have a different sha256 from mts's (`f849f254…`), so the check looks for the `FC_IMU_CAL` marker instead of a sha.
-- Verified on a fake Pi only (2026-11-27). Not yet run on a real card. mts's recorded state reads all ok on the fake Pi, but a live `--check mts blue blue 10` is still to do.
+- Verified on a fake Pi (tests) and with a read-only `--check mts blue blue 10` on 2026-11-27: all five items read `ok` on mts, and the v4 sha is `f849f2547da2`. `apply` has not yet run on a real card.
 
 ## Per-robot calibration (red, ~20 min; repeat for blue if its tag is ever remounted)
 
