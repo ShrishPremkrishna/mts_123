@@ -251,7 +251,7 @@ def test_stock_speed_cap_only_touches_caps(stock):
     assert cfg == src and r["liedown"] is None and r["policy"] is None
 
 
-@pytest.mark.parametrize("cap", ["0.29", "1.01", "abc", "-0.5", "nan"])
+@pytest.mark.parametrize("cap", ["0.29", "1.51", "abc", "-0.5", "nan"])
 def test_speed_cap_range_refused(stock, cap):
     with pytest.raises(so.OverlayError):
         so.build("stock", out(stock), str(stock), speed_cap=cap)

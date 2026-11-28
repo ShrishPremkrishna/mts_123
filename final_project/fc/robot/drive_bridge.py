@@ -76,7 +76,7 @@ from dataclasses import dataclass
 # Hard ceilings (softer caps live in the laptop params). vx follows the stack's walker speed cap
 # (fcctl passes --max-vx from the per-start overlay, SPEC v1.1 --speed-cap) but never above MAX_VX_CAP.
 MAX_VX = 0.5
-MAX_VX_CAP = 1.0
+MAX_VX_CAP = 1.5                 # = stack_overlay SPEED_CAP_RANGE top (policy trained vx range)
 MAX_VY = 0.3
 MAX_WZ = 2.0
 DEFAULT_TTL = 0.25

@@ -16,7 +16,7 @@
 #   boot                        run by fc-boot.service at power-on (boot/README.md); never by hand
 #   start <profile> --confirm [STACK OPTIONS]
 #                               start a robot stack (HOMES THE LEGS: robot on the stand)
-#   STACK OPTIONS (SPEC v1.1)   --speed-cap <0.30..1.00> (walker max_vx_forward/speed_cap; default 0.49)
+#   STACK OPTIONS (SPEC v1.1)   --speed-cap <0.30..1.50> (walker max_vx_forward/speed_cap; default 0.49)
 #                               --heading-hold on|off (default on). Built into one verified per-start
 #                               overlay (stack_overlay.py) under the run dir; *_hh0 profiles = --heading-hold off.
 #                               --lean on|off (stock; default on: foxglove_bridge and the onboard camera node
@@ -147,8 +147,8 @@ STACK_ERR=""
 stack_opt() {
   case "$1" in
     --speed-cap)
-      [[ "${2:-}" =~ ^[0-9]*[.]?[0-9]+$ ]] && awk -v v="$2" 'BEGIN { exit !(v >= 0.30 && v <= 1.00) }' ||
-        { STACK_ERR="--speed-cap needs a number in 0.30..1.00 (got '${2:-}')"; return 1; }
+      [[ "${2:-}" =~ ^[0-9]*[.]?[0-9]+$ ]] && awk -v v="$2" 'BEGIN { exit !(v >= 0.30 && v <= 1.50) }' ||
+        { STACK_ERR="--speed-cap needs a number in 0.30..1.50 (got '${2:-}')"; return 1; }
       STACK_SPEED_CAP=$2 ;;
     --heading-hold)
       [[ "${2:-}" =~ ^(on|off)$ ]] || { STACK_ERR="--heading-hold needs on|off (got '${2:-}')"; return 1; }

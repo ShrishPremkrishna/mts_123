@@ -112,7 +112,7 @@ STEP_PRE_S = 0.7                                   # step: still before the comm
 DEADMAN_PRE_S = 0.5
 PRESET_NAME_RE = re.compile(r"[A-Za-z0-9_\-]{1,40}")
 # Stack options a preset's "_stack" passes to fcctl ready/start (SPEC v1.1), allowlisted.
-STACK_SPEED_CAP = (0.30, 1.00)
+STACK_SPEED_CAP = (0.30, 1.50)                    # = robot/stack_overlay.py SPEED_CAP_RANGE
 STACK_HEADING_HOLD = ("on", "off")
 STOCK_SPEED_CAP = 0.49                             # walker cap without --speed-cap
 ESTOP_RESEND_S = 3.0                               # after the burst, resend e-stop each tick until an ack confirms it

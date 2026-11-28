@@ -33,6 +33,7 @@ operator-approved OS changes (undo in [robot/README.md](robot/README.md)). IMU b
 | Capability | Verified by |
 |---|---|
 | Homing, stand, lie-down, link E-STOP, dead-man, goto, fast gait at cap 0.8; push goals with `fast-light`, `athletic`, `dribble` (v3) | **robot** Nov 24–25 (above); fast gait also **sim** (MuJoCo 0.73 m/s, 0/8 falls) |
+| Top-speed caps up to 1.5 (Nov 27): `--speed-cap` 0.30–1.50, bridge `--max-vx` ≤ 1.5, `link.CEIL` vx 1.5, app `max_vx`/`push_vx` ≤ 1.5. Not yet floor-tested above 1.0 | **sim** (cmd 1.0/1.2/1.4/1.5 → 0.86/0.99/1.11/1.14 m/s, 0/24 falls nominal; harsh 0–3/24; [notes/fast-gait.md §6](notes/fast-gait.md)) + **device-free** |
 | Signed UDP link, 50 Hz bridge, 0.25 s dead-man, fallen cutoff 45°, E-STOP latched until Ready | **robot** (stops) + **device-free** |
 | IMU health hold; bridge auto lie-down + latch on a sustained bad IMU | **robot** (fired on the Nov 25 I2C hang) + **device-free** |
 | IMU accel calibration (rca-20261127-tilt): driver v4 `FC_IMU_CAL` bias + `fcctl.sh imu-level` + ready at-rest check | **device-free** + measured on mts (accel X +3.05 m/s², false 10°); v4 built, NOT installed; fcctl tests unrun |

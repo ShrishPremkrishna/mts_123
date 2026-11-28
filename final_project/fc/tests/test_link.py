@@ -279,9 +279,10 @@ def test_load_udp_hosts(tmp_path):
 
 # ---- v1.1: e-stop over the link, fast-play ceiling (2026-11-23) --------------------------
 def test_ceiling_allows_fast_play_but_stays_a_hard_cap():
-    assert CEIL == {"vx": 0.75, "vy": 0.3, "wz": 2.0}
+    assert CEIL == {"vx": 1.5, "vy": 0.3, "wz": 2.0}
     assert clamp_cmd(Cmd(0.75, 0, 0), {"max_vx": 0.75})[0] == 0.75
-    assert clamp_cmd(Cmd(5.0, 0, 0), {"max_vx": 3.0})[0] == 0.75
+    assert clamp_cmd(Cmd(5.0, 0, 0), {"max_vx": 3.0})[0] == 1.5
+    assert clamp_cmd(Cmd(1.2, 0, 0), {"max_vx": 1.2})[0] == 1.2
 
 
 def test_estop_packet_is_signed_and_motionless():

@@ -28,7 +28,7 @@ def test_validate_params():
     cur = {"max_vx": 0.3, "role_mode": "auto", "loop_hz": 30, "flag": True, "name": "x"}
     ok, err = validate_params(cur, {"max_vx": 0.4, "role_mode": "attack", "loop_hz": 20})
     assert ok == {"max_vx": 0.4, "role_mode": "attack", "loop_hz": 20} and not err
-    ok, err = validate_params(cur, {"max_vx": 0.9, "role_mode": "fly", "nope": 1, "flag": 1, "name": 3, "loop_hz": "x"})
+    ok, err = validate_params(cur, {"max_vx": 1.6, "role_mode": "fly", "nope": 1, "flag": 1, "name": 3, "loop_hz": "x"})
     assert ok == {} and len(err) == 6
 
 
@@ -81,7 +81,7 @@ def test_state_ui_and_params(server):
     assert s["loop"]["hz"] > 10
     code, r = post(base, "/params", {"max_vx": 0.25})
     assert code == 200 and app.params["max_vx"] == 0.25
-    code, r = post(base, "/params", {"max_vx": 0.8})                  # above the hard ceiling
+    code, r = post(base, "/params", {"max_vx": 1.6})                  # above the hard ceiling
     assert code == 400 and app.params["max_vx"] == 0.25
     code, r = post(base, "/preset", {"op": "save", "name": "slow"})
     assert code == 200
@@ -716,10 +716,10 @@ def test_cam_url_config_and_feed_endpoint(server, tmp_path):
 # ---- v1.1: e-stop, fast-play limits, stack options (2026-11-23) -------------------------
 def test_fast_play_limits_follow_link_ceiling():
     from fc.link import CEIL
-    assert fcapp.LIMITS["max_vx"] == (0.0, CEIL["vx"]) == fcapp.LIMITS["push_vx"] == (0.0, 0.75)
+    assert fcapp.LIMITS["max_vx"] == (0.0, CEIL["vx"]) == fcapp.LIMITS["push_vx"] == (0.0, 1.5)
     assert fcapp.LIMITS["max_wz"] == (0.0, 2.0)
-    ok, err = validate_params({"max_vx": 0.3, "push_vx": 0.3}, {"max_vx": 0.75, "push_vx": 0.8})
-    assert ok == {"max_vx": 0.75} and len(err) == 1
+    ok, err = validate_params({"max_vx": 0.3, "push_vx": 0.3}, {"max_vx": 1.2, "push_vx": 1.6})
+    assert ok == {"max_vx": 1.2} and len(err) == 1
 
 
 def test_estop_latches_holds_zero_and_never_auto_clears(server):
@@ -833,7 +833,7 @@ def test_preset_stack_passes_allowlisted_options_to_ready(live_ops, monkeypatch,
     assert r["ok"] and not r["errors"] and app.preset_stack == {"speed_cap": 0.8, "heading_hold": "off"}
     assert app.robot_op({"robot": "blue", "op": "ready", "confirm": True})["ok"]
     assert seen[-1][-1] == "bash ~/fc-v1/robot/fcctl.sh ready stock --confirm --speed-cap 0.80 --heading-hold off"
-    for bad in ({"speed_cap": 2.0}, {"speed_cap": "0.8; reboot"}, {"heading_hold": "maybe"}, {"rm": 1}, "x"):
+    for bad in ({"speed_cap": 1.51}, {"speed_cap": "0.8; reboot"}, {"heading_hold": "maybe"}, {"rm": 1}, "x"):
         stack, err = fcapp.validate_stack(bad)
         assert err and stack == {}, bad
     (app.presets_dir / "badstack.json").write_text(json.dumps({"_stack": {"speed_cap": 9}, "max_vx": 0.2}))

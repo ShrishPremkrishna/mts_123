@@ -3,7 +3,7 @@
 change without a rebuild. Generalises imu/heading_hold.py (whose policy helpers it reuses).
 
 Options (any combination; each start gets a fresh OUT_DIR = RUN_DIR/overlay):
-  --speed-cap X        0.30..1.00 m/s. Sets the walker's `max_vx_forward` and `speed_cap` (the
+  --speed-cap X        0.30..1.50 m/s (1.5 = the policy's trained vx range). Sets the walker's `max_vx_forward` and `speed_cap` (the
                        jump-slot walk cap, which also caps vy) to X. neural_controller.cpp (mts,
                        lines 652-693): command_clip (policy, vx +-1.5) -> max_vx_forward /
                        max_vx_backward -> jump-slot cap (speed_cap if > 0, else the JSON walk cap
@@ -56,7 +56,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "imu"))
 import heading_hold as hh  # noqa: E402
 
-SPEED_CAP_RANGE = (0.30, 1.00)
+SPEED_CAP_RANGE = (0.30, 1.50)            # top = default_policy.json command_clip vx and run_speed_cap
 DEFAULT_SPEED_CAP = 0.49                 # stock config.yaml and lab6-session.yaml: max_vx_forward / walk cap
 STOCK_WALKERS = ("neural_controller_default", "neural_controller_default_alt")
 U6_WALKERS = ("neural_controller_default", "gemini_walk")

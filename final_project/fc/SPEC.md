@@ -123,7 +123,7 @@ Each run writes `fc/runs/<UTC timestamp>-<test>/` (gitignored): `params.json`,
 - **Fallen-robot cutoff**: the bridge also does the R3 action if ImuHealth reports a sustained tilt beyond
   `fallen_tilt_deg` (default 45°) — a fallen robot must not keep driving its legs.
 - **Laptop loss**: unchanged — bridge ttl and mux timeout zero the command; the robot stands still.
-- **Stack options** for `fcctl.sh start|ready <profile>`: `--speed-cap <0.30..1.00>` (walker speed caps,
+- **Stack options** for `fcctl.sh start|ready <profile>`: `--speed-cap <0.30..1.50>` (walker speed caps,
   default stock 0.49) and `--heading-hold on|off` (default on), applied by one per-start overlay under the
   run dir. `stock_hh0`/`tej_u6_hh0` stay as aliases. `status` reports `speed_cap` and `heading_hold`.
   stock also takes `--lean on|off` (default on: no foxglove_bridge, no onboard camera node) and `--camera on|off`

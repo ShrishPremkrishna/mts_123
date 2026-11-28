@@ -693,7 +693,8 @@ def test_max_vx_follows_stack_speed_cap_with_hard_cap():
     c = core(max_vx=0.8)
     assert c.on_packet(pkt(seq=1, vx=0.75), 0.0)[0] and c.cmd.vx == 0.75 and not c.cmd.clamped
     assert c.on_packet(pkt(seq=2, vx=0.95), 0.1)[0] and c.cmd.vx == 0.8 and c.cmd.clamped
-    for bad in (0.0, 1.2):
+    assert core(max_vx=1.5).max_vx == 1.5 == db.MAX_VX_CAP
+    for bad in (0.0, 1.51):
         with pytest.raises(ValueError):
             core(max_vx=bad)
 

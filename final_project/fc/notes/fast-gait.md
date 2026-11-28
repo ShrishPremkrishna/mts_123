@@ -102,3 +102,19 @@
 - Any new policy needs its own floor checks on both robots.
 - If stock wobbles at 0.75, swap in `23pt1499` before retraining.
 - Keep the package as a fallback and launch it only if both fail by about Nov 28.
+
+## 6. Top speeds 1.0–1.5 (2026-11-27, sim)
+
+Same harness (`fastgait_train_pkg_20261124/fg_eval.py` + `host.cpp`, rebuilt), stock `default_policy.json`, cap 1.5. Straight: 4 seeds × 6 replicas = 24 runs per cell; arcs and stops 6 runs. Harsh = gyro σ 0.1, bias 0.05, X spikes 3 rad/s at 1 Hz, friction ×0.6, kp ×0.85, +0.3 kg. Stops are measured from the moment zero reaches the policy ("step"), or with the brain's `decel_vx` 2.0 ramp ("ramp"); add ~0.15 s pipeline lag × speed on the floor.
+
+| cmd | achieved nom / harsh | falls nom / harsh | max tilt° | stop step nom / harsh (m) | stop ramp nom / harsh (m) | arc wz 1.0: wz, radius nom (harsh) |
+|---|---|---|---|---|---|---|
+| 1.0 | 0.86 / 0.74 | 0/24 / 0/24 | 23 (33 one seed) | 0.13 / 0.19 | 0.35 / 0.31 | 0.99, 0.96 m (0.90) |
+| 1.2 | 0.99 / 0.83 | 0/24 / 2/24 | 25 | 0.18 / 0.18 | 0.49 / 0.46 | 0.93, 1.16 m (1.14) |
+| 1.4 | 1.11 / 0.88 | 0/24 / 0/24 | 25 | 0.24 / 0.19 | 0.68 / 0.64 | 0.78, 1.54 m (1.33) |
+| 1.5 | 1.14 / 0.88 | 0/24 / 3/24 | 37 | 0.22 / 0.25 | 0.70 / 0.54 | 0.71, 1.71 m (1.25) |
+
+- Harsh falls need friction loss **and** gyro faults together (friction-only and gyro-only: 0/6 at every speed); 1.2 vs 1.4 differences are noise.
+- Above 1.4 the gait saturates (+0.03 m/s) while the pitch spike grows to 37° (fallen cutoff 45° for 0.5 s).
+- wz tracking falls with speed: at 1.5 a wz 1.0 command gives 0.71 rad/s.
+- **Fence guard** (`brain._fence_guard`, wall_brake 0.8, act_lag_s 0.15) budgets 0.15·v + v²/1.6 = 0.78 / 1.08 / 1.44 / 1.63 m at 1.0 / 1.2 / 1.4 / 1.5; sim ramp + lag gives 0.48 / 0.64 / 0.85 / 0.87 m. The guard is conservative; it also means speeds above ~1.2 toward a fence are only reachable >1.1 m from it.

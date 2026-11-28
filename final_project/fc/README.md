@@ -134,14 +134,14 @@ at 2 Hz (`lk`, `eye` records), with the full brain debug dict every tick.
 
 Params: one dict, `app.PARAM_FALLBACKS` < `brain.DEFAULTS` < `sim.SIM_DEFAULTS` (sim source) < params.json; every
 knob is editable live, unknown keys are rejected, strings are checked against `CHOICES`; limits are
-enforced (speed ceilings vx 0.75 / vy 0.3 / wz 2.0 = `link.CEIL`, the hard cap on every packet; `max_vx`,
+enforced (speed ceilings vx 1.5 / vy 0.3 / wz 2.0 = `link.CEIL`, the hard cap on every packet; `max_vx`,
 `push_vx`, `contact_vx`, `goalie_vmax` share the vx ceiling). The bridge clamps again with its own `MAX_VX`. The `eye_*` mount knobs apply on the next frame
 (a new `eye_floor_size` recalibrates).
 
 Presets (`config/presets/<name>.json`, committed) hold only the keys they change. **Load** = base params
 (params.json + defaults at app start) + the preset's keys; presets never stack, **Base** returns to base,
 **Save current** writes only keys that differ from base. `_profile` names the robot profile `start` will use;
-`_note` is shown. `_stack` (SPEC v1.1) = walker options Ready/start pass to fcctl, allowlisted: `speed_cap` 0.30–1.00
+`_note` is shown. `_stack` (SPEC v1.1) = walker options Ready/start pass to fcctl, allowlisted: `speed_cap` 0.30–1.50
 (`--speed-cap 0.80`), `heading_hold` on/off (`--heading-hold off`). The header shows the active preset (`*` =
 edited since) and its stack; each robot card shows the running `speed_cap`/`heading_hold` from `fcctl status`
 (refreshed after a successful Ready) and warns when `max_vx` exceeds the robot's speed cap (unknown cap: stock

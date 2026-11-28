@@ -7,7 +7,7 @@ gamepad `/teleop_cmd_vel` wins) → `/cmd_vel` → walker. Contract: [../SPEC.md
 
 | File | What |
 | --- | --- |
-| `drive_bridge.py` | rclpy node. 50 Hz Twist while the newest packet is younger than its ttl (0.25 s default, 0.5 s cap), then one zero and silence. Accepts only HMAC-signed packets for its `--robot-id` (key `link.key`, 0600), rejects malformed/replayed packets (replay state survives restarts), clamps to \|vx\|≤0.5, \|vy\|≤0.3, \|wz\|≤2.0. Holds zero on a bad IMU or a missing/stalled mux (below). Signed ack (seq, `imu`, profile, `hold`, `imu_hold`, `mux_ok`, `estopped`, stats) to accepted packets only. vx ceiling = the stack's speed cap (`--max-vx`, at most 1.0). E-stop + fallen cutoff: [below](#e-stop-and-fallen-cutoff-spec-v11). |
+| `drive_bridge.py` | rclpy node. 50 Hz Twist while the newest packet is younger than its ttl (0.25 s default, 0.5 s cap), then one zero and silence. Accepts only HMAC-signed packets for its `--robot-id` (key `link.key`, 0600), rejects malformed/replayed packets (replay state survives restarts), clamps to \|vx\|≤0.5, \|vy\|≤0.3, \|wz\|≤2.0. Holds zero on a bad IMU or a missing/stalled mux (below). Signed ack (seq, `imu`, profile, `hold`, `imu_hold`, `mux_ok`, `estopped`, stats) to accepted packets only. vx ceiling = the stack's speed cap (`--max-vx`, at most 1.5). E-stop + fallen cutoff: [below](#e-stop-and-fallen-cutoff-spec-v11). |
 | `rosq.py` | fcctl's rclpy queries (no ros2 daemon): `probe` (velocity topology + controllers + host DDS participant count), `controllers`, `switch` (BEST_EFFORT, or `strict` for the lie-down handover). `probe` waits until the graph settles (2-8 s) and names the reason when the mux is missing (process running but undiscovered vs no process). |
 | `fcctl.sh` | Runs on the Pi from `~/fc-v1/robot/`: `status` (incl. `phase`/`light`, `mux_alive`, `mux_ok`, `ros.mux`), `ready [profile] [--confirm]`, `down [--keep-stack]`, `start <profile> --confirm`, `stop`, `bridge start\|stop`, `cam start\|stop` (POV feed), `imu-test <seconds>`, plus `walk`/`rest` and `boot` (service only). |
 | `readiness.py` | Pure: the `status` phase (`off/starting/homed/standing/ready/fault`) and the controller check `ready` uses. |
@@ -227,7 +227,7 @@ Power-on autostart and the homing-posture finding: [boot/README.md](boot/README.
 ## Stack options (SPEC v1.1)
 
 `fcctl.sh start <profile> --confirm [--speed-cap X] [--heading-hold on|off] [--lean on|off] [--camera on|off]` and the same options on `ready`
-(any order, also after `--confirm`). Values outside 0.30..1.00 / on|off are refused before anything starts.
+(any order, also after `--confirm`). Values outside 0.30..1.50 / on|off are refused before anything starts.
 `stack_overlay.py` builds one verified overlay in `<run>/overlay/`; `<run>/stack.json` records the options either
 way (no overlay = stock defaults: cap 0.49, hold on).
 

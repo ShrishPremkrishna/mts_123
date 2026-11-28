@@ -464,7 +464,16 @@ def test_default_stack_is_recorded_without_overlay(fc):
     assert fc("bridge", "start", "--reset-replay")["max_vx"] == 0.49
 
 
-@pytest.mark.parametrize("args", [["--speed-cap", "0.29"], ["--speed-cap", "1.5"], ["--speed-cap", "fast"],
+def test_top_speed_cap_reaches_bridge(fc):
+    # 1.50 = the policy's trained vx range: the highest cap fcctl accepts, and the bridge follows it
+    (fc.robot / "profiles" / "fakeopt.sh").write_text(FAKE_OPT_PROFILE)
+    (fc.robot / "stack_overlay.py").write_text(FAKE_HH_TOOL)
+    assert fc("start", "fakeopt", "--confirm", "--speed-cap", "1.50")["ok"]
+    assert fc("status")["speed_cap"] == 1.5
+    assert fc("bridge", "start", "--reset-replay")["max_vx"] == 1.5
+
+
+@pytest.mark.parametrize("args", [["--speed-cap", "0.29"], ["--speed-cap", "1.51"], ["--speed-cap", "fast"],
                                   ["--heading-hold", "maybe"], ["--speed-cap"]])
 def test_bad_stack_options_refused_before_anything_starts(fc, args):
     (fc.robot / "profiles" / "fakeopt.sh").write_text(FAKE_OPT_PROFILE)

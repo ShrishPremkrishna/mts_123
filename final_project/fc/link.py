@@ -21,7 +21,7 @@ from .core import CONFIG, Cmd, RobotCfg
 from .robot.drive_bridge import VERSION, KeyFileError, load_key, sign, verify
 
 PORT = 9870
-CEIL = {"vx": 0.75, "vy": 0.3, "wz": 2.0}  # never exceeded, whatever params say (vx 0.75: fast play)
+CEIL = {"vx": 1.5, "vy": 0.3, "wz": 2.0}  # never exceeded, whatever params say (vx 1.5 = top walker speed cap)
 TTL_RANGE = (0.05, 0.5)   # drive_bridge MAX_TTL is 0.5 s (mux timeout)
 CONNECTED_AGE_S = 1.0                     # ack younger than this counts as connected
 KEY_FILE = CONFIG / "link.key"
