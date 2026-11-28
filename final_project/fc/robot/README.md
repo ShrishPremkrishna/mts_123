@@ -128,8 +128,9 @@ JSON object per line on stdout (logs go to stderr), for example (stack already h
   "robot on the stand?" and rerun with `--confirm`. Never add `--confirm` automatically.
 - `homed` with `"next":"ready"` (exit 0, `done`): it just homed on the stand. Tell the operator "move it to
   the floor, then press Ready" and run `ready` again (no `--confirm`).
-- `error` (exit 1, 2 bad arguments, 4 operator timeout, 5 IMU not level at rest; `done`): `at` names the failed step, `msg` says what
-  to do. Another profile running → `at:"profile"` (`down` first, which means homing again).
+- `error` (exit 1, 2 bad arguments, 4 operator timeout, 5 IMU not level at rest, 6 not upright (`at:"upright"`, below);
+  `done`): `at` names the failed step, `msg` says what to do. Another profile running → `at:"profile"` (`down` first,
+  which means homing again).
 - Exit code 0 only on success. Already-done steps are skipped ("already standing", "bridge already
   running"), so pressing Ready twice is harmless; a second concurrent `ready`/`down` is refused.
 
@@ -302,6 +303,31 @@ bridge, moves the latch to `logs/estop-<UTC>.json`, deactivates a leg controller
 estop flag clears only on activation), stands and restarts the bridge. `ready` without `--confirm` returns
 `needs_confirm` (exit 3) naming the reason. `down`/`stop` leave the latch alone.
 
+## Fall recovery: tilt gate and `getup` (Dec 3: manual, one button)
+
+**Tilt gate (every `ready` and `getup`, before any stand).** The walker's own fall stop (`max_body_angle` 1.5 rad)
+is skipped during its init blend (`neural_controller.cpp` 323-341), so standing a robot that lies on its side would
+run the policy sideways (the recorded falls rested at 70-137°, `logs/estop-*.json`). So before the stand fcctl reads
+the published IMU tilt for 1 s (`imu/imu_level.py check`, the bridge's quaternion tilt; needs the stack, not the legs
+or the bridge) and refuses above `FC_UPRIGHT_MAX_DEG` (default 25°): `error`, `at:"upright"`, `upright:false`,
+`tilt_deg`, exit 6, "set it on its belly or feet, then Get up". On a running stack it runs before the re-arm, so a
+refusal keeps the latch. No IMU reading also refuses (`upright:null`); `ready --skip-imu-check` overrides that (never
+a measured tilt, never for `getup`).
+
+**`getup`** (UI Get up = `robot.getup`, `fc.ctl getup <robot>`): `ready --confirm` on the running stack, never
+homing: tilt gate → re-arm (latch archived) → stand → bridge (expected ~20 s; not yet timed on a robot). Same JSON lines as `ready` (`begin` has
+`"getup":true`). It stays down (nothing moves, latch kept) when:
+- the stack is not running, or a start is in progress: exit 7, `at:"stack"`, "needs Ready with homing (on the stand)";
+- the latch is an IMU fault (`imu_*`): exit 8, `at:"imu_fault"`: check the IMU (status, `i2c-recover`, `imu-level`),
+  then Ready;
+- the robot is not upright or the IMU gives no reading: exit 6, `at:"upright"`.
+
+Laptop side (fc/app.py): an E-STOP pressed while Get up / Ready runs replaces an older robot latch with a fresh
+operator latch (so the op's success cannot clear it) and is resent until the restarted bridge confirms it (while the
+op runs and 3 s after). The bridge is down between the re-arm and step 3, so during the stand itself only R3 stops
+the robot. In a match the re-armed robot holds zero for 2 s (`rejoining`, out of the Coach), then plays from a fresh
+brain; the match is not paused and the other robot keeps playing.
+
 Latency (2026-11-23, `tests/test_estop_ros.py`, real rclpy Jazzy in docker on the Mac, fake manager, 5 trials):
 packet sent → `/emergency_stop` received median 1.2 ms (max 1.8), → SwitchController received median 7.3 ms
 (max 7.5; one 5 ms main-loop spin). Fallen: SwitchController 511 ms after the tilt passed 45°. Not yet measured
@@ -314,6 +340,8 @@ Done on mts Nov 24 (stock, robot): gentle lie-down (`down`, smooth, no drop), li
 `--speed-cap 0.8` (0 falls in 8 pushes). Still needed:
 
 1. Link e-stop from the UI while walking slowly: legs off within a frame, UI shows estopped, Ready re-arms.
+4. Get up (not yet run on the robot): after a fallen cutoff, robot set on its belly, Get up stands it in ~20 s
+   without homing; on its side Get up refuses (`at:"upright"`) and nothing moves.
 2. Fallen cutoff: tip the standing robot over by hand (bridge up) -> legs off after ~0.5 s, `status.estop.reason`
    `fallen`.
 3. tej_u6 overlay launch with `--speed-cap` (not yet run).
@@ -337,7 +365,8 @@ mux in domain 77 every command is held as `mux_unseen`; start a lone `cmd_vel_mu
 Tests (no ROS): `.venv/bin/python -m pytest -q fc/robot/tests` from `final_project/` (incl. `test_stack_overlay.py`;
 the e-stop ROS test `test_estop_ros.py` skips without rclpy: run it in `cs123-ros-jazzy-slew-check`, command in its
 docstring). `test_fcctl.py` (fake
-profile: lock, stop during homing, topology gate, stack-overlay gate and options, e-stop latch/re-arm, gentle
+profile: lock, stop during homing, topology gate, stack-overlay gate and options, e-stop latch/re-arm, tilt gate
+and `getup` (stays down on a dead stack / IMU-fault latch / not upright), gentle
 lie-down and its fallback, `ready`/`down` incl. a refusing
 gateway and operator timeout, `down`/`stop` refusing to stop a robot not confirmed lying, status phases, boot
 modes) needs Linux and is skipped on the Mac; run it with (`--init` reaps zombies; without it pytest is PID 1 and `stop` waits on dead pids)

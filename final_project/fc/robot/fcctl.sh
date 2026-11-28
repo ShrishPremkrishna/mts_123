@@ -7,6 +7,12 @@
 #                               at "homed" (move it to the floor, run ready again) unless --stand-now.
 #                               E-stopped (run/estop.json): --confirm re-arms (clears the latch, restands).
 #                               Progress as JSON lines on stdout; the last one has "done":true.
+#   getup                       a fallen / e-stopped robot back to playing WITHOUT homing (the UI's Get up): stack
+#                               must be running (else "needs Ready with homing (on the stand)"). Tilt gate (IMU
+#                               upright within FC_UPRIGHT_MAX_DEG, default 25), re-arm, stand, bridge = ready --confirm
+#                               on the running stack. Stays down (refuses, nothing moves) on an IMU-fault latch
+#                               (imu_*: use Ready after checking the IMU) or when the robot is not upright.
+#                               ready also runs the tilt gate before any stand (exit 6 "upright").
 #   down [--keep-stack] [--force]
 #                               park the bridge (zero only; link E-STOP still armed), lie down (stock: lowered
 #                               under position control by the lie-down controller, aborted by a link E-STOP /
@@ -760,8 +766,48 @@ imu_rest_check() {
     --max-deg "${FC_READY_IMU_MAX_DEG:-6}"
 }
 
+# upright_check : one JSON line, tilt at rest from the published orientation (imu/imu_level.py check over 1 s;
+# the same quaternion tilt the bridge's fallen cutoff and ImuHealth use). Needs the stack (the IMU broadcaster),
+# not the legs or the bridge. "ok": null = no samples. Profiles (and the tests' fake profile) may override it.
+upright_check() {
+  FC_IMU_TOPIC=$PROFILE_IMU_TOPIC timeout 15 python3 "$HERE/imu/imu_level.py" check --seconds 1 \
+    --max-deg "${FC_UPRIGHT_MAX_DEG:-25}"
+}
+
+# _upright_gate : BEFORE any stand. The walker's own fall stop (max_body_angle) is skipped during its init blend, so
+# a stand on a robot lying on its side runs the policy sideways (recorded falls rested at 70-137 deg). Refuses
+# (exit 6, nothing moved, the latch kept) when not upright; with no IMU verdict refuses too unless
+# --skip-imu-check (the operator checked it by eye; never for getup).
+_upright_gate() {
+  UPRIGHT_DONE=1
+  [ -n "${PROFILE_IMU_TOPIC:-}" ] || { fc_log "profile has no IMU topic: tilt gate skipped"; return 0; }
+  local u t lim=${FC_UPRIGHT_MAX_DEG:-25}
+  profile_env   # ROS environment + domain for the read-only IMU subscriber (it may run before step 2's profile_env)
+  u=$(upright_check 2>> "$FC_LOGS/ready.log" | grep '^{' | tail -1)
+  t=$(_json_field "$u" tilt_deg)
+  if [[ "$u" == *'"ok": true'* ]]; then fc_log "upright: tilt ${t:-?} deg (limit $lim)"; return 0; fi
+  if [[ "$u" == *'"ok": false'* ]]; then
+    emit error false "robot not upright (tilt ${t:-?} deg, limit $lim): set it on its belly or feet, then Get up" \
+      ",\"at\":\"upright\",\"upright\":false,\"tilt_deg\":${t:-null},\"exit\":6,\"done\":true"
+    exit 6
+  fi
+  if [ -n "$skip_imu" ] && [ -z "${GETUP:-}" ]; then
+    fc_log "tilt gate: no IMU verdict (${u:-no output}); --skip-imu-check: operator vouches the robot is upright"
+    return 0
+  fi
+  emit error false "cannot confirm the robot is upright: no IMU reading ($(_json_field "$u" error)). Check the IMU (fcctl.sh status); Ready --skip-imu-check only after checking it by eye" \
+    ",\"at\":\"upright\",\"upright\":null,\"exit\":6,\"done\":true"
+  exit 6
+}
+
+cmd_getup() {
+  [ $# -eq 0 ] || ready_fail args "getup takes no arguments (it uses the running stack; Ready for anything else)" 2
+  GETUP=1 cmd_ready --confirm
+}
+
 cmd_ready() {
   local name="" confirm="" stand_now="" bridge=1 a rearmed=0 skip_imu=""
+  UPRIGHT_DONE=""
   READY_T0=$(_now)
   while [ $# -gt 0 ]; do
     a=$1; shift
@@ -782,13 +828,25 @@ cmd_ready() {
   if [ -n "$prev" ] && ! active_stale && _profile_ok "$prev"; then
     if fc_alive starter || ( load_profile "$prev" > /dev/null && profile_alive "$(active_run)" ); then cur=$prev; fi
   fi
+  if [ -n "${GETUP:-}" ]; then   # never homes: a dead stack means the robot goes back on the stand
+    [ -n "$cur" ] || ready_fail stack "stack not running: needs Ready with homing (on the stand)" 7
+    ! fc_alive starter || ready_fail stack "a stack start (homing) is in progress: wait for it, then Ready" 7
+  fi
   [ -n "$name" ] || name=$cur
   [ -n "$name" ] || ready_fail args "no profile running: ready <profile> --confirm" 2
   _profile_ok "$name" || ready_fail args "unknown profile '$name' (have: $(cd "$HERE/profiles" && ls *.sh | sed 's/\.sh$//' | tr '\n' ' '))" 2
   [ -z "$cur" ] || [ "$cur" = "$name" ] || ready_fail profile "profile '$cur' is running, not '$name': fcctl.sh down first" 1
   load_profile "$name"
   apply_stack_opts || ready_fail args "$STACK_ERR" 2
-  emit begin true "profile $name" ",\"profile\":\"$name\",\"walker\":\"$PROFILE_WALKER\""
+  emit begin true "profile $name${GETUP:+ (get up: no homing)}" ",\"profile\":\"$name\",\"walker\":\"$PROFILE_WALKER\"${GETUP:+,\"getup\":true}"
+  if [ -n "${GETUP:-}" ] && [ -f "$FC_RUN/estop.json" ]; then   # an IMU fault is not a fall: it stays down
+    local gwhy; gwhy=$(_stack_field "$FC_RUN/estop.json" reason)
+    case "${gwhy:-unknown}" in
+      imu_*) ready_fail imu_fault "IMU fault latch (${gwhy}): stays down. Check the IMU (fcctl.sh status; i2c-recover / imu-level), then Ready" 8 ;;
+    esac
+  fi
+  # Stack already up and homed: the tilt gate runs before anything changes (the latch stays if it refuses).
+  if [ -n "$cur" ] && ! fc_alive starter && [ -f "$(active_run)/READY" ]; then _upright_gate; fi
 
   # 0. e-stop latch (SPEC v1.1): only a confirmed Ready re-arms. Stop the latched bridge, clear the latch;
   # step 2 then cycles the walker (an e-stopped controller can still read "active" while limp).
@@ -864,6 +922,8 @@ cmd_ready() {
     emit homed true "homed, controllers loaded, mux ok (--stand-now: standing on the stand)" ",\"run_dir\":\"$run\""
   fi
 
+  # Just started (or a start was in progress): the gate runs before the stand.
+  [ -n "$UPRIGHT_DONE" ] || _upright_gate
   # 2. stand: the same SwitchController request the gamepad X sends (activate the walker, deactivate the
   # other leg controllers, BEST_EFFORT). A latched Stop gateway (tej_u6) refuses it: then wait for the gamepad.
   profile_env
@@ -1120,6 +1180,7 @@ case "${1:-}" in
   _starter) shift; cmd__starter "$@" ;;
   stop) shift; cmd_stop "$@" ;;
   ready) shift; cmd_ready "$@" ;;
+  getup) shift; cmd_getup "$@" ;;
   down) shift; cmd_down "$@" ;;
   boot) cmd_boot ;;
   bridge) shift; cmd_bridge "$@" ;;
@@ -1128,5 +1189,5 @@ case "${1:-}" in
   imu-test) shift; cmd_imu_test "$@" ;;
   i2c-recover) shift; cmd_i2c_recover "$@" ;;
   imu-level) shift; cmd_imu_level "$@" ;;
-  *) sed -n '2,47p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,53p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

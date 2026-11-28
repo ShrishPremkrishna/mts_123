@@ -55,6 +55,13 @@ profile_start() {
 }
 profile_alive() { fc_alive launch; }
 profile_stop() { fc_signal_group mux INT 5; fc_signal_group launch INT 5; }
+upright_check() {  # FAKE_UPRIGHT=tilted: lying on its side (a recorded fall rested at 76 deg); none: no IMU verdict
+  case "${FAKE_UPRIGHT:-good}" in
+    tilted) echo '{"ok": false, "tilt_deg": 76.04, "max_deg": 25.0, "n": 50}' ;;
+    none) echo '{"ok": null, "error": "no IMU samples: is the stack running?", "n": 0}' ;;
+    *) echo '{"ok": true, "tilt_deg": 3.1, "max_deg": 25.0, "n": 50}' ;;
+  esac
+}
 imu_rest_check() {  # FAKE_IMU=bad: the IMU reads 10.7 deg at rest (rca-20261127-tilt); none: no verdict
   case "${FAKE_IMU:-good}" in
     bad) echo '{"ok": false, "tilt_deg": 10.68, "error": "IMU reads 10.7 deg at rest (limit 6.0): IMU calibration off? Put the robot level on the stand, legs off, run fcctl.sh imu-level, then restart the stack"}' ;;
@@ -539,6 +546,13 @@ profile_start() {
 }
 profile_alive() { fc_alive launch; }
 profile_stop() { fc_signal_group launch INT 5; }
+upright_check() {  # FAKE_UPRIGHT=tilted: lying on its side (a recorded fall rested at 76 deg); none: no IMU verdict
+  case "${FAKE_UPRIGHT:-good}" in
+    tilted) echo '{"ok": false, "tilt_deg": 76.04, "max_deg": 25.0, "n": 50}' ;;
+    none) echo '{"ok": null, "error": "no IMU samples: is the stack running?", "n": 0}' ;;
+    *) echo '{"ok": true, "tilt_deg": 3.1, "max_deg": 25.0, "n": 50}' ;;
+  esac
+}
 '''
 
 
@@ -711,3 +725,87 @@ def test_imu_level_refuses_without_a_stack_and_status_reports_imu_cal(fc):
     st = fc("status")
     assert st["imu_cal"]["stored"] is None and st["imu_cal"]["applied"] is None
     assert st["imu_cal"]["driver_supports_cal"] is False   # the fake robot.log has no FC_IMU_CAL line
+
+
+# ---- fall safety: tilt gate before any stand, getup (no homing) ------------------------------------------------
+def _fallen(fc, reason="fallen"):
+    """What a fall leaves: walker switched off by the bridge (R3 action), latch file, latched bridge running."""
+    assert fc.lines("ready", "fake", "--confirm", "--stand-now")[0] == 0
+    (fc.root / "fake_walker").write_text("inactive\n")
+    (fc.root / "run" / "estop.json").write_text(json.dumps({"reason": reason, "tilt_deg": 76.0}))
+    return (fc.root / "run" / "launch.pid").read_text()
+
+
+def test_ready_never_stands_a_robot_lying_on_its_side(fc):
+    assert fc("start", "fake", "--confirm")["ok"]
+    rc, out = fc.lines("ready", "--confirm", extra_env={"FAKE_UPRIGHT": "tilted"})
+    assert rc == 6 and out[-1]["at"] == "upright" and out[-1]["upright"] is False and out[-1]["tilt_deg"] == 76.04, out
+    assert "belly" in out[-1]["msg"] and out[-1]["done"]
+    assert "standing_up" not in phases(out) and not (fc.root / "fake_walker").exists()      # no stand request at all
+    assert not (fc.root / "run" / "bridge.pid").exists()
+    # the no-stack path (start, then --stand-now) checks too, after homing and before the stand
+    assert fc("stop")["ok"]
+    rc, out = fc.lines("ready", "fake", "--confirm", "--stand-now", extra_env={"FAKE_UPRIGHT": "tilted"})
+    assert rc == 6 and phases(out) == ["begin", "starting", "homed", "error"], out
+    assert (fc.root / "fake_walker").read_text().strip() == "inactive"      # (stop above wrote it) never activated
+
+
+def test_ready_tilt_gate_runs_before_the_rearm_and_keeps_the_latch(fc):
+    _fallen(fc)
+    rc, out = fc.lines("ready", "--confirm", extra_env={"FAKE_UPRIGHT": "tilted"})
+    assert rc == 6 and out[-1]["at"] == "upright" and "rearmed" not in phases(out), out
+    assert (fc.root / "run" / "estop.json").exists()                          # still latched
+    assert (fc.root / "fake_walker").read_text().strip() == "inactive"
+
+
+def test_ready_without_an_imu_verdict_refuses_unless_skipped(fc):
+    assert fc("start", "fake", "--confirm")["ok"]
+    rc, out = fc.lines("ready", "--confirm", extra_env={"FAKE_UPRIGHT": "none"})
+    assert rc == 6 and out[-1]["at"] == "upright" and out[-1]["upright"] is None and "no IMU reading" in out[-1]["msg"], out
+    assert not (fc.root / "fake_walker").exists()
+    rc, out = fc.lines("ready", "--confirm", "--skip-imu-check", extra_env={"FAKE_UPRIGHT": "none"})
+    assert rc == 0 and phases(out)[-2:] == ["bridge", "ready"], out
+
+
+def test_getup_rearms_and_stands_without_homing(fc):
+    launch = _fallen(fc)
+    rc, out = fc.lines("getup")
+    assert rc == 0 and phases(out) == ["begin", "rearmed", "homed", "standing_up", "standing", "bridge", "ready"], out
+    assert out[0]["getup"] is True and "no homing" in out[0]["msg"]
+    assert (fc.root / "run" / "launch.pid").read_text() == launch             # same stack: no homing
+    assert not (fc.root / "run" / "estop.json").exists() and list((fc.root / "logs").glob("estop-*.json"))
+    assert fc("status")["phase"] == "ready"
+    rc, out = fc.lines("getup")                                                 # idempotent on a playing robot
+    assert rc == 0 and phases(out) == ["begin", "homed", "standing", "bridge", "ready"], out
+
+
+def test_getup_after_an_operator_estop_with_the_walker_reading_active(fc):
+    assert fc.lines("ready", "fake", "--confirm", "--stand-now")[0] == 0
+    (fc.root / "run" / "estop.json").write_text('{"reason": "link"}')         # walker still reads active (limp)
+    rc, out = fc.lines("getup")
+    assert rc == 0 and phases(out) == ["begin", "rearmed", "homed", "standing_up", "standing", "bridge", "ready"], out
+
+
+def test_getup_needs_a_running_stack(fc):
+    rc, out = fc.lines("getup")
+    assert rc == 7 and out[-1]["at"] == "stack" and "needs Ready with homing (on the stand)" in out[-1]["msg"], out
+    assert not (fc.root / "run" / "launch.pid").exists() and not (fc.root / "fake_walker").exists()
+    rc, out = fc.lines("getup", "fake")
+    assert rc == 2 and out[-1]["at"] == "args"
+
+
+def test_getup_stays_down_on_an_imu_fault_latch(fc):
+    _fallen(fc, reason="imu_frozen")
+    rc, out = fc.lines("getup")
+    assert rc == 8 and out[-1]["at"] == "imu_fault" and "imu_frozen" in out[-1]["msg"] and "Ready" in out[-1]["msg"], out
+    assert (fc.root / "run" / "estop.json").exists() and (fc.root / "fake_walker").read_text().strip() == "inactive"
+    assert (fc.root / "run" / "bridge.pid").exists()                          # the latched bridge is left as it was
+
+
+def test_getup_stays_down_when_not_upright_or_without_imu(fc):
+    _fallen(fc)
+    for up in ("tilted", "none"):
+        rc, out = fc.lines("getup", extra_env={"FAKE_UPRIGHT": up})
+        assert rc == 6 and out[-1]["at"] == "upright" and "rearmed" not in phases(out), (up, out)
+        assert (fc.root / "run" / "estop.json").exists()
+        assert (fc.root / "fake_walker").read_text().strip() == "inactive"
