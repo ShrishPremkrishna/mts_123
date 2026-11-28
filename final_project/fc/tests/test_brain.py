@@ -721,3 +721,50 @@ def test_hidden_ball_keeps_the_estimate_then_guards_the_goal_centre():
     assert d["phase"] == "hold_goal" and d["role"] == "defend" and abs(d["target"][1]) < 1e-9
     _c, d = Brain(BLUE, F).decide(w(1.5, 0.0), {**q, "occl_ball_s": 0.0})
     assert d["phase"].startswith("ball_lost")
+
+
+def test_fence_knobs_off_by_default_and_clamp_with_mouth_exception():
+    assert DEFAULTS["wall_margin_m"] == 0 and DEFAULTS["wall_ball_m"] == 0
+    b = Brain(BLUE, F)
+    q = (F.length / 2 + 1, F.width / 2 + 1)
+    assert b._clamp_field(q, P) == (F.length / 2 - P["field_margin"], F.width / 2 - P["field_margin"])
+    pw = {**P, "wall_margin_m": 0.28}
+    x, y = b._clamp_field(q, pw)
+    assert abs(x - (F.length / 2 - 0.28)) < 1e-9 and abs(y - (F.width / 2 - 0.28)) < 1e-9
+    x, y = b._clamp_field((F.length, 0.0), pw)  # in the goal mouth: up to wall_mouth_m short of the line
+    assert abs(x - (F.length / 2 - pw["wall_mouth_m"])) < 1e-9
+
+
+def test_fence_guard_stops_walking_into_a_fence_and_pushes_away():
+    b = Brain(BLUE, F)
+    pw = {**P, "wall_margin_m": 0.28, "max_vx": 0.75, "max_vy": 0.3}
+    hw = F.width / 2
+    near = Pose(0.0, hw - 0.20, math.pi / 2)  # 20 cm from the north fence, facing it
+    cmd, hit = b._fence_guard(near, Cmd(0.75, 0.0, 0.0, "x"), pw)
+    assert hit and cmd.vx < 0.05  # can no longer close in (backs off slightly)
+    far = Pose(0.0, 0.0, math.pi / 2)
+    cmd, hit = b._fence_guard(far, Cmd(0.75, 0.0, 0.0, "x"), pw)
+    assert not hit and cmd.vx == 0.75
+    along = Pose(0.0, hw - 0.20, 0.0)  # walking along the fence is allowed, with a small push away
+    cmd, hit = b._fence_guard(along, Cmd(0.5, 0.0, 0.0, "x"), pw)
+    assert hit and abs(cmd.vx - 0.5) < 1e-9 and cmd.vy < 0
+
+
+def test_wall_ball_banks_toward_goal_and_keeps_the_contact_point_off_the_fence():
+    b = Brain(BLUE, F)
+    pw = {**P, "wall_margin_m": 0.28, "wall_ball_m": 0.32}
+    B = (0.0, F.width / 2 - F.ball_radius - 0.01)  # ball on the north fence
+    u = b._dr_dir(B, pw)
+    assert u[0] > 0.3 and u[1] > 0  # toward the attacked (east) goal, into the fence: comes off it into the field
+    c = F.ball_radius + F.robot_radius + 0.03
+    assert b._out(B[0] - u[0] * c, B[1] - u[1] * c, pw) == 0.0
+    assert b._wall_aim((0.0, 0.0), (F.length / 2, 0.0), pw) is None  # open field: unchanged
+
+
+def test_fence_guard_in_decide_with_dribble_preset_near_wall():
+    b = Brain(BLUE, F)
+    pw = {**P, "dribble": 1, "wall_margin_m": 0.28, "wall_ball_m": 0.32, "max_vx": 0.75}
+    hw = F.width / 2
+    res = run(b, lambda t: world(t, (-0.4, hw - 0.22, math.pi / 2), (0.3, hw - 0.1)), 30, pw)
+    assert all(c.vx * math.sin(math.pi / 2) < 0.2 for c, _ in res[5:])
+    assert res[-1][1].get("fence") == 1

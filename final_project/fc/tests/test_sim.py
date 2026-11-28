@@ -265,3 +265,32 @@ def test_hide_blinds_the_camera_and_vs_human_smoke():
     h = se.vs_human(F, ROBOTS, p, 1, minutes=0.25)
     assert {"scored", "conceded", "flips_pm", "rev_pm", "exposed", "occ_stall", "rec", "touch_pm"} <= set(h)
     assert h["touch_pm"] > 0
+
+
+def test_fence_contacts_and_tips_and_wall_balls_scenario():
+    s = Sim(F, ROBOTS, OFF, 0)
+    s.reset("attack_solo")
+    b = s.bots["blue"]
+    b.x, b.y, b.yaw = 0.0, F.width / 2 - 0.4, math.pi / 2
+    s.ball = [1.0, -0.5, 0.0, 0.0]
+    drive(s, {"blue": Cmd(0.5, 0.0, 0.0)}, 1.5)  # walks into the north fence
+    ev = [e["type"] for e in s.events]
+    assert ev.count("wall") == 1 and ev.count("tip") == 1
+    s2 = Sim(F, ROBOTS, OFF, 0)
+    s2.reset("attack_solo")
+    b = s2.bots["blue"]
+    b.x, b.y, b.yaw = 0.0, F.width / 2 - 0.4, 0.0
+    drive(s2, {"blue": Cmd(0.0, 0.0, 0.0)}, 0.5)  # standing in the open: nothing
+    assert not [e for e in s2.events if e["type"] in ("wall", "tip")]
+    for seed in range(20):
+        s3 = Sim(F, ROBOTS, {}, seed)
+        s3.reset("wall_balls")
+        bx, by = s3.ball[0], s3.ball[1]
+        assert list(s3.bots) == ["blue"]
+        assert min(F.length / 2 - abs(bx), F.width / 2 - abs(by)) < 0.26
+
+
+def test_sim_eval_wall_rows_smoke():
+    from fc.sim_eval import evaluate
+    out = evaluate(2, True, 1.0, 1, {"dribble": 1, "wall_margin_m": 0.28, "wall_ball_m": 0.32}, scen=("wall",))
+    assert "wall_balls: fence contacts / tips / traps" in out

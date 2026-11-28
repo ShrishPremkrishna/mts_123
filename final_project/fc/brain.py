@@ -188,6 +188,21 @@ Contested play (preset vs-human; every knob 0 = off, the brain is then unchanged
                     on by the decel model if free) up to occl_ball_s; a defender holds the goal centre meanwhile.
                     Beyond it the robot holds the goal centre (role defend) instead of standing still (auto/defend
                     only). dbg["occluded"] = "", "pose", "ball" or "pose+ball"; dbg["ball_state"]
+
+Fences (field fenced on all sides; every knob 0 = off, the brain is then unchanged):
+  wall_margin_m     robot centre keeps this far from every fence: every walking target, stage point, plan
+                    waypoint and pursuit carrot is clamped into the field shrunk by it (max with field_margin).
+                    In a goal mouth (robot |y| < goal_width/2 - robot_radius/2) the end limit is wall_mouth_m
+                    inside the goal line instead (the robot may follow a ball to the line, never into the net).
+                    Fence guard on the final command, every role: the world velocity toward a fence is capped at
+                    what can still brake (wall_brake m/s^2, after act_lag_s of travel) before wall_stop_m
+                    (0 = robot_radius), and within the margin a component away from it is added (0 at the margin,
+                    wall_rep_v at wall_stop_m)
+  wall_ball_m       ball centre this close to a side/end fence (not the mouth): the robot cannot get behind it,
+                    so it banks: the push aims at the attacked goal mirrored through that fence (into the fence,
+                    the ball comes off it into the field toward the goal), steepened until the contact point keeps
+                    the margin. Two fences (corner): the push aims into the corner (the ball comes out toward the
+                    centre). A ball pressed into a corner is out of reach without entering the margin.
 """
 from __future__ import annotations
 
@@ -240,6 +255,7 @@ DEFAULTS = {
     "hard_roles": 0, "hr_zone": 0.5, "hr_vin": 0.1, "hr_hold_s": 2.5, "hr_exit_v": 0.3, "hr_exit_eta": 2.0,
     "hr_stick_m": 0.35, "guard_line_m": 0.0, "gk_out": 0.0, "gk_out_frac": 0.45,
     "occl_pose_s": 0.0, "occl_slow_s": 0.3, "occl_speed": 0.6, "occl_gain": 0.9, "occl_ball_s": 0.0,
+    "wall_margin_m": 0.0, "wall_mouth_m": 0.05, "wall_stop_m": 0.0, "wall_rep_v": 0.2, "wall_brake": 0.8, "wall_ball_m": 0.0,
 }
 
 
@@ -513,6 +529,9 @@ class Brain:
         want, dbg = self._unstick(pose, want, dbg, t, p)
         if not (p["return_detour"] and dbg["phase"] == "return") and not dbg["phase"].startswith("dr_"):
             want = self._pace(pose, B, want, p)
+        want, fenced = self._fence_guard(pose, want, p)
+        if fenced:
+            dbg["fence"] = 1
         want = self._occ_scale(want, pose_occ, p)
         cmd = self._smooth(want, dt, p, t, accel_vx=p["hb_accel"] if dbg["phase"] in ("charge", "backoff") else None)
         dbg.update(role=role, pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)],
@@ -904,9 +923,61 @@ class Brain:
         return self.role, costs
 
     # ------------------------------------------------------------------ motion primitives
+    def _box(self, y: float, p: dict):
+        """(x limit, y limit) for a robot centre at height y: the field shrunk by the walking margin
+        (wall_margin_m when set, else field_margin); in a goal mouth the end limit is wall_mouth_m."""
+        f, m = self.f, p["field_margin"]
+        wm = p.get("wall_margin_m", 0.0)
+        if wm <= 0:
+            return f.length / 2 - m, f.width / 2 - m
+        m = max(m, wm)
+        mouth = abs(y) < f.goal_width / 2 - 0.5 * f.robot_radius
+        return f.length / 2 - (min(m, p.get("wall_mouth_m", 0.05)) if mouth else m), f.width / 2 - m
+
+    def _out(self, x: float, y: float, p: dict) -> float:
+        hl, hw = self._box(y, p)
+        return max(0.0, abs(x) - hl) + max(0.0, abs(y) - hw)
+
     def _clamp_field(self, q, p: dict):
-        m, f = p["field_margin"], self.f
-        return (clamp(q[0], -f.length / 2 + m, f.length / 2 - m), clamp(q[1], -f.width / 2 + m, f.width / 2 - m))
+        hl, hw = self._box(q[1], p)
+        y = clamp(q[1], -hw, hw)
+        hl = self._box(y, p)[0]
+        return (clamp(q[0], -hl, hl), y)
+
+    def _fences(self, x: float, y: float, p: dict):
+        """[(distance, inward normal)] to each fence; in the mouth band the end 'fence' is virtual, placed so
+        the margin ends wall_mouth_m inside the goal line."""
+        f, wm = self.f, p.get("wall_margin_m", 0.0)
+        hl, hw = f.length / 2, f.width / 2
+        if abs(y) < f.goal_width / 2 - 0.5 * f.robot_radius:
+            hl += max(0.0, wm - p["wall_mouth_m"])
+        return [(hw - y, (0.0, -1.0)), (hw + y, (0.0, 1.0)), (hl - x, (-1.0, 0.0)), (hl + x, (1.0, 0.0))]
+
+    def _fence_guard(self, pose: Pose, want: Cmd, p: dict) -> tuple[Cmd, bool]:
+        """Within wall_margin_m of a fence: cap the velocity toward it (0 at wall_stop_m) and add a push away."""
+        wm = p.get("wall_margin_m", 0.0)
+        if wm <= 0:
+            return want, False
+        stop = p["wall_stop_m"] or self.f.robot_radius
+        c, s = math.cos(pose.yaw), math.sin(pose.yaw)
+        vx, vy = c * want.vx - s * want.vy, s * want.vx + c * want.vy
+        hit = False
+        ox, oy = c * self.out.vx - s * self.out.vy, s * self.out.vx + c * self.out.vy  # what we are doing now
+        for d, (nx, ny) in self._fences(pose.x, pose.y, p):
+            vin = -(vx * nx + vy * ny)  # commanded speed toward the fence
+            d_eff = d - max(0.0, -(ox * nx + oy * ny)) * p["act_lag_s"]
+            cap = math.sqrt(2 * p["wall_brake"] * max(0.0, d_eff - stop))
+            if vin > cap:
+                hit = True
+                vx, vy = vx + (vin - cap) * nx, vy + (vin - cap) * ny
+            if d < wm:
+                hit = True
+                k = clamp((wm - d) / max(1e-3, wm - stop), 0.0, 1.0)  # 0 at the margin, 1 at the stop line
+                vx, vy = vx + p["wall_rep_v"] * k * nx, vy + p["wall_rep_v"] * k * ny
+        if not hit:
+            return want, False
+        bx, by = c * vx + s * vy, -s * vx + c * vy
+        return Cmd(clamp(bx, -0.3, max(p["max_vx"], 0.3)), clamp(by, -p["max_vy"], p["max_vy"]), want.wz, want.tag), True
 
     def _repel(self, pose: Pose, others, p: dict):
         rx = ry = 0.0
@@ -951,7 +1022,7 @@ class Brain:
         f = self.f
         hw = f.goal_width / 2 - f.ball_radius
         aim = (self.att_x, clamp(B[1] * p["aim_y_frac"], -hw, hw))
-        ux, uy = self._feasible_dir(B, unit(aim[0] - B[0], aim[1] - B[1]), p, stage_d)
+        ux, uy = self._feasible_dir(B, self._wall_aim(B, aim, p) or unit(aim[0] - B[0], aim[1] - B[1]), p, stage_d)
         nx, ny = -uy, ux
         rx, ry = pose.x - B[0], pose.y - B[1]
         a, l = rx * ux + ry * uy, rx * nx + ry * ny
@@ -960,16 +1031,15 @@ class Brain:
     def _feasible_dir(self, B, u0, p: dict, stage_d: float = 0.0):
         """Smallest rotation of the push direction whose stage point behind the ball is reachable.
         A ball on a wall gets pushed along it (slightly into it) instead of an unreachable shot line."""
-        f, m = self.f, p["field_margin"]
+        f = self.f
         d = stage_d or f.ball_radius + f.robot_radius + 0.03
-        hl, hw = f.length / 2 - m, f.width / 2 - m
         best, best_out = u0, 1e9
-        for k in range(0, 37):
+        for k in range(0, 73 if p.get("wall_margin_m", 0.0) > 0 else 37):
             rot = math.radians(5 * ((k + 1) // 2) * (1 if k % 2 else -1))
             c, s = math.cos(rot), math.sin(rot)
             u = (c * u0[0] - s * u0[1], s * u0[0] + c * u0[1])
             sx, sy = B[0] - u[0] * d, B[1] - u[1] * d
-            out = max(0.0, abs(sx) - hl) + max(0.0, abs(sy) - hw)
+            out = self._out(sx, sy, p)
             if out <= 0.0:
                 return u
             if out < best_out - 1e-9:
@@ -1084,6 +1154,9 @@ class Brain:
         balls = [B] if math.hypot(P[0] - B[0], P[1] - B[1]) < 0.05 else [B, P]
 
         def out_of(x, y):
+            if p.get("wall_margin_m", 0.0) > 0:
+                bl, bw = self._box(y, p)
+                return max(0.0, abs(x) - bl, abs(y) - bw)
             return max(0.0, abs(x) - hl, abs(y) - hw)
 
         def near(x, y):  # (distance, clearance needed) to each ball point: behind the ball only no contact,
@@ -1276,7 +1349,31 @@ class Brain:
         f = self.f
         hw = f.goal_width / 2 - f.ball_radius
         aim = (self.att_x * (1 + f.goal_depth / max(1e-3, abs(self.att_x))), clamp(P[1] * p["aim_y_frac"], -hw, hw))
-        return self._feasible_dir(P, unit(aim[0] - P[0], aim[1] - P[1]), p)
+        return self._feasible_dir(P, self._wall_aim(P, aim, p) or unit(aim[0] - P[0], aim[1] - P[1]), p)
+
+    def _wall_aim(self, B, aim, p: dict):
+        """wall_ball_m: push direction for a ball on a fence (None = not a wall ball): at the goal mirrored
+        through the fence (bank), into the corner for two fences. _feasible_dir then steepens it as needed."""
+        wb = p.get("wall_ball_m", 0.0)
+        if wb <= 0:
+            return None
+        f = self.f
+        hl, hw = f.length / 2, f.width / 2
+        near = []
+        if hw - abs(B[1]) < wb:
+            near.append("y")
+        if hl - abs(B[0]) < wb and abs(B[1]) >= f.goal_width / 2:
+            near.append("x")
+        if not near:
+            return None
+        if len(near) == 2:
+            return unit(math.copysign(1.0, B[0]), math.copysign(1.0, B[1]))
+        if near[0] == "y":
+            yw = math.copysign(hw, B[1])
+            mx, my = aim[0], 2 * yw - aim[1]
+        else:  # end fence beside a goal: the goal is in that fence, aim straight (it slides along into the mouth)
+            return None
+        return unit(mx - B[0], my - B[1])
 
     def _attack_dribble(self, pose: Pose, B, bv, others, p: dict, t: float, dt: float):
         """Meet the ball where it will be, then keep touching it toward the goal (see the module doc)."""
@@ -1360,6 +1457,8 @@ class Brain:
             along = max(a + 0.5 * L, min(a + L, -(c + 1.2 * max(0.0, abs(le) - 0.03))))
             carrot = (P[0] + u[0] * along + n[0] * d_side, P[1] + u[1] * along + n[1] * d_side)
             phase = "dr_carry" if gap < 0.15 and abs(le) < 0.08 else "dr_chase"
+        if p.get("wall_margin_m", 0.0) > 0:
+            carrot = self._clamp_field(carrot, p)
         rpx, rpy = self._repel(pose, others, p)
         bx, by = to_body(pose, carrot[0] - pose.x + L * rpx, carrot[1] - pose.y + L * rpy)
         Ld = max(0.05, math.hypot(bx, by))
@@ -1513,6 +1612,9 @@ class Brain:
                     B[1] + rr * (math.cos(pw) * u[1] + math.sin(pw) * n[1]))
 
         def inside(W, slack):
+            if p.get("wall_margin_m", 0.0) > 0:
+                bl, bw = self._box(W[1], p)
+                return abs(W[0]) <= bl + slack and abs(W[1]) <= bw + slack
             return abs(W[0]) <= f.length / 2 - m + slack and abs(W[1]) <= f.width / 2 - m + slack
 
         if not self.orbit_side or t >= self.side_until:
@@ -1686,8 +1788,7 @@ class Brain:
         side = -1.0 if lat > 0 else 1.0
         for sd in (side, -side):
             W = (B[0] - uy * sd * 1.3 * clear, B[1] + ux * sd * 1.3 * clear)
-            m = p["field_margin"]
-            if abs(W[0]) <= f.length / 2 - m and abs(W[1]) <= f.width / 2 - m:
+            if self._out(W[0], W[1], p) <= 0.0:
                 return W
         return self._clamp_field(W, p)
 

@@ -312,3 +312,34 @@ What this says:
   robot uses much more under the rules. Check on the floor with the run logs (`dbg.ball_state`, `dbg.rule`).
 - **Occlusion:** no stalls from a lost ball (v3: ~8 s per match of `ball_lost_hold`), stale stops 17 → 5 s per 3 min,
   recovery median 0.17 → 0 s.
+
+## Fences (2026-11-27, sim only)
+
+Floor Nov 27: a corner ball, the robot routed round it to get behind, walked into the fence and tipped (fallen
+cutoff 137 deg). Cause in code: targets were kept only `field_margin` 0.12 m inside the edge, less than the 0.18 m
+body radius, and a wall ball's push direction was rotated just enough to put the stage point 0.12 m off the fence.
+
+Knobs (brain.py doc, presets dribble + vs-human): `wall_margin_m` 0.28 clamps every target / stage / plan waypoint /
+carrot into the field shrunk by 0.28 (goal mouth: to 5 cm short of the line) and guards the final command in every
+role (speed toward a fence capped at what brakes at 0.8 m/s^2 before 0.18 m after act_lag_s; inside the margin a
+push away, up to 0.2 m/s). `wall_ball_m` 0.32: a ball on a side fence is banked (push aimed at the goal mirrored
+through the fence, steepened until the contact point keeps the margin; the ball comes off the fence toward goal).
+
+Geometry limit (not a bug): with the robot centre >= 0.28 m off both fences and contact distance 0.27 m, a ball
+pressed into a corner cannot be pushed out at all (every contact pushes it into both fences). The robot stays
+clear; the 6 s referee nudge (sim) or a person frees it. That is why traps go up.
+
+Sim: `wall_balls` scenario (ball against a fence 75% / in a corner 25%, robot in the open), fence contact = body
+(0.16 m) touching a side fence or an end fence outside the mouth, would-tip = touching it > 0.15 m/s or 4 cm deep.
+`--floor25 --seeds 100 --preset dribble --scen wall solo --field length=3.36 width=2.70`:
+
+| | v3 (fence off) | margin only | margin + bank (preset) |
+|---|---|---|---|
+| wall balls: goals <=40 s, median s | 63/73, 17.0 | 70/73, 18.7 | 67/73, 19.6 |
+| corner balls: goals, median s | 25/27, 13.7 | 27/27, 16.4 | 25/27, 16.2 |
+| fence contacts / would-tip / referee traps | 252 / 228 / 60 | 14 / 7 / 95 | 6 / 2 / 87 |
+| runs with a tip | 90/100 | 6/100 | 2/100 |
+| open solo (attack_solo): goals, median s | 96/100, 9.3 | 98/100, 10.2 | 98/100, 10.0 |
+
+Goals from wall balls lean on referee nudges in every column. Open-field solo is within noise on goals, ~0.7 s
+slower median (attack_solo balls start up to 0.25 m from a fence, so some are wall balls). Not floor-tested.

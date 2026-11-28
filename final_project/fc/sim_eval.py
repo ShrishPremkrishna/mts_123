@@ -47,6 +47,8 @@ Rows:
   robot neither on its guard line nor within 0.4 m of the ball; defend off line = role defend but not on the line;
   stalled while hidden = share of hidden ticks (robot or ball) with the robot standing off its line; recovery =
   s from the end of a hiding burst until the robot moves (> 0.1 m/s) or is on its line.
+- wall: ball resting against a fence or in a corner (sim scenario wall_balls), robot in the open, 40 s: goals and
+  median s for fence and corner balls; robot fence contacts / would-tip events (sim_fence_r, sim_tip_v) / referee traps.
 - moving: ball rolled across the field (0.5-1.1 m/s), robot role attack from its own half: first
   touch within 6 s, that touch sends the ball toward the attack goal, goal within 15 s (median s).
 """
@@ -188,6 +190,23 @@ def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
              "defl": len(dr["defl"]), "rec": [x[1] for x in dr["defl"] if x[1] is not None and x[1] <= 8.0],
              "align": dr["align"], "talign": dr["talign"], "near_vy": dr["vy"], "shot": dr["shot"]}
     return (ev["t"] - t0 if ev and ev["team"] == me.team else None), bool(ev and ev["team"] != me.team), stats
+
+
+def wall_solo(field, robots, params, seed, limit=40.0):
+    """One robot attacks a ball resting against a fence or in a corner (scenario wall_balls)."""
+    p = {**params, "role_mode": "auto"}
+    sim = Sim(field, robots, p, seed)
+    sim.reset("wall_balls")
+    me = robots[0]
+    bx, by = sim.ball[0], sim.ball[1]
+    hl, hw = field.length / 2, field.width / 2
+    corner = hl - abs(bx) < 0.25 and hw - abs(by) < 0.25
+    t0 = sim.t
+    _loop(sim, {me.id: Brain(me, field)}, p, limit, lambda c, d: bool(_goals(sim)))
+    ev = _goals(sim)[0] if _goals(sim) else None
+    n = lambda k: sum(e["type"] == k for e in sim.events)
+    return {"corner": corner, "goal": ev["t"] - t0 if ev and ev["team"] == me.team else None,
+            "own": bool(ev and ev["team"] != me.team), "wall": n("wall"), "tip": n("tip"), "trap": n("trapped")}
 
 
 def goalie(field, robots, params, seed, style, empty=False):
@@ -573,6 +592,16 @@ def evaluate(seeds: int, errors: bool, minutes: float, matches: int, overrides: 
                    ret_ball=_med([x["arrive"] for x in fr if x["arrive"] < math.inf]))
         out["return (forced): on line / median s, ball s"] = (f"{len(line)}/{len(fr)}, {raw['ret_med']:.1f}, "
                                                               f"{raw['ret_ball']:.1f}")
+    if "wall" in scen:
+        res = [wall_solo(field, robots, params, 7000 + s) for s in range(seeds)]
+        for lab, rs in (("wall", [x for x in res if not x["corner"]]), ("corner", [x for x in res if x["corner"]])):
+            g = [x["goal"] for x in rs if x["goal"] is not None]
+            raw.update({f"wb_{lab}_goal": len(g) / max(1, len(rs)), f"wb_{lab}_med": _med(g)})
+            out[f"wall_balls {lab}: goals <=40 s, median s"] = f"{len(g)}/{len(rs)}, {_med(g):.1f}"
+        raw.update(wb_wall=sum(x["wall"] for x in res), wb_tip=sum(x["tip"] for x in res))
+        out["wall_balls: fence contacts / tips / traps"] = (f"{raw['wb_wall']} / {raw['wb_tip']} / "
+                                                         f"{sum(x['trap'] for x in res)}")
+        out["wall_balls: runs with a tip, own goals"] = f"{sum(x['tip'] > 0 for x in res)}/{seeds}, {sum(x['own'] for x in res)}"
     if "moving" in scen:
         res = [moving_attack(field, robots, params, 4000 + s) for s in range(seeds)]
         g = [x["goal"] for x in res if x["goal"] is not None]
@@ -741,7 +770,7 @@ def main() -> None:
     ap.add_argument("--set", nargs="*", default=[], metavar="KEY=VALUE", help="override params.json (JSON values)")
     ap.add_argument("--field", nargs="*", default=[], metavar="KEY=VALUE", help="override field.json (numbers)")
     ap.add_argument("--scen", nargs="*", default=["core", "human", "return", "moving"],
-                    help="row groups: core human return moving solo goalie vshuman")
+                    help="row groups: core human return moving solo goalie vshuman wall")
     ap.add_argument("--floor", action="store_true", help="add the Nov 24 floor errors (FLOOR) to the sim's")
     ap.add_argument("--floor25", action="store_true", help="Nov 25 floor (FLOOR25: new ball, gait 0.88, cap 0.8)")
     ap.add_argument("--lag", nargs="*", type=float, default=[], metavar="S",

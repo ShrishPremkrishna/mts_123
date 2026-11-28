@@ -52,5 +52,8 @@
   "dribble_commit_wz": 0.8,
   "dribble_shot_m": 1.0,
   "dribble_shot_close": 1.0,
-  "dribble_shot_deg": 15
+  "dribble_shot_deg": 15,
+  "_note_fence": "Nov 27 fences: wall_margin_m 0.28 (robot centre >= 0.28 m from every fence; braking cap toward a fence, push-away inside the margin) and wall_ball_m 0.32 (ball on a side fence: bank off it toward the goal). Sim only (3.36x2.70, --floor25 --scen wall): would-tip events 228 -> 2 per 100 wall/corner balls. notes/brain.md.",
+  "wall_margin_m": 0.28,
+  "wall_ball_m": 0.32
 }

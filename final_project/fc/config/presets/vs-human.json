@@ -58,5 +58,8 @@
   "occl_pose_s": 1.5,
   "occl_ball_s": 2.0,
   "stale_stop_s": 1.6,
-  "guard_line_m": 0.2
+  "guard_line_m": 0.2,
+  "_note_fence": "Nov 27 fences: wall_margin_m 0.28 (robot centre >= 0.28 m from every fence; braking cap toward a fence, push-away inside the margin) and wall_ball_m 0.32 (ball on a side fence: bank off it toward the goal). Sim only (3.36x2.70, --floor25 --scen wall): would-tip events 228 -> 2 per 100 wall/corner balls. notes/brain.md.",
+  "wall_margin_m": 0.28,
+  "wall_ball_m": 0.32
 }

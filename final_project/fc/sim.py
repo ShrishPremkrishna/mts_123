@@ -35,6 +35,9 @@ Physics knobs (always on): sim_ball_decel (m/s^2), sim_ball_e_robot, sim_ball_e_
   0 = ball leaving the field is an "out" event and a kickoff reset), sim_trap_s (a ball
   near a wall that stays within 10 cm for this long is a "trapped" event: the referee nudges it
   0.35 m inward, like the accepted manual ball replacement).
+Fences (robots): sim_fence_r body reach from the centre; touching a fence is a "wall" event, touching it faster than
+  sim_tip_v (m/s into it) or sim_tip_pen deeper is a "tip" event (would fall over; the robot is not stopped).
+  Scenario "wall_balls": one robot in the open, the ball resting against a fence or in a corner.
 
 Scripted human (for one-robot play): `kick(x, y, vx, vy)` places the ball and rolls it now;
 `shoot(tx, ty, v_end, x=None, y=None)` rolls it from (x, y) (default: where it is) so it reaches
@@ -68,6 +71,7 @@ SIM_DEFAULTS = {
     "sim_vx_clip": 1.5, "sim_vx_back_max": 0.3, "sim_wz_clip": 2.0,
     "sim_fast_wobble": 0.5, "sim_fast_wobble_hz": 2.5, "sim_gait_kick": 0.3, "sim_gait_kick_s": 0.3,
     "sim_fast_dir_deg": 0.0, "sim_ball_curve": 0.0, "sim_goal_bounce": 0.35,
+    "sim_fence_r": 0.16, "sim_tip_v": 0.15, "sim_tip_pen": 0.04,
 }
 OFF = {"sim_gain_vx": 1.0, "sim_gain_vy": 1.0, "sim_gain_wz": 1.0, "sim_lag_s": 0.0,
        "sim_drift_deg_per_m": 0.0, "sim_yaw_walk_deg": 0.0, "sim_latency_s": 0.0,
@@ -77,12 +81,12 @@ OFF = {"sim_gain_vx": 1.0, "sim_gain_vy": 1.0, "sim_gain_wz": 1.0, "sim_lag_s": 
        "sim_ball_noise": 0.0, "sim_ball_vel_noise": 0.0,
        "sim_speed_curve": 0, "sim_fast_wobble": 0.0, "sim_gait_kick": 0.0, "sim_fast_dir_deg": 0.0,
        "sim_ball_curve": 0.0}
-SCENARIOS = ("kickoff", "attack_solo", "shot_on_goal", "random", "return", "rolling_ball")
+SCENARIOS = ("kickoff", "attack_solo", "shot_on_goal", "random", "return", "rolling_ball", "wall_balls")
 
 
 class _Bot:
     __slots__ = ("cfg", "x", "y", "yaw", "vx", "vy", "wz", "cmd", "drift", "burst_until",
-                 "fast", "switches", "kick", "kick_until", "phase", "touch")
+                 "fast", "switches", "kick", "kick_until", "phase", "touch", "fence", "tipped")
 
     def __init__(self, cfg: RobotCfg):
         self.cfg = cfg
@@ -94,6 +98,8 @@ class _Bot:
         self.switches = 0         # gait switches this episode
         self.kick, self.kick_until, self.phase = 0.0, -1.0, 0.0
         self.touch = set()        # what this robot is touching now: "ball", other robot ids
+        self.fence = False        # body against a fence now
+        self.tipped = False       # this fence contact already counted as a tip
 
 
 def vx_actual(c: float, p: dict) -> float:
@@ -145,7 +151,7 @@ class Sim:
         self.t = getattr(self, "t", 0.0)
         ids = opts.get("robots")
         cfgs = [c for c in self.cfgs if ids is None or c.id in ids]
-        if ids is None and scenario in ("attack_solo", "shot_on_goal", "return", "rolling_ball"):
+        if ids is None and scenario in ("attack_solo", "shot_on_goal", "return", "rolling_ball", "wall_balls"):
             cfgs = cfgs[:1]
         self.bots = {c.id: _Bot(c) for c in cfgs}
         bx = by = bvx = bvy = 0.0
@@ -180,6 +186,22 @@ class Sim:
                 b.y = r.uniform(-0.1, 0.1)
                 b.yaw = wrap((0.0 if west else math.pi) + r.uniform(-0.2, 0.2))
             bx, by = r.uniform(-0.03, 0.03), r.uniform(-0.03, 0.03)
+        elif scenario == "wall_balls":  # ball resting against a fence (75%) or in a corner, robot in the open
+            br = f.ball_radius
+            if r.random() < 0.25:
+                bx = r.choice((-1.0, 1.0)) * (hl - r.uniform(br + 0.002, 0.2))
+                by = r.choice((-1.0, 1.0)) * (hw - r.uniform(br + 0.002, 0.2))
+            elif r.random() < 0.7:  # side fence
+                bx, by = r.uniform(-hl + 0.35, hl - 0.35), r.choice((-1.0, 1.0)) * (hw - r.uniform(br + 0.002, 0.25))
+            else:  # end fence beside a goal
+                bx = r.choice((-1.0, 1.0)) * (hl - r.uniform(br + 0.002, 0.25))
+                by = r.choice((-1.0, 1.0)) * r.uniform(f.goal_width / 2 + 0.05, hw - 0.3)
+            for b in self.bots.values():
+                while True:
+                    b.x, b.y = r.uniform(-hl + 0.45, hl - 0.45), r.uniform(-hw + 0.45, hw - 0.45)
+                    if math.hypot(bx - b.x, by - b.y) > 0.6:
+                        break
+                b.yaw = r.uniform(-math.pi, math.pi)
         elif scenario in ("attack_solo", "random"):
             for b in self.bots.values():
                 b.x, b.y = r.uniform(-hl + 0.3, hl - 0.3), r.uniform(-hw + 0.3, hw - 0.3)
@@ -293,6 +315,7 @@ class Sim:
             b.yaw = wrap(b.yaw + b.wz * h + b.drift * abs(b.vy) * h
                          + (r.gauss(0.0, walk * math.sqrt(h)) if moving and walk else 0.0))
         self._collide_robots()
+        self._fences()
         if self.pause_until < 0:
             self._ball_step(h)
         if self.t >= self.next_frame - 1e-9:
@@ -324,6 +347,34 @@ class Sim:
         lx, ly = f.length / 2 - 0.08, f.width / 2 - 0.08  # body is narrower than its clearance circle
         for b in bots:
             b.x, b.y = max(-lx, min(lx, b.x)), max(-ly, min(ly, b.y))
+
+    def _fences(self) -> None:
+        """Fence contacts: body (sim_fence_r from the centre) against a side fence or an end fence outside the goal
+        mouth. A contact faster than sim_tip_v into the fence, or one pressing sim_tip_pen deeper, would tip the
+        robot (floor Nov 27: walked into the fence, tipped, fallen cutoff at 137 deg): a "tip" event."""
+        p, f = self.p, self.f
+        hl, hw, gw = f.length / 2, f.width / 2, f.goal_width / 2
+        fr = p["sim_fence_r"]
+        for b in self.bots.values():
+            walls = [(hw - abs(b.y), 0.0, math.copysign(1.0, b.y))]
+            if abs(b.y) >= gw:
+                walls.append((hl - abs(b.x), math.copysign(1.0, b.x), 0.0))
+            d, nx, ny = min(walls)
+            if d > fr + 0.02:
+                b.fence = b.tipped = False
+                continue
+            if d >= fr:
+                continue
+            vx, vy = self._vel(b)
+            vin = vx * nx + vy * ny
+            if not b.fence:
+                b.fence = True
+                self.events.append({"t": round(self.t, 3), "type": "wall", "robot": b.cfg.id,
+                                    "x": round(b.x, 3), "y": round(b.y, 3), "v": round(vin, 3)})
+            if not b.tipped and (vin > p["sim_tip_v"] or d < fr - p["sim_tip_pen"]):
+                b.tipped = True
+                self.events.append({"t": round(self.t, 3), "type": "tip", "robot": b.cfg.id,
+                                    "x": round(b.x, 3), "y": round(b.y, 3), "v": round(vin, 3)})
 
     @staticmethod
     def _vel(b: _Bot) -> tuple[float, float]:
