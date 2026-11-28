@@ -98,6 +98,7 @@ ROBOT_OPS = ["status", "ready", "getup", "down", "start", "stop", "bridge_start"
 CONFIRM_OPS = {"start", "ready", "getup"}          # may home the legs / stand the robot up
 REARM_OPS = {"ready", "getup"}                     # stand the robot and clear an e-stop latch (fcctl ready path)
 REJOIN_HOLD_S = 2.0       # after a re-arm the robot holds zero this long before play (the match is not paused)
+LINK_BACK_HOLD_S = 0.5    # link back after a drop: zero this long, then motion restarts from zero through the ramp
 ALWAYS_OPS = {"stop", "down"}                      # never refused by a running op
 PROFILES_DIR = HERE / "robot" / "profiles"
 HOST_RE = re.compile(r"[A-Za-z0-9_.@-]{1,253}")   # robots.json host: [user@]name, no shell or ssh-option chars
@@ -625,6 +626,11 @@ class App:
         self.estops: dict[str, dict] = {}
         self.estop_cleared: dict[str, float] = {}
         self.rejoin: dict[str, float] = {}   # re-armed robot -> monotonic time its rejoin hold ends (halted until then)
+        # No link (no ack within link.CONNECTED_AGE_S) = hard stop for that robot; brain + ramp reset on the drop
+        # and again on the return, which holds zero LINK_BACK_HOLD_S. (Was: the brain kept ramping while the robot
+        # sat at zero on its ttl, so the first packet after the return jumped to 0.45 m/s + 1.17 rad/s.)
+        self.link_lost: set[str] = set()
+        self.link_back: dict[str, float] = {}   # robot -> monotonic time its link-back hold ends
         self.tilt: dict[str, TiltThrottle] = {}   # ack IMU tilt held high -> zero translation (brain.TiltThrottle)
         self._lstat: dict[str, dict] = {}
         self._sim_ev_n = 0
@@ -736,6 +742,7 @@ class App:
                 self._ball_track.append((b.t, b.x, b.y))
             lstat = self._lstat = self.link_status()
             self._health_watch(lstat)
+            self._link_watch(lstat, now)
             cmds, debug = {}, {}
             self.tasks = self._coach_tasks(world)
             for r in self.active:
@@ -837,6 +844,50 @@ class App:
                 reason = str(extra.get("estop_reason") or bridge.get("estop_reason") or "robot reports estopped")[:80]
                 self._latch(rid, "robot", confirmed=True, reason=reason)
 
+    def _link_watch(self, lstat: dict, now: float) -> None:
+        """Link on: a robot without a recent ack is "no link" (hard zero). On the drop and on the return its brain
+        and ramp restart from zero; the return holds zero LINK_BACK_HOLD_S. Healthy links: no effect."""
+        if self.link is None:
+            if self.link_lost or self.link_back:
+                self.link_lost.clear()
+                self.link_back.clear()
+            return
+        for r in self.active:
+            up = bool((lstat.get(r.id) or {}).get("connected"))
+            if not up and r.id not in self.link_lost:
+                self.link_lost.add(r.id)
+                self.link_back.pop(r.id, None)
+                self._restart_from_zero(r.id, "no_link")
+                if self.mode != "idle":
+                    self.say(f"NO LINK to {r.id}: sending zero, brain and ramp reset", robot=r.id)
+            elif up and r.id in self.link_lost:
+                self.link_lost.discard(r.id)
+                self._restart_from_zero(r.id, "link_back")
+                self.link_back[r.id] = now + LINK_BACK_HOLD_S
+                if self.mode != "idle":
+                    self.say(f"link to {r.id} back: zero for {LINK_BACK_HOLD_S:.1f} s, then ramps from zero", robot=r.id)
+
+    def _link_gate(self, rid: str, now: float) -> str | None:
+        """"no_link" / "link_back" (hold after the return) while that robot must get zero, else None."""
+        if rid in self.link_lost:
+            return "no_link"
+        t = self.link_back.get(rid)
+        if t is not None:
+            if now < t:
+                return "link_back"
+            self.link_back.pop(rid, None)
+        return None
+
+    def _restart_from_zero(self, rid: str, tag: str) -> None:
+        """Forget motion for rid: the app's ramp memory and every brain that may drive it start from zero."""
+        self.prev[rid] = Cmd.stop(tag)
+        brains = [self.brains.get(rid)]
+        if self.auto_brain is not None and rid == (self.test or {}).get("robot"):
+            brains.append(self.auto_brain)
+        for b in filter(None, brains):
+            b.reset()
+            b.out = Cmd.stop(tag)
+
     def _latch(self, rid: str, by: str, confirmed: bool, reason: str = "", t: float | None = None) -> None:
         """E-stop latch for one robot. Caller holds the lock (or is the loop)."""
         if rid in self.estops:
@@ -935,6 +986,16 @@ class App:
             return Cmd.stop(halt), {"role": "idle", "phase": halt, "target": None}, "hard"
         if mode in ONE_ROBOT_TESTS and r.id != test.get("robot"):
             return idle
+        gate = self._link_gate(r.id, now)
+        if gate:
+            if mode == "deadman":   # its mute phase drops the acks on purpose: keep the pipeline's own phases
+                me = world.robots.get(r.id) if world else None
+                res = self._pipeline_cmd(test, me is not None and now - me.t <= self.params["stale_stop_s"], now)
+                if test.get("phase") == "mute":
+                    return res
+            elif mode == "step":
+                self._pipeline_cmd(test, True, now)   # phase bookkeeping only; the stop below is what goes out
+            return Cmd.stop(gate), {"role": "idle", "phase": gate, "target": None}, "hard"
         if mode in ("play", "match") and r.id not in self.playing:
             return Cmd.stop("benched"), {"role": "idle", "phase": "benched", "target": None}, "hard"
         flow_goto = flow_role = flow_app = None

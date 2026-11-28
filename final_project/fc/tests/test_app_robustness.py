@@ -519,3 +519,62 @@ def test_kickoff_refusal_names_the_halt_and_the_way_out(idle):
         app.imu_bad = set()
         assert ops.call(app, "match.kickoff")["ok"]
         app.action({"action": "end"})
+
+
+class _AckLink:
+    """Link stand-in for a sim App: only its status matters (sim never sends). connected toggles the link."""
+
+    def __init__(self):
+        self.up = True
+
+    def status(self):
+        return {rid: {"connected": self.up, "ack_age": 0.02 if self.up else 3.0, "imu": {"level": "ok"}, "mux_ok": True}
+                for rid in ("blue", "red")}
+
+    def drain_acks(self):
+        return []
+
+    def stop_all(self, burst=3):
+        pass
+
+    def close(self):
+        pass
+
+
+def test_link_drop_is_a_hard_stop_and_motion_restarts_from_zero(tmp_path):
+    """Rehearsal Nov 28: the brain kept ramping while red had no link, so the first packet after the link came back
+    jumped from standstill to 0.45 m/s + 1.17 rad/s. Now: zero while there is no link, zero LINK_BACK_HOLD_S after
+    the return, then the normal ramp from zero."""
+    app = App("sim", runs_root=tmp_path / "runs", presets_dir=tmp_path / "presets")
+    link = app.link = _AckLink()
+    app.link_status = link.status
+    try:
+        with app.lock:
+            assert app._start_test({"test": "push_ball", "robot": "blue"})["ok"]
+
+        def run(seconds):
+            out, end = [], time.monotonic() + seconds
+            while time.monotonic() < end and app.mode == "push_ball":
+                app.tick(1 / 30)
+                out.append(app.cmds["blue"])
+                time.sleep(1 / 60)
+            return out
+
+        moving = run(2.0)
+        assert max(abs(c.vx) for c in moving) > 0.2, moving[-5:]       # the brain really drives it
+        link.up = False
+        lost = run(1.0)
+        assert lost and all((c.vx, c.vy, c.wz) == (0, 0, 0) for c in lost), lost[-3:]
+        assert any("NO LINK to blue" in e["msg"] for e in app.events)
+        link.up = True
+        back = run(1.2)
+        held = [c for c in back if c.tag == "link_back"]
+        assert held and all((c.vx, c.vy, c.wz) == (0, 0, 0) for c in held)
+        after = back[len(held):]
+        assert after and back[0].tag == "link_back"
+        first = after[:3]   # ramp from zero: accel_vx 0.6 (keeper 1.5) and accel_wz 2.0 per s, ~30 Hz ticks
+        assert all(abs(c.vx) <= 0.16 and abs(c.wz) <= 0.25 for c in first), first
+        # healthy link: no gate at all
+        assert app._link_gate("blue", time.monotonic()) is None and app._link_gate("red", time.monotonic()) is None
+    finally:
+        app.close()
