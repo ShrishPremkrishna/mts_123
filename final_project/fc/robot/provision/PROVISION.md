@@ -18,21 +18,30 @@ host keys, Tailscale state, `robot_id`, and `~/fc-v1/run` (the IMU accel bias be
 
 ## Path A: clone mts (used Nov 28)
 
-mts boots from a 128 GB SanDisk USB drive, so the clone went to a second USB drive.
+mts boots from a 128 GB SanDisk USB drive, so the clone goes to a second USB drive plugged into **mts** (mts stays up).
+`clone_live.sh` (runs on mts as root) copies mts's filesystems at file level (a live copy; Nov 28: 25.6 GB in 13 min),
+leaving out old foundation/FC run data and `~/fc-v1/run` (the IMU cal), then resets the identity offline before the drive
+ever boots (new partition ids, hostname + `/etc/hosts`, empty machine-id, new ssh host keys, no Tailscale state,
+`robot_id`, no `identity.json`) and verifies it by remounting read-only. It picks the target only by serial and refuses
+the boot drive or any mounted disk. `--print-excludes` lists the excludes; `--exclude` / `--excludes-file` change them.
 
-1. Plug the blank USB drive into **mts** (mts stays up). Copy mts's filesystems onto it at file level (a live copy), leaving
-   out old foundation/FC run data. Nov 28: 25.6 GB in 13 min.
-2. Before the new drive ever boots, reset its identity offline (drive still mounted on mts): hostname `pupper-red` and
-   `/etc/hosts`, an empty `/etc/machine-id` (regenerated at first boot), new ssh host keys, no Tailscale state,
-   `~/fc-v1/robot/robot_id` = red, and an empty `~/fc-v1/run` (so no IMU cal). Then unmount.
-3. Move the drive to robot 2 and boot it on the stand. It joins the saved Wi-Fi networks ([RUNBOOK Wi-Fi](../../RUNBOOK.md#wi-fi-in-a-new-place-no-touchscreen)).
+1. Plug in the blank drive and read its serial: `ssh mts lsblk -dno NAME,SERIAL,MODEL,SIZE`.
+2. Plan (changes nothing, no root): `ssh mts 'bash -s -- --dry-run --serial <SERIAL> --hostname pupper-red --robot-id red' < fc/robot/provision/clone_live.sh`
+3. Clone: `scp fc/robot/provision/clone_live.sh mts:/tmp/` then
+   `ssh mts 'sudo nohup bash /tmp/clone_live.sh --yes --serial <SERIAL> --hostname pupper-red --robot-id red >/dev/null 2>&1 &'`. Poll with
+   `ssh mts 'cat /var/log/fc-clone-pupper-red.log.done 2>/dev/null || tail -c 300 /var/log/fc-clone-pupper-red.log'`:
+   `.done` holds the exit code (0 cloned + verified, 1 failed, 2 refused). Not `pgrep -f`: it matches the ssh command itself.
+4. Move the drive to robot 2 and boot it on the stand. It joins the saved Wi-Fi networks ([RUNBOOK Wi-Fi](../../RUNBOOK.md#wi-fi-in-a-new-place-no-touchscreen)).
    Laptop: add `Host pupper-red` to `~/.ssh/config`. Optional: `sudo tailscale up --hostname=pupper-red` (browser login).
-4. `fc/robot/provision/provision.sh --check pupper-red red red 11`, set red's `host` / `udp_host` in `robots.json`, then
+5. `fc/robot/provision/provision.sh --check pupper-red red red 11`, set red's `host` / `udp_host` in `robots.json`, then
    `stage.sh` + `sha_check.sh` and the per-robot steps below.
 
-The copy-and-reset script from Nov 28 is not in the repo (open item: a reusable version belongs in `fc/robot/provision/`).
-For a card cloned another way (e.g. `dd`), `provision.sh --fix-clone-identity pupper-red pi@<ip> red red 11` does step 2
-on the booted clone (needs passwordless sudo; keep mts off until it has run, since the clone answers with mts's keys).
+Tests: `fc/robot/tests/test_clone_live.py` (guards and plan against fake `lsblk`/`findmnt`/`df`/`du`; no disk touched).
+Checked on mts (2026-11-28, read-only `bash -s`): refuses mts's own drive, an unknown serial, mts's own hostname/robot id;
+with a fake second disk the plan estimates a 26.7 GB copy. The erase/copy/verify path has not run since it became a script
+(Nov 28's run was the same steps by hand).
+For a card cloned another way (e.g. `dd`), `provision.sh --fix-clone-identity pupper-red pi@<ip> red red 11` does the
+identity reset on the booted clone (needs passwordless sudo; keep mts off until it has run, since the clone answers with mts's keys).
 
 ## Path B: the robot's own class card (alternative; not run on a real card)
 
