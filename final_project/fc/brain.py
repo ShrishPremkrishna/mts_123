@@ -198,11 +198,31 @@ Fences (field fenced on all sides; every knob 0 = off, the brain is then unchang
                     what can still brake (wall_brake m/s^2, after act_lag_s of travel) before wall_stop_m
                     (0 = robot_radius), and within the margin a component away from it is added (0 at the margin,
                     wall_rep_v at wall_stop_m)
+  wall_post         1 = deep in a goal mouth (centre within robot_radius + 2 cm of the goal line) the end fence beside
+                    each post is a side wall for the guard: the robot stops at the mouth band edge instead of sliding into it
   wall_ball_m       ball centre this close to a side/end fence (not the mouth): the robot cannot get behind it,
                     so it banks: the push aims at the attacked goal mirrored through that fence (into the fence,
                     the ball comes off it into the field toward the goal), steepened until the contact point keeps
                     the margin. Two fences (corner): the push aims into the corner (the ball comes out toward the
                     centre). A ball pressed into a corner is out of reach without entering the margin.
+
+Demo round (Nov 27; every knob 0 = off, the brain is then unchanged; results in notes/brain.md):
+  gk_track          1 = keeper's guard point: middle of the mouth on the guard line, shuffling +-gk_shuffle_m at
+                    gk_shuffle_hz (smooth, with feed-forward), shifted toward the ball's y (its predicted crossing of
+                    the guard line when it comes at goal) by a weight that grows from 0 at gk_far_m to 1 at gk_near_m
+                    (ball distance from the goal centre) or as its time to the line falls from gk_tgoal_s to 0.8 s;
+                    the shuffle fades by the same weight. Clamped to the mouth less gk_edge_m. Ball-only triggers
+  shot_follow_s     long shot (dribble): in line mode, touching the ball at fast-gait speed between shot_min_m and
+                    dribble_shot_m from the goal line, with the contact line and the heading both pointing inside
+                    the mouth: the touch is the shot. Drive through it for shot_through_s, then a half turn at max_wz
+                    toward the field centre (ends at ~180 deg or shot_follow_s), then play on. Not into an opponent standing
+                    in the lane, and at most one long shot per 3 s
+  cruise_v          (sim: costs ~1.3 s of solo median, not in a preset) attack floor speed so the fast gait stays
+                    engaged; turns that would spin on the spot become full-speed arcs unless the ball is behind us
+                    within cruise_spin_m or a fence is within the margin + 0.35 m (cruise_arc 0 keeps the spins);
+                    not while > cruise_lat off centre at the ball; cruise_alat replaces dribble_alat for the turn limit
+  gait_down_v       (sim: no gain, not in a preset) in the fast gait, stay >= gait_hi unless the wanted speed is
+                    below this
 """
 from __future__ import annotations
 
@@ -255,7 +275,10 @@ DEFAULTS = {
     "hard_roles": 0, "hr_zone": 0.5, "hr_vin": 0.1, "hr_hold_s": 2.5, "hr_exit_v": 0.3, "hr_exit_eta": 2.0,
     "hr_stick_m": 0.35, "guard_line_m": 0.0, "gk_out": 0.0, "gk_out_frac": 0.45,
     "occl_pose_s": 0.0, "occl_slow_s": 0.3, "occl_speed": 0.6, "occl_gain": 0.9, "occl_ball_s": 0.0,
-    "wall_margin_m": 0.0, "wall_mouth_m": 0.05, "wall_stop_m": 0.0, "wall_rep_v": 0.2, "wall_brake": 0.8, "wall_ball_m": 0.0,
+    "gait_down_v": 0.0, "cruise_v": 0.0, "cruise_spin_m": 0.35, "cruise_alat": 0.0, "cruise_lat": 0.06, "cruise_arc": 1, "shot_follow_s": 0.0, "shot_through_s": 0.25, "shot_min_m": 0.4,
+    "gk_track": 0, "gk_shuffle_m": 0.06, "gk_shuffle_hz": 0.7, "gk_edge_m": 0.15, "gk_far_m": 1.8, "gk_near_m": 0.5,
+    "gk_tgoal_s": 2.5,
+    "wall_margin_m": 0.0, "wall_mouth_m": 0.05, "wall_stop_m": 0.0, "wall_rep_v": 0.2, "wall_brake": 0.8, "wall_post": 0, "wall_ball_m": 0.0,
 }
 
 
@@ -419,6 +442,8 @@ class Brain:
         self.dr_line = False      # dribble: line mode (heading on the push direction, lateral error by vy)
         self.dr_shot = False      # dribble: committed shot
         self.dr_sg, self.dr_flip_t = 0.0, None  # dribble: committed turn direction, start of a pending reversal
+        self.dr_shot_t = -1e9     # dribble: time of the last long shot
+        self.dr_follow: tuple | None = None  # long shot released: (until, turn sign, heading at release)
         self.bs: list | None = None  # contest: smoothed ball (x, y, vx, vy) at observation time bs_tobs
         self.bs_tobs = -1e9
         self.bs_hist: list = []      # contest: recent raw observations (t, x, y, vx, vy)
@@ -949,9 +974,14 @@ class Brain:
         the margin ends wall_mouth_m inside the goal line."""
         f, wm = self.f, p.get("wall_margin_m", 0.0)
         hl, hw = f.length / 2, f.width / 2
-        if abs(y) < f.goal_width / 2 - 0.5 * f.robot_radius:
+        edge = f.goal_width / 2 - 0.5 * f.robot_radius
+        out = []
+        if abs(y) < edge:
+            if p["wall_post"] and f.length / 2 - abs(x) < f.robot_radius + 0.02:  # body past the goal line: the end
+                out.append((edge + f.robot_radius - abs(y), (0.0, -math.copysign(1.0, y))))  # fence beside the post is a
+                # side wall (stop at the mouth band edge)
             hl += max(0.0, wm - p["wall_mouth_m"])
-        return [(hw - y, (0.0, -1.0)), (hw + y, (0.0, 1.0)), (hl - x, (-1.0, 0.0)), (hl + x, (1.0, 0.0))]
+        return out + [(hw - y, (0.0, -1.0)), (hw + y, (0.0, 1.0)), (hl - x, (-1.0, 0.0)), (hl + x, (1.0, 0.0))]
 
     def _fence_guard(self, pose: Pose, want: Cmd, p: dict) -> tuple[Cmd, bool]:
         """Within wall_margin_m of a fence: cap the velocity toward it (0 at wall_stop_m) and add a push away."""
@@ -1383,6 +1413,15 @@ class Brain:
         self.hb, self.plan = None, None
         fresh = t - self.dr_t > 0.5
         self.dr_t = t
+        if self.dr_follow is not None:  # long shot hit: drive through it, then a half turn, then play on
+            t0, sg, y0 = self.dr_follow
+            if fresh or t >= t0 + p["shot_follow_s"] or abs(wrap(pose.yaw - y0)) > 0.9 * math.pi:
+                self.dr_follow = None
+            else:
+                self.pushing = False
+                v = min(p["max_vx"], max(p["cruise_v"], p["gait_hi"]))
+                wz = sg * p["max_wz"] if t >= t0 + p["shot_through_s"] else 0.0
+                return Cmd(v, 0.0, wz, "dr_follow"), {"phase": "dr_follow", "target": None}
         # ball velocity: light low-pass; a big change of direction/speed is a deflection -> snap and re-solve
         sp = math.hypot(bv[0], bv[1])
         deflect = False
@@ -1501,6 +1540,16 @@ class Brain:
                             and abs(le) < 0.04 * (1 + 0.5 * k_in))  # dead centre: an off-centre hard hit flies wide
         elif not (self.dr_shot and gap < 0.4 and self.dr_line):
             self.dr_shot = False
+        if (self.dr_line and p["shot_follow_s"] > 0 and gap < 0.03 and v_now >= p["gait_hi"]
+                and p["shot_min_m"] < abs(self.att_x - B[0]) < p["dribble_shot_m"] and t - self.dr_shot_t > 3.0
+                and self._goes_in(pose, B, p)
+                and all(seg_dist(B, (self.att_x, B[1] + math.tan(pose.yaw) * (self.att_x - B[0])), (o.x, o.y))
+                        > f.robot_radius + f.ball_radius + 0.1 for o in others)):  # (lane open: not into a keeper)
+            # long shot: one hard touch at speed that goes in -> let the ball go (no dribbling it into the goal)
+            lx, ly = -math.sin(pose.yaw), math.cos(pose.yaw)
+            sg = 1.0 if lx * -pose.x + ly * -pose.y >= 0 else -1.0  # the half turn goes toward the field centre
+            self.dr_follow, self.dr_shot, self.pushing, self.dr_shot_t = (t, sg, pose.yaw), False, False, t
+            return Cmd(v_now, 0.0, 0.0, "dr_follow"), {"phase": "dr_follow", "target": None, "shot": 1}
         if self.dr_line:
             phase = "dr_shot" if self.dr_shot else phase
             v_des = vmax
@@ -1515,6 +1564,15 @@ class Brain:
                     rel = max(0.15 if wall else 0.0, rel * clamp(1.0 - (abs(le) - 0.06) / 0.08, 0.0, 1.0))  # not let us)
                 v_des = min(v_des, max(0.0, vb) + rel)
         spin = abs(alpha) > math.radians(75) and not self.dr_line
+        cv = min(p["cruise_v"], vmax)
+        if cv > 0:  # cruise: keep the fast gait and steer by curvature; spin only for a ball close behind us
+            room = min(d for d, _n in self._fences(pose.x, pose.y, p)) > max(p["wall_margin_m"], p["field_margin"]) + 0.35
+            if spin and room and p["cruise_arc"] and not (abs(wrap(math.atan2(dyb, dxb) - pose.yaw)) > math.pi / 2 and gap < p["cruise_spin_m"]):
+                spin = False  # arc round at speed (no room next to a fence: turn on the spot)
+            offc = gap < 0.25 and abs(le) > p["cruise_lat"] and not self.dr_shot
+            if not spin and not offc:  # (off-centre at the ball it keeps pace without closing in)
+                v_des = max(v_des, cv)
+            alat = p["cruise_alat"] or alat
         if spin:
             v_des = 0.0
         # jerk-limited speed (time constant 0.25 s toward v_des)
@@ -1528,6 +1586,9 @@ class Brain:
         lo, hi = p["gait_lo"], p["gait_hi"]
         if p["gait_band"] and lo < v < hi:  # the walker's gait switch: step across the band, don't stall in it
             v = hi if v_des >= hi else lo if v_des <= lo else v
+        gd = p["gait_down_v"]
+        if gd > 0 and v_now >= hi and v_des > gd and not spin:  # gait hysteresis: in the fast gait, stay in it
+            v = max(v, hi)  # unless really slowing down (below gait_down_v): no trot <-> gait flapping
         self.dr_a = (v - v_now) / max(1e-3, dt)  # back-calculated: no wind-up at a clamp
         if spin:
             wz = clamp(1.5 * alpha, -p["max_wz"], p["max_wz"])
@@ -1547,12 +1608,24 @@ class Brain:
             vy = clamp(-p["k_vy"] * le, -p["max_vy"], p["max_vy"])
         self.pushing = phase in ("dr_carry", "dr_shot")
         dbg = {"phase": phase, "target": [round(carrot[0], 3), round(carrot[1], 3)], "lat": round(le, 3),
-               "intercept": [round(P[0], 3), round(P[1], 3)], "kappa": round(kap, 2)}
+               "intercept": [round(P[0], 3), round(P[1], 3)], "kappa": round(kap, 2), "v_des": round(v_des, 2)}
         if d_side:
             dbg["side"] = round(d_side, 3)
         if deflect:
             dbg["deflect"] = 1
         return Cmd(v, vy, wz, phase), dbg
+
+    def _goes_in(self, pose: Pose, B, p: dict) -> bool:
+        """A hit now sends the ball into the attacked mouth: the ray from the ball along the contact line (robot
+        centre -> ball) and along our heading both cross the goal line inside it (less a ball radius)."""
+        f = self.f
+        gx, hw = self.att_x, f.goal_width / 2 - 2 * f.ball_radius
+        for ux, uy in (unit(B[0] - pose.x, B[1] - pose.y), (math.cos(pose.yaw), math.sin(pose.yaw))):
+            if ux * (gx - B[0]) <= 0:
+                return False
+            if abs(B[1] + uy * (gx - B[0]) / ux) > hw:
+                return False
+        return True
 
     def _turn_commit(self, wz: float, spin: bool, t: float, p: dict) -> float:
         """Minimum turn commitment (dribble_commit_s): a turn the other way waits that long unless it is big
@@ -1700,6 +1773,9 @@ class Brain:
                 y_t = B[1] + bv[1] * ty
         lim = f.goal_width / 2 + p["goalie_margin"]
         G = (x_line, clamp(y_t, -lim, lim))
+        ff = 0.0  # feed-forward world vy of the shuffle
+        if p["gk_track"]:
+            G, ff = self._gk_target(B, bv, x_line, approach, t, p)
         go = p["gk_out"]
         if go > 0 and not self.hold_goal and depth > p["goalie_dist"] + 0.15 and approach < p["solo_def_vmin"]:
             # narrow the angle: stand on the line from the goal centre to the ball, further out for a further ball
@@ -1743,12 +1819,38 @@ class Brain:
                 if self.guard_yaw and abs(wrap(pose.yaw - self.guard_yaw)) < math.pi / 2 + 0.5:
                     yaw_des = self.guard_yaw
                 self.guard_yaw = yaw_des
-        bx, by = to_body(pose, p["k_goalie"] * dx, p["k_goalie"] * dy)
+        bx, by = to_body(pose, p["k_goalie"] * dx, p["k_goalie"] * dy + ff)
         bx = clamp(bx, -p["goalie_vmax"], p["goalie_vmax"])
         herr = wrap(yaw_des - pose.yaw)
         if gm > 0:  # wide mouth: a heading deadband (15 deg) so gait wobble is not chased with turn reversals
             herr = math.copysign(max(0.0, abs(herr) - math.radians(15)), herr)
         return Cmd(bx, by, p["k_turn"] * herr, "guard"), {"phase": "guard", "target": tgt}
+
+    def _gk_target(self, B, bv, x_line: float, approach: float, t: float, p: dict):
+        """gk_track: guard point (x_line, y) and the shuffle's feed-forward world vy. At rest in the middle of the
+        mouth, shuffling +-gk_shuffle_m at gk_shuffle_hz (looks alive); shifted toward the ball's y (its predicted
+        crossing of the guard line when it comes at goal) by a weight that grows as the ball gets closer
+        (gk_far_m -> gk_near_m from the goal centre) or sooner (time to the line gk_tgoal_s -> 0.8 s), until
+        aligned with it; the shuffle fades out by the same weight. Clamped to the mouth less gk_edge_m."""
+        f = self.f
+        y_aim, T = B[1], math.inf
+        if approach > 0.05 and not self.hold_goal:
+            T, y_c = self._arrival(B, bv, x_line, p)
+            if T < 3.0:
+                y_aim = y_c
+        d = math.hypot(B[0] - self.own_x, B[1])
+        far, near = p["gk_far_m"], p["gk_near_m"]
+        w = clamp((far - d) / max(1e-3, far - near), 0.0, 1.0)
+        if T < math.inf:
+            w = max(w, clamp((p["gk_tgoal_s"] - T) / max(1e-3, p["gk_tgoal_s"] - 0.8), 0.0, 1.0))
+        if self.hold_goal:
+            w = 0.0
+        ph = 2 * math.pi * p["gk_shuffle_hz"] * t
+        A = p["gk_shuffle_m"] * (1.0 - w)
+        hw = f.goal_width / 2 - p["gk_edge_m"]
+        y = clamp(w * y_aim + A * math.sin(ph), -hw, hw)
+        ff = A * 2 * math.pi * p["gk_shuffle_hz"] * math.cos(ph) if abs(y) < hw else 0.0
+        return (x_line, y), ff
 
     def _block(self, pose: Pose, B, bv, p: dict):
         """Earliest point on the ball's path to our goal that we reach before the ball, if the guard line

@@ -55,5 +55,13 @@
   "dribble_shot_deg": 15,
   "_note_fence": "Nov 27 fences: wall_margin_m 0.28 (robot centre >= 0.28 m from every fence; braking cap toward a fence, push-away inside the margin) and wall_ball_m 0.32 (ball on a side fence: bank off it toward the goal). Sim only (3.36x2.70, --floor25 --scen wall): would-tip events 228 -> 2 per 100 wall/corner balls. notes/brain.md.",
   "wall_margin_m": 0.28,
-  "wall_ball_m": 0.32
+  "wall_ball_m": 0.32,
+  "_note_demo": "Nov 27 demo round (sim only, notes/brain.md): goalie shuffles in the middle of the mouth and shifts toward the ball as it threatens (gk_track); long shot: a hard aligned touch within 1 m of the goal line that goes in is released, then a half turn follow-through (shot_follow_s); deep in a goal mouth the end fence beside the post is a wall (wall_post).",
+  "gk_track": 1,
+  "gk_shuffle_m": 0.06,
+  "gk_shuffle_hz": 0.7,
+  "gk_near_m": 1.0,
+  "gk_far_m": 2.2,
+  "shot_follow_s": 1.8,
+  "wall_post": 1
 }

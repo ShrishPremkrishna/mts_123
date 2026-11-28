@@ -343,3 +343,46 @@ Sim: `wall_balls` scenario (ball against a fence 75% / in a corner 25%, robot in
 
 Goals from wall balls lean on referee nudges in every column. Open-field solo is within noise on goals, ~0.7 s
 slower median (attack_solo balls start up to 0.25 m from a fence, so some are wall balls). Not floor-tested.
+
+## Demo round: keeper, long shot, speed, constant motion (2026-11-27, sim only)
+
+Owner floor feedback (fenced 3.36 x 2.70 m): keeper should look alive; no stop-and-go (floor mean ~0.3 m/s); faster;
+look smart (long shots). New knobs default 0 (brain.py module doc, "Demo round"); tests cover them.
+
+- **Keeper (`gk_track`, in dribble + vs-human)**: middle of the mouth on the guard line, +-6 cm shuffle at 0.7 Hz
+  (feed-forward, sideways body = forward/back walking, the gait's best axis), shifted toward the ball's y / predicted
+  crossing with a weight 0 at 2.2 m -> 1 at 1.0 m from the goal centre, or time-to-line 2.5 -> 0.8 s; clamp mouth
+  less 0.15 m. Ball-only. vs-human release rules unchanged. Facing style (vy) saves less (94 vs 100%): not used.
+- **Long shot (`shot_follow_s` 1.8)**: in line mode, a touch at fast-gait speed 0.4-1.0 m from the goal line whose
+  contact line and heading both point inside the mouth, with no opponent in the lane, is the shot: drive through
+  0.25 s, half turn toward the field centre, play on (max one per 3 s; the first version without the lane/cooldown
+  check looped against a keeper: 1v1 deadlocks 4 -> 165). Solo: 54 of 98 goals are long shots that go in untouched;
+  release median ~0.6 m out (the line-mode conditions are met late), goal rate/median unchanged.
+- **`wall_post`**: deep in a mouth the end fence beside the post is a side wall (tips came from sliding sideways out
+  of the mouth band into it). Applies only within robot_radius + 2 cm of the goal line (at the guard line it boxed
+  the keeper in).
+- **Speed (`dribble-fast`)**: max_vx 0.9 under walker cap 1.0 (`_stack.speed_cap`; sim_eval maps it to the sim clip
+  under `--floor25`), wall_brake 0.5. max_vx 1.0 was faster (8.4-8.8 s) but 92-94% goals and more fence tips.
+- **Constant motion: not achieved by small knobs.** Per downshift in solo (~15/min): off-centre at the ball (the robot
+  stops and side-steps, ~9/min), spins with the ball behind/close, fence braking, pose dropouts. `cruise_v` 0.62
+  (fast-gait floor, spins -> full-speed arcs) cut stopped time 12 -> 9-10% but cost 1.3-5 s of median and goals
+  (95-89%); without arcs it changes nothing; `gait_down_v` (gait hysteresis) and accepting off-centre hits that
+  still go in (removed) changed nothing. Left off. The real lever is fewer off-centre arrivals (ball control).
+
+`python -m fc.sim_eval --floor25 --seeds 100 --matches 20 --scen solo goalie vshuman wall --field length=3.36 width=2.70`:
+
+| | dribble before | dribble | vs-human before | vs-human | dribble-fast |
+|---|---|---|---|---|---|
+| solo goals, median s | 98%, 10.2 | 98%, 10.2 | 98%, 10.0 | 97%, 10.1 | 99%, 9.7 |
+| mean speed m/s, stopped %, gait switches /min | 0.38, 12%, 32.5 | 0.38, 12%, 31.6 | 0.40, 11%, 33.6 | 0.39, 11%, 33.4 | 0.41, 13%, 29.8 |
+| near-ball wz reversals /min | 12.6 | 13.3 | 13.1 | 13.6 | 12.4 |
+| keeper (defend) saves, lateral err med | 94%, 0.10 | 94%, 0.10 | 100%, 0.10 | 100%, 0.10 | 94%, 0.10 |
+| vsH dribbler: against /3min, shots saved, keeper err | 3.9, 59%, 0.31 | 4.2, 53%, 0.29 | 6.2, 58%, 0.29 | 4.9, 72%, 0.27 | 3.4, 68%, 0.24 |
+| vsH dominant: against /3min, shots saved, keeper err | 11.3, 59%, 0.27 | 9.9, 49%, 0.27 | 11.2, 56%, 0.23 | 10.1, 58%, 0.25 | 10.2, 59%, 0.24 |
+| wall balls: fence contacts / tips | 6 / 2 | 4 / 0 | 10 / 5 | 8 / 3 | 2 / 1 |
+
+Shots = the modelled human's shots (most goals against are dribbled in); keeper err = |robot y - ball y| when the
+ball reaches the robot (defend role at the shot). vs-human counts at 20 x 3 min swing by ~+-0.5 goals and 1v1
+deadlock counts by 5-40 between nearby settings (chaotic): judge on goals against. Floor checks: dribble-fast 2 s
+bursts/arcs at 0.9 first; watch the keeper shuffle and the follow-through near the fence.
+

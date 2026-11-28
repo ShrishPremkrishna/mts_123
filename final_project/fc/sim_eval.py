@@ -9,7 +9,7 @@ column (to try a value before committing it). `--field` overrides field.json geo
 (e.g. `--field goal_width=0.8` to try a wider marked goal). `--lag L ...` repeats every column at
 a total lag L (camera latency L/2 + walker lag L/2; the brain's act_lag_s set to L/2, as if measured).
 `--scen` picks row groups (default all): core (rows below), human, return, moving; solo = the solo push
-rows only (fast); goalie = the goalie and 1v1 rows of core (no headbutt). `--floor25` = FLOOR updated with the Nov 25 measurements (FLOOR25 below, cap 0.8). `--floor` adds the
+rows only (fast); goalie = the goalie and 1v1 rows of core (no headbutt). `--floor25` = FLOOR updated with the Nov 25 measurements (FLOOR25 below, cap 0.8, or the preset's `_stack.speed_cap`). `--floor` adds the
 Nov 24 floor errors on top of the sim's (FLOOR below: 0.1 s camera latency, tag dropouts of 0.3-1.5 s,
 fast gait at ~0.83 of the command and walking 8 deg right of its heading, slower walker onset, a ball
 rolling at 0.18 m/s^2 deceleration: hand rolls of the old ball fit 0.12-0.29, median 0.15).
@@ -107,6 +107,14 @@ def load_preset(name: str) -> dict:
     return {k: v for k, v in data.items() if not k.startswith("_")}
 
 
+def preset_cap(name: str) -> dict:
+    """The preset's walker speed cap (`_stack.speed_cap`, set on the robot by `fcctl ready`) as the sim's vx clip."""
+    if name == "base":
+        return {}
+    cap = json.loads((PRESETS / f"{name}.json").read_text()).get("_stack", {}).get("speed_cap")
+    return {"sim_vx_clip": float(cap)} if cap else {}
+
+
 def _loop(sim: Sim, brains: dict, params: dict, seconds: float, on_tick=None) -> None:
     for _ in range(int(seconds / DT)):
         w = sim.observe()
@@ -130,7 +138,7 @@ def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
     sim.reset("attack_solo")
     me = robots[0]
     brain = Brain(me, field)
-    jit, near, st = Jitter(), Jitter(), {"speed": 0.0, "coast": 0}
+    jit, near, st = Jitter(), Jitter(), {"speed": 0.0, "coast": 0, "stop": 0}
     cc = field.ball_radius + field.robot_radius
     dr = {"poss": 0, "touch": 0, "in": False, "gap": 0.0, "ng": 0, "nc": 0, "check": [], "defl": [], "rec": [],
           "align": [], "talign": [], "prev": None, "vy": 0, "shot": None, "bsp": 0.0}
@@ -142,6 +150,7 @@ def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
         dr["bsp"] = math.hypot(sim.ball[2], sim.ball[3])
         bot = sim.bots.get(me.id)
         st["speed"] += math.hypot(bot.vx, bot.vy) if bot else 0.0
+        st["stop"] += bool(bot) and math.hypot(bot.vx, bot.vy) < 0.05
         st["coast"] += d.get(me.id, {}).get("phase") == "coast"
         if bot:
             gap = math.hypot(sim.ball[0] - bot.x, sim.ball[1] - bot.y) - cc
@@ -188,7 +197,9 @@ def solo(field, robots, params, seed, mode, limit=40.0, contacts=None):
              "dr_touch": dr["touch"], "dr_poss": dr["poss"], "dr_gap": dr["gap"], "dr_ng": dr["ng"],
              "near_sq": near.sq, "near_n": near.n, "near_rev": near.rev,
              "defl": len(dr["defl"]), "rec": [x[1] for x in dr["defl"] if x[1] is not None and x[1] <= 8.0],
-             "align": dr["align"], "talign": dr["talign"], "near_vy": dr["vy"], "shot": dr["shot"]}
+             "align": dr["align"], "talign": dr["talign"], "near_vy": dr["vy"], "shot": dr["shot"],
+             "stop": st["stop"] / n, "switches": sum(b.switches for b in sim.bots.values()),
+             "fence": sum(e["type"] == "wall" for e in sim.events), "tip": sum(e["type"] == "tip" for e in sim.events)}
     return (ev["t"] - t0 if ev and ev["team"] == me.team else None), bool(ev and ev["team"] != me.team), stats
 
 
@@ -209,14 +220,24 @@ def wall_solo(field, robots, params, seed, limit=40.0):
             "own": bool(ev and ev["team"] != me.team), "wall": n("wall"), "tip": n("tip"), "trap": n("trapped")}
 
 
-def goalie(field, robots, params, seed, style, empty=False):
+def goalie(field, robots, params, seed, style, empty=False, detail=False):
+    """Shot on goal vs a keeper (role defend). detail: (saved, lateral error) where the error is |robot y - ball y|
+    when the ball reaches the robot's x (or first touches it): how well the keeper was lined up at the shot."""
     p = {**params, "role_mode": "defend", "goalie_style": style}
     sim = Sim(field, robots, p, seed)
     sim.reset("shot_on_goal", **({"robots": [], "team": robots[0].team} if empty else {}))
     me = robots[0]
     brains = {me.id: Brain(me, field)}
-    _loop(sim, brains, p, 6.0, lambda c, d: bool(_goals(sim)) or math.hypot(sim.ball[2], sim.ball[3]) < 0.02)
-    return not _goals(sim)
+    al = {"err": None}
+
+    def tick(c, d):
+        bot = sim.bots.get(me.id)
+        if bot and al["err"] is None and (sim.contacts or (sim.ball[0] - bot.x) * sim.ball[2] >= 0):
+            al["err"] = abs(bot.y - sim.ball[1])
+        return bool(_goals(sim)) or math.hypot(sim.ball[2], sim.ball[3]) < 0.02
+
+    _loop(sim, brains, p, 6.0, tick)
+    return (not _goals(sim), al["err"]) if detail else not _goals(sim)
 
 
 def match(field, robots, params, seed, minutes=3.0):
@@ -393,7 +414,7 @@ def vs_human(field, robots, params, seed, minutes=3.0, human=None):
          "range": r.uniform(*hm["shot_range"])}
     st = {"flips": 0, "d2a": 0, "role": None, "dist": 0.0, "exposed": 0, "def_off": 0, "occ": 0, "occ_stall": 0,
           "stale": 0, "touch": 0, "shots": 0, "hid_r": 0, "hid_b": 0, "rec": [], "occ_end": None, "was_hid": False,
-          "nc": 0}
+          "nc": 0, "sh": []}
     jit = Jitter()
     for _ in range(int(minutes * 60 / DT)):
         t = sim.t
@@ -431,6 +452,8 @@ def vs_human(field, robots, params, seed, minutes=3.0, human=None):
                     vx, vy = sim.aim(bx, by, s * (hl + br + 0.03), r.uniform(-(gw - br), gw - br), r.uniform(*hm["shot_vend"]))
                     H["range"] = r.uniform(*hm["shot_range"])
                     st["shots"] += 1
+                    st["sh"].append({"t": t, "n": len(sim.events), "nc": len(sim.contacts), "err": None, "end": False,
+                                     "goal": False, "role": brain.role})
                 else:
                     q = r.random()
                     ang = math.atan2(-by, s * hl - bx) + r.uniform(-0.6, 0.6)
@@ -460,6 +483,15 @@ def vs_human(field, robots, params, seed, minutes=3.0, human=None):
             st["d2a"] += role == "attack"
         st["role"] = role
         jit.add(me.id, c, t)
+        for e in st["sh"]:  # human shots: saved unless a goal against within 4 s; keeper's lateral error at the ball
+            if e["end"]:
+                continue
+            if e["err"] is None and (len(sim.contacts) > e["nc"] or s * (sim.ball[0] - bot.x) >= 0):
+                e["err"] = abs(bot.y - sim.ball[1])
+            if any(g["type"] == "goal" and g["team"] != me.team for g in sim.events[e["n"]:]):
+                e["goal"] = e["end"] = True
+            elif t - e["t"] > 4.0:
+                e["end"] = True
         spd = math.hypot(bot.vx, bot.vy)
         st["dist"] += spd * DT
         if paused:
@@ -486,7 +518,8 @@ def vs_human(field, robots, params, seed, minutes=3.0, human=None):
             "fastrev_pm": jit.fast / minutes, "dist": st["dist"] * k, "exposed": st["exposed"] * DT * k,
             "def_off": st["def_off"] * DT * k, "occ_stall": st["occ_stall"] / max(1, st["occ"]), "rec": st["rec"],
             "stale": st["stale"] * DT * k, "touch_pm": st["touch"] / minutes, "seen_pm": brain.touches / minutes,
-            "hid_pm": (st["hid_r"] + st["hid_b"]) / minutes, "shots": st["shots"] * k}
+            "hid_pm": (st["hid_r"] + st["hid_b"]) / minutes, "shots": st["shots"] * k,
+            "sh": [(e["goal"], e["err"], e["role"]) for e in st["sh"]]}
 
 
 def return_test(field, robots, params, seed, window=8.0, forced=False):
@@ -652,6 +685,11 @@ def _vshuman(out, raw, field, robots, params, matches, minutes):
                                                    ("stall", m("occ_stall")), ("rec", _med(rec)))})
         h = f"vsH {hn[:5]}"
         out[f"{h} ({matches}x{minutes:g}): goals for/against /3min"] = f"{m('scored'):.1f} / {m('conceded'):.1f}"
+        sh = [e for x in ms for e in x["sh"]]
+        errs = [e[1] for e in sh if e[1] is not None and e[2] == "defend"]
+        raw.update({f"vh_{hn}_saves": sum(not e[0] for e in sh) / max(1, len(sh)), f"vh_{hn}_gkerr": _med(errs)})
+        out[f"{h}: shots saved; keeper lat err med/p90 m"] = (f"{sum(not e[0] for e in sh)}/{len(sh)}; "
+                                                             f"{_med(errs):.2f}/{_pct(errs, 0.9):.2f} (n {len(errs)})")
         out[f"{h}: shots /3min, touches /min (seen)"] = f"{m('shots'):.1f}, {m('touch_pm'):.0f} ({m('seen_pm'):.0f})"
         out[f"{h}: role sw /min, def->att; walked m"] = f"{m('flips_pm'):.1f}, {m('d2a_pm'):.1f}; {m('dist'):.0f}"
         out[f"{h}: wz rev / fast rev /min"] = f"{m('rev_pm'):.1f} / {m('fastrev_pm'):.1f}"
@@ -685,6 +723,10 @@ def _core(out, raw, field, robots, params, seeds, minutes, matches, headbutt, so
                                                                  f"{raw['solo_wzrms']:.2f}")
             out["solo jitter: replans /min, coast %"] = f"{raw['solo_replans']:.1f}, {100 * raw['solo_coast']:.0f}%"
             out["athletic: mean speed m/s, s to ball"] = f"{raw['solo_speed']:.2f}, {raw['solo_touch']:.1f}"
+            raw.update(solo_stop=statistics.mean(x["stop"] for x in ss), solo_switch=sum(x["switches"] for x in ss) / mins)
+            out["motion: stopped % (<0.05 m/s), gait switches /min"] = (f"{100 * raw['solo_stop']:.0f}%, "
+                                                                       f"{raw['solo_switch']:.1f}")
+            out["solo: fence contacts / tips"] = f"{sum(x['fence'] for x in ss)} / {sum(x['tip'] for x in ss)}"
             nn = sum(x["near_n"] for x in ss)
             rec = [r for x in ss for r in x["rec"]]
             nd = sum(x["defl"] for x in ss)
@@ -713,9 +755,12 @@ def _team(out, raw, field, robots, params, seeds, minutes, matches, contacts):
     """Goalie saves and 1v1 rows."""
     empty = seeds - sum(goalie(field, robots, params, 1000 + s, "sideways", empty=True) for s in range(seeds))
     for style in ("sideways", "facing"):
-        saves = sum(goalie(field, robots, params, 1000 + s, style) for s in range(seeds))
-        raw[f"saves_{style}"] = saves / seeds
-        out[f"goalie {style}: saves"] = f"{saves}/{seeds} ({100 * saves / seeds:.0f}%)"
+        res = [goalie(field, robots, params, 1000 + s, style, detail=True) for s in range(seeds)]
+        saves = sum(r[0] for r in res)
+        errs = [r[1] for r in res if r[1] is not None]
+        raw[f"saves_{style}"], raw[f"gk_err_{style}"] = saves / seeds, _med(errs)
+        out[f"goalie {style}: saves, lateral err med/p90 m"] = (f"{saves}/{seeds} ({100 * saves / seeds:.0f}%), "
+                                                               f"{_med(errs):.2f}/{_pct(errs, 0.9):.2f}")
     out["goalie: empty net scores"] = f"{empty}/{seeds}"
     ms = [match(field, robots, params, 2000 + s, minutes) for s in range(matches)]
     k = 3 / minutes / matches
@@ -776,13 +821,13 @@ def main() -> None:
     ap.add_argument("--lag", nargs="*", type=float, default=[], metavar="S",
                     help="total lag(s) in s; one column per preset and lag")
     a = ap.parse_args()
-    over = {}
+    over, setover = {}, {}
     for kv in a.set:
         k, _, v = kv.partition("=")
         try:
-            over[k] = json.loads(v)
+            over[k] = setover[k] = json.loads(v)
         except json.JSONDecodeError:
-            over[k] = v
+            over[k] = setover[k] = v
     fover = {k: float(v) for k, _, v in (kv.partition("=") for kv in a.field)}
     if a.floor:
         over = {**FLOOR, **over}
@@ -797,11 +842,15 @@ def main() -> None:
     t0 = time.time()
     names = a.preset or ["base"]
     presets = {n: load_preset(n) for n in names}
+    caps = {n: preset_cap(n) for n in names}
     if a.lag:
+        caps = {f"{n}@{L:g}": caps[n] for n in presets for L in a.lag}
         presets = {f"{n}@{L:g}": {**pv, **lag_over(L)} for n, pv in presets.items() for L in a.lag}
     for errors in ((True, False) if a.off else (True,)):
         print(f"== errors {'ON ' if errors else 'OFF'} ==")
-        cols = {n: evaluate(a.seeds, errors, a.minutes, a.matches, {**pv, **over}, field_over=fover,
+        # the preset's walker cap beats FLOOR25's 0.8 when the floor model applies; --set beats both
+        cols = {n: evaluate(a.seeds, errors, a.minutes, a.matches,
+                            {**pv, **over, **(caps[n] if a.floor25 else {}), **setover}, field_over=fover,
                             scen=tuple(a.scen)) for n, pv in presets.items()}
         for line in table(cols):
             print(line)

@@ -768,3 +768,78 @@ def test_fence_guard_in_decide_with_dribble_preset_near_wall():
     res = run(b, lambda t: world(t, (-0.4, hw - 0.22, math.pi / 2), (0.3, hw - 0.1)), 30, pw)
     assert all(c.vx * math.sin(math.pi / 2) < 0.2 for c, _ in res[5:])
     assert res[-1][1].get("fence") == 1
+
+
+WF = Field(length=3.36, width=2.70, goal_width=1.22, goal_depth=0.30, ball_radius=0.089, robot_radius=0.18)
+
+
+def test_demo_knobs_off_by_default():
+    for k in ("gk_track", "cruise_v", "shot_follow_s", "gait_down_v", "wall_post"):
+        assert DEFAULTS[k] == 0, k
+
+
+def test_gk_track_shuffles_in_the_middle_and_aligns_with_a_near_ball():
+    q = {**P, "role_mode": "defend", "gk_track": 1, "guard_line_m": 0.2, "gk_near_m": 1.0, "gk_far_m": 2.2}
+    gx = -WF.length / 2 + q["goalie_dist"]
+    ys = []
+    b = Brain(BLUE, WF)
+    for i in range(90):  # 3 s, ball far upfield and still: centred, shuffling +- gk_shuffle_m
+        t = i / 30
+        _, d = b.decide(world(t, (gx, 0.0, math.pi / 2), (1.2, 0.8)), q)
+        assert d["phase"] == "guard"
+        ys.append(d["target"][1])
+    assert max(ys) > 0.04 and min(ys) < -0.04 and max(abs(y) for y in ys) <= q["gk_shuffle_m"] + 0.02
+    b = Brain(BLUE, WF)
+    _, d = b.decide(world(0.0, (gx, 0.0, math.pi / 2), (gx + 0.6, 0.3)), q)  # ball close: aligned with its y
+    assert abs(d["target"][1] - 0.3) < 0.02
+    _, d = b.decide(world(0.1, (gx, 0.0, math.pi / 2), (gx + 0.6, 0.9)), q)  # clamped to the mouth less the edge
+    assert abs(d["target"][1] - (WF.goal_width / 2 - q["gk_edge_m"])) < 1e-6
+
+
+def test_gk_track_follows_a_shot_to_its_crossing_point():
+    q = {**P, "role_mode": "defend", "gk_track": 1, "goalie_dist": 0.25}
+    gx = -WF.length / 2 + q["goalie_dist"]
+    b = Brain(BLUE, WF)
+    w = World(0.0, Ball(0.5, 0.0, -1.5, -0.3, 0.0), {"blue": RobotObs("blue", Pose(gx, 0.0, math.pi / 2), 0.0)})
+    _, d = b.decide(w, q)
+    T, y = b._arrival((0.5, 0.0), (-1.5, -0.3), gx, q)
+    ty = d["target"][1]
+    assert T < 3 and ty * y > 0 and 0.2 * abs(y) < abs(ty) < 0.8 * abs(y)  # far, coming: part of the way
+    w = World(0.1, Ball(-0.6, -0.2, -1.5, -0.3, 0.1), {"blue": RobotObs("blue", Pose(gx, 0.0, math.pi / 2), 0.1)})
+    _, d = b.decide(w, q)
+    T, y = b._arrival((-0.6, -0.2), (-1.5, -0.3), gx, q)
+    assert T < 0.8 and abs(d["target"][1] - y) < 0.02  # about to arrive: aligned with the crossing
+
+
+def test_long_shot_releases_the_ball_then_half_turns():
+    q = {**P, "dribble": 1, "dribble_line_m": 0.9, "dribble_line_lat": 0.3, "dribble_line_deg": 70, "dribble_shot_m": 1.0,
+         "shot_follow_s": 1.8, "max_vx": 0.75, "accel_vx": 1.2}
+    b = Brain(BLUE, WF)
+    c = WF.ball_radius + WF.robot_radius
+    bx = WF.length / 2 - 0.8
+    b.out = Cmd(0.7, 0.0, 0.0)
+    b.dr_line = True
+    cmd, d = b.decide(world(0.0, (bx - c + 0.01, 0.1, 0.0), (bx, 0.1)), q)
+    assert d["phase"] == "dr_follow" and d.get("shot") == 1 and cmd.vx > 0.5
+    phases, wz = [], []
+    for i in range(1, 40):
+        cmd, d = b.decide(world(i / 30, (bx - c + 0.02 * i, 0.1, 0.0), (bx + 0.05 * i, 0.1)), q)
+        phases.append(d["phase"])
+        wz.append(cmd.wz)
+    assert phases[:20].count("dr_follow") == 20  # drives through, then turns (toward the field centre: right)
+    assert abs(wz[2]) < 0.3 and min(wz[10:20]) < -0.5
+    q0 = {**q, "shot_follow_s": 0.0}
+    b = Brain(BLUE, WF)
+    b.out, b.dr_line = Cmd(0.7, 0.0, 0.0), True
+    _, d = b.decide(world(0.0, (bx - c + 0.01, 0.1, 0.0), (bx, 0.1)), q0)
+    assert d["phase"] != "dr_follow"
+
+
+def test_wall_post_stops_sliding_into_the_end_fence_beside_the_post():
+    b = Brain(BLUE, WF)
+    pw = {**P, "wall_margin_m": 0.28, "max_vx": 0.75, "max_vy": 0.3}
+    deep = Pose(-WF.length / 2 + 0.1, 0.5, math.pi / 2)  # deep in the own mouth, walking toward the post
+    cmd, _ = b._fence_guard(deep, Cmd(0.6, 0.0, 0.0, "x"), pw)
+    assert cmd.vx > 0.3  # without wall_post the end fence beside the post is not seen
+    cmd, hit = b._fence_guard(deep, Cmd(0.6, 0.0, 0.0, "x"), {**pw, "wall_post": 1})
+    assert hit and cmd.vx < 0.2
