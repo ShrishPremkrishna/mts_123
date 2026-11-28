@@ -1052,6 +1052,16 @@ def setup_step(source: str, host: str, dry_run: bool, phase: str | None, op: dic
     return {**out, "step": "check", "label": "Check", "op": "robot.status", "reason": f"phase {phase}"}
 
 
+def calibration_note(cal: dict | None) -> str | None:
+    """Short text for a camera calibration nobody has confirmed (eye.cal_status()): None when ok / no camera."""
+    st = (cal or {}).get("state")
+    if st == "suspect":
+        return "cal unverified (suspect)"
+    if st == "unverified":
+        return "cal unverified"
+    return None
+
+
 def health(source: str, active: bool, seen: bool, L: dict | None, has_link: bool, op: dict | None,
            phase: str | None, imu_bad: bool, mux_lost: bool, estopped: bool = False) -> dict:
     """One traffic light per robot: level ok|warn|bad|off and a short text. Never claims ready

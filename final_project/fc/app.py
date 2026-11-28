@@ -33,7 +33,7 @@ from .link import CEIL, Link
 from .media import CamFeed, Recorder
 from . import ops as OPS
 from .play import (AUTO_AFTER_ROLL, AUTO_RESETS, FLOW_CHOICES, FLOW_DEFAULTS, FLOW_LIMITS, JOBS, RESTART_MODES, AutoPlay,
-                   MatchFlow, Ticker, Warmup, action_label, banners, down_failed, estop_view, health, safety_banners,
+                   MatchFlow, Ticker, Warmup, action_label, banners, calibration_note, down_failed, estop_view, health, safety_banners,
                    setup_step)
 from .runlog import RUNS, Metrics, RunLog, list_runs
 from .sim import Sim
@@ -795,6 +795,7 @@ class App:
                     if self.eye:
                         es = self.eye.status()
                         rec["eye"] = {"fps": es["fps"], "calibrated": es["calibrated"], "msg": es["message"][:80],
+                                      "cal": (es.get("cal") or {}).get("state"),
                                       "paused": es.get("paused"), "picture_age": es.get("picture_age")}
                 self.run.event(rec)
             self._check_test(world, now)
@@ -1100,6 +1101,26 @@ class App:
             return {"ok": True, **res}
         except (ValueError, TypeError) as e:
             return {"ok": False, "error": str(e)}
+
+    def recalibrate(self, timeout: float = 8.0) -> dict:
+        """op eye.recalibrate: the eye's full re-fit (lens + field size + camera pose) from the four corner tags on
+        an empty field, then the field size follows (_sync_field). Idle only: it can change the field size."""
+        if self.eye is None or not hasattr(self.eye, "recalibrate"):
+            return {"ok": False, "error": "no camera (sim source)"}
+        with self.lock:
+            if self.mode != "idle":
+                return {"ok": False, "error": f"{self.mode} is running: recalibrate only while idle (Stop / End match first)"}
+        self.say("eye: full re-fit requested (empty field, corner tags in view)")
+        res = self.eye.recalibrate(timeout=timeout)   # blocks up to timeout + 5 s; outside the lock (the loop runs on)
+        msg = str(res.get("message") or ("re-fit ok" if res.get("ok") else "re-fit failed"))
+        self.say(f"eye recalibrate: {msg}", cal=res.get("cal"))
+        with self.lock:
+            self._sync_field()
+            out = {"ok": bool(res.get("ok")), "message": msg, "cal": res.get("cal"),
+                   "field": [round(self.field.length, 3), round(self.field.width, 3)], "field_source": self.field_source}
+        if not out["ok"]:
+            out["error"] = msg
+        return out
 
     def _goal_events(self, world: World | None, now: float) -> list[str]:
         """Teams that scored since last tick."""
@@ -2068,6 +2089,14 @@ class App:
                 out["params"] = {k: self.params[k] for k in self.LITE_PARAMS if k in self.params}
             return out
 
+    def _eye_cal(self) -> dict | None:
+        """The eye's calibration monitor (eye.cal_status(): state none|unverified|ok|suspect, why), or None."""
+        f = getattr(self.eye, "cal_status", None) if self.eye is not None else None
+        try:
+            return f() if f else None
+        except Exception:  # noqa: BLE001 - a status read must never break /state
+            return None
+
     def stack_info(self, rid: str) -> dict:
         """The robot's running stack options (from fcctl status) vs the preset, with warnings."""
         st = self.robot_status.get(rid) or {}
@@ -2094,6 +2123,8 @@ class App:
         moving = self.mode in ("play", "match", "warmup") and (self.flow is None or self.flow.phase in ("play", "kickoff",
                                                                                                     "celebrate"))
         lstat = self._lstat if self.link else None
+        cal = self._eye_cal()
+        cal_note = calibration_note(cal)
         seen = {rid for rid, o in (self.world.robots.items() if self.world else [])
                 if now - o.t <= self.params["stale_stop_s"]}
         active = {r.id for r in self.active}
@@ -2103,6 +2134,8 @@ class App:
             hl = health(self.source, r.id in active, r.id in seen, (lstat or {}).get(r.id), self.link is not None,
                         self.ops.get(r.id), self.robot_phase.get(r.id), r.id in self.imu_bad, r.id in self.mux_lost,
                         estopped=r.id in self.estops)
+            if cal_note and r.id in active and hl["level"] in ("ok", "warn"):
+                hl = {**hl, "text": f"{hl['text']} · {cal_note}"}   # poses come from an unconfirmed calibration
             auto_me = self.auto is not None and r.id == (self.test or {}).get("robot")
             warm_me = self.warm is not None and r.id in self.warm.cfg
             robots[r.id] = {
@@ -2126,6 +2159,10 @@ class App:
         if self.eye is not None and getattr(self.eye, "paused", False):
             cam = [{"robot": None, "team": None, "level": "bad", "kind": "camera",
                     "text": "CAMERA PAUSED: the overhead picture is frozen - robots stop (stale). Check the phone"}]
+        if (cal or {}).get("state") == "suspect":
+            cam.append({"robot": None, "team": None, "level": "warn", "kind": "calibration",
+                        "text": f"CALIBRATION UNVERIFIED: {cal.get('why') or 'floor tags moved'} - last camera pose kept;"
+                                " eye.recalibrate when idle if it persists"})
         auto = self.auto.json(now) if self.auto else None
         auto_b = [{"robot": self.auto.rid, "team": self.cfg[self.auto.rid].team, "kind": "autoplay", **self.auto.banner}] \
             if self.auto and self.auto.banner else []

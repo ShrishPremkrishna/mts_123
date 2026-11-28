@@ -544,6 +544,20 @@ def _score_reset(app, a):
     return app.action({"action": "score_reset"})
 
 
+def _when_recalibrate(app):
+    if app.eye is None:
+        return {"reason": "camera only (sim has no calibration)"}
+    return {} if app.mode == "idle" else {"reason": f"{app.mode} is running: recalibrate only while idle"}
+
+
+@op("eye.recalibrate", "Recalibrate", "Camera only, idle only: full re-fit of lens, field size and camera pose from the "
+    "four corner tags (empty field, up to ~8 s); the field size follows. The old calibration stays if the fit fails.",
+    "camera", safety="params", when=_when_recalibrate,
+    ask="Re-fits the camera from the four corner tags: clear the field (robots and ball off the corner tags) first.")
+def _recalibrate(app, a):
+    return app.recalibrate(timeout=8.0)
+
+
 @op("ballcal", "Ball colour", "Camera only: ball HSV range at pixel (x, y) or (u, v) in [0, 1], else the most likely "
     "blob; show=true only reports.", "camera", extra=True)
 def _ballcal(app, a):

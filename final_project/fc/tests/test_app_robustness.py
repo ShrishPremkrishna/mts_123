@@ -304,3 +304,92 @@ def test_space_pauses_a_match_and_keeps_the_score(running):
     assert app.last_match["score"] == {"blue": 2, "red": 1}
     assert app.action({"action": "go"})["ok"] and app.action({"action": "stop"}) == {"ok": True}   # non-match: ends
     assert app.mode == "idle"
+
+
+# ---- eye calibration (self-healing eye, 0571987): recalibrate op, honest suspect state, run log ----------
+class FakeEye:
+    """The eye's calibration surface only: recalibrate / cal_status / calibrated_size / status."""
+    paused = False
+
+    def __init__(self, state="ok", why="", size=(3.20, 2.10), ok=True):
+        self.cal = {"state": state, "why": why}
+        self.size, self.ok, self.asked = size, ok, []
+
+    def cal_status(self):
+        return dict(self.cal)
+
+    def calibrated_size(self):
+        return self.size
+
+    def recalibrate(self, timeout=8.0, wait=True):
+        self.asked.append(timeout)
+        if not self.ok:
+            return {"ok": False, "message": "fit err 4.1 px > 3 px: calibration kept", "cal": self.cal_status()}
+        self.cal = {"state": "ok", "why": "calibrated (operator)"}
+        return {"ok": True, "message": "calibrated (operator): field 3.20 x 2.10 m", "cal": self.cal_status()}
+
+    def note_cmds(self, now, cmds):
+        pass
+
+    def status(self):
+        return {"fps": 30.0, "calibrated": True, "message": "ok", "paused": False, "picture_age": 0.0,
+                "cal": self.cal_status()}
+
+
+def test_eye_recalibrate_op_idle_only(idle):
+    from fc import ops
+    app = idle
+    assert "eye.recalibrate" in {o["name"] for o in ops.manifest(app)["ops"]}
+    assert ops.call(app, "eye.recalibrate")["code"] == "unavailable"            # sim: no camera
+    app.eye = FakeEye()
+    try:
+        app.mode = "match"
+        r = ops.call(app, "eye.recalibrate")
+        assert r["code"] == "unavailable" and "idle" in r["error"] and not app.eye.asked
+        app.mode = "idle"
+        r = ops.call(app, "eye.recalibrate")
+        assert r["ok"] and app.eye.asked == [8.0] and r["field"] == [3.2, 2.1] and r["field_source"] == "camera"
+        assert (app.field.length, app.field.width) == (3.20, 2.10)
+        assert any("calibrated (operator)" in e["msg"] for e in app.events)
+        app.eye.ok = False
+        r = ops.call(app, "eye.recalibrate")
+        assert not r["ok"] and r["code"] == "refused" and "calibration kept" in r["error"]
+    finally:
+        app.eye = None
+
+
+def test_suspect_calibration_banner_and_health_text(idle):
+    app = idle
+    app.eye = FakeEye("suspect", "3 tags shifted (px 9, 11, 12); last pose kept")
+    try:
+        ps = app.play_state(time.monotonic())
+        b = [x for x in ps["banners"] if x["kind"] == "calibration"]
+        assert len(b) == 1 and "UNVERIFIED" in b[0]["text"] and "3 tags shifted" in b[0]["text"]
+        assert ps["robots"]["blue"]["health"]["text"].endswith("cal unverified (suspect)")
+        app.eye.cal = {"state": "unverified", "why": "loaded eye_cal.json"}
+        ps = app.play_state(time.monotonic())
+        assert not [x for x in ps["banners"] if x["kind"] == "calibration"]
+        assert ps["robots"]["blue"]["health"]["text"].endswith("· cal unverified")
+        app.eye.cal = {"state": "ok", "why": ""}
+        ps = app.play_state(time.monotonic())
+        assert "cal" not in ps["robots"]["blue"]["health"]["text"]
+    finally:
+        app.eye = None
+
+
+def test_eye_log_record_carries_cal_state(running):
+    app = running
+    app.eye = FakeEye("suspect", "camera moved")
+    app.params["record"] = False                             # no overhead video from a fake eye
+    try:
+        assert app.action({"action": "go"})["ok"]
+        run_dir = app.test["run_dir"]
+        time.sleep(1.2)                                      # > one 2 Hz health record
+        app.stop()
+        from pathlib import Path
+        assert wait(lambda: (Path(run_dir) / "summary.json").exists(), 3)
+        recs = [json.loads(x) for x in (Path(run_dir) / "events.jsonl").read_text().splitlines()]
+        eyes = [r["eye"] for r in recs if "eye" in r]
+        assert eyes and all(e["cal"] == "suspect" for e in eyes)
+    finally:
+        app.eye = None

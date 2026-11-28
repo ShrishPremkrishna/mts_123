@@ -554,6 +554,17 @@ def test_fmt_status_camera_paused():
     assert "PAUSED" not in "".join(ctl.fmt_status(CAMERA_STATE))
 
 
+def test_fmt_status_calibration_unverified():
+    st = {**CAMERA_STATE, "eye": {**CAMERA_STATE["eye"], "cal": {"state": "suspect", "why": "3 tags shifted"}},
+          "play": {**CAMERA_STATE["play"], "banners": [{"kind": "calibration", "text": "CALIBRATION UNVERIFIED: x"}]}}
+    lines = ctl.fmt_status(st)
+    assert "calib unverified (suspect: 3 tags shifted)" in lines[1] and lines[-1] == "  banner: CALIBRATION UNVERIFIED: x"
+    st["eye"]["cal"] = {"state": "unverified"}
+    assert "calib unverified err" in ctl.fmt_status(st)[1]
+    assert "calib ok" in ctl.fmt_status(CAMERA_STATE)[1]
+    assert ctl.SLOW_OPS["eye.recalibrate"] > 13                  # eye.recalibrate blocks up to timeout 8 + 5 s
+
+
 def test_goalie_summary_line_has_shots():
     s = {"result": "done", "robot": "blue", "conceded": 1, "saved": 3, "shots": 5, "missed": 1, "unclear": 0}
     assert ctl.key_line("goalie", s) == "conceded 1 saved 3 shots 5 missed 1"

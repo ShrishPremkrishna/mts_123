@@ -330,6 +330,16 @@ def robot_status_line(rid: str, st: dict) -> list[str]:
     return out
 
 
+def calib_word(eye: dict) -> str:
+    """ok | NO | unverified (the eye's cal monitor: loaded but not confirmed by floor tags, or suspect)."""
+    cal = eye.get("cal") or {}
+    if not eye.get("calibrated"):
+        return "NO"
+    if cal.get("state") == "suspect":
+        return f"unverified (suspect: {short(cal.get('why') or '', 60)})"
+    return "unverified" if cal.get("state") == "unverified" else "ok"
+
+
 def fmt_status(st: dict) -> list[str]:
     t = st.get("test")
     tdesc = "-"
@@ -354,12 +364,12 @@ def fmt_status(st: dict) -> list[str]:
         fdesc = (f" · field {num(f.get('length'))} x {num(f.get('width'))} m ({st.get('field_source') or 'field.json'})"
                  f" mouth {num(f.get('goal_width'))} ball r {num(f.get('ball_radius'), 3)}") if f else ""
         lines.append(("CAMERA PAUSED: picture unchanged for " + num(eye.get("picture_age"), 1) + " s · " if paused else "")
-                     + f"eye {num(eye.get('fps'), 1)}fps calib {'ok' if eye.get('calibrated') else 'NO'}"
+                     + f"eye {num(eye.get('fps'), 1)}fps calib {calib_word(eye)}"
                      f" err {num(eye.get('calib_err_px'))}px{fdesc} · {short(eye.get('message', ''), 80)}")
     for rid in st.get("active") or []:
         lines += robot_status_line(rid, st)
     for b in ((st.get("play") or {}).get("banners") or []):
-        if b.get("kind") in ("estop", "down", "camera"):
+        if b.get("kind") in ("estop", "down", "camera", "calibration"):
             lines.append(f"  banner: {short(b.get('text'), 140)}")
     return lines
 
@@ -526,9 +536,13 @@ class Client:
     def get(self, path: str):
         return self._open(urllib.request.Request(self.url + path))
 
-    def post(self, path: str, body: dict) -> dict:
+    def post(self, path: str, body: dict, timeout: float | None = None) -> dict:
         req = urllib.request.Request(self.url + path, json.dumps(body).encode(), {"Content-Type": "application/json"})
-        res = self._open(req)
+        old, self.timeout = self.timeout, timeout or self.timeout
+        try:
+            res = self._open(req)
+        finally:
+            self.timeout = old
         return res if isinstance(res, dict) else {"ok": False, "error": f"bad reply {res!r}"}
 
     def state(self) -> dict:
@@ -601,8 +615,11 @@ def cmd_ops(c: Client, a) -> None:
         print(f"{o['name']:<17} {o['key'] or '':<6} {'on ' if av.get('enabled') else 'off'} {ps}{why}")
 
 
+SLOW_OPS = {"eye.recalibrate": 20.0}   # ops that block longer than the client's default timeout (s)
+
+
 def cmd_op(c: Client, a) -> None:
-    res = c.post("/api/op", {"op": a.name, "args": parse_kv(a.pairs)})
+    res = c.post("/api/op", {"op": a.name, "args": parse_kv(a.pairs)}, timeout=SLOW_OPS.get(a.name))
     print(json.dumps(res, separators=(",", ":")))
     if not res.get("ok"):
         raise Fail(f"{a.name}: {res.get('code')}: {res.get('error')}")
