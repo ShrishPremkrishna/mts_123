@@ -246,7 +246,8 @@ def _when_estop_clear(app):
 
 
 # ---- safety ---------------------------------------------------------------------------------------
-@op("stop", "Stop", "Zero speed to every robot now; they stand still with legs on. Ends a running test.",
+@op("stop", "Stop", "Zero speed to every robot now; they stand still with legs on. Ends a running test; a match "
+    "pauses instead (score kept: Resume, or End match).",
     "safety", key="Space", safety="stop")
 def _stop(app, a):
     return app.stop()

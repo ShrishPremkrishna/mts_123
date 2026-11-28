@@ -196,7 +196,8 @@ def test_source_switch_restarts_only_when_idle(app):
     assert _without_source(["--source", "sim", "--port", "1", "--source=camera", "--no-link"]) == ["--port", "1", "--no-link"]
     assert restart_argv("camera", "fast", ["--source", "sim", "--preset", "old", "--port", "1"]) == \
         ["--source", "camera", "--port", "1", "--preset", "fast"]
-    assert restart_argv("sim", None, ["--preset=old", "--robots", "blue"]) == ["--source", "sim", "--robots", "blue"]
+    assert restart_argv("sim", None, ["--preset=old", "--robots", "blue"]) == ["--source", "sim", "--robots", "blue",
+                                                                                 "--preset", "base"]  # base stays base
     go = {"source": "camera", "confirm": True}
     assert ops.call(app, "app.source", go)["code"] == "unavailable"      # no launcher hook
     calls = []

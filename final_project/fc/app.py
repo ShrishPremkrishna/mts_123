@@ -99,6 +99,9 @@ CONFIRM_OPS = {"start", "ready"}                   # may home the legs / stand t
 ALWAYS_OPS = {"stop", "down"}                      # never refused by a running op
 PROFILES_DIR = HERE / "robot" / "profiles"
 HOST_RE = re.compile(r"[A-Za-z0-9_.@-]{1,253}")   # robots.json host: [user@]name, no shell or ssh-option chars
+# ssh to the Pi: fail in ~15 s when Wi-Fi drops mid-op (keepalives), so a running op never blocks the next
+# Ready for its whole timeout; never prompt (BatchMode).
+SSH_OPTS = ("-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "-o", "ServerAliveInterval=5", "-o", "ServerAliveCountMax=3")
 IMU_TEST_S = (1, 900)
 IMU_MODES = ("auto", "bno", "ros")
 IMU_CONDITION_RE = re.compile(r"[a-z0-9_]{1,24}")
@@ -112,6 +115,7 @@ STACK_SPEED_CAP = (0.30, 1.50)                    # = robot/stack_overlay.py SPE
 STACK_HEADING_HOLD = ("on", "off")
 STOCK_SPEED_CAP = 0.49                             # walker cap without --speed-cap
 ESTOP_RESEND_S = 3.0                               # after the burst, resend e-stop each tick until an ack confirms it
+KICKOFF_ABSENT_S = 3.0     # kickoff stops waiting for a playing robot not seen this long (a tag blip is shorter)
 
 
 def auto_args(body: dict, num) -> dict:
@@ -171,6 +175,16 @@ def load_robot_config(path: Path = CONFIG / "robots.json") -> tuple[list[RobotCf
     names = {f.name for f in fields(RobotCfg)}
     robots = [RobotCfg(**{k: v for k, v in r.items() if k in names}) for r in raw]
     return robots, {str(r["id"]): str(r.get("udp_host") or "") for r in raw}
+
+
+def default_robot_ids(source: str, robots: list[RobotCfg], udp_hosts: dict[str, str]) -> list[str]:
+    """Robots controlled when --robots is not given: all in sim; on the camera source only those with an address
+    (host or udp_host), since a hostless robot would join the match as a player that never moves. None has one:
+    all (offline rehearsal)."""
+    every = [r.id for r in robots]
+    if source == "sim":
+        return every
+    return [r.id for r in robots if r.host or udp_hosts.get(r.id)] or every
 
 
 def pov_feeds_allowed(source: str, video: str | None, camera: str, linked: bool) -> bool:
@@ -556,7 +570,8 @@ class App:
         self.ball_color_path = CONFIG / "ball_color.json"
         self.all_robots, cfg_udp = load_robot_config()
         self.udp_hosts = {**cfg_udp, **(udp_hosts or {})}
-        ids = robot_ids or [r.id for r in self.all_robots]
+        ids = robot_ids or default_robot_ids(source, self.all_robots, self.udp_hosts)
+        self.skipped = [] if robot_ids else [r.id for r in self.all_robots if r.id not in ids]
         unknown = set(ids) - {r.id for r in self.all_robots}
         if unknown:
             raise SystemExit(f"unknown robots {sorted(unknown)}; robots.json has {[r.id for r in self.all_robots]}")
@@ -616,6 +631,7 @@ class App:
         self._ball_track: deque = deque(maxlen=2400)   # sim: ball sightings for /ball_track (the eye keeps its own)
         self._err_t: dict[str, float] = {}
         self._coach_errs: set[str] = set()   # Coach error kinds already logged
+        self._seen_t: dict[str, float] = {}  # last sighting per robot (kickoff: stop waiting for an absent one)
         self._lk_t = 0.0
         self.loop_stats = {"hz": 0.0, "overruns": 0, "tick_ms": 0.0}
         self._dt = 1.0 / 30
@@ -637,6 +653,7 @@ class App:
         self.recorder: Recorder | None = None
         self._stop = False
         self.say(f"started: source={source}, robots={[r.id for r in self.active]}"
+                 + (f" ({', '.join(self.skipped)} not active: no host in robots.json; --robots to add)" if self.skipped else "")
                  + (", LINK OFF (nothing sent)" if source != "sim" and self.link is None else ""))
 
     # ---- small utilities -----------------------------------------------------
@@ -828,6 +845,16 @@ class App:
             return "estopped"
         return "imu_bad" if rid in self.imu_bad else "mux_lost" if rid in self.mux_lost else None
 
+    def out_of_play(self, rid: str) -> str | None:
+        """halted(), or "no_link": the link is on and the robot's bridge has not acked within
+        link.CONNECTED_AGE_S (it cannot move on our commands). For the Coach and the kickoff wait."""
+        h = self.halted(rid)
+        if h:
+            return h
+        if self.link is not None and not (self._lstat.get(rid) or {}).get("connected"):
+            return "no_link"
+        return None
+
     def _health_end_test(self) -> None:
         t = self.test
         if not t or t["name"] == "sim_eval" or t.get("flow") or not (self.imu_bad or self.mux_lost or self.estops):
@@ -940,7 +967,10 @@ class App:
         play_job = self.params.get("role_mode") if self.mode == "play" else "auto"   # (a match runs auto)
         if any((flow.roles.get(k, "auto") if flow else play_job) != "auto" for k in self.playing):
             return {}
-        seen = {k: o for k, o in world.robots.items() if k in self.playing and k in self.brains}
+        # A halted (e-stopped / IMU / mux) or link-dead robot is out of play: left in, a frozen robot would keep
+        # the Coach's possession or first-to-ball and the live one would shadow it (sim: 65 s in defend).
+        seen = {k: o for k, o in world.robots.items()
+                if k in self.playing and k in self.brains and not self.out_of_play(k)}
         try:
             return self.coach.update(replace(world, robots=seen), self.params)
         except Exception as e:  # noqa: BLE001 - a Coach bug must not stop the loop: both brains play alone
@@ -992,6 +1022,11 @@ class App:
             elif self.field_source == "camera":
                 return
         if abs(want[0] - self.field.length) > 0.005 or abs(want[1] - self.field.width) > 0.005 or src != self.field_source:
+            if self.test is not None:   # never resize the live field under a match / show / test: next idle tick
+                self._throttled("field-frozen", f"field {want[0]:.2f} x {want[1]:.2f} m from {src}: applied when"
+                                f" {self.test.get('name')} ends (field kept at {self.field.length:.2f} x"
+                                f" {self.field.width:.2f} m meanwhile)", every=30.0)
+                return
             self.field.resize(*want)
             self.field_source = src
             self.say(f"field {self.field.length:.2f} x {self.field.width:.2f} m from {src}"
@@ -1186,7 +1221,7 @@ class App:
     def _flow_tick(self, world: World | None, now: float, goals: list[str]) -> None:
         f, t = self.flow, self.test
         before = f.phase
-        for ev in f.update(now, self._dt, world, self.debug, goals, self.params):
+        for ev in f.update(now, self._dt, world, self.debug, goals, self.params, out=self._out_of_kickoff(world, now)):
             if ev.startswith("goal:"):
                 team = ev[5:]
                 self.say(f"GOAL {team}  ({f.score['blue']}-{f.score['red']})", team=team, clock=f.clock)
@@ -1223,6 +1258,21 @@ class App:
                 t.pop("ref_wait", None)
         else:
             t.pop("ref_wait", None)
+
+    def _out_of_kickoff(self, world: World | None, now: float) -> dict[str, str]:
+        """Playing robots the kickoff must not wait for: halted / link-dead (they cannot walk to a spot) or not
+        seen for KICKOFF_ABSENT_S (off the field or tag lost for good). {robot: reason}."""
+        out, f = {}, self.flow
+        for rid in (f.cfg if f else ()):
+            why = self.out_of_play(rid)
+            o = world.robots.get(rid) if world else None
+            if o is not None:   # the eye drops a robot after 1 s: keep its last sighting here
+                self._seen_t[rid] = max(self._seen_t.get(rid, -math.inf), o.t)
+            if not why and now - max(self._seen_t.get(rid, -math.inf), f.t_phase) > KICKOFF_ABSENT_S:
+                why = "not seen"
+            if why:
+                out[rid] = why
+        return out
 
     def _reset_brains(self) -> None:
         for rid, b in self.brains.items():
@@ -1602,15 +1652,22 @@ class App:
                 self._finish("ok" if rc == 0 else f"exit {rc}", returncode=rc, output_tail=test["output"][-4000:])
 
     def stop(self) -> dict:
-        """Immediate: zero bursts first, then bookkeeping."""
+        """Immediate: zero bursts first, then bookkeeping. A running match pauses instead of ending (every
+        robot holds zero in the paused phase, the score is kept; End match ends it); anything else ends."""
         if self.link:
             self.link.stop_all()
         with self.lock:
+            self.teleop.clear()
+            self.prev.clear()
+            f = self.flow
+            if f is not None and self.mode == "match" and (self.test or {}).get("flow") and f.phase != "full_time":
+                if f.phase != "paused":
+                    f.pause(time.monotonic())
+                    self.say(f"STOP: match paused at {f.score['blue']}-{f.score['red']} (Resume = countdown, End match ends it)")
+                return {"ok": True, "paused": True}
             if self.test:
                 self._finish("stopped")
             self.mode = "idle"
-            self.teleop.clear()
-            self.prev.clear()
         return {"ok": True}
 
     def estop(self, robot: str | None = None) -> dict:
@@ -1642,6 +1699,8 @@ class App:
             self.estops.pop(rid, None)
             self.estop_cleared[rid] = time.monotonic()
         self.say(f"sim: e-stop cleared for {', '.join(ids) or 'nobody'}")
+        for rid in ids:
+            self._pause_after_rearm(rid)
         return {"ok": True, "cleared": ids}
 
     def _apply_params(self, new: dict) -> None:
@@ -1796,7 +1855,7 @@ class App:
             cmd = ["bash", str(HERE / "robot" / "stage.sh"), host]  # local script, no shell
         else:
             remote = "bash ~/fc-v1/robot/fcctl.sh " + " ".join(shlex.quote(a) for a in args)
-            cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "--", host, remote]
+            cmd = ["ssh", *SSH_OPTS, "--", host, remote]
         if self.dry_run_ops:
             cmd = ["echo", "DRY-RUN:", *cmd]
         self._op_seq += 1     # lets a client tell this op's result from an older one
@@ -1822,6 +1881,21 @@ class App:
             state.update(out=str(e), rc=-1, running=False, progress={"ok": False, "error": str(e)})
             self.say(f"robot {rid}: {state['op']} -> {e}")
             return
+        try:
+            self._stream_body(rid, state, p, timeout)
+        except Exception as e:  # noqa: BLE001 - a bad line / reader error must not leave the op "running" forever
+            try:
+                p.kill()
+            except OSError:
+                pass
+            err = f"op reader error: {type(e).__name__}: {e}"
+            state.update(rc=-1 if state.get("rc") in (None, 0) else state["rc"],
+                         progress={**(state.get("progress") or {}), "ok": False, "error": err})
+            self.say(f"robot {rid}: {state['op']} -> {err}")
+        finally:
+            state["running"] = False
+
+    def _stream_body(self, rid: str, state: dict, p, timeout: float) -> None:
         timed_out = []
         timer = threading.Timer(timeout, lambda: (timed_out.append(1), p.kill()))
         timer.start()
@@ -1863,6 +1937,7 @@ class App:
                     self.estops.pop(rid)
                     self.estop_cleared[rid] = time.monotonic()
                     self.say(f"E-STOP on {rid} cleared: Ready re-armed it", robot=rid)
+                    self._pause_after_rearm(rid)
                 elif e is not None:
                     self.say(f"E-STOP on {rid} was pressed during Ready: still latched, press Ready again", robot=rid)
             if state.get("pov"):
@@ -1870,13 +1945,21 @@ class App:
             if not self.dry_run_ops:
                 self._refresh_status(rid)   # speed_cap / heading_hold of the stack that is now running
 
+    def _pause_after_rearm(self, rid: str) -> None:
+        """A re-arm mid-match must not hand a just-standing robot straight back to play: the match pauses
+        (score kept; Resume = countdown). Caller holds the lock."""
+        f = self.flow
+        if f is not None and (self.test or {}).get("flow") and rid in f.cfg and f.phase not in ("paused", "full_time"):
+            f.pause(time.monotonic())
+            self.say(f"match paused: {rid} re-armed mid-match (Resume when it is ready to play)", robot=rid)
+
     def _pov_start(self, rid: str) -> None:
         """fcctl cam start (160x120 @ 5 fps MJPEG, measured 1.3 % of one Pi core, 0.13 Mbit/s) after a
         successful Ready. Runs on the op's worker thread, never the 30 Hz loop; an already running feed is fine."""
         host = self.cfg[rid].host
         if not host or not HOST_RE.fullmatch(host) or host.startswith("-"):
             return
-        cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "--", host, "bash ~/fc-v1/robot/fcctl.sh cam start"]
+        cmd = ["ssh", *SSH_OPTS, "--", host, "bash ~/fc-v1/robot/fcctl.sh cam start"]
         if self.dry_run_ops:
             cmd = ["echo", "DRY-RUN:", *cmd]
         try:
@@ -1895,7 +1978,7 @@ class App:
         host = self.cfg[rid].host
         if not host or not HOST_RE.fullmatch(host) or host.startswith("-"):
             return
-        cmd = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "--", host, "bash ~/fc-v1/robot/fcctl.sh status"]
+        cmd = ["ssh", *SSH_OPTS, "--", host, "bash ~/fc-v1/robot/fcctl.sh status"]
         try:
             p = subprocess.run(cmd, capture_output=True, text=True, timeout=60, cwd=FINAL_PROJECT)
         except (subprocess.TimeoutExpired, OSError):
@@ -2063,8 +2146,10 @@ class App:
 
     def busy_reason(self) -> str:
         """Why the app should not restart now ("" = free). Caller holds the lock."""
+        if self.mode == "match" and self.flow is not None and self.flow.phase == "paused":
+            return "a match is paused: End match first"
         if self.mode != "idle":
-            return f"{self.mode} is running: Stop (Space) first"
+            return f"{self.mode} is running: Stop (Space) first" + (", then End match" if self.mode == "match" else "")
         running = [f"{rid} {o.get('op')}" for rid, o in self.ops.items() if o.get("running")]
         return f"wait for {', '.join(running)}" if running else ""
 
@@ -2230,8 +2315,19 @@ def _without_source(argv: list[str], flags: tuple[str, ...] = ("--source",)) -> 
 
 
 def restart_argv(source: str, preset: str | None, argv: list[str]) -> list[str]:
-    """fc.app arguments for a mode switch: the other source, the same flags, the loaded preset."""
-    return ["--source", source, *_without_source(argv, ("--source", "--preset")), *(["--preset", preset] if preset else [])]
+    """fc.app arguments for a mode switch: the other source, the same flags, the loaded preset (none loaded =
+    --preset base, so the restart does not fall back to the default preset)."""
+    return ["--source", source, *_without_source(argv, ("--source", "--preset")), "--preset", preset or "base"]
+
+
+DEFAULT_PRESET = "play"   # the demo preset loads at start unless --preset says otherwise (--preset base = none)
+
+
+def start_preset(arg: str | None, available: list[str]) -> str | None:
+    """--preset value -> preset to load at start (None = base params). No flag: DEFAULT_PRESET if it exists."""
+    if arg is None:
+        return DEFAULT_PRESET if DEFAULT_PRESET in available else None
+    return None if arg == "base" else arg
 
 
 def main(argv=None) -> None:
@@ -2247,20 +2343,23 @@ def main(argv=None) -> None:
     ap.add_argument("--udp-host", action="append", type=_udp_arg, default=[], metavar="ID=ADDR",
                     help="control packets to this address instead of the ssh host (overrides robots.json udp_host)")
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--preset", default=None, help="load this preset at start (a mode switch passes the loaded one on)")
+    ap.add_argument("--preset", default=None, help=f"load this preset at start (default {DEFAULT_PRESET}; 'base' ="
+                    " params.json + defaults only; a mode switch passes the loaded one on)")
     argv = list(sys.argv[1:] if argv is None else argv)
     a = ap.parse_args(argv)
     app = App(a.source, a.robots.split(",") if a.robots else None, video=a.video, camera=a.camera,
               dry_run_ops=a.dry_run_ops, seed=a.seed, no_link=a.no_link, udp_hosts=dict(a.udp_host))
-    if a.preset:
-        res = app.preset({"op": "load", "name": a.preset})
+    preset = start_preset(a.preset, app.presets())
+    if preset:
+        res = app.preset({"op": "load", "name": preset})
         if not res.get("ok") or res.get("errors"):
-            print(f"preset {a.preset}: {res.get('error') or '; '.join(res.get('errors') or [])}", flush=True)
+            print(f"preset {preset}: {res.get('error') or '; '.join(res.get('errors') or [])}", flush=True)
     app.restart_hook = lambda src, preset=None: os.execv(sys.executable, [sys.executable, "-m", "fc.app",
                                                                          *restart_argv(src, preset, argv)])
     app.start()
     srv = serve(app, a.host, a.port)
-    print(f"Pupper FC v1: http://{a.host}:{a.port}/   Ctrl-C to quit", flush=True)
+    print(f"Pupper FC v1: http://{a.host}:{a.port}/   source {a.source}, robots {','.join(r.id for r in app.active)},"
+          f" preset {app.preset_name or 'base (none)'}   Ctrl-C to quit", flush=True)
     try:
         while True:
             time.sleep(1)

@@ -135,6 +135,7 @@ class MatchFlow:
         self.scorer: str | None = None              # team credited with the last goal (celebrate)
         self.cel: dict[str, dict] = {}              # celebrate: per robot {"stage", "t"}
         self.want: dict[str, tuple] = {}            # celebrate: per robot command (see command())
+        self.out: dict[str, str] = {}               # robots the kickoff does not wait for {id: reason} (update())
         self._set("kickoff" if kickoff else "countdown", now)
 
     # ---- phase control ----------------------------------------------------------------
@@ -204,8 +205,10 @@ class MatchFlow:
         return now - self._ball[0][0] >= p["ball_settle_s"]
 
     def update(self, now: float, dt: float, world: World | None, debug: dict, goals: list[str],
-               params: dict) -> list[str]:
-        """Advance the flow. Returns event names: "goal:<team>", "play", "full_time"."""
+               params: dict, out: dict | None = None) -> list[str]:
+        """Advance the flow. Returns event names: "goal:<team>", "play", "full_time". `out` {robot: reason}:
+        playing robots that cannot reach their spot (halted, link-dead, not seen): the kickoff does not wait."""
+        self.out = dict(out or {})
         p = {**FLOW_DEFAULTS, **params}
         self.frac = p["kickoff_x_frac"]
         out = []
@@ -217,7 +220,10 @@ class MatchFlow:
                 out.append(f"goal:{team}")
             if goals:
                 self.scorer = goals[-1]
-                self._set("goal" if p.get("celebrate_style", "none") == "none" else "celebrate", now)
+                # celebrate only a goal by a playing robot's team (a human scoring vs one robot: plain goal pause)
+                party = p.get("celebrate_style", "none") != "none" and any(
+                    c.team == self.scorer for c in self.cfg.values())
+                self._set("celebrate" if party else "goal", now)
                 return out
             self.clock += dt
             if self.clock >= p["match_s"]:
@@ -231,7 +237,7 @@ class MatchFlow:
                 self._set(self._after_goal(p), now)
         elif ph == "kickoff":
             for rid in self.cfg:
-                self.in_pos[rid] = bool((debug.get(rid) or {}).get("done"))
+                self.in_pos[rid] = bool((debug.get(rid) or {}).get("done")) or rid in self.out
             self.ball_ok = self._ball_at_rest(world, now, p, centre=True)
             if self.ball_ok and all(self.in_pos.values()):
                 self._set("countdown", now)
@@ -300,7 +306,7 @@ class MatchFlow:
                 "clock": round(self.clock, 2), "clock_left": round(max(0.0, p["match_s"] - self.clock), 2),
                 "match_s": p["match_s"], "score": dict(self.score), "touches": self.touches,
                 "goals": self.goals[-10:], "roles": dict(self.roles), "playing": list(self.cfg),
-                "in_pos": dict(self.in_pos), "ball_ok": self.ball_ok, "waiting": self.waiting(),
+                "in_pos": dict(self.in_pos), "ball_ok": self.ball_ok, "waiting": self.waiting(), "out": dict(self.out),
                 "countdown_left": round(max(0.0, p["countdown_s"] - el), 2) if self.phase == "countdown" else None,
                 "goal_left": round(max(0.0, p["goal_pause_s"] - el), 2) if self.phase == "goal" else None,
                 "restart_mode": p.get("restart_mode", self.restart_mode), "scorer": self.scorer,
