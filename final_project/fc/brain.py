@@ -74,6 +74,7 @@ TUNE = {
     "return_vx": 0.75, "return_back_vx": 0.25,
     "clear_depth": 0.55, "clear_width_extra": 0.25, "clear_max_speed": 0.25,
     "gk_shuffle_m": 0.06, "gk_shuffle_hz": 0.7, "gk_edge_m": 0.15, "gk_far_m": 2.2, "gk_near_m": 1.0, "gk_tgoal_s": 2.5,
+    "gk_asym_m": 0.15,     # pre-shot keeper offset toward its slow (backward) side, m (_gk_target)
     # stuck: forward command but < stuck_dist progress for stuck_s -> reverse for unstick_s
     "stuck_s": 2.5, "stuck_dist": 0.06, "unstick_s": 1.0, "unstick_vx": 0.15,
     "avoid_radius": 0.55, "avoid_gain": 1.0, "field_margin": 0.12, "goto_yaw_tol_deg": 8,
@@ -1171,7 +1172,7 @@ class Brain:
         self.clearing, self.pushing = False, False
         x_line = self.own_x - s * p["goalie_dist"]
         lim = f.goal_width / 2 + p["goalie_margin"]
-        G, ff = self._gk_target(B, bv, x_line, approach, t, p)  # ff: feed-forward world vy of the shuffle
+        G, ff = self._gk_target(B, bv, x_line, approach, t, p, pose)  # ff: feed-forward world vy of the shuffle
         jockey = False
         if coach:
             J, on_line = self._shadow(B, p)
@@ -1230,12 +1231,14 @@ class Brain:
             herr = math.copysign(max(0.0, abs(herr) - math.radians(15)), herr)
         return Cmd(bx, by, p["k_turn"] * herr, "guard"), {"phase": "guard", "target": tgt}
 
-    def _gk_target(self, B, bv, x_line: float, approach: float, t: float, p: dict):
+    def _gk_target(self, B, bv, x_line: float, approach: float, t: float, p: dict, pose: Pose | None = None):
         """Guard point (x_line, y) and the shuffle's feed-forward world vy. At rest in the middle of the mouth,
         shuffling +-gk_shuffle_m at gk_shuffle_hz (looks alive); shifted toward the ball's y (its predicted crossing
-        of the guard line when it comes at goal) by a weight that grows as the ball gets closer (gk_far_m ->
+        of the guard line when it comes at goal) by a weight w that grows as the ball gets closer (gk_far_m ->
         gk_near_m from the goal centre) or sooner (time to the line gk_tgoal_s -> 0.8 s); the shuffle fades out by
-        the same weight. Clamped to the mouth less gk_edge_m."""
+        the same weight. Before a shot (no crossing predicted) the point sits gk_asym_m * (1 - w)^2 * sin(yaw) toward
+        the keeper's backward side: it walks back at ~half its forward speed (max_vx_back), so this evens out the
+        time to either post. Clamped to the mouth less gk_edge_m."""
         f = self.f
         y_aim, T = B[1], math.inf
         if approach > 0.05 and not self.hold_goal:
@@ -1252,7 +1255,10 @@ class Brain:
         ph = 2 * math.pi * p["gk_shuffle_hz"] * t
         A = p["gk_shuffle_m"] * (1.0 - w)
         hw = f.goal_width / 2 - p["gk_edge_m"]
-        y = clamp(w * y_aim + A * math.sin(ph), -hw, hw)
+        sh = 0.0
+        if pose is not None and T == math.inf:  # (also with the ball hidden) forward = +y at yaw +90 deg
+            sh = -p["gk_asym_m"] * math.sin(pose.yaw) * (1.0 - w) ** 2
+        y = clamp(w * y_aim + sh + A * math.sin(ph), -hw, hw)
         ff = A * 2 * math.pi * p["gk_shuffle_hz"] * math.cos(ph) if abs(y) < hw else 0.0
         return (x_line, y), ff
 

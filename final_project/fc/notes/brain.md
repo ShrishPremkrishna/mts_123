@@ -523,3 +523,31 @@ lat err 0.10 -> 0.09; return 23/29 both; solo 29/30 6.4 s both; 1v1 4.0 -> 3.9 g
 anti-ram standoff; 48 matches: one deadlocked match each). Floor-like gallery (scratch: sideways dribble, 40% hidden
 before the shot, 30% redirected, 0.8-1.8 m/s, 1200 paired shots): 88.3 -> 90.7% (55 better / 27 worse). Not
 cheap: the backward speed itself (walker `max_vx_backward`, fc/robot) and turning to face the threatened side.
+
+### Keeper look-ahead (2026-11-27, Nov 27 floor logs + sim)
+
+Floor (`runs/20261128T071036Z-goalie`, `runs/20261128T072833Z-goalie`, 37 shots; ball moving >= 0.3 m/s toward
+goal inside shot windows): ball position error of the rolling model after h s, median / p90: 0.25 s 3 / 25 cm,
+0.5 s 11 / 63, 0.75 s 21 / 66, 1.0 s 33 / 75 (constant velocity: 39 cm at 1 s). Guard-line crossing y error by time
+left to the crossing: < 0.25 s 1 / 6 cm, 0.25-0.5 s 2 / 21, 0.5-1.0 s 10 / 53, 1-1.5 s 19 cm (n 7). The p90 tail is
+deflections, redirects and shots taken while the human hides the ball, which no model predicts. The guard target
+was within 10 cm of the real crossing <= 0.1 s after the shot in 8 of 11 tracked crossings (one shot was hidden for
+0.4 s). The conceded shots: keeper near the middle at the shot (|y| <= 0.05), crossing 0.40-0.48 m out, walked
+0.08-0.3 m before the ball arrived. **The horizon is not the limit; the walk is** (backward ~0.25 m/s, forward
+~0.5), and nothing before the shot tells which corner a human picks from the middle.
+
+Sim, `--floor25 --preset play --set max_vx=1.0 wall_brake=0.5`; floor-like gallery (scratch, as above; also on the
+floor field 3.38 x 2.65 and with corner-only shots |y| >= 0.3), 1200 paired shots each. Tried and dropped (no gain):
+lead the distance weight and aim with the ball's position 0.5-2 s ahead (-0.2..-0.5 pts); aim at the rest point of a
+ball that stops short (gallery +-0; 1v1 goals 3.9 -> 4.9, both keepers worse); commit fully to the crossing once the
+keeper's own travel time + 0.3-0.5 s exceeds the ball's (no change: shots already reach w = 1 in time; human row
+60% = 60% at 72 matches); hold the middle of the shot cone when far (-0.4 pts). Attacker heading: the human is not
+tracked, only the ball.
+
+Kept: **`gk_asym_m` 0.15** (TUNE). Before a shot the guard point sits 0.15 * (1 - w)^2 * sin(yaw) m toward the
+keeper's backward side, so the slow (backward) and fast (forward) walks reach their posts in about the same time;
+also while the ball is hidden. Gallery before -> after: 90.7 -> 92.3% (43 better / 23 worse); floor field 96.2 ->
+97.2% (28 / 15); corner shots 83.4 -> 86.5% (74 / 37); corner shots on the floor field 91.2 -> 94.2% (59 / 23).
+Human rows at 72 x 3 min: saves 60 -> 60%, conceded 6.4 -> 6.3; vsH dribbler conceded 7.0 -> 7.5, dominant 13.8 ->
+13.1 (noise level ~0.4). 24 x 3 min: goalie 30/30, lat err 0.09 both; solo 29 -> 30/30; 1v1 3.9 -> 4.0 goals, 13
+deadlocks both; return 23/29 both. Floor check: before a shot the keeper stands ~0.13 m off centre toward its back.

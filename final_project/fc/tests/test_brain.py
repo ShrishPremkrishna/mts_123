@@ -557,14 +557,17 @@ def test_fence_guard_in_decide_with_dribble_preset_near_wall():
 def test_gk_track_shuffles_in_the_middle_and_aligns_with_a_near_ball():
     q = {**P, "role_mode": "defend", "gk_track": 1, "guard_line_m": 0.2, "gk_near_m": 1.0, "gk_far_m": 2.2}
     gx = -WF.length / 2 + q["goalie_dist"]
-    ys = []
-    b = Brain(BLUE, WF)
-    for i in range(90):  # 3 s, ball far upfield and still: centred, shuffling +- gk_shuffle_m
-        t = i / 30
-        _, d = b.decide(world(t, (gx, 0.0, math.pi / 2), (1.2, 0.8)), q)
-        assert d["phase"] == "guard"
-        ys.append(d["target"][1])
-    assert max(ys) > 0.04 and min(ys) < -0.04 and max(abs(y) for y in ys) <= q["gk_shuffle_m"] + 0.02
+    for yaw in (math.pi / 2, -math.pi / 2):  # facing +y (forward = +y) or -y
+        ys = []
+        b = Brain(BLUE, WF)
+        mid = -math.copysign(q["gk_asym_m"], math.sin(yaw))
+        for i in range(90):  # 3 s, ball far upfield and still: shuffling +- gk_shuffle_m about the middle
+            t = i / 30       # moved gk_asym_m toward the backward (slower) side
+            _, d = b.decide(world(t, (gx, mid, yaw), (1.2, 0.8)), q)
+            assert d["phase"] == "guard"
+            ys.append(d["target"][1])
+        assert max(ys) > mid + 0.04 and min(ys) < mid - 0.04
+        assert max(abs(y - mid) for y in ys) <= q["gk_shuffle_m"] + 0.02
     b = Brain(BLUE, WF)
     _, d = b.decide(world(0.0, (gx, 0.0, math.pi / 2), (gx + 0.6, 0.3)), q)  # ball close: aligned with its y
     assert abs(d["target"][1] - 0.3) < 0.02
