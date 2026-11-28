@@ -21,7 +21,7 @@ python -m fc.ctl ops                               # every operation the app acc
 python -m fc.ctl op match.kickoff                  # run any one of them by name: op <name> k=v ... (JSON reply)
 python -m fc.ctl test step vx=0.2 --wait           # also ready/down/estop/pi/preset/set/drive/stop/last/check/sleep: --help
 python -m fc.ctl batch fc/sessions/S1.batch        # first floor session (RUNBOOK) as one batch; pauses wait for Enter
-python -m fc.ctl preset show                       # demo show: 90 s match, 25/75 % spots, celebration (on its _base brain preset)
+python -m fc.ctl preset play                       # the demo brain (or `slow` for the first motion after a change)
 python -m fc.ctl show warmup [loops=N] [--wait]    # warm-up at the kickoff spots (W); again = walk to the spots and end
 python -m fc.ctl show kickoff --wait               # K, then follow the match: 3-2-1, goals, full time (show watch / show go = P)
 python -m fc.ctl rollcal --apply                   # roll the ball a few times: fits ball_decel (brain prediction), sets it live
@@ -69,7 +69,7 @@ they work even if `/api/ops` fails. `/state` carries `avail[op]` (enabled, reaso
 step). The UI, `fc.ctl op` and agents use the same list, so a key never does something different from its
 button. `/state?lite=1` leaves out static config (`GET /api/config`). Nothing is shown as ready without
 evidence: `ready` needs a green light and, on a real robot, fcctl phase `ready`. The overhead view draws the
-predicted ball path (`ball_decel`, 3 s) and the brain's committed plan. A frozen camera feed shows CAMERA
+predicted ball path (`ball_decel`, 3 s). A frozen camera feed shows CAMERA
 PAUSED; observations go stale, so robots stop. STOP ends a match (end card); Pause keeps it. Goals count only in
 the play phase. UI notes: [notes/ui-handoff.md](notes/ui-handoff.md).
 
@@ -88,7 +88,7 @@ support the robot". The app never passes `--force`.
 Match flow (`play.py`, one `match` run with `flow`): **kickoff** (brain `role_mode=goto` to spots at
 ∓`kickoff_x_frac`·length, facing the other goal; waits for both in position and the ball still at the
 centre; the sim referee re-centres the ball) → **countdown** (`countdown_s`, robots hold) → **play**
-(clock runs only here; jobs from the Play screen, a lone robot defaults to attack) → goal: **goal**
+(clock runs only here; two playing robots: the brain's Coach assigns their tasks; jobs from the Play screen) → goal: **goal**
 (`goal_pause_s`, robots hold, score + flash; with `celebrate_style` spin|wiggle instead **celebrate**: the scorer
 turns on the spot for `celebrate_s` at `celebrate_wz`, after stepping inside the fence margin (`wall_margin_m`, else
 0.28 m), the other robot holds or walks slowly to its spot per `celebrate_other`; in sim the robots keep their
@@ -96,7 +96,9 @@ places) → **restart** (play resumes once the ball is seen still,
 `ball_settle_s` within `ball_rest_m`, anywhere in the field; `restart_mode=kickoff` walks back to the spots
 instead) → … → **full_time** at `match_s`. Pause holds everyone (zero at once) and freezes the clock. A
 robot the bridge halts (IMU/mux) is zeroed and bannered but the match goes on for the other one. Each
-tick logs `m` (phase, score, clock, touches) and new ticker lines `tk` to `events.jsonl`.
+tick logs `m` (phase, score, clock, touches) and new ticker lines `tk` to `events.jsonl`. The show settings (90 s
+`match_s`, 25/75 % kickoff spots, 3-2-1, spin celebration, kickoff restarts) are plain params in `config/params.json`;
+the show runs with whatever brain preset is loaded (`play`).
 
 Show warm-up (`show.warmup`, W, `play.Warmup`, its own run `warmup`): the playing robots loop trot in place → small
 circle → side shuffle → quick spin at their kickoff spots (app-made commands through `brain.shape`; walks back by the
@@ -116,7 +118,7 @@ UI: **space = stop all, Esc = E-STOP all, always** (per-robot E-STOP on each car
 
 | Test | What it does | Summary |
 | --- | --- | --- |
-| Go (`play`) | brain on every active robot with current params | stopped |
+| Go (`play`) | brain on every active robot with current params (two playing robots: the Coach assigns tasks) | stopped |
 | `drive` | hold WASD (move) / QE (turn), scaled by `max_*`, ramped by `accel_*`; keys idle 0.4 s -> zero | — |
 | `goto` | click a field point; the brain's own `role_mode=goto` (the play controller) | `pos_err_m`, `heading_err_deg`, `pass` (< 8 cm) |
 | `step` | open loop: still 0.7 s, hold (vx, vy, wz) for `step_s`, zero for `step_settle_s` | `gain_lin`/`gain_wz` (actual / commanded), `latency_s` (fit), `onset_s`, `heading_bias_deg` (walk direction minus tag yaw), `lateral_m`, `yaw_drift_deg_per_m`, `pass` |
@@ -144,26 +146,27 @@ Robot health from the bridge acks: IMU `level: bad` -> zero to that robot, the t
 health (`imu`, `hold`, `imu_hold`, `mux_ok`, auth, RTT, loss, bridge stats) and eye fps go to `events.jsonl`
 at 2 Hz (`lk`, `eye` records), with the full brain debug dict every tick.
 
-Params: one dict, `app.PARAM_FALLBACKS` < `brain.DEFAULTS` < `sim.SIM_DEFAULTS` (sim source) < params.json; every
-knob is editable live, unknown keys are rejected, strings are checked against `CHOICES`; limits are
-enforced (speed ceilings vx 1.5 / vy 0.3 / wz 2.0 = `link.CEIL`, the hard cap on every packet; `max_vx`,
-`push_vx`, `contact_vx`, `goalie_vmax` share the vx ceiling). The bridge clamps again with its own `MAX_VX`. The `eye_*` mount knobs apply on the next frame
+Params: one dict, `app.PARAM_FALLBACKS` < `brain.DEFAULTS` (the ~13 brain settings that matter, listed in the
+brain.py doc; every other brain number is a fixed constant in `brain.TUNE`) < `sim.SIM_DEFAULTS` (sim source) <
+params.json; every key is editable live, unknown keys are rejected, strings are checked against `CHOICES`; limits
+are enforced (speed ceilings vx 1.5 / vy 0.3 / wz 2.0 = `link.CEIL`, the hard cap on every packet). The bridge
+clamps again with its own `MAX_VX`. The `eye_*` mount knobs apply on the next frame
 (a new `eye_floor_size` recalibrates).
 
 Presets (`config/presets/<name>.json`, committed) hold only the keys they change. **Load** = base params
 (params.json + defaults at app start) + the preset's keys; presets never stack, **Base** returns to base,
 **Save current** writes only keys that differ from base. `_profile` names the robot profile `start` will use;
-`_note` is shown. `_base` names one plain preset whose keys (and `_profile`/`_stack`) a preset starts from
-(`show` = show keys on a brain preset). `_stack` (SPEC v1.1) = walker options Ready/start pass to fcctl, allowlisted: `speed_cap` 0.30–1.50
+`_note` is shown. `_stack` (SPEC v1.1) = walker options Ready/start pass to fcctl, allowlisted: `speed_cap` 0.30–1.50
 (`--speed-cap 0.80`), `heading_hold` on/off (`--heading-hold off`). The header shows the active preset (`*` =
 edited since) and its stack; each robot card shows the running `speed_cap`/`heading_hold` from `fcctl status`
 (refreshed after a successful Ready) and warns when `max_vx` exceeds the robot's speed cap (unknown cap: stock
 0.49) or the running options differ from the preset's. Each run's `params.json` records `preset`,
 `preset_modified`, `preset_profile`, `preset_stack`, `profile_running` (acks), `stack_running`, `estops` and the
-link address. Shipped: `slow`, `fast`, `learn`, `push`, `headbutt`, `fast-play` (sim/brain), `fast-play-robot`
-(fast-play + `_stack.speed_cap` 0.8), `fast-light` (fast-play-robot with the Nov 24 push tuning, light
-ball), `athletic` (fast-light + committed plan, coast, `fast_yaw_bias_deg` −8; sim only so far), `stock-hh-on`, `stock-hh-off`, `u6-hh-on`, `u6-hh-off` (the `*-hh-off`
-presets now use the base profile + `_stack.heading_hold: off`; the `*_hh0` profiles remain aliases).
+link address. Shipped (two; older ones are in git history before the Nov 27 simplification):
+- `play`: the demo brain at max_vx 0.75 under a walker cap of 1.5 (`_stack.speed_cap`), so the speed ladder runs
+  live: `ctl set max_vx=0.9 wall_brake=0.5` (= the old `dribble-fast`), then 1.0. `stale_stop_s` 1.6 (the brain dead
+  reckons through short tag dropouts).
+- `slow`: the same brain at walking speed (0.15 m/s, stock walker cap) for the first motion after a change.
 
 Network: `link.py` sends to robots.json `udp_host` (or `--udp-host`) when set, else the ssh alias's address.
 `mts` resolves to a Tailscale 100.x address (p95 up to 1.1 s on Nov 24 vs ~8 ms on the LAN), so set

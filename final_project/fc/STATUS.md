@@ -1,6 +1,6 @@
 # Pupper FC status
 
-**As of Wed Nov 25, 2026 (S2 floor session + software since, `e70fa1c`).** Update this page when a capability changes.
+**As of Fri Nov 27, 2026 (S2 floor session Nov 25 + software since).** Update this page when a capability changes.
 Plan and gates: [DEMO.md](DEMO.md). Floor steps: [RUNBOOK.md](RUNBOOK.md). Contract: [SPEC.md](SPEC.md). App usage:
 [README.md](README.md). Pi side: [robot/README.md](robot/README.md). Design notes: [notes/](notes/).
 
@@ -14,7 +14,7 @@ Pi/Docker run with no motion; **sim** = our kinematic sim (`fc.sim_eval`) or MuJ
 | Calibration | `ballcal` purple ball HSV hue 150–162 (`config/ball_color.json`); `rollcal` `ball_decel` **0.149** from 6 rolls (in params.json); field from camera 3.03–3.06 × 2.46–2.54 m, goal mouths 1.22 m |
 | `athletic` | 3/3 goals (10.7–16.1 s); one IMU hang (below) |
 | `fast-light` | 3/3 goals (12.6–14.8 s) |
-| Rejected | `control` preset: timeout, 12 wz reversals. `fast-side` (6 cm off-centre push): slow, 26–31 s |
+| Rejected | `control` preset: timeout, 12 wz reversals. `fast-side` (6 cm off-centre push): slow, 26–31 s (preset names here are the Nov 25 ones, since removed: git history) |
 | **`dribble` (v3)** | 3/3 goals in 4.3, 7.4, 9.3 s, then **6/6 solo goals from anywhere** (8.6–20.3 s) |
 | vs a human | 0–3: role flipping and own-tag/ball occlusion |
 | IMU / I2C | I2C bus stuck (SDA low) froze the IMU mid-walk; bridge lay down. Touchscreen overlays disabled on mts ([robot/README.md](robot/README.md#i2c-bus-change-on-mts-2026-11-25-operator-approved)); healthy since. IMU driver v3 installed (symlink), **not yet run with the stack** |
@@ -40,7 +40,7 @@ operator-approved OS changes (undo in [robot/README.md](robot/README.md)). IMU b
 | IMU filter (`FC_IMU_FILTER`, default on in `stock.sh`); driver v3 stall guard (marker + re-init) + bridge short-stall hold (≤ 1 s stand and resume, longer lie down); `fcctl.sh i2c-recover` | v2 **robot** (stand 2.0–2.8°); v3 **device-free**, installed on mts, not yet run with the stack; i2c-recover untested on a hung bus |
 | Field from corner-tag calibration, `ctl ballcal`, `ctl rollcal --apply`, robust ball velocity (`fc/ballvel.py`) | **robot** Nov 25 (calibrations above) + **device-free** |
 | Play screen, `/ops` tests, match flow, run logs, presets with `_stack`, `fc.ctl` | **device-free** + **sim**, used on the **robot** |
-| CAMERA PAUSED (frozen feed → robots stale and stop); camera goalie save counting; predicted ball path and plan overlay | **device-free** + sim |
+| CAMERA PAUSED (frozen feed → robots stale and stop); camera goalie save counting; predicted ball path overlay | **device-free** + sim |
 | Goalie, interception | **sim** only (goalie: 1 robot run Nov 24, 0 conceded) |
 
 ## New since the floor session (not run on the robot yet)
@@ -49,9 +49,8 @@ operator-approved OS changes (undo in [robot/README.md](robot/README.md)). IMU b
 |---|---|
 | **Board blob tracking**: tag not decoded (fast-gait blur) → the blue tag board near the last fix gives position (`RobotObs.src` "blob"). Colours in `config/robot_colors.json` (`ctl robotcal <robot>`; red has none → tag only). Offline replay of Nov 25 runs: fresh pose in fast-gait frames **3–6 % → 92–96 %**, position vs live tag median 1.4 cm (p90 2.8), 0 distractor blobs, +0.5 ms/frame | **device-free** (replay) |
 | **Gyro heading between tags**: bridge acks carry yaw rate `gz` (`drive_bridge.YawRate`); the eye integrates it across tag gaps (commands as fallback). Synthetic chain test: ~1–2.4° median over a 1 s gap vs ~21° from commands | **device-free** (synthetic); **not staged on mts** |
-| **`vs-human` preset**: dribble v3 + contested-ball smoothing, hard ball-only role rules (2.5 s defend hold), dead reckoning through own-tag (1.5 s; app `stale_stop_s` 1.6, approved by owner) and ball occlusion, wide-mouth goalie. Sim vs a modelled dominant human: goals against 17.0 → 15.8 /3 min, role switches −16 %, stale stops 17 → 5 s; solo unchanged ([notes/brain.md](notes/brain.md)) | **sim** only |
-| **Demo round (Nov 27)** in `dribble` + `vs-human`: shuffling keeper that shifts to the ball as it threatens (`gk_track`), long shot released + half-turn follow-through (`shot_follow_s`), end-fence-beside-post guard (`wall_post`); new preset **`dribble-fast`** (max_vx 0.9, walker cap 1.0). Sim: vs-human goals against 6.2 → 4.9 (dribbler) / 11.2 → 10.1 (dominant) per 3 min; dribble-fast solo median 10.2 → 9.7 s. "Constant motion" knobs (`cruise_v`, `gait_down_v`) cost goals in sim: not in presets ([notes/brain.md](notes/brain.md)) | **sim** only |
-| **1v1 Coach (Nov 27)**, preset **`match`** (dribble + `coach`): one decision per tick for both robots (possession, one on the ball, the other shadows goal-side / keeps goal, anti-ram guard, `aggression`). Sim 96 x 3 min: 4.0 goals/3 min (dribble 3.75), bumps 6.1 -> 4.1/min with closing 0.51 -> 0.22 m/s. Runs in sim_eval only: **the app loop does not call `brain.Coach` yet**. Also fixed: `wall_post` push-away froze an attacker in its own mouth (vs-human 1v1 deadlocks 64 -> 11) ([notes/brain.md](notes/brain.md)) | **sim** only |
+| **Two presets (Nov 27 simplification)**: **`play`** = the demo brain: dribble v3, shuffling keeper, fence margin + bank shots (post-wall fix), long shot; alone vs a human also the contested-ball model, hard roles, dead reckoning through own-tag/ball occlusion (app `stale_stop_s` 1.6, owner-approved) and the wide-mouth keeper; with two robots tracked the **1v1 Coach** assigns tasks (possession, one on the ball, the other shadows goal-side / keeps goal, anti-ram guard, `aggression` 0.75). **The app loop now runs the Coach** (play / match, both robots playing). **`slow`** = the same brain at 0.15 m/s. Show settings (90 s, spots, celebration) are plain params. Sim parity with the old presets, 200 seeds: every single-robot row identical to `vs-human`; 1v1 vs `match` 4.8 vs 4.5 goals/3 min at 96 matches (perturbation spread ±0.2). Older presets (dribble, dribble-fast, match, vs-human, athletic, fast-light, ...) are in git history ([notes/brain.md](notes/brain.md#simplification-2026-11-27)) | **sim** + **device-free** (app wiring test); not run on the robot |
+| Speed ladder: `play` sets walker cap 1.5; `ctl set max_vx=0.9 wall_brake=0.5` reproduces the old `dribble-fast` (sim solo 92 % / 7.5 s vs 96 % / 8.1 s at 0.75, default field) | **sim** only; not floor-tested above 0.75 |
 | **Autoplay** (`ctl test autoplay minutes=N`, key A on Play): attack, score, dribble the ball back to centre, repeat; ball in a net → waits for a person to roll it out | **device-free** + **sim** (3 min, 4 goals in 4 cycles) |
 | **Robot POV feed**: 160×120 @ 5 fps (~1.3 % Pi CPU, 0.13 Mbit/s, measured on mts), shown on Play for real robots; starts with Ready (`pov=false` / `ctl ready --pov off` to skip) | **device-free**; not watched on Play with the robot |
 | **Merged UI**: operation registry (`/api/ops`, `fc.ctl ops`), new home `/` and `/play`, setup next-step button, `/play-old` fallback, safety fixes (fail-safe stop/e-stop, fresh-phase setup, confirmed mode switch) | **device-free** + **sim**; setup button not yet watched on mts (use `ctl ready --home` / `/play-old` until then) |
@@ -71,7 +70,7 @@ Robot files from `e70fa1c` are **not staged** (Pi was offline at commit time).
 3. `ctl robotcal blue` on the live camera.
 4. Dribble pushes with blob tracking + gyro heading: expect far fewer stale stops.
 5. Autoplay, watched from afar.
-6. vs-human round 2 (A/B `hard_roles`).
+6. `play` vs a human (round 2), then a 2-robot Coach game if robot 2 is in hand.
 7. POV feed on Play; link RTT during play.
 
 ## Blockers (owner)

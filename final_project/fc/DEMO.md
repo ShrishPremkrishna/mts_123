@@ -12,8 +12,8 @@ no leg kick in this demo (maybe a later iteration).
 3. **It adapts.** A judge moves the ball; the robot re-plans (and, from stage 3, switches role by itself).
 4. **It fails safe, and we count our help.** Cover a tag: it stops within 0.5 s. A referee-touch counter stays on screen.
 
-Facts the script relies on: fast gait **0.75 m/s** commanded (walker speed cap raised to 0.8 by preset
-`fast-play-robot`; ~0.73 m/s in sim; floor: 0.47 m in a 0.75 burst, gain 0.88, no falls), trot near the ball, shot = contact at speed
+Facts the script relies on: fast gait **0.75 m/s** commanded (preset `play`, walker speed cap 1.5 so the ladder
+0.9 / 1.0 runs live with `ctl set max_vx=`; ~0.73 m/s in sim; floor: 0.47 m in a 0.75 burst, gain 0.88, no falls), trot near the ball, shot = contact at speed
 (`contact_vx` 0.4 → 0.6 → 0.75, highest that passes). Field size measured by the camera calibration (field.json
 fallback 2.68 × 2.19 m), **1.22 m goal mouths**, 7 in (0.178 m) ball, fence on all sides. Safety: STOP (space), E-STOP over the link (Esc), gamepad R3, fallen-robot cutoff at 45°, gentle lie-down on `down`.
 
@@ -39,7 +39,7 @@ holds in counted sets on Dec 1–2. Decide **Wed Dec 2, 8 pm**; never upgrade on
 - 1. Shootout: close, not counted. `dribble` v3 3/3 (4.3–9.3 s) then 6/6 solo from anywhere (8.6–20.3 s); `athletic`
   3/3, `fast-light` 3/3. Next: a counted 10-set from 3 spots with blob tracking staged.
 - 2. Keeper: 1 run Nov 24, 0 conceded. Camera save counting device-free only. Not gated yet.
-- 3. Switch: vs a human 0–3 (role flipping, occlusion); `vs-human` preset sim only. Robot 2: not available.
+- 3. Switch: vs a human 0–3 (role flipping, occlusion); the vs-human rules (now part of `play`) sim only. Robot 2: not available.
 
 Stage 3 uses the solo role rule (defend while the ball threatens our goal, attack otherwise) and the interception
 lead, both in the brain since `bc8e68a` and sim-only so far. Fallback: red's tag (id 11) on a box a human moves.
@@ -52,9 +52,10 @@ more UI. (The show flow below, incl. a goal celebration, was approved by the own
 
 ## Run of show (120 s each)
 
-**1v1 exhibition show** (built Nov 27, **sim only**; one preset, keys on the Play screen, same as `fc.ctl show ...`):
+**1v1 exhibition show** (built Nov 27, **sim only**; preset `play`, keys on the Play screen, same as `fc.ctl show ...`):
 
-1. Before the slot: `ctl preset show` (show keys on its `_base` brain preset), robots standing at opposite ends.
+1. Before the slot: `ctl preset play` (the show settings are plain params: 90 s, 25/75 % spots, 3-2-1, spin
+   celebration; with both robots playing the Coach assigns their tasks), robots standing at opposite ends.
 2. **W** warm-up while Shrish talks: each robot trots in place, circles, shuffles and spins at its kickoff spot (inside
    `wall_margin_m`, away from the other robot). **W** again: both walk to their spots facing the field.
 3. **K** kickoff: robots on the 25 % / 75 % lines; referee puts the ball on the centre spot; big **3-2-1**, play.

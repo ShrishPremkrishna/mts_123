@@ -1,21 +1,80 @@
 # Brain and sim design notes (from 2026-11-23)
 
-## Built
+## The brain now (2026-11-27)
 
-- **`brain.py`** (stdlib only):
-  - **Attack:** a curved approach behind the ball. On the shot line it aims past the ball and keeps walking through it. From the wrong side it orbits the ball. Next to a wall it rotates the push direction until the stage behind the ball is reachable.
-  - **Headbutt:** line up, charge at a locked point on the line, back off. Frozen: don't tune it on the floor.
-  - **Goalie:** intercept y clamped to the goal mouth. `sideways` or `facing` style. Clears slow balls in front of goal.
-  - **Auto roles:** filtered travel-time comparison with hysteresis and a hold time. A defender attacks when it is not slower, so both robots never defend at once.
-  - **Goto** (`role_mode: "goto"`, per-call `goto_x`, `goto_y`, optional `goto_yaw` in rad): uses the same `_goto`, prediction and shaping as play, and works without a ball. `dbg["done"]` is true once the robot is within `goto_tol_m` and `goto_yaw_tol_deg`.
-  - **Robustness:** own-pose prediction through latency; stale pose → immediate stop; ball lost → `hold`/`search`; opponent repulsion; stuck → brief reverse; clamps and rate limits.
-- **Public helpers for the app:**
-  - `brain.shape(cmd, prev, dt, params, accel_vx=None) -> Cmd`: the one output shaper (clamp, then rate-limit from `prev`). An all-zero command passes through at once.
-  - `Brain.sent(cmd)`: tells the brain what was actually sent when the app overrode it (stale stop, teleop), so its ramp and pose prediction restart from there.
-- **`sim.py`:** deterministic 100 Hz kinematics. All measured errors are `sim_*` knobs (`sim_errors: 0` turns them off). Walls bounce except at the goal mouths. Goals pause, then reset to kickoff. A "trapped" referee nudges a wall ball that stays within 10 cm for `sim_trap_s` (was 5 cm, so a ball rattling in a corner deadlocked).
-- **`python -m fc.sim_eval [--off] [--preset base NAME ...] [--set k=v ...] [--field k=v ...]`** runs in about 15 s per column. `--preset` prints one column per preset (`base` = params.json); `--set` tries values without editing `params.json`; `--field` tries geometry (e.g. a wider goal).
+One brain, two presets. `brain.py`'s module doc is the map (system overview, the ~13 settings that matter); every other
+number is a fixed constant in `brain.TUNE`, found by the experiments below. `sim_eval --set k=v` can still try any
+TUNE value offline; the app only accepts the settings.
 
-## Senior-review fixes (2026-11-23)
+- **Attack = dribble** (v3 + fences + long shot): meet the ball where it will be, pure pursuit bounded by lateral
+  acceleration, line mode behind the ball, dead-centre hard hits (closing 0.55 m/s), shot / long shot near the goal.
+- **Defend = keeper**: shuffle in the middle of the mouth, shift toward a threatening ball, walk back / block / go
+  round a slow ball, clear a slow ball in front of goal (the push controller, `_attack`).
+- **Roles**: two robots tracked -> the **Coach** assigns tasks (the app runs it in play / match since Nov 27). Alone
+  (vs a human) -> the solo rules, with the contested-ball model, hard roles under pressure, dead reckoning through tag
+  dropouts and the wide-mouth keeper. "Alone" = no Coach task this tick.
+- **Safety on every command**: fence margin + braking cap + bank shots + post wall, anti-ram (Coach), contact pace,
+  gait band, rate limits (`shape`).
+- Presets: `play` (the demo brain, max_vx 0.75 under a walker cap of 1.5) and `slow` (0.15 m/s).
+- `python -m fc.sim_eval [--preset slow play] [--set k=v ...] [--field k=v ...] [--scen ...]`.
+
+## Simplification (2026-11-27)
+
+Owner concern: ~20 presets, `_base` inheritance and brain code for losing experiments. Removed (git history keeps
+them): presets other than `play` / `slow` (dribble, dribble-v2, dribble-fast, vs-human, match, show, athletic,
+fast-light, fast-side, fast-play(-robot), fast, push, headbutt, learn, stock-hh-*, u6-hh-*), `_base`, and from the
+brain: headbutt, the planned approach (`plan`, Dubins paths), coast, `yaw_learn`, the off-centre push (`push_side_m`),
+`cruise_v` / `gait_down_v`, `gk_out`, `solo_zone`, the facing goalie, ball-lost search, the cost-based 1v1 roles (the
+Coach replaced them), the non-dribble attack (`_intercept`) and every "0 = off" toggle of a feature play uses.
+`push_vx` / `return_vx` / `goalie_vmax` were equal to max_vx in play (0.75): push = max_vx; the keeper / return caps
+stay 0.75 constants, so `set max_vx=0.9 wall_brake=0.5` = the old dribble-fast. Show settings moved to params.json.
+brain.py 2189 -> 1449 lines (the module doc 250 -> 40). **`slow` changed on purpose**: it ran the Nov 23 push brain with no fence margin; it is
+now the play brain at 0.15 m/s (sim: 40 s goals 71 % -> 56 %, would-tip fence events in wall balls 53 -> 0).
+
+Parity (`--floor25`, errors ON, 200 seeds, 24 x 3 min, same seeds; play = vs-human alone, = match with two robots).
+Every single-robot row is **identical** to vs-human (bit for bit). 1v1 differs from match only in the 1.4 % of ticks
+without a Coach task (the other robot's tag lost > 1.5 s, or the ball unseen > 1 s), where play now uses its vs-human
+rules; at 96 x 3 min: match 4.5 goals/3 min (4.7 with a 1e-7 perturbation of `aggression`), play 4.8 (4.9); fenced
+field 4.0 vs 3.9.
+
+Default field 2.68 x 2.19:
+
+| | dribble (before) | vs-human (before) | match (before) | **play** (after) |
+|---|---|---|---|---|
+| solo push: goals <=40 s / median s | 185/200 (92%), 8.3 s | 191/200 (96%), 8.1 s | 185/200 (92%), 8.3 s | 191/200 (96%), 8.1 s |
+| solo: fence contacts / tips | 4 / 1 | 1 / 1 | 4 / 1 | 1 / 1 |
+| keeper (defend): saves, lateral err | 192/200 (96%), 0.10/0.24 | 200/200 (100%), 0.10/0.21 | 192/200 (96%), 0.10/0.24 | 200/200 (100%), 0.10/0.21 |
+| wall balls: goals, median s | 128/146, 20.4 | 123/146, 20.5 | 128/146, 20.4 | 123/146, 20.5 |
+| wall balls: fence contacts / tips / traps | 16 / 3 / 210 | 15 / 2 / 203 | 16 / 3 / 210 | 15 / 2 / 203 |
+| moving ball: hit / toward / goal | 185/183/107 of 200 | 187/182/111 of 200 | 185/183/107 of 200 | 187/182/111 of 200 |
+| scripted human: robot goals / conceded /3 min | 5.4 / 8.2 | 3.8 / 7.2 | 5.4 / 8.2 | 3.8 / 7.2 |
+| vsH dribbler: for / against /3 min | 3.1 / 4.3 | 2.5 / 8.3 | 3.1 / 4.3 | 2.5 / 8.3 |
+| vsH dominant: for / against /3 min | 0.8 / 14.2 | 1.1 / 12.9 | 0.8 / 14.2 | 1.1 / 12.9 |
+| 1v1 (24 x 3 min): goals /3 min | 1.4-2.0 (3.5) | 2.4-2.2 (4.6) | 1.9-2.5 (4.3) | 2.0-2.8 (4.8) |
+| 1v1: deadlocks / traps | 8 / 156 | 3 / 151 | 1 / 185 | 1 / 186 |
+| 1v1: bumps /3 min, closing mean / max | 22.3, 0.41 / 1.25 | 22.5, 0.46 / 1.21 | 14.8, 0.19 / 0.63 | 14.1, 0.19 / 0.63 |
+| 1v1: goal-side in opp. possession, task changes /min | 52%, 0.0 | 53%, 0.0 | 56%, 16.1 | 58%, 16.8 |
+
+Fenced floor field 3.36 x 2.70 (`--field length=3.36 width=2.70`):
+
+| | dribble (before) | vs-human (before) | match (before) | **play** (after) |
+|---|---|---|---|---|
+| solo push: goals <=40 s / median s | 194/200 (97%), 9.7 s | 193/200 (96%), 9.7 s | 194/200 (97%), 9.7 s | 193/200 (96%), 9.7 s |
+| keeper (defend): saves, lateral err | 192/200 (96%), 0.10/0.24 | 200/200 (100%), 0.10/0.21 | 192/200 (96%), 0.10/0.24 | 200/200 (100%), 0.10/0.21 |
+| wall balls: fence contacts / tips / traps | 20 / 10 / 197 | 18 / 11 / 197 | 20 / 10 / 197 | 18 / 11 / 197 |
+| vsH dribbler: for / against /3 min | 2.3 / 4.4 | 1.6 / 5.3 | 2.3 / 4.4 | 1.6 / 5.3 |
+| vsH dominant: for / against /3 min | 1.0 / 11.9 | 0.3 / 10.2 | 1.0 / 11.9 | 0.3 / 10.2 |
+| 1v1 (24 x 3 min): goals /3 min | 2.3-2.1 (4.4) | 1.4-2.2 (3.6) | 2.2-2.1 (4.3) | 2.1-2.0 (4.1) |
+| 1v1: deadlocks / traps | 11 / 120 | 12 / 126 | 2 / 145 | 1 / 143 |
+| 1v1: bumps /3 min, closing mean / max | 19.6, 0.50 / 1.22 | 17.1, 0.51 / 1.22 | 12.0, 0.22 / 0.60 | 11.8, 0.22 / 0.69 |
+
+Still true from the vs-human round: the vs-human rules pay against the "dominant" human (wins the ball anyway) and
+cost goals against the "dribbler" human (one the robot can contest). Speed ladder step 0.9 (`set max_vx=0.9
+wall_brake=0.5`, default field): solo 92 %, 7.5 s; dribble-fast before: 93 %, 7.8 s.
+
+## History (experiments, newest last; knobs named below were removed on Nov 27 unless brain.py still has them)
+
+### Senior-review fixes (2026-11-23)
 
 - **`yaw_learn` off by default.** Rate is 0.02 when enabled. It learns only from clean 0.6 s windows: forward, `|wz| < 0.25`, `|vy| < 0.03`, no ball or robot nearby, not pushing/charging/unsticking, and it moved at least half the commanded distance. The total correction is clamped to ±`yaw_learn_max_deg` (20). `reset(forget_yaw=True)` clears it. Measured over 6 × 3 min 1v1:
   - No tag bias: max residual 1.3° (the old learner injected up to 19–44°).
@@ -24,7 +83,7 @@
 - **Orbit side** is held for `orbit_hold_s` (2 s). Waypoints up to `orbit_slack` (0.10 m) outside the margin are clamped in instead of rejected.
 - **Calmer steering:** `k_turn` 1.5, `accel_wz` 2.0.
 
-## sim_eval (40 seeds, 8×3 min; `--set accel_wz=2.0 yaw_learn=0` until params.json changes)
+### sim_eval (40 seeds, 8×3 min; `--set accel_wz=2.0 yaw_learn=0` until params.json changes)
 
 | | before, ON | after, ON | after, OFF |
 |---|---|---|---|
@@ -43,7 +102,7 @@ Why 1v1 goals and headbutt fell (A/B, 16 matches): the old fast learner was hidi
 
 Rerun after the floor `step` test gives real numbers for bias and lag.
 
-## Fast play (2026-11-23)
+### Fast play (2026-11-23)
 
 **Sim walker model** (`sim_*`, from [fast-gait.md](fast-gait.md)): vx gain 0.92 up to cmd 0.3, trot saturating to 0.36 m/s at 0.49, fast gait from cmd 0.5 (0.62 / 0.73 / 0.86 / 1.14 at 0.6 / 0.75 / 1.0 / 1.5), backward capped at 0.3, wz clipped at 2.0. Fast gait adds ±0.5 rad/s yaw wobble; each gait switch adds a short random yaw kick. The existing 0.15 s lag already gives the measured stop (0.10–0.11 m from 0.73 m/s). `sim_speed_curve: 0` restores plain gains. The sim also logs first touches of the ball (`sim.contacts`, robot speed) and robot–robot touches (`sim.bumps`).
 
@@ -74,7 +133,7 @@ Missed targets and why:
 
 **Not modelled:** the robot slowing or falling while pushing a heavy ball (the study saw 0.75 → 0.25 m/s and falls of 1/3 at 0.6), and robot–robot impacts at a 0.84 m/s closing speed. Floor-test both before using the preset in a match.
 
-## Solo roles, interception, return to goal (2026-11-23)
+### Solo roles, interception, return to goal (2026-11-23)
 
 For the "Switch" stage: one robot against a human. All knobs are in `brain.DEFAULTS`; `params.json` is unchanged. Turning `solo_roles`, `intercept_max_s`, `return_detour`, `return_block` and `return_back_vx` all to 0 reproduces the previous brain exactly (core sim_eval rows checked against HEAD).
 
@@ -120,14 +179,14 @@ Results, fast-play, errors ON. Columns: before / after at 0.3 s total lag, then 
 
 The scripted human is harsh (an action every 4–9 s from 1.5–2.3 m out). Interception is neutral in 1v1: 3.4 vs 3.7 goals per 3 min over 24 matches, within noise, with gait switches 12.6 → 14.9 per min.
 
-## Weaknesses
+### Weaknesses
 
 - **Corner balls** can't be extracted by the brain (both robots push into the corner); the sim's referee nudges them.
 - **Goalie is easy:** a 0.36 m body in a 0.61 m mouth.
 - **Dropout bursts** cause brief `pose_stale` stops.
 - **Contact is idealised:** circles, no spin.
 
-## Floor-tuning priorities
+### Floor-tuning priorities
 
 1. Camera heading calibration (`step` test). Then `yaw_learn` only if the remaining bias is > 5°.
 2. `max_vx`, `push_vx`, `k_turn`, `push_turn_scale` (speed versus wobble).
@@ -137,7 +196,7 @@ The scripted human is harsh (an action every 4–9 s from 1.5–2.3 m out). Inte
 6. `goalie_dist`, `clear_depth`.
 7. `pose_stale_s`, `field_margin`.
 
-## Athletic: planned approach, coast, fast-gait heading bias (2026-11-24)
+### Athletic: planned approach, coast, fast-gait heading bias (2026-11-24)
 
 Preset `config/presets/athletic.json` = fast-light + `plan` 1, `coast_s` 0.3, `fast_yaw_bias_deg` -8, `ball_decel` 0.18.
 Each new knob at 0 gives fast-light's behaviour exactly (brain DEFAULTS document them).
@@ -194,7 +253,7 @@ of them. Set `ball_decel` from `ctl rollcal` in every preset.
 - A shorter-stage push direction (own goals).
 - `plan_wz` 2.1, `plan_radius` 0.4, `plan_look_s` 0.3/0.8.
 
-## Dribble mode (2026-11-25, sim only)
+### Dribble mode (2026-11-25, sim only)
 
 `dribble: 1` (preset `config/presets/dribble.json`; fast-light unchanged). Built from the Nov 25 floor notes: predicting the meeting point and sprinting there worked; clunky turning near the ball and slow recovery after a sideways deflection did not. Second round of floor feedback: **no lateral offset** (6 cm and 3 cm both made the ball drift sideways) and **hit hard and straight** (a soft touch lets the slightly non-spherical ball curve away on the carpet).
 
@@ -217,7 +276,7 @@ of them. Set `ball_decel` from `ctl rollcal` in every preset.
 
 Soft touches (close 0.15) under the same curve model: median 11.8 s, moving median 10.8 s. Speed sweep (first round, max_vx 0.75/0.9/1.0 at cap 0.8 vs 1.0) moved goal times < 1 s: no dribble-fast preset. Open: near-ball turning is busier than fast-light (lookahead 0.5 m + 0.5 s; longer is calmer but slower); 7/100 solo misses are mostly wall balls the sim referee had to free.
 
-## Dribble v3 (2026-11-25, sim only)
+### Dribble v3 (2026-11-25, sim only)
 
 `config/presets/dribble.json` is v3; `dribble-v2.json` keeps v2 for A/B (v3 misses the alignment target and recovers from deflections slower). New knobs default to 0 (v2 unchanged; tests check it); details in the brain.py module doc.
 
@@ -248,7 +307,7 @@ Soft touches (close 0.15) under the same curve model: median 11.8 s, moving medi
 
 Alignment is the heading at the first touch of each possession against the direction from the ball to the goal centre. One in ten arrivals is a touch from the wrong side (~145°), and chase arrivals are 12–18° off. Medians at 100 seeds move about ±0.4 s between nearby settings. At 200 seeds the ranking holds: v3 98%, 8.2 s, 12.2 reversals/min; v2 94%, 8.7 s, 22.2.
 
-## Contested play vs a human (2026-11-25, sim only)
+### Contested play vs a human (2026-11-25, sim only)
 
 Floor game vs a human, dribble v3: 0–3 in 3 min, 30.7 m walked, 66 wz reversals (22 fast), own tag lost 33 times (human
 body over the robot). Preset `config/presets/vs-human.json` = dribble v3 + the knobs below (all default 0 = off; knob
@@ -313,7 +372,7 @@ What this says:
 - **Occlusion:** no stalls from a lost ball (v3: ~8 s per match of `ball_lost_hold`), stale stops 17 → 5 s per 3 min,
   recovery median 0.17 → 0 s.
 
-## Fences (2026-11-27, sim only)
+### Fences (2026-11-27, sim only)
 
 Floor Nov 27: a corner ball, the robot routed round it to get behind, walked into the fence and tipped (fallen
 cutoff 137 deg). Cause in code: targets were kept only `field_margin` 0.12 m inside the edge, less than the 0.18 m
@@ -344,7 +403,7 @@ Sim: `wall_balls` scenario (ball against a fence 75% / in a corner 25%, robot in
 Goals from wall balls lean on referee nudges in every column. Open-field solo is within noise on goals, ~0.7 s
 slower median (attack_solo balls start up to 0.25 m from a fence, so some are wall balls). Not floor-tested.
 
-## Demo round: keeper, long shot, speed, constant motion (2026-11-27, sim only)
+### Demo round: keeper, long shot, speed, constant motion (2026-11-27, sim only)
 
 Owner floor feedback (fenced 3.36 x 2.70 m): keeper should look alive; no stop-and-go (floor mean ~0.3 m/s); faster;
 look smart (long shots). New knobs default 0 (brain.py module doc, "Demo round"); tests cover them.
@@ -387,15 +446,13 @@ deadlock counts by 5-40 between nearby settings (chaotic): judge on goals agains
 bursts/arcs at 0.9 first; watch the keeper shuffle and the follow-through near the fence.
 
 
-## 1v1 Coach (2026-11-27, sim only)
+### 1v1 Coach (2026-11-27, sim only)
 
 Design: [1v1-design.md](1v1-design.md). `brain.Coach(brains, field).update(world, params)` once per tick returns
 per-call params for each brain (`coach_task` attack / challenge / jockey / goalie / recover, `coach_why`,
 `coach_adv`, `coach_poss`, `coach_aim_y`); `sim_eval._loop` runs it when `coach` is set. Preset `match.json` = dribble
 + `coach` 1, `aggression` 0.75. No coach / no `coach_task` = the brain as before (test). Play screen fields: `dbg.task`,
-`dbg.intent` (reason text), `dbg.adv`, `dbg.possession`, `dbg.shadow` = [ball, J] while shadowing. **The app loop
-does not run the Coach yet** (play.py/app.py: build one `Coach` over both brains, call `update` before `decide`, merge
-its dict into each robot's params).
+`dbg.intent` (reason text), `dbg.adv`, `dbg.possession`, `dbg.shadow` = [ball, J] while shadowing. (The app loop runs it since the Nov 27 simplification.)
 
 **Deadlock jump 6 -> 64 (vs-human 1v1, 20 x 3 min, 6c3f8ee):** not the hard roles (they are solo-only) and not two
 robots near the ball. One attacker deep in its own goal mouth with the ball beside its post: the new `wall_post`

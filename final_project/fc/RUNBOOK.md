@@ -34,13 +34,15 @@ the robot; never `down --force`.
 | 3 | Every stop, robot low over the mat: space; Ctrl-C the app (restart it); gamepad stick; R3; **E-STOP** (Esc) | Space and app killed: still < 0.5 s. Stick wins. R3 and E-STOP: a damped drop, card `E-STOPPED` (confirmed), Drive refused | Note which stop failed and end the session |
 | 4 | Re-arm with **Ready** (stands it up again). Then **Deadman** | E-STOP clears only after Ready; `stop_time_s` ≤ 0.5 | E-STOP still latched: read the Ready output |
 | 5 | **Step** at Base (**Base** button): fwd 0.1 / 0.2 / 0.3, turn ±0.5, east and west | `latency_s` < 0.35, `gain_lin` within ±10 %, `\|heading_bias_deg\|` < 5 | Copy gains/lag into `sim_*` and rerun Sim eval |
-| 6 | Preset **fast-play-robot**, **down**, **Ready** on the stand, **Ready** on the floor (passes `--speed-cap 0.80`). Step fwd 0.4 and 0.75 | **status** shows `speed_cap` 0.8; no "max_vx > robot speed cap" warning; gain at 0.75 recorded | Warning stays: the stack runs the old cap; down + Ready again |
-| 7 | **Push ball** ×5 with preset **slow**, then ×5 with **fast-light** (light ball; same 0.8 cap as fast-play-robot) | Goals ≤ 30 s, no tip, slows near the ball | Note failing run names |
+| 6 | Preset **play**, **down**, **Ready** on the stand, **Ready** on the floor (passes `--speed-cap 1.5`). Step fwd 0.4 and 0.75 | **status** shows `speed_cap` 1.5; no "max_vx > robot speed cap" warning; gain at 0.75 recorded | Warning stays: the stack runs the old cap; down + Ready again |
+| 7 | **Push ball** ×5 with preset **slow**, then ×5 with **play** (light ball) | Goals ≤ 30 s (slow: ≤ 40 s), no tip | Note failing run names |
 | 8 | **down** | Robot lies down, stack stops | STILL STANDING: R3 or support it |
 
-**A/B athletic:** step 7 with **fast-light** ×5 vs **athletic** ×5 (same cap); compare goals, time and `wz_reversals`.
+**Speed ladder** (after step 7 passes): `ctl set max_vx=0.9 wall_brake=0.5`, 2 s bursts and arcs, then push ×5; then
+`max_vx=1.0`. Back with `ctl preset play`.
 
-**A/B heading hold:** presets `stock-hh-off` / `u6-hh-off` pass `--heading-hold off`; down + Ready, repeat 5 and 7.
+**A/B heading hold:** a preset with `_stack: {"heading_hold": "off"}` (the old `stock-hh-off` / `u6-hh-off`, git
+history) passes `--heading-hold off`; down + Ready, repeat 5 and 7.
 
 **Record each step:** run folder names, pass/fail, and what the summary misses (sounds, stumbles, how the drop
 looked). Each run's `params.json` records the preset, its `_stack`, the running profile and stack options.
