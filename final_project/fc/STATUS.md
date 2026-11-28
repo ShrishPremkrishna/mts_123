@@ -52,7 +52,7 @@ Dribble analysis (device-free, Nov 25 logs): stop-and-go came from stale-pose st
 - Everything in the table above on the live camera and robot; speed above 0.8; corner/wall balls after the fence fix.
 - Contact ladder; goalie reaction time and save counting vs a hand count.
 - Robot files since 1b2b879 (speed caps 1.5) are **not staged** on mts.
-- Robot 2: not in hand; plan in [DEMO.md](DEMO.md#robot-2-critical-path).
+- Robot 2: not in hand; plan in [DEMO.md](DEMO.md#robot-2-critical-path). Its own card gets mts's OS/driver changes from `provision.sh --apply-os`. This is tested on a fake Pi only (2026-11-27) and has not run on a real card.
 
 ## Blockers (owner)
 

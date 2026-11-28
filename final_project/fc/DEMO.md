@@ -39,13 +39,15 @@ referee (keeper + dribble, `play` alone uses the vs-human rules), then the 1v1 a
 
 ## Robot 2 (critical path)
 
-Card: neither path is complete yet. The robot's own card + `provision.sh` ([PROVISION.md path B](robot/provision/PROVISION.md))
-is faster and carries no mts identity, but it installs only `~/fc-v1`: not mts's OS changes (Hailo, GUI, fan, touch
-overlays; [robot/README.md](robot/README.md)) or the v4 IMU driver. Cloning mts (path A) carries those but needs two readers,
-a larger card, mts offline ~1.5–2 h, and an identity reset. Open: script those OS/driver steps into path B. Then per robot:
+Card: use the robot's own card and run `provision.sh --apply-os pupper-red red red 11`
+([PROVISION.md path B](robot/provision/PROVISION.md)). It stages `~/fc-v1` and applies mts's OS/driver changes: Hailo off,
+fan curve, `pupper-gui` off, GT911 touch overlays off, and the v4 IMU driver built from the card's own source. It prints each
+change with its undo and waits for the owner to confirm, then a reboot finishes it. `--check` lists each item as ok/missing.
+This is tested on a fake Pi only. The driver build refuses if our patch does not apply to that card's source; the fallback is
+cloning mts (path A: two readers, a larger card, mts offline ~1.5–2 h, an identity reset). Then per robot:
 
-1. Identity: `provision.sh --fix-clone-identity pupper-red pi@<ip> red red 11` (hostname, machine-id, ssh keys,
-   Tailscale state, `~/fc-v1/run`; robot_id red, tag **11**).
+1. Identity (path A clone only): `provision.sh --fix-clone-identity pupper-red pi@<ip> red red 11` (hostname, machine-id,
+   ssh keys, Tailscale state, `~/fc-v1/run`; robot_id red, tag **11**).
 2. `robots.json` red entry (`host`, `udp_host`, `cam_url`), then `stage.sh` + `sha_check.sh`.
 3. A tag board in a **different colour** from blue's, then `ctl robotcal red` on the live camera.
 4. `fcctl.sh imu-level` on the stand (the bias is per chip; the clone's `imu_cal.json` is cleared with `run/`).

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # provision.sh — make a reachable Pupper Pi game-ready for Pupper FC. Runs on the laptop.
 #
-#   provision.sh [--check] [--fix-clone-identity NEW_HOSTNAME] [--yes] <ssh-host> <robot-id> <team> <tag>
+#   provision.sh [--check] [--apply-os] [--fix-clone-identity NEW_HOSTNAME] [--yes] <ssh-host> <robot-id> <team> <tag>
 #
-#   --check        inspect only: read-only probe + readiness report. Writes nothing anywhere.
+#   --check        inspect only: read-only probe + readiness report + the Pi OS items below (ok/missing).
+#                  Writes nothing anywhere.
 #   (default)      probe, fill this robot's empty `host` in fc/config/robots.json, stage fc/robot via
 #                  stage.sh (rsync into ~/fc-v1/robot, link.key 0600, robot_id), write ~/fc-v1/identity.json,
 #                  probe again and print the readiness report. On the Pi it touches only ~/fc-v1/.
@@ -12,7 +13,12 @@
 #                  hostname + /etc/hosts, a new machine-id, new ssh host keys, drop the copied Tailscale node
 #                  state (never `tailscale logout`: that would log out the source robot too), clear the
 #                  copied ~/fc-v1/run state. Done once (marker /var/lib/fc-provision/identity). Reboot after.
-#   --yes          do not ask before --fix-clone-identity.
+#   --apply-os     ALSO, after staging, apply the Pi OS/driver changes mts has and a fresh card lacks
+#                  (provision/os_items.sh: Hailo off, fan curve, pupper-gui off, GT911 touch overlays off,
+#                  v4 IMU driver built from this card's source + linked). Prints each missing item, what it
+#                  will change and its undo, then asks you to type the Pi's hostname. Boot changes need a
+#                  reboot (printed). Never copies imu_cal.json: run `fcctl.sh imu-level` on each robot.
+#   --yes          do not ask before --fix-clone-identity or --apply-os.
 #
 # No default host: the target is only ever the <ssh-host> you type. robots.json guards against
 # provisioning one robot's identity onto another (host/tag/team already owned by a different id).
@@ -25,14 +31,15 @@ robots=$cfg/robots.json
 py=${PYTHON:-python3}
 report() { "$py" "$here/report.py" "$@"; }
 
-check=0 fix_host="" yes=0
+check=0 fix_host="" yes=0 apply_os=0
 args=()
 while [ $# -gt 0 ]; do
   case $1 in
     --check) check=1 ;;
     --fix-clone-identity) fix_host=${2:?--fix-clone-identity needs NEW_HOSTNAME}; shift ;;
+    --apply-os) apply_os=1 ;;
     --yes) yes=1 ;;
-    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
     --*) echo "unknown option $1" >&2; exit 2 ;;
     *) args+=("$1") ;;
   esac
@@ -44,6 +51,9 @@ host=${args[0]} rid=${args[1]} team=${args[2]} tag=${args[3]}
 if [ -n "$fix_host" ]; then
   [ $check -eq 0 ] || { echo "--check and --fix-clone-identity exclude each other" >&2; exit 2; }
   [[ "$fix_host" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]] || { echo "bad hostname '$fix_host'" >&2; exit 2; }
+fi
+if [ $apply_os -eq 1 ]; then
+  [ $check -eq 0 ] && [ -z "$fix_host" ] || { echo "--apply-os excludes --check and --fix-clone-identity" >&2; exit 2; }
 fi
 
 # 1. laptop config: robots.json must agree with the arguments (refuses cross-robot mix-ups).
@@ -67,6 +77,12 @@ probe() {
     echo "cannot reach '$host' over ssh (BatchMode; needs your key on the Pi: ssh-copy-id $host):" >&2
     sed 's/^/  /' "$tmp/probe.err" >&2; exit 3; }
 }
+# Pi OS items (os_items.sh runs on the Pi; check/plan are read-only, like probe.sh).
+os_items() { ssh -o BatchMode=yes -o ConnectTimeout=10 "$host" bash -s -- "$@" < "$here/os_items.sh"; }
+os_section() {
+  echo "== Pi OS items vs mts (fc/robot/README.md; not part of READY; apply with --apply-os)"
+  os_items "$@" || true
+}
 show() {
   report report --robots "$robots" --robot-id "$rid" --team "$team" --tag "$tag" --host "$host" \
     --probe "$tmp/probe.txt" --local-dir "$robot_dir" ${fp_args[@]+"${fp_args[@]}"}
@@ -77,6 +93,7 @@ probe
 if [ $check -eq 1 ]; then
   [ "$action" = fill-host ] && echo "(robots.json: $rid.host is empty; a full run fills it with '$host')"
   set +e; show; rc=$?; set -e
+  os_section check
   exit $rc
 fi
 
@@ -144,10 +161,30 @@ dirty=$({ git -C "$robot_dir" status --porcelain -- . 2>/dev/null || true; } | w
   "$rid" "$team" "$tag" "$host" "$commit" "$dirty" |
   ssh -o BatchMode=yes "$host" 'umask 077 && cat > ~/fc-v1/identity.json.tmp && mv ~/fc-v1/identity.json.tmp ~/fc-v1/identity.json'
 
+# 5b. optional: Pi OS/driver items (system files; explicit flag, owner approves each run).
+if [ $apply_os -eq 1 ]; then
+  echo "== Pi OS items on $host: plan (read-only)"
+  if os_items plan; then echo "(nothing to apply)"
+  else
+    grep -q '^sudo_nopass=yes' "$tmp/probe.txt" || echo "(note: no passwordless sudo on $host: hailo/fan/gui/touch will be refused)"
+    if [ $yes -eq 0 ]; then
+      pi_host=$(grep '^hostname=' "$tmp/probe.txt" | cut -d= -f2)
+      echo "About to change the items above on $host (hostname '$pi_host'). Type that hostname to continue:"
+      read -r answer
+      [ -n "$pi_host" ] && [ "$answer" = "$pi_host" ] || { echo "not confirmed; nothing changed" >&2; exit 2; }
+    fi
+    patch_sha=$(shasum -a 256 "$robot_dir/imu/stock-imu-filter.patch" 2>/dev/null || sha256sum "$robot_dir/imu/stock-imu-filter.patch")
+    echo "== Pi OS items on $host: apply"
+    set +e; os_items apply "${patch_sha%% *}"; os_rc=$?; set -e
+    [ $os_rc -eq 0 ] || echo "(some Pi OS items were not applied; see above)"
+  fi
+fi
+
 # 6. probe again and report.
 echo "== readiness ($host)"
 probe
 set +e; show; rc=$?; set -e
+os_section check
 cat <<EOF
 
 Next (operator, robot ON THE STAND): ssh $host ~/fc-v1/robot/fcctl.sh status

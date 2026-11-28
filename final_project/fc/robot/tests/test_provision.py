@@ -230,3 +230,167 @@ def test_provision_stages_only_into_fc_v1(fake):
     r2 = run_prov(fake, "pupper-red", "red", "red", "11")
     assert r2.returncode == r.returncode, r2.stdout + r2.stderr
     assert not [ln for ln in r2.stdout.splitlines() if ln.startswith(("<f", "*deleting"))], r2.stdout
+
+
+# ---- Pi OS items (os_items.sh): what mts has and a fresh class card lacks --------------------------
+FRESH_CFG = ("dtparam=spi=on\ndtparam=i2c_arm=on,i2c_arm_baudrate=100000\n"      # infra/pupper_image_builder
+             "dtoverlay=waveshare-4dpic-3b\ndtoverlay=waveshare-4dpic-4b\ndtoverlay=waveshare-4dpic-5b\n"
+             "dtoverlay=hifiberry-dac\n")
+FAN = [f"dtparam=fan_temp{i}={t},fan_temp{i}_hyst=3000,fan_temp{i}_speed={s}"
+       for i, t, s in ((0, 40000, 125), (1, 50000, 175), (2, 55000, 250), (3, 60000, 255))]
+MTS_CFG = ("dtparam=spi=on\ndtparam=i2c_arm=on,i2c_arm_baudrate=100000\n"         # as changed Nov 24 + 25
+           + "".join(f"#fc-off(2026-11-25 i2c touch) dtoverlay=waveshare-4dpic-{n}b\n" for n in (3, 4, 5))
+           + "dtoverlay=hifiberry-dac\n\n# --- Pupper FC heat reduction (2026-11-24); undo: delete this block, reboot ---\n"
+           + "[all]\ndtparam=pciex1=off\n" + "".join(f + "\n" for f in FAN) + "# --- end Pupper FC ---\n")
+LIBREL = "pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so"
+V4REL = "fc-v1/build/imu-filter-v4/install/control_board_hardware_interface/lib/libcontrol_board_hardware_interface.so"
+
+
+@pytest.fixture
+def card(fake, tmp_path):
+    """The fake Pi as a fresh class card: stock config.txt, a stock driver .so, a per-chip imu_cal.json."""
+    cfg = tmp_path / "config.txt"
+    cfg.write_text(FRESH_CFG)
+    home = fake["home"]
+    lib = home / LIBREL
+    lib.parent.mkdir(parents=True)
+    lib.write_text("stock driver\n")
+    cal = home / "fc-v1" / "run" / "imu_cal.json"
+    cal.parent.mkdir(parents=True)
+    cal.write_text('{"accel_bias_chip": [3.05, -0.34, -0.09]}\n')
+    env = {**fake["env"], "HOME": str(home), "FC_BOOT_CONFIG": str(cfg)}
+    return {**fake, "cfg": cfg, "lib": lib, "cal": cal, "osenv": env}
+
+
+def run_os(card, *args, **env):
+    return subprocess.run(["bash", "-s", "--", *args], stdin=open(PROV / "os_items.sh"), capture_output=True,
+                          text=True, env={**card["osenv"], **env}, cwd=card["home"], timeout=60)
+
+
+def os_states(out):
+    return {ln.split()[1]: ln.split()[0] for ln in out.splitlines()
+            if ln.split()[:1] and ln.split()[0] in ("ok", "missing")}
+
+
+def _snapshot(root):
+    return {p: (p.read_bytes() if p.is_file() and not p.is_symlink() else os.readlink(p) if p.is_symlink() else None)
+            for p in root.rglob("*")}
+
+
+def _fake_v4(card):
+    v4 = card["home"] / V4REL
+    v4.parent.mkdir(parents=True)
+    v4.write_bytes(b"\x7fELF ... FC_IMU_CAL ...\n")
+    return v4
+
+
+def test_os_check_fresh_card_is_read_only_and_names_every_item(card):
+    before, cfg_before = _snapshot(card["home"]), card["cfg"].read_text()
+    for mode in ("check", "plan"):
+        r = run_os(card, mode)
+        assert r.returncode == 1, r.stdout + r.stderr
+        assert os_states(r.stdout) == {"hailo": "missing", "fan": "missing", "gui": "ok", "touch": "missing",
+                                       "imu_v4": "missing"}
+    assert "undo:" in r.stdout and r.stdout.count("undo:") == 4
+    assert _snapshot(card["home"]) == before and card["cfg"].read_text() == cfg_before
+
+
+def test_os_check_mts_state_is_all_ok(card):
+    card["cfg"].write_text(MTS_CFG)
+    v4 = _fake_v4(card)
+    card["lib"].rename(str(card["lib"]) + ".stock-link")
+    card["lib"].symlink_to(v4)
+    r = run_os(card, "check")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert set(os_states(r.stdout).values()) == {"ok"}
+
+
+def test_os_apply_refuses_without_sudo_and_changes_nothing(card):
+    before, cfg_before = _snapshot(card["home"]), card["cfg"].read_text()
+    r = run_os(card, "apply")                   # fake sudo exits 1
+    assert r.returncode == 1 and "passwordless sudo" in r.stderr
+    assert _snapshot(card["home"]) == before and card["cfg"].read_text() == cfg_before
+
+
+def test_os_apply_matches_mts_and_is_idempotent(card):
+    v4 = _fake_v4(card)                          # build already present: apply only relinks (no colcon here)
+    r = run_os(card, "apply", FC_OS_SUDO="")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "REBOOT needed" in r.stdout
+    text = card["cfg"].read_text()
+    assert text.startswith("dtparam=spi=on\ndtparam=i2c_arm=on,i2c_arm_baudrate=100000\n#fc-off(")   # rest kept
+    assert "dtoverlay=hifiberry-dac\n" in text
+    assert all(f in text.splitlines() for f in FAN + ["dtparam=pciex1=off"])
+    assert not [ln for ln in text.splitlines() if ln.startswith("dtoverlay=waveshare-4dpic")]
+    assert len([ln for ln in text.splitlines() if ln.startswith("#fc-off(") and "i2c touch) dtoverlay=waveshare" in ln]) == 3
+    assert list(card["cfg"].parent.glob("config.txt.bak-pre-fc-os-*"))[0].read_text() == FRESH_CFG
+    assert card["lib"].is_symlink() and card["lib"].resolve() == v4.resolve()
+    assert Path(str(card["lib"]) + ".stock-link").read_text() == "stock driver\n"
+    assert card["cal"].read_text() == '{"accel_bias_chip": [3.05, -0.34, -0.09]}\n'   # per chip: never touched
+    snap, cfg_after = _snapshot(card["home"]), card["cfg"].read_text()
+    r2 = run_os(card, "apply", FC_OS_SUDO="")
+    assert r2.returncode == 0 and "nothing to change" in r2.stdout, r2.stdout + r2.stderr
+    assert _snapshot(card["home"]) == snap and card["cfg"].read_text() == cfg_after
+
+
+def test_os_apply_driver_refusals_leave_the_stock_driver(card, fake, tmp_path):
+    card["cfg"].write_text(MTS_CFG)              # only imu_v4 missing: needs no sudo
+    r = run_os(card, "apply")                    # no v4 build, no driver source on this fake card
+    assert r.returncode == 1 and "no driver source" in r.stderr, r.stdout + r.stderr
+    assert not card["lib"].is_symlink() and card["lib"].read_text() == "stock driver\n"
+    _fake_v4(card)
+    stale = Path(str(card["lib"]) + ".stock-link")
+    stale.write_text("older driver\n")            # a stale backup next to a real driver file: never overwrite
+    r = run_os(card, "apply")
+    assert r.returncode == 1 and "resolve by hand" in r.stderr, r.stdout + r.stderr
+    assert card["lib"].read_text() == "stock driver\n" and stale.read_text() == "older driver\n"
+    stale.unlink()
+    _exe(tmp_path / "bin" / "pgrep", "#!/bin/sh\necho 1234\n")      # a robot stack is running
+    r = run_os(card, "apply")
+    assert r.returncode == 1 and "stack is running" in r.stderr
+    assert not card["lib"].is_symlink()
+
+
+def test_provision_apply_os_end_to_end(card):
+    assert run_prov(card, "--check", "--apply-os", "pupper-red", "red", "red", "11").returncode == 2
+    r = run_prov(card, "--check", "pupper-red", "red", "red", "11")
+    assert "== Pi OS items vs mts" in r.stdout and "missing  hailo" in r.stdout, r.stdout + r.stderr
+    if shutil.which("rsync") is None:
+        pytest.skip("needs rsync")
+    _fake_v4(card)
+    env = {**card["osenv"], "FC_OS_SUDO": ""}
+    r = subprocess.run(["bash", str(card["tree"] / "robot" / "provision" / "provision.sh"), "--apply-os", "--yes",
+                        "pupper-red", "red", "red", "11"], capture_output=True, text=True, env=env, timeout=120)
+    out = r.stdout + r.stderr
+    assert "apply would change:" in out and "REBOOT needed" in out, out
+    assert "dtparam=pciex1=off" in card["cfg"].read_text()
+    assert card["lib"].is_symlink()
+    final = r.stdout.split("== Pi OS items vs mts")[-1]
+    assert set(os_states(final).values()) == {"ok"}, final
+
+
+def test_os_gui_linked_and_running_is_disabled(card, tmp_path):
+    card["cfg"].write_text(MTS_CFG)
+    v4 = _fake_v4(card)
+    card["lib"].unlink()
+    card["lib"].symlink_to(v4)
+    calls = tmp_path / "systemctl.log"
+    state = tmp_path / "gui_off"
+    _exe(tmp_path / "bin" / "systemctl", textwrap.dedent(f"""\
+        #!/bin/sh
+        echo "$*" >> {calls}
+        case "$1" in
+          is-enabled) [ -e {state} ] && exit 1; echo linked ;;
+          is-active) [ -e {state} ] && {{ echo inactive; exit 3; }}; echo active ;;
+          disable) touch {state} ;;
+          show) echo /home/pi/pupperv3-monorepo/pupper-rs/pupper-gui.service ;;
+        esac
+        """))
+    r = run_os(card, "check")
+    assert r.returncode == 1 and os_states(r.stdout)["gui"] == "missing"
+    assert "disable" not in calls.read_text()
+    r = run_os(card, "apply", FC_OS_SUDO="")
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "disable --now pupper-gui" in calls.read_text()
+    assert "REBOOT" not in r.stdout                  # a service change needs no reboot
+    assert card["cfg"].read_text() == MTS_CFG and not list(card["cfg"].parent.glob("*.bak-*"))

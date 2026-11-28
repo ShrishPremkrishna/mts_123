@@ -33,8 +33,8 @@ arrives removes the main risk on path B. It would be a `profiles/` change, so it
 | 2 | Laptop: `ssh-copy-id pi@<ip>`. The image default password is in `pupperv3-monorepo/infra/pupper_image_builder/readme.md`, or the previous team may have changed it. Add `Host pupper-red` / `HostName <ip>` / `User pi` to `~/.ssh/config`. Several class robots may all answer to the default `pupper.local`, so use the IP | 3 min |
 | 3 | `fc/robot/provision/provision.sh --check pupper-red red red 11` (from `final_project/`). This only reads | 1 min |
 | 4 | Fix FAILs. Gamepad: `bash ~/pupperv3-monorepo/robot/utils/pair_ps5_controller.sh` on the Pi (hold PS+Create). `launch.py mux`, `packages` or `ros`: stop and switch to path A, or get the profile variant written | 0–5 min |
-| 5 | `fc/robot/provision/provision.sh pupper-red red red 11`. This fills red's empty `host` in `robots.json`, stages `fc/robot` and the link key, writes `robot_id` and `~/fc-v1/identity.json`, then prints the report again. Set red's `udp_host` in `robots.json` to the LAN IP | 2 min |
-| 6 | [RUNBOOK](../../RUNBOOK.md) steps 0–3 for red (`--robots red --udp-host red=<ip>`): status, IMU test, start/stop on the stand, stop paths | 15 min |
+| 5 | `fc/robot/provision/provision.sh --apply-os pupper-red red red 11` (the owner approves this run: it changes boot config and the IMU driver). This fills red's empty `host` in `robots.json`, stages `fc/robot` and the link key, writes `robot_id` and `~/fc-v1/identity.json`, then applies the Pi OS items mts has ([below](#pi-os-items---apply-os)): it prints each missing item with what it will change and its undo, and asks you to type the Pi's hostname. Then `ssh pupper-red sudo reboot` and rerun `--check`: every Pi OS item should read `ok`. Set red's `udp_host` in `robots.json` to the LAN IP | 10–15 min (driver build: estimate, not timed) |
+| 6 | [RUNBOOK](../../RUNBOOK.md) steps 0–3 for red (`--robots red --udp-host red=<ip>`): status, IMU test, start/stop on the stand, stop paths. Then, robot level on the stand: `~/fc-v1/robot/fcctl.sh imu-level` (red's own accel bias; never copied from mts) | 15 min |
 | 7 | Calibration below | 15–20 min |
 
 ## Path A: clone mts (fallback)
@@ -50,12 +50,29 @@ arrives removes the main risk on path B. It would be a `profiles/` change, so it
 
 ## provision.sh
 
-`provision.sh [--check] [--fix-clone-identity NEW_HOSTNAME] [--yes] <ssh-host> <robot-id> <team> <tag>`
+`provision.sh [--check] [--apply-os] [--fix-clone-identity NEW_HOSTNAME] [--yes] <ssh-host> <robot-id> <team> <tag>`
 
 - There is no default host. Before any ssh, it refuses when the arguments disagree with `robots.json`, or when the host, tag or team already belongs to another robot. For example, `provision.sh mts red red 11` exits 2.
-- `--check` runs `probe.sh` over ssh. The probe is read-only: no files, no git index refresh, no `.pyc`, no device opened, no ROS node. The report checks jazzy, the monorepo install and stock packages, `config.yaml`, the `launch.py` mux and teleop arg, the policy sha against mts, Python ≥ 3.10, rclpy, disk ≥ 2 GB, motor SPI and IMU I2C device nodes, a paired DualSense, temperature, running stacks, `robot_id`, `link.key` mode, staged-file shas against this laptop, `identity.json`, and clone signs. FAIL means `fcctl.sh start` cannot work. Exit codes: 0 ready, 1 not ready, 2 refused, 3 unreachable.
-- A full run writes only under `~/fc-v1/` on the Pi, plus red's `host` in `robots.json` on the laptop. `--fix-clone-identity` is the only path that changes system files.
-- Tests: `fc/robot/tests/test_provision.py`. These cover the config guards and the probe rules, and run end to end against a fake `ssh` whose Pi is a temp home. They check that `--check` writes nothing, that a full run writes only `fc-v1/`, and that a second run re-sends no files.
+- `--check` runs `probe.sh` over ssh. The probe is read-only: no files, no git index refresh, no `.pyc`, no device opened, no ROS node. The report checks jazzy, the monorepo install and stock packages, `config.yaml`, the `launch.py` mux and teleop arg, the policy sha against mts, Python ≥ 3.10, rclpy, disk ≥ 2 GB, motor SPI and IMU I2C device nodes, a paired DualSense, temperature, running stacks, `robot_id`, `link.key` mode, staged-file shas against this laptop, `identity.json`, and clone signs. FAIL means `fcctl.sh start` cannot work. After the report it lists the Pi OS items (`os_items.sh check`, read-only) as ok/missing; they do not change READY or the exit code. Exit codes: 0 ready, 1 not ready, 2 refused, 3 unreachable.
+- A full run writes only under `~/fc-v1/` on the Pi, plus red's `host` in `robots.json` on the laptop. Only `--fix-clone-identity` and `--apply-os` change system files, and each asks first (`--yes` skips the question).
+- Tests: `fc/robot/tests/test_provision.py`. These cover the config guards, the probe rules and the Pi OS items, and run end to end against a fake `ssh` whose Pi is a temp home. They check that `--check` writes nothing, that a full run writes only `fc-v1/`, that a second run re-sends no files, that `--apply-os` turns a fresh-card `config.txt` into mts's state (backup kept, `imu_cal.json` untouched), that a second apply changes nothing, and that it refuses without sudo or while a stack runs.
+
+## Pi OS items (`--apply-os`)
+
+`provision/os_items.sh` runs on the Pi (`check` and `plan` are read-only; `apply` changes only missing items). The source is [fc/robot/README.md](../README.md#pi-os-changes-on-mts-2026-11-24-operator-approved-for-heat), where each change on mts is recorded. A fresh class card has the stock state: `infra/pupper_image_builder/provision_pios_base.sh` adds the three touch overlays, and `pupper-rs/install_service.sh` links and enables `pupper-gui`.
+
+| Item | ok when | apply | Undo (one line) |
+| --- | --- | --- | --- |
+| `hailo` | `config.txt` has `dtparam=pciex1=off` | append it in a marked `# --- Pupper FC heat reduction` block (`[all]`) | `sudo sed -i '/^# --- Pupper FC heat reduction/,/^# --- end Pupper FC ---$/{/^dtparam=pciex1=off$/d}' /boot/firmware/config.txt && sudo reboot` |
+| `fan` | mts's 4 `dtparam=fan_temp*` lines (full speed from 55–60 °C) | the same block | `sudo sed -i '/^# --- Pupper FC heat reduction/,/^# --- end Pupper FC ---$/{/^dtparam=fan_temp[0-3]=/d}' /boot/firmware/config.txt && sudo reboot` |
+| `gui` | `pupper-gui` not enabled, not running | `sudo systemctl disable --now pupper-gui` | `sudo systemctl link /home/pi/pupperv3-monorepo/pupper-rs/pupper-gui.service && sudo systemctl enable --now pupper-gui` |
+| `touch` | no active `dtoverlay=waveshare-4dpic-*` (GT911 off the IMU's I2C-1 bus) | prefix those lines with `#fc-off(<date> i2c touch) ` | `sudo sed -i 's/^#fc-off([^)]*i2c touch) //' /boot/firmware/config.txt && sudo reboot` |
+| `imu_v4` | the stock driver `.so` is a link to `~/fc-v1/build/imu-filter-v4/...` and that build contains `FC_IMU_CAL` | stack stopped: copy this card's `control_board_hardware_interface` source, apply the staged `imu/stock-imu-filter.patch` (refuses if it does not apply, or differs from the laptop's), colcon build + `test_fc*` tests (same recipe as on mts), then move the old `.so` to `.so.stock-link` and link v4 | `~/fc-v1/robot/fcctl.sh stop; cd ~/pupperv3-monorepo/ros2_ws/install/control_board_hardware_interface/lib && rm libcontrol_board_hardware_interface.so && mv libcontrol_board_hardware_interface.so.stock-link libcontrol_board_hardware_interface.so` |
+
+- The `config.txt` items need passwordless sudo and a reboot. `apply` first copies `config.txt` to `config.txt.bak-pre-fc-os-<date>`. `imu_v4` needs no sudo.
+- `imu_cal.json` is never copied or touched. The accel bias belongs to one chip, so each robot runs `fcctl.sh imu-level` itself (`--check` shows `info imu_cal`).
+- The v4 build on red will have a different sha256 from mts's (`f849f254…`), so the check looks for the `FC_IMU_CAL` marker instead of a sha.
+- Verified on a fake Pi only (2026-11-27). Not yet run on a real card. mts's recorded state reads all ok on the fake Pi, but a live `--check mts blue blue 10` is still to do.
 
 ## Per-robot calibration (red, ~20 min; repeat for blue if its tag is ever remounted)
 
