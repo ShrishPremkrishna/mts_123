@@ -1,5 +1,8 @@
 {
-  "_note": "slow: the play brain at walking speed (stock walker cap), for the first motion after a change.",
+  "_stack": {
+    "speed_cap": 1.5
+  },
+  "_note": "slow: the play brain at walking speed, for the first motion after a change. Walker cap 1.5 like play (Ready passes --speed-cap 1.5), so slow -> play needs no down + Ready; max_vx 0.15 keeps it slow.",
   "max_vx": 0.15,
   "max_vy": 0.08,
   "max_wz": 0.6

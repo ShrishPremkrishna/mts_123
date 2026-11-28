@@ -49,9 +49,9 @@ JOBS = ["auto", "attack", "defend"]
 
 # brain debug phase -> short action label (robot card, field chip)
 ACTION = {
-    "route": "circling the ball", "approach": "chasing the ball", "push": "pushing to goal",
-    "line_up": "lining up", "charge": "headbutt!", "backoff": "backing off",
-    "guard": "blocking", "return": "back to goal", "clear": "clearing", "unstick": "unsticking",
+    "route": "circling the ball", "chase": "chasing the ball", "carry": "pushing to goal", "shot": "shooting",
+    "follow": "following through", "backoff": "backing off", "jockey": "shadowing", "hold_goal": "guarding the goal",
+    "guard": "blocking", "block": "blocking", "return": "back to goal", "clear": "clearing", "unstick": "unsticking",
     "ball_lost": "looking for ball", "pose_stale": "can't see itself",
     "goto": "to kickoff spot", "goto_turn": "facing the field", "goto_done": "in position",
 }
@@ -64,11 +64,12 @@ STOP_ACTION = {
 }
 # brain phase -> ticker sentence (what it decided, in plain words)
 TICKER = {
-    "route": "circling round the ball to get behind it", "approach": "lining up behind the ball",
-    "push": "pushing the ball at the goal", "line_up": "squaring up for a headbutt",
-    "charge": "headbutt!", "guard": "guarding the goal mouth", "return": "running back to its goal",
+    "route": "circling round the ball to get behind it", "carry": "pushing the ball at the goal",
+    "shot": "shooting from range", "jockey": "shadowing goal-side, waiting for an opening",
+    "guard": "guarding the goal mouth", "block": "stepping out to block", "return": "running back to its goal",
     "clear": "clearing the ball away from its goal", "unstick": "stuck: backing out",
-    "ball_lost": "lost the ball: holding still", "pose_stale": "can't see its own tag: stopped",
+    "ball_lost": "lost the ball: holding still", "hold_goal": "lost the ball: guarding the goal centre",
+    "pose_stale": "can't see its own tag: stopped",
     "goto": "walking to its kickoff spot", "goto_done": "in position",
 }
 
@@ -94,7 +95,10 @@ def _clamp(v: float, lo: float, hi: float) -> float:
 
 
 def phase_key(phase) -> str:
+    """Brain debug phase -> ACTION / TICKER key: clear_* -> clear, ball_lost* -> ball_lost, dr_X (dribble) -> X."""
     p = str(phase or "")
+    if p.startswith("dr_"):
+        return p[3:]
     if p.startswith("clear"):
         return "clear"
     if p.startswith("ball_lost"):

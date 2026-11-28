@@ -50,7 +50,6 @@ PARAM_FALLBACKS = {
     "test_timeout_s": 45.0,     # push_ball / goalie / goto give up after this
     "match_s": 300.0,           # match length
     "goalie_shot_s": 5.0,       # sim goalie: a new shot this often (no goal by then = saved)
-    "goto_tol_m": 0.08,         # goto: close enough (brain uses it too)
     "stale_stop_s": 0.5,        # robot observation older than this -> stop that robot (not in drive)
     "teleop_timeout_s": 0.4,    # drive: no key update for this long -> stop
     "step_s": 2.0,              # step: how long the open-loop command is held
@@ -75,7 +74,7 @@ PARAM_FALLBACKS = {
 # Hard limits for live edits. Speed ceilings mirror link.CEIL (the hard cap on every packet).
 LIMITS = {
     "loop_hz": (5, 60), "max_vx": (0.0, CEIL["vx"]), "max_vy": (0.0, CEIL["vy"]), "max_wz": (0.0, CEIL["wz"]),
-    "accel_vx": (0.05, 5.0), "accel_vy": (0.05, 5.0), "accel_wz": (0.1, 20.0), "ttl_s": (0.05, 0.5),
+    "accel_vx": (0.05, 5.0), "accel_wz": (0.1, 20.0), "ttl_s": (0.05, 0.5),
     "test_timeout_s": (1, 1800), "goalie_shot_s": (1, 30), "match_s": (10, 3600), "goto_tol_m": (0.02, 1.0),
     "stale_stop_s": (0.1, 2.0), "teleop_timeout_s": (0.1, 2.0),
     "step_s": (0.2, 10.0), "step_settle_s": (0.5, 5.0),
@@ -616,6 +615,7 @@ class App:
         self._paused = False                       # eye reported CAMERA PAUSED last tick
         self._ball_track: deque = deque(maxlen=2400)   # sim: ball sightings for /ball_track (the eye keeps its own)
         self._err_t: dict[str, float] = {}
+        self._coach_errs: set[str] = set()   # Coach error kinds already logged
         self._lk_t = 0.0
         self.loop_stats = {"hz": 0.0, "overruns": 0, "tick_ms": 0.0}
         self._dt = 1.0 / 30
@@ -901,7 +901,7 @@ class App:
             if kind == "goto":
                 x, y, yaw, vmax = arg
                 params = {**params, "role_mode": "goto", "goto_x": x, "goto_y": y, "goto_yaw": yaw,
-                          "max_vx": min(params["max_vx"], vmax), "goto_tol_m": 0.05, "goto_yaw_tol_deg": 8}
+                          "max_vx": min(params["max_vx"], vmax), "goto_tol_m": 0.05}
             else:
                 params = {**params, "role_mode": "attack"}
         elif mode == "goto" or flow_goto:
@@ -931,12 +931,23 @@ class App:
         return cmd, dbg, "brain"
 
     def _coach_tasks(self, world: World | None) -> dict[str, dict]:
-        """Play / match: the Coach over the playing robots. It assigns tasks only while both are tracked and the
-        ball is seen ({} otherwise: each brain plays alone, vs a human)."""
+        """Play / match: the Coach over the playing robots. It assigns tasks only while every playing robot is in
+        auto (a forced attack / defend job means no Coach), both are tracked and the ball is seen ({} otherwise:
+        each brain plays alone, vs a human). A Coach error is logged once per kind and gives {}: the match goes on."""
         if world is None or self.mode not in ("play", "match"):
             return {}
+        flow = self.flow if self.mode == "match" and (self.test or {}).get("flow") else None
+        play_job = self.params.get("role_mode") if self.mode == "play" else "auto"   # (a match runs auto)
+        if any((flow.roles.get(k, "auto") if flow else play_job) != "auto" for k in self.playing):
+            return {}
         seen = {k: o for k, o in world.robots.items() if k in self.playing and k in self.brains}
-        return self.coach.update(replace(world, robots=seen), self.params)
+        try:
+            return self.coach.update(replace(world, robots=seen), self.params)
+        except Exception as e:  # noqa: BLE001 - a Coach bug must not stop the loop: both brains play alone
+            if type(e).__name__ not in self._coach_errs:
+                self._coach_errs.add(type(e).__name__)
+                self.say(f"coach error (each robot plays alone): {type(e).__name__}: {e}")
+            return {}
 
     def _brain(self, rid: str) -> Brain:
         """The brain driving this robot now: autoplay's own (its team = the goal it attacks), else the robot's."""

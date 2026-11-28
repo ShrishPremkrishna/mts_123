@@ -9,13 +9,13 @@ TUNE value offline; the app only accepts the settings.
 - **Attack = dribble** (v3 + fences + long shot): meet the ball where it will be, pure pursuit bounded by lateral
   acceleration, line mode behind the ball, dead-centre hard hits (closing 0.55 m/s), shot / long shot near the goal.
 - **Defend = keeper**: shuffle in the middle of the mouth, shift toward a threatening ball, walk back / block / go
-  round a slow ball, clear a slow ball in front of goal (the push controller, `_attack`).
+  round a slow ball, clear a slow ball in front of goal (the push controller, `_clear_push`).
 - **Roles**: two robots tracked -> the **Coach** assigns tasks (the app runs it in play / match since Nov 27). Alone
   (vs a human) -> the solo rules, with the contested-ball model, hard roles under pressure, dead reckoning through tag
   dropouts and the wide-mouth keeper. "Alone" = no Coach task this tick.
-- **Safety on every command**: fence margin + braking cap + bank shots + post wall, anti-ram (Coach), contact pace,
-  gait band, rate limits (`shape`).
-- Presets: `play` (the demo brain, max_vx 0.75 under a walker cap of 1.5) and `slow` (0.15 m/s).
+- **Safety on every command**: fence margin + braking cap + bank shots + post wall, anti-ram (any other robot,
+  closing speed), blind walk <= `blind_max_m` 1 m, contact pace, gait band, rate limits (`shape`).
+- Presets: `play` (the demo brain, max_vx 0.75) and `slow` (0.15 m/s), both under a walker cap of 1.5.
 - `python -m fc.sim_eval [--preset slow play] [--set k=v ...] [--field k=v ...] [--scen ...]`.
 
 ## Simplification (2026-11-27)
@@ -71,6 +71,21 @@ Fenced floor field 3.36 x 2.70 (`--field length=3.36 width=2.70`):
 Still true from the vs-human round: the vs-human rules pay against the "dominant" human (wins the ball anyway) and
 cost goals against the "dribbler" human (one the robot can contest). Speed ladder step 0.9 (`set max_vx=0.9
 wall_brake=0.5`, default field): solo 92 %, 7.5 s; dribble-fast before: 93 %, 7.8 s.
+
+Review fixes (Nov 27, same runs, `--floor25`): every single-robot row above is unchanged bit for bit (the 1 m blind
+bound never binds at max_vx 0.75: 1 s full speed + 0.5 s at 0.6x = 0.98 m). Anti-ram now runs whenever another robot is
+seen within `opp_keep_s` 4 s (not only with a Coach task), counts the other robot's closing speed (low-passed from its
+fixes) and keeps a lost robot as an obstacle. Lowering the 0.8 m/s^2 braking constant alone did not help (0.4: max
+closing 0.84 at 1.4). 1v1 default field, 72 x 3 min, before -> after:
+
+| max_vx | bumps /min | closing mean / max | bumps > 0.5 m/s | goals /3 min | goal-side |
+|---|---|---|---|---|---|
+| 0.75 | 4.9 -> 4.5 | 0.19 / 0.78 -> 0.15 / 0.60 | 17 -> 5 | 4.8 -> 4.5 | 57% -> 54% |
+| 1.0 | 5.2 -> 4.6 | 0.19 / 0.86 -> 0.15 / 0.64 | 25 -> 7 | 4.7 -> 5.0 | 50% -> 52% |
+| 1.4 | 5.6 -> 5.0 | 0.19 / 0.82 -> 0.15 / 0.79 | 31 -> 12 | 4.2 -> 4.8 | 45% -> 48% |
+
+The fastest remaining bumps at 1.4 mostly involve a robot without a Coach task (stale tag / pose_stale stop): one
+robot walks into a standing one at 0.6-0.8 m/s. Not analysed further.
 
 ## History (experiments, newest last; knobs named below were removed on Nov 27 unless brain.py still has them)
 

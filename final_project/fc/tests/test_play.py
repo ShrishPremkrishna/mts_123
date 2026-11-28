@@ -73,7 +73,7 @@ def test_restart_mode_kickoff_and_force_start():
 def test_ticker_narrates_roles_and_debounced_phases():
     tk = Ticker(debounce_s=0.2, gap_s=0.5)
     cfg = {"blue": BLUE, "red": RED}
-    d = {"blue": {"role": "attack", "phase": "route", "my_cost": 2.0, "opp_cost": 3.2},
+    d = {"blue": {"role": "attack", "phase": "dr_route", "my_cost": 2.0, "opp_cost": 3.2},
          "red": {"role": "defend", "phase": "guard", "my_cost": 3.2, "opp_cost": 2.0}}
     tk.update(0.0, d, cfg, ["blue", "red"])
     texts = [x["text"] for x in tk.items]
@@ -83,7 +83,7 @@ def test_ticker_narrates_roles_and_debounced_phases():
     tk.update(0.3, d, cfg, ["blue", "red"])
     assert [x["text"] for x in list(tk.items)[2:]] == ["Blue: circling round the ball to get behind it",
                                                        "Red: guarding the goal mouth"]
-    d["blue"]["phase"] = "push"
+    d["blue"]["phase"] = "dr_carry"
     tk.update(0.4, d, cfg, ["blue"])
     tk.update(0.7, d, cfg, ["blue"])
     assert len(tk.items) == 4                                   # within gap_s of the last blue line
@@ -92,7 +92,7 @@ def test_ticker_narrates_roles_and_debounced_phases():
 
 
 def test_labels_banners_and_health_never_fake_ready():
-    assert action_label({"phase": "approach"}) == "chasing the ball"
+    assert action_label({"phase": "dr_chase"}) == "chasing the ball"
     assert action_label({"phase": "clear_guard"}) == "clearing" and action_label({}, "stale") == "can't see itself"
     cfg = {"blue": BLUE, "red": RED}
     cmds = {"blue": Cmd.stop("stale"), "red": Cmd(0, 0, 0, "ball_lost")}
@@ -477,3 +477,18 @@ def test_warmup_contains_moves_and_finish_goes_home():
         _drive(w, poses, t, 1 / 30)
         t += 1 / 30
     assert all(st["step"] == "done" for st in w.st.values()) and t < 30
+
+
+def test_every_brain_phase_has_an_action_label():
+    import inspect
+    import re
+
+    from fc import brain
+    from fc.play import ACTION, phase_key
+    pat = r'phase\W{1,4}"([a-z_]+)"'
+    clear = set(re.findall(pat, inspect.getsource(brain.Brain._clear_push)))   # always reported as clear_*
+    found = set(re.findall(pat, inspect.getsource(brain))) | {"dr_carry", "dr_chase", "dr_route", "dr_shot"}
+    assert {"dr_route", "jockey", "hold_goal", "block", "pose_stale"} <= found
+    missing = {ph for ph in found if phase_key("clear_" + ph if ph in clear else ph) not in ACTION}
+    assert not missing
+    assert not {"line_up", "charge", "approach", "push"} & set(ACTION)   # no labels for phases the brain lost

@@ -4,7 +4,8 @@ same object drives the sim and the real robots.
 The system, from the top:
   World (camera: robots + ball, with capture times) -> Brain.decide -> Cmd (vx, vy, wz), once per loop tick (30 Hz).
   1. Where am I? The camera sees the past (~0.1-0.2 s): roll our pose forward by the commands sent since (_predict).
-     Own tag hidden: keep playing on that dead-reckoned pose for a while, slower (vs a human only, see 4).
+     Own tag hidden: keep playing on that dead-reckoned pose for a while, slower (vs a human only, see 4); every
+     mode stops once that blind walk reaches blind_max_m (1 m) since the last fix.
   2. Where is the ball? The last sighting led by its velocity; a constant-deceleration rolling model predicts it.
   3. Who does what (role)? With two robots tracked the Coach (bottom of this file) assigns a task to each robot
      (attack / challenge = play the ball; jockey / goalie / recover = shadow goal-side). Alone (vs a human) the robot
@@ -18,8 +19,8 @@ The system, from the top:
      Defend = keeper (_defend): shuffle in the middle of the mouth, shift toward a threatening ball; walk back, block
      or clear a slow ball in front of goal.
   6. Safety on every command: fences (targets kept wall_margin_m inside, speed toward a fence capped to what can
-     brake, a ball on a fence is banked off it), the other robot (no rams), contact speed near the ball, the gait band,
-     rate limits (shape).
+     brake, a ball on a fence is banked off it), any other tracked robot (no rams, with or without a Coach task),
+     contact speed near the ball, the gait band, rate limits (shape).
 
 Geometry: B = ball, u = unit push direction (ball -> aim point in the attack goal), n = u rotated +90 deg. For the robot
 R, a = (R-B).u (negative = behind the ball), l = (R-B).n (offset from the shot line), phi = atan2(l, a) (+-pi = behind).
@@ -27,6 +28,7 @@ R, a = (R-B).u (negative = behind the ball), l = (R-B).n (offset from the shot l
 Settings that matter (DEFAULTS; params.json / a preset / `ctl set` change them; every other number is a fixed tuning
 constant in TUNE, measured or found in the sim; notes/brain.md has the experiments):
   role_mode         auto (Coach / solo rules) | attack | defend | goto (per-call goto_x, goto_y, goto_yaw)
+  goto_tol_m        goto: close enough to the target, m
   max_vx, max_vy, max_wz   speed caps, m/s and rad/s (the walker itself is capped by the preset's _stack speed_cap)
   accel_vx, accel_wz       acceleration limits, m/s^2 and rad/s^2
   decel_vx, decel_wz       braking limits toward zero (0 = same as accel)
@@ -49,12 +51,13 @@ DEFAULTS = {
     "max_vx": 0.30, "max_vy": 0.15, "max_wz": 1.0,
     "accel_vx": 0.6, "accel_wz": 2.0, "decel_vx": 0.0, "decel_wz": 0.0,
     "ball_decel": 0.149, "act_lag_s": 0.15, "fast_yaw_bias_deg": -8.0,
-    "wall_margin_m": 0.28, "wall_brake": 0.8, "aggression": 0.75,
+    "wall_margin_m": 0.28, "wall_brake": 0.8, "aggression": 0.75, "goto_tol_m": 0.08,
 }
 
 TUNE = {
     # timing and staleness (s)
-    "loop_hz": 30, "pose_stale_s": 1.0, "ball_stale_s": 1.0, "other_stale_s": 1.5, "ball_lead_max_s": 0.4,
+    "pose_stale_s": 1.0, "ball_stale_s": 1.0, "other_stale_s": 1.5, "ball_lead_max_s": 0.4,
+    "blind_max_m": 1.0,     # own tag hidden: stop once the dead-reckoned walk since the last fix is this long (m)
     "accel_vy": 0.5, "fast_yaw_vx": 0.5,            # fast_yaw_bias_deg applies above this commanded vx
     # steering gains (rad/s per rad, m/s per m) and the walker's gait switch: forward commands avoid (gait_lo, gait_hi)
     "k_turn": 1.0, "k_vy": 1.5, "gait_lo": 0.45, "gait_hi": 0.60, "gait_hold_s": 0.5,
@@ -70,7 +73,7 @@ TUNE = {
     "gk_shuffle_m": 0.06, "gk_shuffle_hz": 0.7, "gk_edge_m": 0.15, "gk_far_m": 2.2, "gk_near_m": 1.0, "gk_tgoal_s": 2.5,
     # stuck: forward command but < stuck_dist progress for stuck_s -> reverse for unstick_s
     "stuck_s": 2.5, "stuck_dist": 0.06, "unstick_s": 1.0, "unstick_vx": 0.15,
-    "avoid_radius": 0.55, "avoid_gain": 1.0, "field_margin": 0.12, "goto_tol_m": 0.08, "goto_yaw_tol_deg": 8,
+    "avoid_radius": 0.55, "avoid_gain": 1.0, "field_margin": 0.12, "goto_yaw_tol_deg": 8,
     # solo roles (no Coach): defend a ball reaching our goal line within the horizon (or moving in our third)
     "solo_hold_s": 1.0, "solo_def_vmin": 0.15, "solo_def_horizon_s": 3.0, "solo_def_margin": 0.3, "solo_third": 0.333,
     "solo_reach_s": 0.4,
@@ -90,15 +93,17 @@ TUNE = {
     "occl_pose_s": 1.5, "occl_slow_s": 0.3, "occl_speed": 0.6, "occl_gain": 0.9, "occl_ball_s": 2.0,
     # Coach (1v1)
     "poss_in_m": 0.12, "poss_out_m": 0.35, "poss_dwell_s": 0.3, "chal_hold_s": 1.0, "chal_cool_s": 1.5,
-    "first_hyst_s": 0.4, "first_hold_s": 1.5, "opp_stop_m": 0.45, "jockey_m": 0.75, "jockey_sway_m": 0.10,
-    "jockey_sway_s": 2.5,
+    "first_hyst_s": 0.4, "first_hold_s": 1.5, "jockey_m": 0.75, "jockey_sway_m": 0.10, "jockey_sway_s": 2.5,
+    # any other robot: no rams (stop distance m, braking assumed m/s^2, a lost robot stays an obstacle this long s)
+    "opp_stop_m": 0.45, "opp_brake": 0.8, "opp_keep_s": 4.0,
     # fences: end limit in a goal mouth, push-away speed inside the margin, banking a ball this close to a fence
     "wall_mouth_m": 0.05, "wall_rep_v": 0.2, "wall_ball_m": 0.32,
 }
 
 
 def merged(params: dict) -> dict:
-    """The full parameter set the brain uses: fixed tuning, settings, then the caller's params."""
+    """The full parameter set the brain uses: fixed tuning, settings, then the caller's params. TUNE keys are not
+    settings: the app refuses them (`ctl set` / presets: unknown parameter), so only `sim_eval --set` overrides them."""
     return {**TUNE, **DEFAULTS, **params}
 
 
@@ -165,6 +170,8 @@ class Brain:
         self.out = Cmd()
         self.last_t: float | None = None
         self.hist: list[tuple[float, float, float, float]] = []  # commands sent (t, vx, vy, wz), for _predict
+        self.blind_m = 0.0        # distance _predict rolled the pose forward from the last fix (m)
+        self.blind_t = -1e9       # capture time of the fix whose blind walk hit blind_max_m (stopped until a newer one)
         self.behind = False
         self.orbit_side = 0.0
         self.side_until = -1e9
@@ -202,12 +209,13 @@ class Brain:
         self.guard_yaw = 0.0         # wide-mouth goalie: the sideways heading chosen (+-pi/2)
         self.clear_sw_t = -1e9       # wide-mouth goalie: last clear <-> guard switch
         self.jk: tuple | None = None  # coach: low-passed shadow point J (x, y, t)
+        self.ot: dict = {}           # other robots: id -> (t, x, y, vx, vy) last fix and low-passed velocity
 
     # ------------------------------------------------------------------ entry
     def decide(self, world: World, params: dict) -> tuple[Cmd, dict]:
         p = merged(params)
         t = world.t
-        dt = 1.0 / p["loop_hz"] if self.last_t is None else clamp(t - self.last_t, 0.0, 0.25)
+        dt = 1.0 / p.get("loop_hz", 30) if self.last_t is None else clamp(t - self.last_t, 0.0, 0.25)
         self.last_t = t
         task = p.get("coach_task")
         self.solo = not task
@@ -225,6 +233,11 @@ class Brain:
         pose_hid = dr_s > 0 and t - me.t > p["occl_slow_s"] and p["role_mode"] != "goto"
         pose_occ = pose_hid and (self.b_press or t - me.t > p["pose_stale_s"])
         pose = self._predict(me.pose, me.t, t, p, p["occl_gain"] if pose_occ else 1.0)
+        if self.blind_m > p["blind_max_m"] or me.t <= self.blind_t:  # walked blind far enough: stop until a new fix
+            self.blind_t = max(self.blind_t, me.t)
+            self.out, self.pushing = Cmd.stop("pose_stale"), False
+            self.hist.clear()
+            return self.out, {"role": "idle", "phase": "pose_stale", "target": None, "occluded": "pose", "blind": 1}
         others = [o.pose for k, o in world.robots.items()
                   if k != self.cfg.id and t - o.t < p["other_stale_s"]]
         if p["role_mode"] == "goto":
@@ -257,7 +270,7 @@ class Brain:
         B, bv = est
         if self.b_state == "contested":  # someone else is playing it: short predictions, no deflection snaps
             p = {**p, "dribble_horizon_s": min(p["dribble_horizon_s"], p["contest_horizon_s"]), "dribble_cone_deg": 180}
-        role, costs = self._role(pose, B, t, p, bv)
+        role, info = self._role(pose, B, t, p, bv)
         self.hold_goal = role == "defend" and self.b_state == "occluded"
         if role == "attack":
             self.returning = self.clearing = False
@@ -273,12 +286,13 @@ class Brain:
         want, fenced = self._fence_guard(pose, want, p)
         if fenced:
             dbg["fence"] = 1
-        if task:
-            want = self._opp_guard(pose, want, others, p)
+        near, vel = self._movers(world, t, p)
+        if near:  # no rams, with or without a Coach task (the Coach gives {} on a stale tag or an unseen ball)
+            want = self._opp_guard(pose, want, near, p, vel)
         want = self._occ_scale(want, pose_occ, p)
         cmd = self._smooth(want, dt, p, t)
         dbg.update(role=role, pose=[round(pose.x, 3), round(pose.y, 3), round(pose.yaw, 3)],
-                   ball=[round(B[0], 3), round(B[1], 3)], **costs)
+                   ball=[round(B[0], 3), round(B[1], 3)], **info)
         if role == "defend" and task and self.jk:  # Play screen: the shadow line ball -> J
             dbg["shadow"] = [[round(B[0], 3), round(B[1], 3)], [round(self.jk[0], 3), round(self.jk[1], 3)]]
         if self.solo:
@@ -315,7 +329,7 @@ class Brain:
     def _predict(self, pose: Pose, t_obs: float, t: float, p: dict, gain: float = 1.0) -> Pose:
         """Roll the observed pose forward by commands executed after the camera saw it (translation x gain:
         dead reckoning through a long tag dropout uses the walker's measured gain). The fast gait walks
-        fast_yaw_bias_deg off its tag heading: steer by the walking direction."""
+        fast_yaw_bias_deg off its tag heading: steer by the walking direction. Sets blind_m = the path walked."""
         lag = p["act_lag_s"]
         self.hist = [hc for hc in self.hist if hc[0] > t - 2.0]
         fb, fv = math.radians(p["fast_yaw_bias_deg"]), p["fast_yaw_vx"]
@@ -323,6 +337,7 @@ class Brain:
         def bias(vx):
             return fb if fb and vx > fv else 0.0
 
+        self.blind_m = 0.0
         if not self.hist:
             return Pose(pose.x, pose.y, wrap(pose.yaw + bias(self.out.vx))) if fb else pose
         x, y, yaw = pose.x, pose.y, pose.yaw
@@ -340,6 +355,7 @@ class Brain:
             x += (c * vx - s * vy) * seg * gain
             y += (s * vx + c * vy) * seg * gain
             yaw += wz * seg
+            self.blind_m += math.hypot(vx, vy) * seg * gain
         return Pose(x, y, wrap(yaw + bias(v_now)))
 
     # ------------------------------------------------------------------ ball: contested model, occlusion
@@ -673,26 +689,54 @@ class Brain:
         return None  # end fence beside a goal: the goal is in that fence, aim straight (it slides along into the mouth)
 
     # ------------------------------------------------------------------ other robots
-    def _opp_guard(self, pose: Pose, want: Cmd, others, p: dict) -> Cmd:
-        """Coach: the speed toward another robot is capped at what brakes at 0.8 m/s^2 (after act_lag_s) before
-        opp_stop_m centre distance: no body rams; a ball between the two (0.54 m) still gets played."""
+    def _opp_guard(self, pose: Pose, want: Cmd, others, p: dict, vel=None) -> Cmd:
+        """Any other robot (Coach task or not): the closing speed is capped at what brakes at opp_brake (after
+        act_lag_s) before opp_stop_m centre distance, and our share is that cap minus the other robot's own speed at
+        us (vel, from _movers): no body rams; a ball between the two (0.54 m) still gets played. The ball player
+        (Coach task attack / challenge, or role attack without a task) may come closer at a walking pace."""
         c, s = math.cos(pose.yaw), math.sin(pose.yaw)
         vx, vy = c * want.vx - s * want.vy, s * want.vx + c * want.vy
         ox, oy = c * self.out.vx - s * self.out.vy, s * self.out.vx + c * self.out.vy
         hit, stop, vt = False, p["opp_stop_m"], 0.0
-        if p["coach_task"] in ("attack", "challenge"):  # the ball player may brush past at a walking pace
+        task = p.get("coach_task")
+        if task in ("attack", "challenge") or (not task and self.role == "attack"):  # may brush past at a walk
             a = clamp(p["aggression"], 0.0, 1.0)
             stop, vt = stop - 0.09 * a, 0.3 * a
-        for o in others:
+        for i, o in enumerate(others):
             d = math.hypot(pose.x - o.x, pose.y - o.y)
             nx, ny = unit(pose.x - o.x, pose.y - o.y)  # away from the other robot
             vin = -(vx * nx + vy * ny)
-            cap = math.sqrt(vt * vt + 2 * 0.8 * max(0.0, d - max(0.0, -(ox * nx + oy * ny)) * p["act_lag_s"] - stop))
+            va = max(0.0, vel[i][0] * nx + vel[i][1] * ny) if vel else 0.0  # the other robot coming at us
+            room = d - (max(0.0, -(ox * nx + oy * ny)) + va) * p["act_lag_s"] - stop
+            cap = max(0.0, math.sqrt(vt * vt + 2 * p["opp_brake"] * max(0.0, room)) - va)
             if vin > cap:
                 hit, vx, vy = True, vx + (vin - cap) * nx, vy + (vin - cap) * ny
         if not hit:
             return want
         return Cmd(c * vx + s * vy, clamp(-s * vx + c * vy, -p["max_vy"], p["max_vy"]), want.wz, want.tag)
+
+    def _movers(self, world: World, t: float, p: dict):
+        """The other robots now: ([Pose], [(vx, vy)]), each last fix rolled forward (<= 0.5 s) by its low-passed
+        velocity (time constant 0.2 s), so the guard sees closing speed, not only our own. A robot seen within
+        opp_keep_s counts: a lost robot stops itself within blind_max_m, so its last fix stays a fair obstacle
+        (sim 1v1 at max_vx 1.4: bumps over 0.5 m/s 20 -> 12 per 72 matches)."""
+        poses, vels = [], []
+        for k, o in world.robots.items():
+            if k == self.cfg.id or t - o.t >= p["opp_keep_s"]:
+                continue
+            last = self.ot.get(k)
+            if last is None or o.t > last[0] + 1e-6:
+                vx = vy = 0.0
+                if last is not None and o.t - last[0] < 0.5:
+                    h = o.t - last[0]
+                    a = min(1.0, h / 0.2)
+                    vx = last[3] + a * ((o.pose.x - last[1]) / h - last[3])
+                    vy = last[4] + a * ((o.pose.y - last[2]) / h - last[4])
+                last = self.ot[k] = (o.t, o.pose.x, o.pose.y, vx, vy)
+            h = min(0.5, t - o.t)
+            poses.append(Pose(o.pose.x + last[3] * h, o.pose.y + last[4] * h, o.pose.yaw))
+            vels.append((last[3], last[4]))
+        return poses, vels
 
     def _shadow(self, B, p: dict):
         """Coach shadow point J: jockey_m goal-side of the ball on the line ball -> own goal centre, never behind
@@ -806,7 +850,7 @@ class Brain:
         return self._clamp_field(wp(self.orbit_side), p)
 
     # ------------------------------------------------------------------ push (a defender clearing the ball)
-    def _attack(self, pose: Pose, B, others, p: dict, t: float):
+    def _clear_push(self, pose: Pose, B, others, p: dict, t: float):
         """Walk round to the stage behind the ball (k_curve*|l| back), then on the shot line walk push_ahead
         through it; on the line next to the ball but facing > push_max_heading_deg off: square up first."""
         f = self.f
@@ -1116,7 +1160,7 @@ class Brain:
                 self.clear_sw_t = t
         if clear:
             self.clearing, self.returning = True, False
-            cmd, dbg = self._attack(pose, B, others, p, t)
+            cmd, dbg = self._clear_push(pose, B, others, p, t)
             dbg["phase"] = "clear_" + dbg["phase"]
             return cmd, dbg
         self.clearing, self.pushing = False, False

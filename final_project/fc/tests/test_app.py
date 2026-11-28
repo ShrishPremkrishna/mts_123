@@ -104,6 +104,41 @@ def test_go_runs_the_coach_for_two_playing_robots(server):
     post(base, "/action", {"action": "stop"})
 
 
+def test_coach_error_is_logged_once_and_the_match_goes_on(server):
+    app, base = server
+    assert post(base, "/action", {"action": "go"})[0] == 200
+    assert wait(lambda: app.tasks, 3)
+
+    def boom(world, params):
+        raise ValueError("coach bug")
+    app.coach.update = boom
+    assert wait(lambda: app.tasks == {} and all(d.get("solo") == 1 for d in state(base)["debug"].values()), 3)
+    time.sleep(0.3)                                                   # many ticks with the same error
+    errs = [e for e in app.events if "coach error" in e["msg"]]
+    assert len(errs) == 1 and "ValueError" in errs[0]["msg"] and app.mode == "play" and app.loop_stats["hz"] > 10
+    post(base, "/action", {"action": "stop"})
+
+
+def test_coach_runs_only_when_every_playing_robot_is_auto(server):
+    from fc.play import MatchFlow
+    app, base = server
+    with app.lock:                                                    # the loop waits: one consistent world
+        mode, test, flow = app.mode, app.test, app.flow
+        try:
+            app.mode, app.playing = "play", ["blue", "red"]
+            assert app._coach_tasks(app.world)                       # both auto: the Coach assigns tasks
+            app.params["role_mode"] = "attack"
+            assert app._coach_tasks(app.world) == {}
+            app.params["role_mode"] = "auto"
+            app.mode, app.test = "match", {"name": "match", "flow": True}
+            app.flow = MatchFlow([app.cfg[r] for r in app.playing], app.field, time.monotonic())
+            assert app._coach_tasks(app.world)
+            app.flow.roles["red"] = "defend"                          # a forced job: no Coach for either robot
+            assert app._coach_tasks(app.world) == {}
+        finally:
+            app.mode, app.test, app.flow = mode, test, flow
+
+
 def test_go_stop_and_push_ball_run(server):
     app, base = server
     assert post(base, "/action", {"action": "go"})[0] == 200
@@ -875,7 +910,8 @@ def test_shipped_stack_presets():
     data = {n: json.loads((fcapp.PRESETS / f"{n}.json").read_text()) for n in ("play", "slow")}
     stack, err = fcapp.validate_stack(data["play"].get("_stack"))
     assert not err and stack == {"speed_cap": 1.5}        # the speed ladder runs live under the walker cap
-    assert 0.75 <= data["play"]["max_vx"] <= 0.9 and "_stack" not in data["slow"] and data["slow"]["max_vx"] <= 0.15
+    assert 0.75 <= data["play"]["max_vx"] <= 0.9 and data["slow"]["max_vx"] <= 0.15
+    assert fcapp.validate_stack(data["slow"].get("_stack"))[0] == stack   # same walker cap: slow -> play needs no Ready
 
 
 # ---- camera goalie: shot counting, ball track, camera paused ---------------------------------

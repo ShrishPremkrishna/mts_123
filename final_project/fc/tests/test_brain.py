@@ -63,26 +63,26 @@ def test_wall_ball_push_direction_keeps_stage_inside_field():
 def test_clear_push_walks_through_ball():
     b = Brain(BLUE, F)
     for i in range(10):
-        cmd, dbg = b._attack(Pose(-0.30, 0.0, 0.0), (0.0, 0.0), [], P, i / 30)
+        cmd, dbg = b._clear_push(Pose(-0.30, 0.0, 0.0), (0.0, 0.0), [], P, i / 30)
     assert dbg["phase"] == "push" and cmd.vx > 0.25 and abs(cmd.wz) < 0.1
     assert dbg["target"][0] > 0.0  # aim point is beyond the ball, toward the east goal
 
 
 def test_clear_push_squares_up_and_backs_off_before_pushing():
     b = Brain(BLUE, F)
-    cmd, dbg = b._attack(Pose(-0.40, 0.0, math.pi / 2), (0.0, 0.0), [], P, 0.0)
+    cmd, dbg = b._clear_push(Pose(-0.40, 0.0, math.pi / 2), (0.0, 0.0), [], P, 0.0)
     assert dbg["phase"] == "square" and cmd.vx == 0.0 and cmd.wz < -0.3  # turn right toward +x, no walking
     # body within clearance and the ball ahead of it: step back while turning
-    cmd, dbg = Brain(BLUE, F)._attack(Pose(-0.26, 0.0, math.radians(60)), (0.0, 0.0), [], P, 0.0)
+    cmd, dbg = Brain(BLUE, F)._clear_push(Pose(-0.26, 0.0, math.radians(60)), (0.0, 0.0), [], P, 0.0)
     assert dbg["phase"] == "square" and cmd.vx < 0.0 and cmd.wz < 0.0
     # within push_max_heading_deg: push
-    cmd, dbg = Brain(BLUE, F)._attack(Pose(-0.30, 0.0, math.radians(30)), (0.0, 0.0), [], P, 0.0)
+    cmd, dbg = Brain(BLUE, F)._clear_push(Pose(-0.30, 0.0, math.radians(30)), (0.0, 0.0), [], P, 0.0)
     assert dbg["phase"] == "push"
 
 
 def test_wrong_side_routes_around_with_clearance():
     b = Brain(BLUE, F)
-    cmd, dbg = b._attack(Pose(0.40, 0.0, math.pi), (0.0, 0.0), [], P, 0.0)
+    cmd, dbg = b._clear_push(Pose(0.40, 0.0, math.pi), (0.0, 0.0), [], P, 0.0)
     assert dbg["phase"] == "route"
     tx, ty = dbg["target"]
     clear = F.ball_radius + F.robot_radius + P["clear_margin"]
@@ -666,3 +666,45 @@ def test_opp_guard_brakes_before_the_other_robot():
     assert far.vx == 0.6 and near.vx < 0.15 and abs(side.vy - 0.3) < 1e-9  # passing sideways is not braked
     att = b._opp_guard(Pose(0.0, 0.0, 0.0), want, [Pose(0.36, 0.0, 0.0)], {**q, "coach_task": "attack", "aggression": 1.0})
     assert abs(att.vx - 0.3) < 1e-6  # the ball player may brush past at a walking pace (aggression 1: 0.3 m/s)
+
+
+def test_blind_walk_stops_after_blind_max_m_in_every_mode():
+    """Own tag hidden: the dead-reckoned walk since the last fix is bounded by distance (blind_max_m), not only by
+    time, in every mode (vs a human, with a Coach task, goto); stopped until a newer fix."""
+    goto = {"role_mode": "goto", "goto_x": 1.2, "goto_y": 0.0}
+    for extra in ({}, TASK, goto):
+        for v, stops in ((1.4, True), (0.5, False)):    # 0.9 s blind: 1.26 m vs 0.45 m walked
+            b = Brain(BLUE, WF)
+            b.hist = [(i / 30, v, 0.0, 0.0) for i in range(60)]
+            b.out, b.last_t = Cmd(v, 0.0, 0.0), 59 / 30
+            q = {**P, **extra, "max_vx": 1.5}
+            cmd, dbg = b.decide(world(2.0, (-1.0, 0.0, 0.0), ball=(0.6, 0.0), me_t=1.1), q)
+            assert (dbg["phase"] == "pose_stale") == stops, (extra, v, dbg)
+            if stops:
+                assert cmd == Cmd.stop("pose_stale") and dbg["blind"] == 1
+                _, dbg = b.decide(world(2.05, (-1.0, 0.0, 0.0), ball=(0.6, 0.0), me_t=1.1), q)
+                assert dbg["phase"] == "pose_stale"          # the same old fix: stays stopped
+                _, dbg = b.decide(world(2.1, (0.2, 0.0, 0.0), ball=(0.6, 0.0)), q)
+                assert dbg["phase"] != "pose_stale"          # a new fix: plays again
+
+
+def test_opp_guard_runs_without_a_coach_task_and_sees_closing_speed():
+    b = Brain(BLUE, WF)
+    want = Cmd(0.6, 0.0, 0.0)
+    near = b._opp_guard(Pose(0.0, 0.0, 0.0), want, [Pose(0.6, 0.0, 0.0)], P)   # no coach_task key at all
+    assert near.vx < 0.6
+    coming = b._opp_guard(Pose(0.0, 0.0, 0.0), want, [Pose(0.6, 0.0, 0.0)], P, [(-0.4, 0.0)])
+    assert coming.vx < near.vx - 0.2                    # the other robot walking at us: brake for the closing speed
+    # decide: the guard runs whenever another robot is tracked (the Coach gives {} on a stale tag / unseen ball)
+    calls = []
+    b._opp_guard = lambda pose, w, others, p, vel=None: calls.append(len(others)) or w
+    b.decide(world(0.0, (-0.6, 0.0, 0.0), ball=(0.3, 0.0), other=(0.0, 0.0, math.pi)), P)
+    assert calls == [1]
+    # a lost robot stops itself within blind_max_m: it stays an obstacle up to opp_keep_s, rolled by its velocity
+    m = Brain(BLUE, WF)
+    m._movers(World(0.0, None, {"red": RobotObs("red", Pose(0.0, 0.0, 0.0), 0.0)}), 0.0, P)
+    poses, vels = m._movers(World(0.1, None, {"red": RobotObs("red", Pose(0.05, 0.0, 0.0), 0.1)}), 0.1, P)
+    assert 0.1 < vels[0][0] < 0.5 and abs(poses[0].x - 0.05) < 1e-9
+    poses, _ = m._movers(World(2.5, None, {"red": RobotObs("red", Pose(0.05, 0.0, 0.0), 0.1)}), 2.5, P)
+    assert len(poses) == 1 and poses[0].x > 0.05      # lost for 2.4 s (> other_stale_s): still guarded
+    assert m._movers(World(5.0, None, {"red": RobotObs("red", Pose(0.05, 0.0, 0.0), 0.1)}), 5.0, P)[0] == []
