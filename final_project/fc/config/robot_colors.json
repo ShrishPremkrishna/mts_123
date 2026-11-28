@@ -2,9 +2,21 @@
  "_note": "Tag-board colour per robot for the Eye's blob tracking (HSV ranges, OpenCV scale). Set live with `python -m fc.ctl robotcal <robot>` (samples the board around the decoded tag). A robot without an entry gets no blob tracking.",
  "blue": {
   "colors": [
-   {"lo": [100, 80, 184], "hi": [112, 255, 255]}
+   {
+    "lo": [
+     101,
+     93,
+     171
+    ],
+    "hi": [
+     113,
+     255,
+     255
+    ]
+   }
   ],
-  "how": "offline: board ring around decoded tags, pooled over runs 20261125T090717Z/091713Z/090611Z overhead.mp4 (1280 px upscaled), k 3",
-  "saved": "2026-11-25"
+  "how": "robotcal tag 10 at 964,170",
+  "k": 3.0,
+  "saved": "2026-11-27 19:41:02"
  }
 }
